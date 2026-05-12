@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BrandLogo } from "@/components/BrandLogo";
+import DisneylandPopup from "@/components/DisneylandPopup";
 import { useAuth } from "@/contexts/AuthContext";
 
 /* ----------------------------------------------------------------- */
@@ -132,6 +133,7 @@ export default function PresentationPage() {
 
   return (
     <div className="min-h-screen bg-[#08020a] text-white antialiased selection:bg-[#d6a648]/30 selection:text-white">
+      <DisneylandPopup />
       {/* ============================================================
           TOP NAV
       ============================================================ */}

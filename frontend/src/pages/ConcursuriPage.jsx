@@ -11,6 +11,9 @@ import {
   Mail,
   ChevronRight,
   ExternalLink,
+  Plane,
+  BedDouble,
+  Castle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,9 +47,171 @@ function SectionLabel({ children }) {
 }
 
 /* ----------------------------------------------------------------- */
-/*  Contest Card (free)                                              */
+/*  HERO — Disneyland (the star of the page)                          */
 /* ----------------------------------------------------------------- */
-function FreeContestCard({ contestId, eyebrow, title, prize, description, icon: Icon, testid }) {
+function DisneylandHero() {
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 18 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.7 }}
+      data-testid="contest-card-disneyland"
+      className="relative"
+    >
+      <div
+        className="relative overflow-hidden border border-[#d6a648]/35 rounded-sm"
+        style={{
+          boxShadow:
+            "inset 0 0 0 1px rgba(214,166,72,0.10), 0 50px 130px -40px rgba(214,166,72,0.20), 0 30px 80px -30px rgba(0,0,0,0.85)",
+        }}
+      >
+        {/* Ornate corners (outer frame) */}
+        <span className="pointer-events-none absolute top-2 left-2 h-5 w-5 border-l-2 border-t-2 border-[#d6a648]/80 z-20" />
+        <span className="pointer-events-none absolute top-2 right-2 h-5 w-5 border-r-2 border-t-2 border-[#d6a648]/80 z-20" />
+        <span className="pointer-events-none absolute bottom-2 left-2 h-5 w-5 border-l-2 border-b-2 border-[#d6a648]/80 z-20" />
+        <span className="pointer-events-none absolute bottom-2 right-2 h-5 w-5 border-r-2 border-b-2 border-[#d6a648]/80 z-20" />
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-0 min-h-[560px]">
+          {/* Image side */}
+          <div className="relative lg:col-span-7 h-80 lg:h-auto overflow-hidden">
+            <img
+              src="/brand/disneyland-hero.png"
+              alt="Disneyland Paris"
+              className="absolute inset-0 w-full h-full object-cover select-none"
+              draggable={false}
+            />
+            {/* Cinematic gradient overlays */}
+            <div className="absolute inset-0 bg-gradient-to-t from-[#08020a]/85 via-transparent to-transparent lg:hidden" />
+            <div className="absolute inset-0 hidden lg:block bg-gradient-to-r from-transparent via-transparent to-[#08020a]" />
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_30%_30%,transparent_30%,rgba(8,2,10,0.45)_100%)]" />
+
+            {/* Premium ribbon */}
+            <div className="absolute top-6 left-6 z-10">
+              <span
+                className="inline-flex items-center gap-2 bg-[#d6a648] text-black text-[10px] font-bold px-4 py-2 rounded-sm"
+                style={{
+                  fontFamily: "'Bebas Neue', sans-serif",
+                  letterSpacing: "0.28em",
+                }}
+              >
+                <Trophy className="h-3.5 w-3.5" />
+                Marele Premiu
+              </span>
+            </div>
+
+            {/* Floating quote on image (desktop) */}
+            <div className="absolute bottom-8 left-8 right-8 lg:right-auto lg:max-w-md z-10">
+              <div className="text-[10px] tracking-[0.32em] uppercase text-[#d6a648] mb-2">
+                Cartoonix · Experiență exclusivă
+              </div>
+              <h3
+                className="text-3xl sm:text-4xl text-white leading-tight"
+                style={{
+                  fontFamily: "'Playfair Display', serif",
+                  fontWeight: 700,
+                }}
+              >
+                O vacanță
+                <span className="italic font-normal text-[#d6a648]"> ca într-o poveste.</span>
+              </h3>
+            </div>
+          </div>
+
+          {/* Content side */}
+          <div className="relative lg:col-span-5 bg-gradient-to-b from-[#120406] to-[#08020a] p-8 sm:p-12 lg:p-14 flex flex-col justify-center">
+            {/* Inner frame */}
+            <span className="pointer-events-none absolute inset-5 border border-[#d6a648]/10 rounded-sm" />
+
+            <div className="relative">
+              <div className="text-[10px] tracking-[0.32em] uppercase text-[#d6a648]">
+                Concurs · Plată
+              </div>
+
+              <h2
+                className="mt-4 text-5xl sm:text-6xl leading-[1.05] text-white"
+                style={{
+                  fontFamily: "'Playfair Display', serif",
+                  fontWeight: 700,
+                }}
+              >
+                Disneyland
+                <br />
+                <span className="italic font-normal text-[#d6a648]">Paris</span>
+              </h2>
+
+              <Ornament className="mt-6" />
+
+              <p className="mt-7 text-base text-white/75 leading-relaxed">
+                Marele premiu Cartoonix: o vacanță magică pentru
+                <span className="text-[#d6a648] font-semibold"> 2 persoane</span>,
+                într-un loc în care poveștile prind viață.
+              </p>
+
+              <ul className="mt-7 space-y-3.5 text-sm text-white/75">
+                <li className="flex items-center gap-3">
+                  <Plane className="h-4 w-4 text-[#d6a648]" strokeWidth={1.6} />
+                  Bilete avion dus-întors
+                </li>
+                <li className="flex items-center gap-3">
+                  <BedDouble className="h-4 w-4 text-[#d6a648]" strokeWidth={1.6} />
+                  3 nopți cazare
+                </li>
+                <li className="flex items-center gap-3">
+                  <Castle className="h-4 w-4 text-[#d6a648]" strokeWidth={1.6} />
+                  Acces complet la parcul tematic
+                </li>
+              </ul>
+
+              <div className="mt-10 pt-6 border-t border-[#d6a648]/15">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[10px] tracking-[0.32em] uppercase text-white/45">
+                    Bilet participare
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 text-[10px] tracking-[0.28em] uppercase text-[#d6a648]">
+                    <Ticket className="h-3 w-3" />
+                    Plată Stripe
+                  </span>
+                </div>
+
+                <a
+                  href={DISNEYLAND_PAYMENT_LINK}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  data-testid="contest-disneyland-buy-btn"
+                >
+                  <Button
+                    className="w-full h-14 rounded-sm bg-[#d6a648] hover:bg-[#c5972f] text-black font-bold border border-[#e5b95b]/80 group text-[15px]"
+                    style={{ letterSpacing: "0.14em" }}
+                  >
+                    CUMPĂRĂ BILET
+                    <ExternalLink className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                  </Button>
+                </a>
+                <p className="mt-3 text-[10px] tracking-[0.22em] uppercase text-center text-white/40">
+                  Confirmare instant pe email · Plată sigură
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </motion.section>
+  );
+}
+
+/* ----------------------------------------------------------------- */
+/*  Contest Card (free) — smaller, secondary                          */
+/* ----------------------------------------------------------------- */
+function FreeContestCard({
+  contestId,
+  eyebrow,
+  title,
+  prize,
+  description,
+  icon: Icon,
+  testid,
+  delay = 0,
+}) {
   const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [enrolled, setEnrolled] = useState(false);
@@ -81,7 +246,7 @@ function FreeContestCard({ contestId, eyebrow, title, prize, description, icon: 
       initial={{ opacity: 0, y: 18 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-60px" }}
-      transition={{ duration: 0.55 }}
+      transition={{ duration: 0.55, delay }}
       data-testid={testid}
       className="relative flex flex-col bg-[#120406]/90 border border-[#d6a648]/20 rounded-sm overflow-hidden backdrop-blur-sm"
       style={{
@@ -106,7 +271,7 @@ function FreeContestCard({ contestId, eyebrow, title, prize, description, icon: 
         </div>
 
         <h3
-          className="mt-7 text-3xl sm:text-[34px] leading-tight text-white"
+          className="mt-7 text-3xl leading-tight text-white"
           style={{ fontFamily: "'Playfair Display', serif", fontWeight: 700 }}
         >
           {title}
@@ -159,7 +324,7 @@ function FreeContestCard({ contestId, eyebrow, title, prize, description, icon: 
                 type="submit"
                 disabled={submitting}
                 data-testid={`${testid}-submit-btn`}
-                className="w-full h-11 rounded-sm bg-[#d6a648] hover:bg-[#c5972f] text-black font-semibold border border-[#e5b95b]/70 group"
+                className="w-full h-11 rounded-sm bg-transparent hover:bg-[#d6a648] text-[#d6a648] hover:text-black font-semibold border border-[#d6a648]/60 hover:border-[#e5b95b] group transition-colors"
                 style={{ letterSpacing: "0.12em" }}
               >
                 {submitting ? "SE TRIMITE..." : "PARTICIPĂ"}
@@ -167,129 +332,6 @@ function FreeContestCard({ contestId, eyebrow, title, prize, description, icon: 
               </Button>
             </form>
           )}
-        </div>
-      </div>
-    </motion.article>
-  );
-}
-
-/* ----------------------------------------------------------------- */
-/*  Contest Card (paid – Disneyland)                                  */
-/* ----------------------------------------------------------------- */
-function PaidContestCard() {
-  return (
-    <motion.article
-      initial={{ opacity: 0, y: 18 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-60px" }}
-      transition={{ duration: 0.55, delay: 0.08 }}
-      data-testid="contest-card-disneyland"
-      className="relative flex flex-col bg-gradient-to-b from-[#1a0306] to-[#120406] border border-[#d6a648]/35 rounded-sm overflow-hidden backdrop-blur-sm"
-      style={{
-        boxShadow:
-          "inset 0 0 0 1px rgba(214,166,72,0.12), 0 30px 80px -30px rgba(214,166,72,0.18), 0 24px 60px -30px rgba(0,0,0,0.85)",
-      }}
-    >
-      {/* Premium ribbon */}
-      <div className="absolute top-5 right-0 z-10">
-        <span
-          className="inline-block bg-[#d6a648] text-black text-[10px] tracking-[0.3em] uppercase font-bold px-4 py-1.5"
-          style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: "0.25em" }}
-        >
-          Marele Premiu
-        </span>
-      </div>
-
-      {/* Ornate corners */}
-      <span className="pointer-events-none absolute top-2 left-2 h-4 w-4 border-l-2 border-t-2 border-[#d6a648]/70" />
-      <span className="pointer-events-none absolute top-2 right-2 h-4 w-4 border-r-2 border-t-2 border-[#d6a648]/70" />
-      <span className="pointer-events-none absolute bottom-2 left-2 h-4 w-4 border-l-2 border-b-2 border-[#d6a648]/70" />
-      <span className="pointer-events-none absolute bottom-2 right-2 h-4 w-4 border-r-2 border-b-2 border-[#d6a648]/70" />
-
-      <div className="p-8 sm:p-10 flex flex-col flex-1">
-        <div className="flex items-center gap-3">
-          <div className="h-11 w-11 grid place-items-center border border-[#d6a648]/60 rounded-sm bg-[#0a0204]">
-            <Trophy className="h-5 w-5 text-[#d6a648]" strokeWidth={1.6} />
-          </div>
-          <span className="text-[10px] tracking-[0.32em] uppercase text-[#d6a648]">
-            Experiență exclusivă
-          </span>
-        </div>
-
-        <h3
-          className="mt-7 text-3xl sm:text-[34px] leading-tight text-white"
-          style={{ fontFamily: "'Playfair Display', serif", fontWeight: 700 }}
-        >
-          Disneyland Paris
-          <span className="block italic font-normal text-[#d6a648] text-2xl sm:text-3xl mt-1">
-            pentru toată familia
-          </span>
-        </h3>
-        <div className="mt-4 h-px w-12 bg-[#d6a648]" />
-
-        <div className="mt-5 text-[11px] tracking-[0.28em] uppercase text-white/55">
-          Premiu
-        </div>
-        <div
-          className="mt-1 text-[#d6a648] text-lg italic"
-          style={{ fontFamily: "'Playfair Display', serif", fontWeight: 600 }}
-        >
-          Vacanță completă · 2 adulți + 2 copii
-        </div>
-
-        <p className="mt-5 text-sm text-white/70 leading-relaxed flex-1">
-          O călătorie magică în inima Parisului — bilete, cazare în hotel
-          oficial Disney și acces premium în parc. O experiență pe care familia
-          ta o va păstra pentru totdeauna.
-        </p>
-
-        <ul className="mt-5 space-y-2 text-sm text-white/65">
-          <li className="flex items-center gap-2">
-            <span className="h-1 w-1 rounded-full bg-[#d6a648]" />
-            Bilete avion dus-întors
-          </li>
-          <li className="flex items-center gap-2">
-            <span className="h-1 w-1 rounded-full bg-[#d6a648]" />
-            Cazare 3 nopți în hotel Disney
-          </li>
-          <li className="flex items-center gap-2">
-            <span className="h-1 w-1 rounded-full bg-[#d6a648]" />
-            Acces complet la parcul tematic
-          </li>
-        </ul>
-
-        {/* CTA */}
-        <div className="mt-8">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] tracking-[0.32em] uppercase text-white/45">
-              Bilet participare
-            </span>
-            <span
-              className="text-[#d6a648] text-lg"
-              style={{ fontFamily: "'Playfair Display', serif", fontWeight: 700 }}
-            >
-              <Ticket className="inline h-4 w-4 mr-1 -mt-0.5" />
-              Plată sigură Stripe
-            </span>
-          </div>
-
-          <a
-            href={DISNEYLAND_PAYMENT_LINK}
-            target="_blank"
-            rel="noopener noreferrer"
-            data-testid="contest-disneyland-buy-btn"
-          >
-            <Button
-              className="w-full h-12 rounded-sm bg-[#d6a648] hover:bg-[#c5972f] text-black font-bold border border-[#e5b95b]/80 group"
-              style={{ letterSpacing: "0.12em" }}
-            >
-              CUMPĂRĂ BILET
-              <ExternalLink className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-            </Button>
-          </a>
-          <p className="mt-3 text-[10px] tracking-[0.22em] uppercase text-center text-white/40">
-            Confirmare instant pe email
-          </p>
         </div>
       </div>
     </motion.article>
@@ -325,10 +367,10 @@ export default function ConcursuriPage() {
         </div>
       </header>
 
-      {/* HERO */}
+      {/* HERO INTRO */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(214,166,72,0.10),transparent_60%)]" />
-        <div className="relative mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 pt-24 pb-16 text-center">
+        <div className="relative mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 pt-24 pb-12 text-center">
           <SectionLabel>Cartoonix · Concursuri</SectionLabel>
           <h1
             className="mt-7 text-5xl sm:text-6xl lg:text-7xl leading-[1.05] tracking-tight"
@@ -348,10 +390,31 @@ export default function ConcursuriPage() {
         </div>
       </section>
 
-      {/* CARDS */}
-      <section className="relative py-12 lg:py-20">
+      {/* DISNEYLAND HERO CARD */}
+      <section className="relative pt-4 pb-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-10">
+          <DisneylandHero />
+        </div>
+      </section>
+
+      {/* SECONDARY CONTESTS */}
+      <section className="relative py-12 lg:py-16 border-t border-white/5 bg-gradient-to-b from-[#0a0306] to-[#08020a]">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <SectionLabel>Concursuri gratuite</SectionLabel>
+            <h2
+              className="mt-6 text-3xl sm:text-4xl"
+              style={{ fontFamily: "'Playfair Display', serif", fontWeight: 700 }}
+            >
+              Participă fără cost
+            </h2>
+            <Ornament className="justify-center mt-5" />
+            <p className="mt-5 text-sm text-white/55 max-w-xl mx-auto">
+              Lasă adresa ta de email și ești înscris la tragerea la sorți.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <FreeContestCard
               contestId="toy-story-5"
               eyebrow="Premiera filmului"
@@ -369,14 +432,14 @@ export default function ConcursuriPage() {
               description="Cincisprezece abonamente Cartoonix PLUS, oferite cadou. Acces nelimitat la episoade exclusive, playlist-uri și fără reclame."
               icon={Sparkles}
               testid="contest-card-plus"
+              delay={0.08}
             />
-            <PaidContestCard />
           </div>
         </div>
       </section>
 
       {/* HOW IT WORKS */}
-      <section className="relative py-20 bg-gradient-to-b from-[#0a0306] to-[#08020a] border-t border-white/5">
+      <section className="relative py-20 border-t border-white/5">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <SectionLabel>Cum funcționează</SectionLabel>
