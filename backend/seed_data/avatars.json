@@ -2,85 +2,85 @@
   {
     "slug": "hero_boy",
     "filename": "hero_boy.jpg",
-    "url": "/uploads/avatars/hero_boy.jpg",
+    "url": "/api/uploads/avatars/hero_boy.jpg",
     "size": 644666
   },
   {
     "slug": "hero_girl",
     "filename": "hero_girl.jpg",
-    "url": "/uploads/avatars/hero_girl.jpg",
+    "url": "/api/uploads/avatars/hero_girl.jpg",
     "size": 810445
   },
   {
     "slug": "ninja",
     "filename": "ninja.jpg",
-    "url": "/uploads/avatars/ninja.jpg",
+    "url": "/api/uploads/avatars/ninja.jpg",
     "size": 479025
   },
   {
     "slug": "space_kid",
     "filename": "space_kid.jpg",
-    "url": "/uploads/avatars/space_kid.jpg",
+    "url": "/api/uploads/avatars/space_kid.jpg",
     "size": 821266
   },
   {
     "slug": "robot",
     "filename": "robot.jpg",
-    "url": "/uploads/avatars/robot.jpg",
+    "url": "/api/uploads/avatars/robot.jpg",
     "size": 539646
   },
   {
     "slug": "cat_hero",
     "filename": "cat_hero.jpg",
-    "url": "/uploads/avatars/cat_hero.jpg",
+    "url": "/api/uploads/avatars/cat_hero.jpg",
     "size": 587333
   },
   {
     "slug": "dog_skater",
     "filename": "dog_skater.jpg",
-    "url": "/uploads/avatars/dog_skater.jpg",
+    "url": "/api/uploads/avatars/dog_skater.jpg",
     "size": 560015
   },
   {
     "slug": "wizard_kid",
     "filename": "wizard_kid.jpg",
-    "url": "/uploads/avatars/wizard_kid.jpg",
+    "url": "/api/uploads/avatars/wizard_kid.jpg",
     "size": 553537
   },
   {
     "slug": "alien_friendly",
     "filename": "alien_friendly.jpg",
-    "url": "/uploads/avatars/alien_friendly.jpg",
+    "url": "/api/uploads/avatars/alien_friendly.jpg",
     "size": 508195
   },
   {
     "slug": "pirate_kid",
     "filename": "pirate_kid.jpg",
-    "url": "/uploads/avatars/pirate_kid.jpg",
+    "url": "/api/uploads/avatars/pirate_kid.jpg",
     "size": 717532
   },
   {
     "slug": "knight_kid",
     "filename": "knight_kid.jpg",
-    "url": "/uploads/avatars/knight_kid.jpg",
+    "url": "/api/uploads/avatars/knight_kid.jpg",
     "size": 676686
   },
   {
     "slug": "dino_friend",
     "filename": "dino_friend.jpg",
-    "url": "/uploads/avatars/dino_friend.jpg",
+    "url": "/api/uploads/avatars/dino_friend.jpg",
     "size": 708996
   },
   {
     "slug": "fox_explorer",
     "filename": "fox_explorer.jpg",
-    "url": "/uploads/avatars/fox_explorer.jpg",
+    "url": "/api/uploads/avatars/fox_explorer.jpg",
     "size": 597553
   },
   {
     "slug": "monkey_dj",
     "filename": "monkey_dj.jpg",
-    "url": "/uploads/avatars/monkey_dj.jpg",
+    "url": "/api/uploads/avatars/monkey_dj.jpg",
     "size": 569632
   }
 ]

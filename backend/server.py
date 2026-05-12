@@ -34,7 +34,7 @@ UPLOAD_DIR = ROOT_DIR / "uploads"
 (UPLOAD_DIR / "avatars").mkdir(parents=True, exist_ok=True)
 (UPLOAD_DIR / "videos").mkdir(parents=True, exist_ok=True)
 (UPLOAD_DIR / "thumbnails").mkdir(parents=True, exist_ok=True)
-app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
+app.mount("/api/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 
 # ------------ Logging ------------
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -393,7 +393,7 @@ async def admin_upload_video(file: UploadFile = File(...), user=Depends(require_
     dest = UPLOAD_DIR / "videos" / name
     with open(dest, "wb") as f:
         shutil.copyfileobj(file.file, f)
-    return {"url": f"/uploads/videos/{name}", "filename": name, "size": dest.stat().st_size}
+    return {"url": f"/api/uploads/videos/{name}", "filename": name, "size": dest.stat().st_size}
 
 
 @api_router.post("/admin/upload/thumbnail")
@@ -405,7 +405,7 @@ async def admin_upload_thumbnail(file: UploadFile = File(...), user=Depends(requ
     dest = UPLOAD_DIR / "thumbnails" / name
     with open(dest, "wb") as f:
         shutil.copyfileobj(file.file, f)
-    return {"url": f"/uploads/thumbnails/{name}", "filename": name, "size": dest.stat().st_size}
+    return {"url": f"/api/uploads/thumbnails/{name}", "filename": name, "size": dest.stat().st_size}
 
 
 @api_router.post("/admin/import-folder")
@@ -430,7 +430,7 @@ async def admin_import_folder(payload: dict, user=Depends(require_admin)):
     files = sorted([f for f in folder_p.glob("*") if f.suffix.lower() in {".mp4", ".webm", ".mov", ".m4v", ".mkv"}])
     for idx, fpath in enumerate(files, start=1):
         rel = fpath.resolve().relative_to(UPLOAD_DIR.resolve())
-        url = f"/uploads/{rel.as_posix()}"
+        url = f"/api/uploads/{rel.as_posix()}"
         doc = {
             "id": new_id(),
             "cartoon_id": cartoon_id,
