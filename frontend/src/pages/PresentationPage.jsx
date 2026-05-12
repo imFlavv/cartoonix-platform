@@ -9,7 +9,6 @@ import {
   Users,
   PlayCircle,
   ChevronRight,
-  Award,
   Calendar,
   ShieldCheck,
   Clock,
@@ -245,14 +244,10 @@ export default function PresentationPage() {
                 </a>
               </div>
 
-              {/* Trust line */}
-              <div className="mt-12 flex items-center gap-5 text-xs text-white/55 uppercase tracking-[0.18em]">
-                <Award className="h-4 w-4 text-[#d6a648]" />
-                <span>Curatoriat cu pasiune din 2026</span>
-              </div>
+              {/* Trust line removed by request */}
             </motion.div>
 
-            {/* Right premium logo */}
+            {/* Right official logo */}
             <motion.div
               initial={{ opacity: 0, scale: 0.96 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -270,9 +265,9 @@ export default function PresentationPage() {
                 <span className="absolute -bottom-px -right-px h-6 w-6 border-r-2 border-b-2 border-[#d6a648]/80" />
 
                 <img
-                  src="/brand/cartoonix-logo-premium.png"
+                  src="/brand/cartoonix-logo-hero.png"
                   alt="Cartoonix"
-                  className="relative z-10 w-[78%] h-auto object-contain select-none"
+                  className="relative z-10 w-[72%] h-auto object-contain select-none"
                   draggable={false}
                 />
               </div>
@@ -564,7 +559,7 @@ export default function PresentationPage() {
             )}
           </div>
           <p className="mt-5 text-xs tracking-[0.22em] uppercase text-white/40">
-            Acces gratuit la lansare • Fără card de credit
+            Acces gratuit la lansare
           </p>
         </div>
       </section>
