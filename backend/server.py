@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from dotenv import load_dotenv
-from fastapi import (APIRouter, Depends, FastAPI, File, Form, HTTPException,
+from fastapi import (APIRouter, Depends, FastAPI, File, Form, HTTPException, Header, Request,
                      UploadFile, status)
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -44,7 +44,7 @@ logger = logging.getLogger("cartoonix")
 from auth import (create_access_token, get_current_user,  # noqa: E402
                   get_current_user_optional, hash_password, require_admin,
                   serialize_user, verify_password)
-from email_service import send_verification_email  # noqa: E402
+from email_service import send_verification_email, send_simple_contest_confirmation  # noqa: E402
 from models import (AvatarOption, Cartoon, CartoonCreate, CartoonUpdate,  # noqa: E402
                     Category, Episode, EpisodeCreate, EpisodeUpdate,
                     FavoriteToggle, Playlist, PlaylistAddItem, PlaylistCreate,
@@ -658,6 +658,135 @@ async def delete_playlist(playlist_id: str, user=Depends(get_current_user)):
     if result.deleted_count == 0:
         raise HTTPException(404, "Playlist not found")
     return {"success": True}
+
+
+# ============================================================
+#                        CONTESTS (public)
+# ============================================================
+import re as _re
+import stripe as _stripe
+
+_STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
+_STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
+if _STRIPE_SECRET_KEY:
+    _stripe.api_key = _STRIPE_SECRET_KEY
+
+# Contest catalog — keep in sync with frontend ConcursuriPage.jsx
+CONTESTS = {
+    "toy-story-5": {
+        "id": "toy-story-5",
+        "name": "Premiera Toy Story 5",
+        "type": "free",
+    },
+    "abonamente-plus": {
+        "id": "abonamente-plus",
+        "name": "15 Abonamente Cartoonix PLUS",
+        "type": "free",
+    },
+    "disneyland-paris": {
+        "id": "disneyland-paris",
+        "name": "Marele Premiu — Disneyland Paris",
+        "type": "paid",
+    },
+}
+
+_EMAIL_RE = _re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+@api_router.post("/contests/enter")
+async def enter_free_contest(payload: dict):
+    """Register an email for a free contest and send confirmation."""
+    email = (payload.get("email") or "").strip().lower()
+    contest_id = (payload.get("contest_id") or "").strip()
+    if not _EMAIL_RE.match(email):
+        raise HTTPException(400, "Adresă de email invalidă")
+    contest = CONTESTS.get(contest_id)
+    if not contest or contest["type"] != "free":
+        raise HTTPException(400, "Concurs invalid")
+
+    # Prevent duplicate entry for the same email+contest
+    existing = await db.contest_entries.find_one({"email": email, "contest_id": contest_id})
+    if existing:
+        return {"success": True, "duplicate": True, "message": "Ești deja înscris la acest concurs."}
+
+    await db.contest_entries.insert_one({
+        "id": new_id(),
+        "email": email,
+        "contest_id": contest_id,
+        "contest_name": contest["name"],
+        "type": "free",
+        "created_at": now_utc().isoformat(),
+    })
+
+    sent = send_simple_contest_confirmation(email, contest["name"])
+    if not sent:
+        logger.warning(f"Confirmation email failed for contest {contest_id} to {email}")
+    return {"success": True, "duplicate": False, "email_sent": sent}
+
+
+@api_router.post("/webhooks/stripe")
+async def stripe_webhook(request: Request, stripe_signature: Optional[str] = Header(None)):
+    """Receive Stripe events. On checkout.session.completed → send confirmation email."""
+    raw_body = await request.body()
+
+    event = None
+    if _STRIPE_WEBHOOK_SECRET and stripe_signature:
+        try:
+            event = _stripe.Webhook.construct_event(
+                raw_body, stripe_signature, _STRIPE_WEBHOOK_SECRET
+            )
+        except _stripe.error.SignatureVerificationError:
+            logger.error("Stripe webhook signature verification failed")
+            raise HTTPException(status_code=400, detail="Invalid signature")
+        except Exception as e:
+            logger.error(f"Stripe webhook parse error: {e}")
+            raise HTTPException(status_code=400, detail="Invalid payload")
+    else:
+        # No webhook secret configured yet — parse raw JSON (development only).
+        import json as _json
+        try:
+            event = _json.loads(raw_body.decode("utf-8"))
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid JSON")
+        logger.warning("STRIPE_WEBHOOK_SECRET not configured — accepting event without signature verification.")
+
+    event_type = event.get("type") if isinstance(event, dict) else event["type"]
+    if event_type == "checkout.session.completed":
+        data_obj = (event.get("data", {}) if isinstance(event, dict) else event["data"]).get("object", {})
+        email = (
+            (data_obj.get("customer_details") or {}).get("email")
+            or data_obj.get("customer_email")
+            or ""
+        ).strip().lower()
+        amount_total = data_obj.get("amount_total")  # cents
+        currency = (data_obj.get("currency") or "eur").upper()
+        session_id = data_obj.get("id") or ""
+
+        contest = CONTESTS["disneyland-paris"]
+
+        if email:
+            # Persist entry — idempotent by session_id
+            await db.contest_entries.update_one(
+                {"stripe_session_id": session_id} if session_id else {"_id": new_id()},
+                {"$setOnInsert": {
+                    "id": new_id(),
+                    "email": email,
+                    "contest_id": contest["id"],
+                    "contest_name": contest["name"],
+                    "type": "paid",
+                    "amount_total": amount_total,
+                    "currency": currency,
+                    "stripe_session_id": session_id,
+                    "created_at": now_utc().isoformat(),
+                }},
+                upsert=True,
+            )
+            sent = send_simple_contest_confirmation(email, contest["name"])
+            logger.info(f"Stripe checkout.session.completed → email={email} sent={sent}")
+        else:
+            logger.warning(f"Stripe checkout.session.completed missing email (session={session_id})")
+
+    return {"received": True}
 
 
 # ============================================================

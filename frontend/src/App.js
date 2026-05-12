@@ -15,6 +15,7 @@ import PlansPage from "@/pages/PlansPage";
 import TermsPage from "@/pages/TermsPage";
 import DashboardPage from "@/pages/DashboardPage";
 import PresentationPage from "@/pages/PresentationPage";
+import ConcursuriPage from "@/pages/ConcursuriPage";
 import AdminLayout from "@/components/AdminLayout";
 import AdminOverview from "@/pages/admin/AdminOverview";
 import AdminCartoons from "@/pages/admin/AdminCartoons";
@@ -39,6 +40,7 @@ const PRESENTATION_ALLOWED_PREFIXES = [
   "/terms-and-conditions",
   "/login",
   "/admin",
+  "/concursuri",
 ];
 
 function PublicRoute({ element }) {
@@ -90,6 +92,7 @@ function App() {
                 <Route path="/verify" element={<VerifyPage />} />
                 <Route path="/plans" element={<PublicRoute element={<PlansPage />} />} />
                 <Route path="/terms-and-conditions" element={<TermsPage />} />
+                <Route path="/concursuri" element={<ConcursuriPage />} />
                 <Route
                   path="/dashboard"
                   element={

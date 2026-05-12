@@ -145,6 +145,7 @@ export default function PresentationPage() {
             <a href="#functii" className="hover:text-white transition-colors">Funcționalități</a>
             <a href="#canale" className="hover:text-white transition-colors">Canale</a>
             <a href="#program" className="hover:text-white transition-colors">Program</a>
+            <Link to="/concursuri" className="text-[#d6a648] hover:text-white transition-colors">Concursuri</Link>
           </nav>
           <div className="flex items-center gap-3">
             {!user ? (
