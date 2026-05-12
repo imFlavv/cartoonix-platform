@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { mediaUrl } from "@/lib/api";
+import { BrandLogo } from "@/components/BrandLogo";
 
 export function TopNav() {
   const { user, logout } = useAuth();
