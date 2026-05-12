@@ -1,19 +1,19 @@
 [
   {
     "content": "Phase 1: Get integration playbooks (Brevo, Gemini Nano Banana, Object Storage)",
-    "status": "in_progress"
+    "status": "completed"
   },
   {
     "content": "Phase 1: Create POC script testing Brevo email, Gemini avatar generation, video storage",
-    "status": "pending"
+    "status": "completed"
   },
   {
     "content": "Phase 1: Run POC and fix until all 4 checks green (BREVO_OK, VERIFY_OK, AVATAR_OK, UPLOAD_OK)",
-    "status": "pending"
+    "status": "completed"
   },
   {
     "content": "Phase 2: Get design guidelines from design_agent",
-    "status": "pending"
+    "status": "in_progress"
   },
   {
     "content": "Phase 2: Generate ~15 AI avatars upfront",
