@@ -14,11 +14,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { mediaUrl } from "@/lib/api";
 import { BrandLogo } from "@/components/BrandLogo";
+import { useSettings } from "@/contexts/SettingsContext";
 
 export function TopNav() {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const { settings } = useSettings() || {};
   const navigate = useNavigate();
+  const presentationOn = !!settings?.presentation_mode;
+  const restrictedView = presentationOn && user?.role !== "admin";
 
   return (
     <header
@@ -30,27 +34,29 @@ export function TopNav() {
           <BrandLogo variant="horizontal" size="md" />
         </Link>
         <nav className="hidden md:flex items-center gap-1 ml-4">
-          {[
-            { to: "/category/jetix-foxkids", label: "JETIX & Fox Kids" },
-            { to: "/category/cartoon-network", label: "Cartoon Network" },
-            { to: "/category/minimax", label: "Minimax" },
-            { to: "/plans", label: "Plans" },
-          ].map((it) => (
-            <NavLink
-              key={it.to}
-              to={it.to}
-              data-testid={`nav-${it.to.replace(/\//g, "-")}`}
-              className={({ isActive }) =>
-                `px-3 py-2 rounded-lg text-sm transition-colors ${
-                  isActive
-                    ? "text-foreground bg-secondary"
-                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
-                }`
-              }
-            >
-              {it.label}
-            </NavLink>
-          ))}
+          {restrictedView
+            ? null
+            : [
+                { to: "/category/jetix-foxkids", label: "JETIX & Fox Kids" },
+                { to: "/category/cartoon-network", label: "Cartoon Network" },
+                { to: "/category/minimax", label: "Minimax" },
+                { to: "/plans", label: "Plans" },
+              ].map((it) => (
+                <NavLink
+                  key={it.to}
+                  to={it.to}
+                  data-testid={`nav-${it.to.replace(/\//g, "-")}`}
+                  className={({ isActive }) =>
+                    `px-3 py-2 rounded-lg text-sm transition-colors ${
+                      isActive
+                        ? "text-foreground bg-secondary"
+                        : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+                    }`
+                  }
+                >
+                  {it.label}
+                </NavLink>
+              ))}
         </nav>
         <div className="flex-1" />
         <Button

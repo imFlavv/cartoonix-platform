@@ -100,6 +100,49 @@ async def root():
 
 
 # ============================================================
+#                        PUBLIC SETTINGS
+# ============================================================
+DEFAULT_SETTINGS = {
+    "presentation_mode": False,
+}
+
+
+async def get_settings_doc() -> dict:
+    doc = await db.settings.find_one({"_id": "global"})
+    if not doc:
+        return dict(DEFAULT_SETTINGS)
+    return {k: doc.get(k, v) for k, v in DEFAULT_SETTINGS.items()}
+
+
+@api_router.get("/settings")
+async def public_settings():
+    """Public, read-only settings exposed to the frontend (e.g. presentation mode)."""
+    return await get_settings_doc()
+
+
+@api_router.get("/admin/settings")
+async def admin_get_settings(user=Depends(require_admin)):
+    return await get_settings_doc()
+
+
+@api_router.patch("/admin/settings")
+async def admin_update_settings(payload: dict, user=Depends(require_admin)):
+    allowed = {k: v for k, v in payload.items() if k in DEFAULT_SETTINGS}
+    if not allowed:
+        raise HTTPException(400, "No valid settings provided")
+    # Normalize booleans
+    for k in allowed:
+        if isinstance(DEFAULT_SETTINGS[k], bool):
+            allowed[k] = bool(allowed[k])
+    await db.settings.update_one(
+        {"_id": "global"},
+        {"$set": allowed},
+        upsert=True,
+    )
+    return await get_settings_doc()
+
+
+# ============================================================
 #                        AVATARS
 # ============================================================
 @api_router.get("/avatars")

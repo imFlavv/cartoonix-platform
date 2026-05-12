@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSettings } from "@/contexts/SettingsContext";
 import { api, mediaUrl, getErrorMessage } from "@/lib/api";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
@@ -275,6 +276,7 @@ function Step3Verify({ email, onSuccess }) {
 
 export default function RegisterPage() {
   const { register, user } = useAuth();
+  const { settings } = useSettings() || {};
   const navigate = useNavigate();
   const location = useLocation();
   const [step, setStep] = useState(0);
@@ -348,7 +350,12 @@ export default function RegisterPage() {
                 {step === 2 && (
                   <Step3Verify email={form.email} onSuccess={() => {
                     const u = user;
-                    navigate(u?.role === "admin" ? "/admin" : "/dashboard");
+                    if (settings?.presentation_mode && u?.role !== "admin") {
+                      toast.info("Cont creat! Accesul la platformă va fi disponibil în curând.");
+                      navigate("/");
+                    } else {
+                      navigate(u?.role === "admin" ? "/admin" : "/dashboard");
+                    }
                   }} />
                 )}
               </motion.div>

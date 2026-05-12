@@ -5,12 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSettings } from "@/contexts/SettingsContext";
 import { getErrorMessage } from "@/lib/api";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
 export default function LoginPage() {
   const { login } = useAuth();
+  const { settings } = useSettings() || {};
   const navigate = useNavigate();
   const location = useLocation();
   const [email, setEmail] = useState("");
@@ -25,6 +27,10 @@ export default function LoginPage() {
       toast.success(`Welcome back, ${u.nickname}!`);
       if (!u.email_verified) {
         navigate("/verify", { state: { email: u.email } });
+      } else if (settings?.presentation_mode && u.role !== "admin") {
+        // Presentation mode: only admins can access the platform.
+        toast.info("Accesul la platformă va fi disponibil în curând.");
+        navigate("/");
       } else {
         const next = location.state?.from || (u.role === "admin" ? "/admin" : "/dashboard");
         navigate(next);

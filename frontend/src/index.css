@@ -328,21 +328,24 @@ code {
   background: rgba(255, 255, 255, 0.18) !important;
 }
 
-/* No weird hover effect on the whole toast — keep it stable */
-[data-sonner-toaster] [data-sonner-toast]:hover {
-  border-color: rgba(255, 255, 255, 0.14) !important;
+/* No hover effect at all — keep the toast perfectly stable */
+[data-sonner-toaster] [data-sonner-toast]:hover,
+[data-sonner-toaster] [data-sonner-toast]:focus,
+[data-sonner-toaster] [data-sonner-toast]:focus-visible,
+[data-sonner-toaster] [data-sonner-toast]:focus-within {
+  outline: none !important;
 }
 [data-sonner-toaster] [data-sonner-toast][data-type="success"]:hover {
-  border-color: rgba(16, 185, 129, 0.4) !important;
+  border-color: rgba(16, 185, 129, 0.22) !important;
 }
 [data-sonner-toaster] [data-sonner-toast][data-type="error"]:hover {
-  border-color: rgba(255, 82, 82, 0.45) !important;
+  border-color: rgba(255, 82, 82, 0.25) !important;
 }
 [data-sonner-toaster] [data-sonner-toast][data-type="warning"]:hover {
-  border-color: rgba(250, 204, 21, 0.45) !important;
+  border-color: rgba(250, 204, 21, 0.25) !important;
 }
 [data-sonner-toaster] [data-sonner-toast][data-type="info"]:hover {
-  border-color: rgba(56, 189, 248, 0.45) !important;
+  border-color: rgba(56, 189, 248, 0.25) !important;
 }
 
 /* Light-mode tweak (when html has no .dark) */

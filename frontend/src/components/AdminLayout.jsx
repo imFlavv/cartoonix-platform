@@ -9,6 +9,7 @@ import {
   PlaySquare,
   Users,
   CreditCard,
+  Settings as SettingsIcon,
   Sun,
   Moon,
   LogOut,
@@ -29,6 +30,7 @@ const NAV_ITEMS = [
   { to: "/admin/episodes", label: "Episodes", icon: PlaySquare, testId: "admin-nav-episodes" },
   { to: "/admin/users", label: "Users", icon: Users, testId: "admin-nav-users" },
   { to: "/admin/subscriptions", label: "Subscriptions", icon: CreditCard, testId: "admin-nav-subs" },
+  { to: "/admin/settings", label: "Settings", icon: SettingsIcon, testId: "admin-nav-settings" },
 ];
 
 function SidebarContent({ onItemClick }) {
