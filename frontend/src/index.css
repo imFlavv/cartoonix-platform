@@ -161,3 +161,218 @@ code {
 /* Utility scroll bar style */
 .scrollbar-none::-webkit-scrollbar { display: none; }
 .scrollbar-none { scrollbar-width: none; }
+
+/* ==========================================================================
+   Cartoonix elegant toast notifications (Sonner)
+   ========================================================================== */
+[data-sonner-toaster] {
+  --normal-bg: transparent;
+  --normal-border: transparent;
+  --normal-text: #ffffff;
+}
+
+[data-sonner-toaster] [data-sonner-toast] {
+  /* Layout */
+  width: 100%;
+  padding: 14px 40px 14px 22px;
+  border-radius: 14px;
+
+  /* Surface — fully opaque so nothing bleeds through */
+  background: #141418 !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow:
+    0 16px 40px -16px rgba(0, 0, 0, 0.6),
+    0 2px 6px -2px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-family: 'Manrope', 'Inter', system-ui, sans-serif;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Left accent bar (default — Cartoonix red→yellow gradient) */
+[data-sonner-toaster] [data-sonner-toast]::after {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, #ff3b3b 0%, #facc15 100%);
+  pointer-events: none;
+}
+
+/* Title */
+[data-sonner-toaster] [data-sonner-toast] [data-title] {
+  font-family: 'Bebas Neue', 'Manrope', sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  line-height: 1.25;
+  color: #ffffff;
+}
+
+/* Description */
+[data-sonner-toaster] [data-sonner-toast] [data-description] {
+  font-size: 13px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.7);
+  margin-top: 2px;
+}
+
+/* Icon */
+[data-sonner-toaster] [data-sonner-toast] [data-icon] {
+  margin-top: 1px;
+  flex-shrink: 0;
+}
+
+/* Close button */
+[data-sonner-toaster] [data-sonner-toast] [data-close-button] {
+  position: absolute !important;
+  top: 8px !important;
+  right: 8px !important;
+  left: auto !important;
+  transform: none !important;
+  height: 22px !important;
+  width: 22px !important;
+  border-radius: 999px !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: none !important;
+  color: rgba(255, 255, 255, 0.55) !important;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 1 !important;
+}
+[data-sonner-toaster] [data-sonner-toast] [data-close-button]:hover {
+  background: rgba(255, 255, 255, 0.14) !important;
+  color: #ffffff !important;
+}
+[data-sonner-toaster] [data-sonner-toast] [data-close-button] svg {
+  height: 12px;
+  width: 12px;
+}
+
+/* Variant: SUCCESS */
+[data-sonner-toaster] [data-sonner-toast][data-type="success"] {
+  border-color: rgba(16, 185, 129, 0.22) !important;
+}
+[data-sonner-toaster] [data-sonner-toast][data-type="success"]::after {
+  background: linear-gradient(180deg, #34d399 0%, #059669 100%);
+}
+[data-sonner-toaster] [data-sonner-toast][data-type="success"] [data-icon] {
+  color: #34d399;
+}
+
+/* Variant: ERROR */
+[data-sonner-toaster] [data-sonner-toast][data-type="error"] {
+  border-color: rgba(255, 82, 82, 0.25) !important;
+}
+[data-sonner-toaster] [data-sonner-toast][data-type="error"]::after {
+  background: linear-gradient(180deg, #ff5252 0%, #c11212 100%);
+}
+[data-sonner-toaster] [data-sonner-toast][data-type="error"] [data-icon] {
+  color: #ff6b6b;
+}
+
+/* Variant: WARNING */
+[data-sonner-toaster] [data-sonner-toast][data-type="warning"] {
+  border-color: rgba(250, 204, 21, 0.25) !important;
+}
+[data-sonner-toaster] [data-sonner-toast][data-type="warning"]::after {
+  background: linear-gradient(180deg, #facc15 0%, #d97706 100%);
+}
+[data-sonner-toaster] [data-sonner-toast][data-type="warning"] [data-icon] {
+  color: #fbbf24;
+}
+
+/* Variant: INFO */
+[data-sonner-toaster] [data-sonner-toast][data-type="info"] {
+  border-color: rgba(56, 189, 248, 0.25) !important;
+}
+[data-sonner-toaster] [data-sonner-toast][data-type="info"]::after {
+  background: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%);
+}
+[data-sonner-toaster] [data-sonner-toast][data-type="info"] [data-icon] {
+  color: #7dd3fc;
+}
+
+/* Variant: LOADING */
+[data-sonner-toaster] [data-sonner-toast][data-type="loading"] [data-icon] {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* Action buttons inside toast */
+[data-sonner-toaster] [data-sonner-toast] [data-button] {
+  border-radius: 10px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  transition: background-color 0.15s ease;
+  background: #ffffff !important;
+  color: #0b0b0d !important;
+  border: none;
+}
+[data-sonner-toaster] [data-sonner-toast] [data-button]:hover {
+  background: rgba(255, 255, 255, 0.85) !important;
+}
+[data-sonner-toaster] [data-sonner-toast] [data-cancel] {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+[data-sonner-toaster] [data-sonner-toast] [data-cancel]:hover {
+  background: rgba(255, 255, 255, 0.18) !important;
+}
+
+/* No weird hover effect on the whole toast — keep it stable */
+[data-sonner-toaster] [data-sonner-toast]:hover {
+  border-color: rgba(255, 255, 255, 0.14) !important;
+}
+[data-sonner-toaster] [data-sonner-toast][data-type="success"]:hover {
+  border-color: rgba(16, 185, 129, 0.4) !important;
+}
+[data-sonner-toaster] [data-sonner-toast][data-type="error"]:hover {
+  border-color: rgba(255, 82, 82, 0.45) !important;
+}
+[data-sonner-toaster] [data-sonner-toast][data-type="warning"]:hover {
+  border-color: rgba(250, 204, 21, 0.45) !important;
+}
+[data-sonner-toaster] [data-sonner-toast][data-type="info"]:hover {
+  border-color: rgba(56, 189, 248, 0.45) !important;
+}
+
+/* Light-mode tweak (when html has no .dark) */
+html:not(.dark) [data-sonner-toaster] [data-sonner-toast] {
+  background: #ffffff !important;
+  color: #0b0b0d !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  box-shadow:
+    0 16px 40px -16px rgba(0, 0, 0, 0.18),
+    0 2px 6px -2px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
+}
+html:not(.dark) [data-sonner-toaster] [data-sonner-toast] [data-title] {
+  color: #0b0b0d;
+}
+html:not(.dark) [data-sonner-toaster] [data-sonner-toast] [data-description] {
+  color: rgba(11, 11, 13, 0.65);
+}
+html:not(.dark) [data-sonner-toaster] [data-sonner-toast] [data-close-button] {
+  background: rgba(0, 0, 0, 0.06) !important;
+  color: rgba(11, 11, 13, 0.55) !important;
+}
+html:not(.dark) [data-sonner-toaster] [data-sonner-toast] [data-close-button]:hover {
+  background: rgba(0, 0, 0, 0.12) !important;
+  color: #0b0b0d !important;
+}
+html:not(.dark) [data-sonner-toaster] [data-sonner-toast] [data-button] {
+  background: #0b0b0d !important;
+  color: #ffffff !important;
+}
+html:not(.dark) [data-sonner-toaster] [data-sonner-toast] [data-button]:hover {
+  background: rgba(11, 11, 13, 0.85) !important;
+}

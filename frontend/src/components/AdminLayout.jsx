@@ -21,6 +21,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { mediaUrl } from "@/lib/api";
+import { BrandLogo } from "@/components/BrandLogo";
 
 const NAV_ITEMS = [
   { to: "/admin", label: "Overview", icon: LayoutDashboard, end: true, testId: "admin-nav-overview" },
@@ -80,18 +81,16 @@ export default function AdminLayout() {
             <SheetContent side="left" className="p-0 w-[280px]">
               <div className="p-4 border-b border-border/60">
                 <Link to="/admin" className="flex items-center gap-2">
-                  <div className="h-8 w-8 rounded-xl bg-[hsl(var(--primary))] grid place-items-center font-display text-xl text-[hsl(var(--primary-foreground))]">C</div>
-                  <span className="font-display text-xl tracking-wider">CARTOONIX</span>
-                  <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-[hsl(var(--accent))] text-[hsl(var(--accent-foreground))]">Admin</span>
+                  <BrandLogo variant="horizontal" size="md" />
+                  <span className="ml-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-[hsl(var(--accent))] text-[hsl(var(--accent-foreground))] uppercase tracking-wider">Admin</span>
                 </Link>
               </div>
               <SidebarContent />
             </SheetContent>
           </Sheet>
           <Link to="/admin" className="hidden lg:flex items-center gap-2">
-            <div className="h-8 w-8 rounded-xl bg-[hsl(var(--primary))] grid place-items-center font-display text-xl text-[hsl(var(--primary-foreground))]">C</div>
-            <span className="font-display text-xl tracking-wider">CARTOONIX</span>
-            <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-[hsl(var(--accent))] text-[hsl(var(--accent-foreground))] uppercase tracking-wider">Admin</span>
+            <BrandLogo variant="horizontal" size="md" />
+            <span className="ml-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-[hsl(var(--accent))] text-[hsl(var(--accent-foreground))] uppercase tracking-wider">Admin</span>
           </Link>
           <div className="flex-1" />
           <Button variant="ghost" size="sm" onClick={() => navigate("/")} className="hidden sm:inline-flex" data-testid="admin-back-to-site">

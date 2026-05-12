@@ -26,9 +26,8 @@ export function TopNav() {
       className="sticky top-0 z-40 w-full border-b border-border/60 bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/60"
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 sm:px-6 lg:px-8">
-        <Link to="/" data-testid="nav-logo" className="flex items-center gap-2">
-          <div className="h-9 w-9 rounded-xl bg-[hsl(var(--primary))] grid place-items-center font-display text-2xl text-[hsl(var(--primary-foreground))]">C</div>
-          <span className="font-display text-2xl tracking-wider">CARTOONIX</span>
+        <Link to="/" data-testid="nav-logo" className="flex items-center group">
+          <BrandLogo variant="horizontal" size="md" />
         </Link>
         <nav className="hidden md:flex items-center gap-1 ml-4">
           {[
@@ -132,9 +131,8 @@ export function Footer() {
     <footer data-testid="footer" className="border-t border-border/60 mt-16">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 grid gap-6 sm:grid-cols-3">
         <div>
-          <div className="flex items-center gap-2 mb-3">
-            <div className="h-8 w-8 rounded-xl bg-[hsl(var(--primary))] grid place-items-center font-display text-xl text-[hsl(var(--primary-foreground))]">C</div>
-            <span className="font-display text-xl tracking-wider">CARTOONIX</span>
+          <div className="mb-3">
+            <BrandLogo variant="horizontal" size="md" />
           </div>
           <p className="text-sm text-muted-foreground max-w-xs">
             Stream the classics. A nostalgic vault of cartoons from JETIX & Fox Kids, Cartoon Network, and Minimax.

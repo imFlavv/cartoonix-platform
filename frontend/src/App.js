@@ -45,7 +45,7 @@ function App() {
                 <Route path="subscriptions" element={<AdminSubscriptions />} />
               </Route>
             </Routes>
-            <Toaster richColors position="top-right" />
+            <Toaster position="top-right" expand={false} />
           </AuthProvider>
         </BrowserRouter>
       </ThemeProvider>
