@@ -164,6 +164,22 @@ function DisneylandHero() {
                 </li>
               </ul>
 
+              {/* Tickets info */}
+              <div className="mt-7 border border-[#d6a648]/25 bg-[#0a0204] px-5 py-4 rounded-sm">
+                <div className="flex items-center gap-3">
+                  <Ticket className="h-5 w-5 text-[#d6a648] flex-shrink-0" strokeWidth={1.6} />
+                  <span className="text-[15px] text-white/90">
+                    <span className="text-[#d6a648] font-semibold">1 ticket</span> = 1 șansă de câștig
+                  </span>
+                </div>
+                <p className="mt-2.5 text-xs text-white/60 leading-relaxed pl-8">
+                  Cu cât mai multe tickete, cu atât șansele tale de câștig la tombolă sunt mai mari.
+                  <span className="block mt-1 text-white/75">
+                    Maxim <span className="text-[#d6a648] font-semibold">5 tickete</span> per utilizator.
+                  </span>
+                </p>
+              </div>
+
               <div className="mt-10 pt-6 border-t border-[#d6a648]/15">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-[10px] tracking-[0.32em] uppercase text-white/45">

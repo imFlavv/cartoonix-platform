@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Trophy, ExternalLink, Sparkles } from "lucide-react";
+import { X, Trophy, ExternalLink, Sparkles, Ticket } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const DISNEYLAND_PAYMENT_LINK =
@@ -149,6 +149,21 @@ export default function DisneylandPopup() {
                     Acces complet la parcul tematic
                   </li>
                 </ul>
+
+                {/* Tickets info */}
+                <div className="mt-6 border border-[#d6a648]/25 bg-[#0a0204] px-4 py-3.5 rounded-sm">
+                  <div className="flex items-center gap-2.5">
+                    <Ticket className="h-4 w-4 text-[#d6a648] flex-shrink-0" strokeWidth={1.8} />
+                    <span className="text-sm text-white/85">
+                      <span className="text-[#d6a648] font-semibold">1 ticket</span> = 1 șansă de câștig
+                    </span>
+                  </div>
+                  <p className="mt-2 text-[11px] text-white/55 leading-relaxed pl-6.5" style={{ paddingLeft: "1.65rem" }}>
+                    Cu cât mai multe tickete, cu atât șansele de câștig la tombolă sunt mai mari.
+                    <br />
+                    <span className="text-white/70">Maxim 5 tickete per utilizator.</span>
+                  </p>
+                </div>
 
                 <div className="mt-9 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                   <a
