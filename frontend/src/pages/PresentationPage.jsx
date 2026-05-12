@@ -72,33 +72,33 @@ export default function PresentationPage() {
   const features = [
     {
       icon: Star,
-      title: "EPISOADE FAVORITE",
-      desc: "O bibliotecă atent curatată cu episoadele care au definit o generație, păstrate în calitate originală.",
+      title: "EPISOADE CARE AU RĂMAS CU NOI",
+      desc: "Desenele pe care le căutai după școală, acum adunate într-un singur loc, în varianta pe care ți-o amintești.",
     },
     {
       icon: Radio,
-      title: "TRANSMISIUNE LIVE",
-      desc: "Program continuu, de luni până vineri, între orele 07:00 și 22:00 — o experiență de tip canal TV.",
+      title: "PROGRAM LIVE CA PE VREMURI",
+      desc: "De luni până vineri, între 07:00 și 22:00, rulează nonstop atmosfera aceea clasică de canal TV.",
     },
     {
       icon: Tv,
-      title: "RECLAME CLASICE",
-      desc: "Spoturile publicitare ale anilor 2000, integrate firesc în program, exact ca în copilărie.",
+      title: "RECLAME DIN COPILĂRIE",
+      desc: "Spoturi vechi, intro-uri și pauze care completează perfect vibe-ul anilor 2000.",
     },
     {
       icon: Heart,
-      title: "CURATORIAT NOSTALGIC",
-      desc: "Fiecare desen este verificat manual — fără anunțuri intruzive, fără episoade dublate fără rost.",
+      title: "ALES CU GRIJĂ",
+      desc: "Fiecare episod este verificat și organizat atent, fără uploaduri haotice sau conținut pus la întâmplare.",
     },
     {
       icon: Users,
-      title: "PENTRU TOATE GENERAȚIILE",
-      desc: "O platformă creată pentru întreaga familie — la fel de potrivită pentru copii și pentru părinți.",
+      title: "PENTRU COPII ȘI PĂRINȚI",
+      desc: "O platformă gândită pentru toate generațiile — atât pentru cei care au crescut cu ele, cât și pentru cei care le descoperă acum.",
     },
     {
       icon: ShieldCheck,
-      title: "VIZIONARE SIGURĂ",
-      desc: "Conținut moderat, fără reclame agresive sau redirecționări — un spațiu sigur și liniștit.",
+      title: "UN LOC LINIȘTIT",
+      desc: "Fără reclame agresive, fără redirect-uri ciudate sau ferestre enervante — doar desene și nostalgie.",
     },
   ];
 
@@ -254,7 +254,7 @@ export default function PresentationPage() {
               transition={{ duration: 0.7, delay: 0.1 }}
               className="lg:col-span-6 flex items-center justify-center relative"
             >
-              <div className="relative w-full max-w-[520px] aspect-square flex items-center justify-center">
+              <div className="relative w-full max-w-[680px] aspect-square flex items-center justify-center mx-auto">
                 {/* Ornate frame */}
                 <span className="absolute inset-0 border border-[#d6a648]/20 rounded-sm" />
                 <span className="absolute inset-3 border border-[#d6a648]/10 rounded-sm" />
@@ -267,7 +267,7 @@ export default function PresentationPage() {
                 <img
                   src="/brand/cartoonix-logo-hero.png"
                   alt="Cartoonix"
-                  className="relative z-10 w-[72%] h-auto object-contain select-none"
+                  className="relative z-10 w-[92%] h-auto object-contain select-none"
                   draggable={false}
                 />
               </div>
