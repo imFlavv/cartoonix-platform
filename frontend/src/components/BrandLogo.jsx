@@ -24,7 +24,7 @@ export function BrandLogo({ variant = "horizontal", size = "md", className = "" 
   const Img = (
     <img
       data-testid="brand-logo-mark"
-      src="/brand/cartoonix-logo.png"
+      src="/brand/cartoonix-logo.webp"
       alt="Cartoonix"
       className="block select-none object-contain"
       style={{ height: `${h}px`, width: "auto" }}

@@ -78,7 +78,9 @@ export default function DisneylandPopup() {
               {/* Left: image */}
               <div className="relative h-72 md:h-auto md:min-h-[520px] overflow-hidden">
                 <img
-                  src="/brand/disneyland-hero.png"
+                  src="/brand/disneyland-hero.webp"
+                  loading="eager"
+                  fetchpriority="high"
                   alt="Disneyland Paris"
                   className="absolute inset-0 w-full h-full object-cover select-none"
                   draggable={false}

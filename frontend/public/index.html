@@ -4,11 +4,16 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="theme-color" content="#000000" />
-        <link rel="icon" type="image/png" href="/brand/cartoonix-logo.png" />
-        <link rel="apple-touch-icon" href="/brand/cartoonix-logo.png" />
+        <link rel="icon" type="image/webp" href="/brand/cartoonix-logo.webp" />
+        <link rel="apple-touch-icon" href="/brand/cartoonix-logo.webp" />
         <meta name="description" content="A product of emergent.sh" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <!-- Preload above-the-fold brand assets so they paint instantly -->
+        <link rel="preload" as="image" href="/brand/cartoonix-logo.webp" type="image/webp" fetchpriority="high" />
+        <link rel="preload" as="image" href="/brand/cartoonix-logo-hero.webp" type="image/webp" fetchpriority="high" />
+        <link rel="preload" as="image" href="/brand/bg-studio-red.webp" type="image/webp" />
+        <link rel="preload" as="image" href="/brand/disneyland-hero.webp" type="image/webp" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@600&display=swap" rel="stylesheet" />
         <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Manrope:wght@400;500;600;700;800&family=Pacifico&family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,800;1,400;1,600&display=swap" rel="stylesheet" />
         <!--

@@ -75,10 +75,12 @@ function DisneylandHero() {
           {/* Image side */}
           <div className="relative lg:col-span-7 h-80 lg:h-auto overflow-hidden">
             <img
-              src="/brand/disneyland-hero.png"
+              src="/brand/disneyland-hero.webp"
               alt="Disneyland Paris"
               className="absolute inset-0 w-full h-full object-cover select-none"
               draggable={false}
+              loading="eager"
+              fetchpriority="high"
             />
             {/* Cinematic gradient overlays */}
             <div className="absolute inset-0 bg-gradient-to-t from-[#08020a]/85 via-transparent to-transparent lg:hidden" />

@@ -177,7 +177,7 @@ export default function PresentationPage() {
         <div
           className="absolute inset-0 opacity-80"
           style={{
-            backgroundImage: "url('/brand/bg-studio-red.png')",
+            backgroundImage: "url('/brand/bg-studio-red.webp')",
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}
@@ -268,10 +268,12 @@ export default function PresentationPage() {
                 <span className="absolute -bottom-px -right-px h-6 w-6 border-r-2 border-b-2 border-[#d6a648]/80" />
 
                 <img
-                  src="/brand/cartoonix-logo-hero.png"
+                  src="/brand/cartoonix-logo-hero.webp"
                   alt="Cartoonix"
                   className="relative z-10 w-[92%] h-auto object-contain select-none"
                   draggable={false}
+                  loading="eager"
+                  fetchpriority="high"
                 />
               </div>
             </motion.div>
