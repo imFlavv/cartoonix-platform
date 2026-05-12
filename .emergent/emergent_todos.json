@@ -1,0 +1,42 @@
+[
+  {
+    "content": "Phase 1: Get integration playbooks (Brevo, Gemini Nano Banana, Object Storage)",
+    "status": "in_progress"
+  },
+  {
+    "content": "Phase 1: Create POC script testing Brevo email, Gemini avatar generation, video storage",
+    "status": "pending"
+  },
+  {
+    "content": "Phase 1: Run POC and fix until all 4 checks green (BREVO_OK, VERIFY_OK, AVATAR_OK, UPLOAD_OK)",
+    "status": "pending"
+  },
+  {
+    "content": "Phase 2: Get design guidelines from design_agent",
+    "status": "pending"
+  },
+  {
+    "content": "Phase 2: Generate ~15 AI avatars upfront",
+    "status": "pending"
+  },
+  {
+    "content": "Phase 2: Build backend (auth, email verification, CRUD, file upload, RBAC)",
+    "status": "pending"
+  },
+  {
+    "content": "Phase 2: Build frontend (Home, Categories, Detail, Wizard, Dashboard, Admin, Player)",
+    "status": "pending"
+  },
+  {
+    "content": "Phase 2: Seed 3 categories with channel logos",
+    "status": "pending"
+  },
+  {
+    "content": "Phase 2: End-to-end testing with testing_agent_v3",
+    "status": "pending"
+  },
+  {
+    "content": "Phase 2: Fix all bugs found by testing agent",
+    "status": "pending"
+  }
+]
