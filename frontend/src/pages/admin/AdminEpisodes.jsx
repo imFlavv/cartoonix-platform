@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { api, mediaUrl } from "@/lib/api";
+import { api, mediaUrl, getErrorMessage } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,7 +35,7 @@ function EpisodeForm({ episode, cartoons, onSaved, onClose }) {
       setForm({ ...form, video_url: data.url, source_type: "upload" });
       toast.success("Video uploaded");
     } catch (e) {
-      toast.error(e.response?.data?.detail || "Upload failed");
+      toast.error(getErrorMessage(e, "Upload failed"));
     } finally {
       setUploading(false);
     }
@@ -61,7 +61,7 @@ function EpisodeForm({ episode, cartoons, onSaved, onClose }) {
       onSaved();
       onClose();
     } catch (e) {
-      toast.error(e.response?.data?.detail || "Save failed");
+      toast.error(getErrorMessage(e, "Save failed"));
     } finally {
       setSaving(false);
     }
@@ -137,7 +137,7 @@ function ImportFolderDialog({ cartoons, onDone }) {
       onDone();
       setOpen(false);
     } catch (e) {
-      toast.error(e.response?.data?.detail || "Import failed");
+      toast.error(getErrorMessage(e, "Import failed"));
     } finally {
       setBusy(false);
     }

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { api, mediaUrl } from "@/lib/api";
+import { api, mediaUrl, getErrorMessage } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -34,7 +34,7 @@ export default function AdminUsers() {
       toast.success("Deleted");
       load();
     } catch (e) {
-      toast.error(e.response?.data?.detail || "Delete failed");
+      toast.error(getErrorMessage(e, "Delete failed"));
     }
   };
 

@@ -4,7 +4,7 @@ import PublicLayout from "@/components/PublicLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { api, mediaUrl } from "@/lib/api";
+import { api, mediaUrl, getErrorMessage } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Crown, Heart, History as HistoryIcon, ListMusic, Settings as SettingsIcon, Lock, ChevronRight } from "lucide-react";
 import { motion } from "framer-motion";
@@ -61,7 +61,7 @@ export default function DashboardPage() {
       toast.success("Playlist created");
       load();
     } catch (e) {
-      toast.error(e.response?.data?.detail || "Could not create playlist");
+      toast.error(getErrorMessage(e, "Could not create playlist"));
     }
   };
 

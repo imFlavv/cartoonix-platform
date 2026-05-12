@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
-import { api, mediaUrl } from "@/lib/api";
+import { api, mediaUrl, getErrorMessage } from "@/lib/api";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { Progress } from "@/components/ui/progress";
@@ -218,7 +218,7 @@ function Step3Verify({ email, onSuccess }) {
       toast.success("Email verified!");
       onSuccess();
     } catch (err) {
-      toast.error(err.response?.data?.detail || "Invalid code");
+      toast.error(getErrorMessage(err, "Invalid code"));
     } finally {
       setLoading(false);
     }
@@ -230,7 +230,7 @@ function Step3Verify({ email, onSuccess }) {
       toast.success("New code sent to your inbox");
       setResendCooldown(30);
     } catch (err) {
-      toast.error(err.response?.data?.detail || "Could not resend code");
+      toast.error(getErrorMessage(err, "Could not resend code"));
     }
   };
 
@@ -313,7 +313,7 @@ export default function RegisterPage() {
       toast.success("Account created! Check your inbox for the verification code.");
       setStep(2);
     } catch (err) {
-      toast.error(err.response?.data?.detail || "Registration failed");
+      toast.error(getErrorMessage(err, "Registration failed"));
     } finally {
       setSubmitting(false);
     }

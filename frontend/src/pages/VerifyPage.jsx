@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
+import { getErrorMessage } from "@/lib/api";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { Sparkles } from "lucide-react";
@@ -36,7 +37,7 @@ export default function VerifyPage() {
       toast.success("Email verified!");
       navigate(user?.role === "admin" ? "/admin" : "/dashboard");
     } catch (err) {
-      toast.error(err.response?.data?.detail || "Invalid code");
+      toast.error(getErrorMessage(err, "Invalid code"));
     } finally {
       setLoading(false);
     }
@@ -48,7 +49,7 @@ export default function VerifyPage() {
       toast.success("New code sent");
       setResendCooldown(30);
     } catch (err) {
-      toast.error(err.response?.data?.detail || "Could not resend");
+      toast.error(getErrorMessage(err, "Could not resend"));
     }
   };
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { api, mediaUrl } from "@/lib/api";
+import { api, mediaUrl, getErrorMessage } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,7 +27,7 @@ function CartoonForm({ cartoon, categories, onSaved, onClose }) {
       setForm({ ...form, thumbnail_url: data.url });
       toast.success("Thumbnail uploaded");
     } catch (e) {
-      toast.error(e.response?.data?.detail || "Upload failed");
+      toast.error(getErrorMessage(e, "Upload failed"));
     } finally {
       setUploading(false);
     }
@@ -50,7 +50,7 @@ function CartoonForm({ cartoon, categories, onSaved, onClose }) {
       onSaved();
       onClose();
     } catch (e) {
-      toast.error(e.response?.data?.detail || "Save failed");
+      toast.error(getErrorMessage(e, "Save failed"));
     } finally {
       setSaving(false);
     }
