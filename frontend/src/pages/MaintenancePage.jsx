@@ -1,16 +1,16 @@
 import React, { useEffect, useState } from "react";
 import BrandLogo from "@/components/BrandLogo";
-import { Wrench } from "lucide-react";
 
 /**
  * Pagina de mentenanță — afișată tuturor vizitatorilor non-admin
  * când maintenance_mode este activ. Suprascrie inclusiv Mod prezentare.
  *
- * Design: fundal elegant (gradient + radial glow + grain subtil),
- * paletă brand Cartoonix (roșu/galben), centered card cu logo + mesaj.
+ * Design: fundal elegant — gradient central cald + două orbe colorate
+ * în colțuri (roșu sus-stânga, galben jos-dreapta). Logo mare central,
+ * mesaj clar.
  */
 export default function MaintenancePage() {
-  // Mic shimmer pe titlu — efect rafinat, fără să distragă.
+  // Micul shimmer pe titlu — efect rafinat, fără să distragă.
   const [tick, setTick] = useState(0);
   useEffect(() => {
     const id = setInterval(() => setTick((t) => (t + 1) % 1000), 6000);
@@ -20,56 +20,33 @@ export default function MaintenancePage() {
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-[#0a0a0c] text-white">
       {/* ---------- BACKGROUND LAYERS ---------- */}
-      {/* Base radial gradient — warm brand glow */}
+      {/* Soft central gradient */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0"
         style={{
           background:
-            "radial-gradient(1200px 700px at 20% 10%, rgba(255,59,59,0.18), transparent 60%), radial-gradient(900px 600px at 85% 90%, rgba(250,204,21,0.12), transparent 60%), radial-gradient(700px 500px at 50% 50%, rgba(255,59,59,0.05), transparent 70%)",
+            "radial-gradient(900px 600px at 50% 50%, rgba(255,255,255,0.04), transparent 70%)",
         }}
       />
 
-      {/* Subtle grid */}
+      {/* Top-left red orb */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-[0.06]"
-        style={{
-          backgroundImage:
-            "linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)",
-          backgroundSize: "56px 56px",
-          maskImage:
-            "radial-gradient(ellipse at center, black 30%, transparent 75%)",
-          WebkitMaskImage:
-            "radial-gradient(ellipse at center, black 30%, transparent 75%)",
-        }}
-      />
-
-      {/* Floating soft orbs */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -top-32 -left-32 h-[420px] w-[420px] rounded-full blur-3xl"
+        className="pointer-events-none absolute -top-40 -left-40 h-[560px] w-[560px] rounded-full blur-3xl"
         style={{
           background:
-            "radial-gradient(closest-side, rgba(255,59,59,0.35), transparent 70%)",
-        }}
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -bottom-40 -right-40 h-[480px] w-[480px] rounded-full blur-3xl"
-        style={{
-          background:
-            "radial-gradient(closest-side, rgba(250,204,21,0.28), transparent 70%)",
+            "radial-gradient(closest-side, rgba(255,59,59,0.42), transparent 70%)",
         }}
       />
 
-      {/* Noise overlay */}
+      {/* Bottom-right yellow orb */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-[0.05] mix-blend-overlay"
+        className="pointer-events-none absolute -bottom-48 -right-48 h-[620px] w-[620px] rounded-full blur-3xl"
         style={{
-          backgroundImage:
-            "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.6'/></svg>\")",
+          background:
+            "radial-gradient(closest-side, rgba(250,204,21,0.32), transparent 70%)",
         }}
       />
 
@@ -77,23 +54,11 @@ export default function MaintenancePage() {
       <main className="relative z-10 min-h-screen flex items-center justify-center px-6 py-16">
         <div
           data-testid="maintenance-card"
-          className="w-full max-w-2xl text-center"
+          className="w-full max-w-3xl text-center"
         >
-          {/* Logo */}
-          <div className="flex justify-center mb-10">
-            <BrandLogo variant="stacked" size="lg" />
-          </div>
-
-          {/* Status pill */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 backdrop-blur-sm mb-8">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-400" />
-            </span>
-            <span className="text-[11px] font-semibold tracking-[0.18em] uppercase text-amber-200">
-              <Wrench className="inline h-3 w-3 mr-1 -mt-0.5" />
-              Mentenanță în curs
-            </span>
+          {/* Logo — mare, central */}
+          <div className="flex justify-center mb-14">
+            <BrandLogo variant="stacked" size="xl" className="scale-150" />
           </div>
 
           {/* Main heading */}

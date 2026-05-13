@@ -105,6 +105,7 @@ user_problem_statement: |
   - Replace placeholder "C" with official Cartoonix logo across the platform (no black-box wrapper).
   - Make toast notifications elegant and on-brand, with no weird color glitches on hover.
   - Add an Admin Settings section with a "Presentation Mode" toggle. When enabled, the platform shows a Romanian presentation page; only Register works for users, all other public routes redirect to the presentation page. Admins keep full access.
+  - Add a "Maintenance Mode" toggle in Admin Settings (below Presentation Mode). When enabled, it overrides Presentation Mode and shows only an elegant maintenance message ("PLATFORMA IN MENTENANTA! REVENIM CURAND") with on-brand background. Only /login and /admin remain accessible so admins can disable it.
 
 backend:
   - task: "Public + Admin settings endpoints (GET /api/settings, GET/PATCH /api/admin/settings)"
@@ -179,6 +180,18 @@ frontend:
       - working: true
         agent: "main"
         comment: "When presentation_mode is on: '/' renders PresentationPage; non-admin restricted routes redirect to '/'; '/register','/verify','/terms-and-conditions','/login','/admin' stay open. Admins keep full access. PublicLayout hides category links in restricted view. Verified: /dashboard -> /login, /category/jetix -> /, /register stays."
+
+  - task: "Maintenance Mode (elegant page + Admin toggle + gating)"
+    implemented: true
+    working: true
+    file: "frontend/src/pages/MaintenancePage.jsx, frontend/src/App.js (MaintenanceGate), frontend/src/pages/admin/AdminSettings.jsx, frontend/src/contexts/SettingsContext.js, backend/server.py (DEFAULT_SETTINGS)"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Added maintenance_mode to DEFAULT_SETTINGS (backend) and SettingsContext (frontend). Created MaintenancePage with elegant background: pure dark base + two large blurred brand-color orbs (red top-left, yellow bottom-right) + soft center gradient (NO grid lines per user request). Large stacked Cartoonix logo (size=xl scale-150). Title 'PLATFORMA ÎN MENTENANȚĂ!' with shimmer gradient + 'Revenim curând.' subtitle. No status pill (removed per user request). MaintenanceGate wraps all routes; only /login and /admin* allowed for non-admins so admins can disable maintenance. AdminSettings shows a second toggle card 'Mod mentenanță' below Mod prezentare with same UX (status pill, alert when active, preview link). Verified visually."
 
 metadata:
   created_by: "main_agent"
