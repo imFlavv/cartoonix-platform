@@ -7,19 +7,19 @@ import { Check, Crown, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 
 const FREE_FEATURES = [
-  "Standard Definition (SD) streaming",
-  "Ads between episodes",
-  "Basic profile & favorites",
-  "Up to 3 hours of daily streaming",
+  "Streaming Standard Definition (SD)",
+  "Reclame între episoade",
+  "Profil de bază & favorite",
+  "Până la 3 ore de streaming zilnic",
 ];
 const PLUS_FEATURES = [
-  "Ad-free experience",
-  "Full HD (1080p) streaming",
-  "Offline downloads (when possible)",
-  "Unlimited streaming",
-  "Create playlists & favorites",
-  "Early access to new uploads",
-  "Priority support",
+  "Experiență fără reclame",
+  "Streaming Full HD (1080p)",
+  "Descărcări offline (când e posibil)",
+  "Streaming nelimitat",
+  "Creează playlist-uri & favorite",
+  "Acces anticipat la episoade noi",
+  "Suport prioritar",
 ];
 
 function PlanCard({ title, price, features, accent, badge, ctaTo, ctaLabel, testId }) {
@@ -56,16 +56,16 @@ export default function PlansPage() {
         <div className="relative mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-14">
           <div className="text-center mb-10">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary text-secondary-foreground text-xs tracking-wider uppercase">
-              <Sparkles className="h-3.5 w-3.5 text-[hsl(var(--accent))]" /> Plans
+              <Sparkles className="h-3.5 w-3.5 text-[hsl(var(--accent))]" /> Abonamente
             </div>
-            <h1 className="font-display text-4xl sm:text-5xl tracking-wider mt-3">Pick your vault pass</h1>
-            <p className="text-muted-foreground mt-2">Payments coming soon — you can join free during the early preview.</p>
+            <h1 className="font-display text-4xl sm:text-5xl tracking-wider mt-3">Alege-ți accesul la tezaur</h1>
+            <p className="text-muted-foreground mt-2">Plățile vor fi disponibile în curând — poți să te înscrii gratuit pe perioada preview-ului.</p>
           </div>
           <div className="grid sm:grid-cols-2 gap-6">
-            <PlanCard title="FREE" price="$0 / month" features={FREE_FEATURES} accent="hsl(var(--muted-foreground))"
-              ctaTo="/register" ctaLabel="Get Free" testId="plans-card-free" />
-            <PlanCard title="PLUS" price="$5.99 / month" features={PLUS_FEATURES} accent="hsl(var(--primary))"
-              badge="Best value" ctaTo="/register" ctaLabel="Go Plus" testId="plans-card-plus" />
+            <PlanCard title="FREE" price="0 $ / lună" features={FREE_FEATURES} accent="hsl(var(--muted-foreground))"
+              ctaTo="/register" ctaLabel="Începe gratuit" testId="plans-card-free" />
+            <PlanCard title="PLUS" price="5,99 $ / lună" features={PLUS_FEATURES} accent="hsl(var(--primary))"
+              badge="Cel mai bun preț" ctaTo="/register" ctaLabel="Treci pe Plus" testId="plans-card-plus" />
           </div>
         </div>
       </section>

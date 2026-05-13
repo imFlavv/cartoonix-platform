@@ -14,13 +14,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Progress } from "@/components/ui/progress";
 import { Check, ChevronLeft, ChevronRight, Sparkles, Crown, AlertCircle } from "lucide-react";
 
-const STEPS = ["Profile", "Plan", "Verify"];
+const STEPS = ["Profil", "Abonament", "Verificare"];
 
 function StepHeader({ step }) {
   return (
     <div className="mb-6">
       <div className="flex items-center justify-between mb-2 text-sm">
-        <span className="text-muted-foreground uppercase tracking-[0.25em] text-xs">Step {step + 1} of {STEPS.length}</span>
+        <span className="text-muted-foreground uppercase tracking-[0.25em] text-xs">Pasul {step + 1} din {STEPS.length}</span>
         <span className="font-medium">{STEPS[step]}</span>
       </div>
       <Progress value={((step + 1) / STEPS.length) * 100} className="h-1.5" />
@@ -33,12 +33,12 @@ function Step1Profile({ form, setForm, avatars, onNext }) {
 
   const submit = (e) => {
     e.preventDefault();
-    if (!form.avatar_url) return setError("Please pick an avatar");
-    if (form.nickname.trim().length < 2) return setError("Nickname must be at least 2 characters");
-    if (!form.email) return setError("Email is required");
-    if (form.password.length < 6) return setError("Password must be at least 6 characters");
-    if (form.password !== form.confirm) return setError("Passwords do not match");
-    if (!form.accepted_terms) return setError("You must accept the Terms & Conditions");
+    if (!form.avatar_url) return setError("Te rugăm să alegi un avatar");
+    if (form.nickname.trim().length < 2) return setError("Pseudonimul trebuie să aibă minim 2 caractere");
+    if (!form.email) return setError("Emailul este obligatoriu");
+    if (form.password.length < 6) return setError("Parola trebuie să aibă minim 6 caractere");
+    if (form.password !== form.confirm) return setError("Parolele nu se potrivesc");
+    if (!form.accepted_terms) return setError("Trebuie să accepți Termenii și Condițiile");
     setError("");
     onNext();
   };
@@ -46,7 +46,7 @@ function Step1Profile({ form, setForm, avatars, onNext }) {
   return (
     <form onSubmit={submit} className="space-y-5">
       <div>
-        <Label className="text-sm">Pick your avatar</Label>
+        <Label className="text-sm">Alege-ți avatarul</Label>
         <div data-testid="register-avatar-grid" className="mt-2 grid grid-cols-4 sm:grid-cols-5 gap-3">
           {avatars.map((a) => {
             const selected = form.avatar_url === a.url;
@@ -75,22 +75,22 @@ function Step1Profile({ form, setForm, avatars, onNext }) {
       </div>
       <div className="grid sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <Label htmlFor="nickname">Nickname</Label>
+          <Label htmlFor="nickname">Pseudonim</Label>
           <Input id="nickname" value={form.nickname} onChange={(e) => setForm({ ...form, nickname: e.target.value })}
             data-testid="register-nickname-input" placeholder="DexterFan" className="h-11 rounded-xl" />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="email">Email</Label>
           <Input id="email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
-            data-testid="register-email-input" placeholder="you@example.com" className="h-11 rounded-xl" />
+            data-testid="register-email-input" placeholder="tu@exemplu.ro" className="h-11 rounded-xl" />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="password">Password</Label>
+          <Label htmlFor="password">Parolă</Label>
           <Input id="password" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
             data-testid="register-password-input" className="h-11 rounded-xl" />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="confirm">Confirm password</Label>
+          <Label htmlFor="confirm">Confirmă parola</Label>
           <Input id="confirm" type="password" value={form.confirm} onChange={(e) => setForm({ ...form, confirm: e.target.value })}
             data-testid="register-confirm-input" className="h-11 rounded-xl" />
         </div>
@@ -99,9 +99,9 @@ function Step1Profile({ form, setForm, avatars, onNext }) {
         <Checkbox checked={form.accepted_terms} onCheckedChange={(v) => setForm({ ...form, accepted_terms: !!v })}
           data-testid="register-terms-checkbox" className="mt-0.5" />
         <span className="text-muted-foreground">
-          I accept the{" "}
+          Accept{" "}
           <Link to="/terms-and-conditions" target="_blank" className="text-[hsl(var(--primary))] hover:underline">
-            Terms & Conditions
+            Termenii și Condițiile
           </Link>.
         </span>
       </label>
@@ -112,7 +112,7 @@ function Step1Profile({ form, setForm, avatars, onNext }) {
       )}
       <div className="flex justify-end">
         <Button type="submit" className="rounded-xl h-11" data-testid="register-next-step-button">
-          Continue <ChevronRight className="ml-1 h-4 w-4" />
+          Continuă <ChevronRight className="ml-1 h-4 w-4" />
         </Button>
       </div>
     </form>
@@ -159,40 +159,40 @@ function Step2Plan({ form, setForm, onNext, onBack, submitting }) {
     <div>
       <div className="grid sm:grid-cols-2 gap-4">
         <PlanCard
-          name="FREE" price="$0 / month" color="hsl(var(--muted-foreground))"
+          name="FREE" price="0 $ / lună" color="hsl(var(--muted-foreground))"
           testId="plan-select-free"
           selected={form.subscription === "free"} onSelect={() => setForm({ ...form, subscription: "free" })}
           features={[
-            "Standard Definition (SD) streaming",
-            "Ads between episodes",
-            "Basic profile & favorites",
-            "Up to 3 hours of daily streaming",
+            "Streaming Standard Definition (SD)",
+            "Reclame între episoade",
+            "Profil de bază & favorite",
+            "Până la 3 ore de streaming zilnic",
           ]}
         />
         <PlanCard
-          name="PLUS" price="$5.99 / month" color="hsl(var(--primary))"
-          badge="Best value" testId="plan-select-plus"
+          name="PLUS" price="5,99 $ / lună" color="hsl(var(--primary))"
+          badge="Cel mai bun preț" testId="plan-select-plus"
           selected={form.subscription === "plus"} onSelect={() => setForm({ ...form, subscription: "plus" })}
           features={[
-            "Ad-free experience",
-            "Full HD (1080p) streaming",
-            "Offline downloads (when possible)",
-            "Unlimited streaming",
-            "Playlists & favorites",
-            "Early access to new uploads",
-            "Priority support",
+            "Experiență fără reclame",
+            "Streaming Full HD (1080p)",
+            "Descărcări offline (când e posibil)",
+            "Streaming nelimitat",
+            "Playlist-uri & favorite",
+            "Acces anticipat la episoade noi",
+            "Suport prioritar",
           ]}
         />
       </div>
       <p className="text-xs text-muted-foreground mt-4 inline-flex items-center gap-2">
-        <Sparkles className="h-3.5 w-3.5 text-[hsl(var(--accent))]" /> Payments coming soon — your plan is locked in for free during the early preview.
+        <Sparkles className="h-3.5 w-3.5 text-[hsl(var(--accent))]" /> Plățile vor fi disponibile în curând — abonamentul tău este gratuit pe perioada preview-ului.
       </p>
       <div className="flex justify-between mt-6">
         <Button variant="ghost" onClick={onBack} className="rounded-xl h-11" data-testid="register-back-button">
-          <ChevronLeft className="mr-1 h-4 w-4" /> Back
+          <ChevronLeft className="mr-1 h-4 w-4" /> Înapoi
         </Button>
         <Button onClick={onNext} disabled={submitting} className="rounded-xl h-11" data-testid="register-finalize-button">
-          {submitting ? "Creating account..." : (<>Finalize Registration <ChevronRight className="ml-1 h-4 w-4" /></>)}
+          {submitting ? "Se creează contul..." : (<>Finalizează înregistrarea <ChevronRight className="ml-1 h-4 w-4" /></>)}
         </Button>
       </div>
     </div>
@@ -216,10 +216,10 @@ function Step3Verify({ email, onSuccess }) {
     setLoading(true);
     try {
       await verifyEmail(email, code);
-      toast.success("Email verified!");
+      toast.success("Email verificat!");
       onSuccess();
     } catch (err) {
-      toast.error(getErrorMessage(err, "Invalid code"));
+      toast.error(getErrorMessage(err, "Cod invalid"));
     } finally {
       setLoading(false);
     }
@@ -228,10 +228,10 @@ function Step3Verify({ email, onSuccess }) {
   const resend = async () => {
     try {
       await resendCode(email);
-      toast.success("New code sent to your inbox");
+      toast.success("Un cod nou a fost trimis pe email");
       setResendCooldown(30);
     } catch (err) {
-      toast.error(getErrorMessage(err, "Could not resend code"));
+      toast.error(getErrorMessage(err, "Nu am putut retrimite codul"));
     }
   };
 
@@ -241,13 +241,13 @@ function Step3Verify({ email, onSuccess }) {
         <div className="mx-auto h-12 w-12 rounded-2xl bg-[hsl(var(--accent))] text-[hsl(var(--accent-foreground))] grid place-items-center mb-3">
           <Sparkles className="h-5 w-5" />
         </div>
-        <h2 className="font-display text-2xl tracking-wider">Check your email</h2>
+        <h2 className="font-display text-2xl tracking-wider">Verifică-ți emailul</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          We sent a 6-digit code to <span className="text-foreground font-medium">{email}</span>
+          Am trimis un cod de 6 cifre la <span className="text-foreground font-medium">{email}</span>
         </p>
       </div>
       <div>
-        <Label className="sr-only">Verification code</Label>
+        <Label className="sr-only">Cod de verificare</Label>
         <Input
           inputMode="numeric"
           maxLength={6}
@@ -261,13 +261,13 @@ function Step3Verify({ email, onSuccess }) {
       </div>
       <Button type="submit" disabled={loading || code.length !== 6} data-testid="otp-submit-button"
         className="w-full h-11 rounded-xl text-base">
-        {loading ? "Verifying..." : "Verify and continue"}
+        {loading ? "Se verifică..." : "Verifică și continuă"}
       </Button>
       <div className="text-center text-sm text-muted-foreground">
-        Didn't get it?{" "}
+        Nu ai primit codul?{" "}
         <button type="button" onClick={resend} disabled={resendCooldown > 0} data-testid="verify-resend-button"
           className="text-[hsl(var(--primary))] hover:underline disabled:opacity-50">
-          {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend code"}
+          {resendCooldown > 0 ? `Retrimite în ${resendCooldown}s` : "Retrimite codul"}
         </button>
       </div>
     </form>
@@ -312,10 +312,10 @@ export default function RegisterPage() {
         subscription: form.subscription,
         accepted_terms: form.accepted_terms,
       });
-      toast.success("Account created! Check your inbox for the verification code.");
+      toast.success("Cont creat! Verifică-ți emailul pentru codul de verificare.");
       setStep(2);
     } catch (err) {
-      toast.error(getErrorMessage(err, "Registration failed"));
+      toast.error(getErrorMessage(err, "Înregistrarea a eșuat"));
     } finally {
       setSubmitting(false);
     }
@@ -329,8 +329,8 @@ export default function RegisterPage() {
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}
             className="rounded-2xl border border-border bg-card/85 backdrop-blur p-7 sm:p-9 shadow-[0_14px_40px_rgba(0,0,0,0.45)]">
             <div className="mb-5 text-center">
-              <h1 className="font-display text-3xl sm:text-4xl tracking-wider">Join Cartoonix</h1>
-              <p className="text-sm text-muted-foreground mt-1">Three simple steps to the vault.</p>
+              <h1 className="font-display text-3xl sm:text-4xl tracking-wider">Alătură-te Cartoonix</h1>
+              <p className="text-sm text-muted-foreground mt-1">Trei pași simpli până la tezaur.</p>
             </div>
             <StepHeader step={step} />
             <AnimatePresence mode="wait">
@@ -361,7 +361,7 @@ export default function RegisterPage() {
               </motion.div>
             </AnimatePresence>
             <p className="text-sm text-muted-foreground mt-6 text-center">
-              Already a fan? <Link to="/login" className="text-[hsl(var(--primary))] hover:underline" data-testid="register-to-login-link">Sign in</Link>
+              Ai deja cont? <Link to="/login" className="text-[hsl(var(--primary))] hover:underline" data-testid="register-to-login-link">Autentifică-te</Link>
             </p>
           </motion.div>
         </div>

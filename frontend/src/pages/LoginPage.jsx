@@ -24,7 +24,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const u = await login(email, password);
-      toast.success(`Welcome back, ${u.nickname}!`);
+      toast.success(`Bine ai revenit, ${u.nickname}!`);
       if (!u.email_verified) {
         navigate("/verify", { state: { email: u.email } });
       } else if (settings?.presentation_mode && u.role !== "admin") {
@@ -36,7 +36,7 @@ export default function LoginPage() {
         navigate(next);
       }
     } catch (err) {
-      toast.error(getErrorMessage(err, "Login failed"));
+      toast.error(getErrorMessage(err, "Autentificare eșuată"));
     } finally {
       setLoading(false);
     }
@@ -49,8 +49,8 @@ export default function LoginPage() {
         <div className="relative mx-auto max-w-md px-4 sm:px-6 py-16">
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}
             className="rounded-2xl border border-border bg-card/80 backdrop-blur p-7 shadow-[0_14px_40px_rgba(0,0,0,0.45)]">
-            <h1 className="font-display text-3xl tracking-wider">Welcome back</h1>
-            <p className="text-sm text-muted-foreground mt-1">Sign in to continue your binge.</p>
+            <h1 className="font-display text-3xl tracking-wider">Bine ai revenit</h1>
+            <p className="text-sm text-muted-foreground mt-1">Autentifică-te pentru a continua maratonul.</p>
             <form onSubmit={onSubmit} className="mt-6 space-y-4">
               <div className="space-y-1.5">
                 <Label htmlFor="email">Email</Label>
@@ -58,16 +58,16 @@ export default function LoginPage() {
                   data-testid="login-email-input" autoComplete="email" className="h-11 rounded-xl" />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">Parolă</Label>
                 <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required
                   data-testid="login-password-input" autoComplete="current-password" className="h-11 rounded-xl" />
               </div>
               <Button type="submit" disabled={loading} data-testid="login-submit-button" className="w-full h-11 rounded-xl text-base">
-                {loading ? "Signing in..." : "Sign in"}
+                {loading ? "Se autentifică..." : "Autentificare"}
               </Button>
             </form>
             <p className="text-sm text-muted-foreground mt-5 text-center">
-              New to Cartoonix? <Link to="/register" className="text-[hsl(var(--primary))] hover:underline" data-testid="login-to-register-link">Create an account</Link>
+              Nou pe Cartoonix? <Link to="/register" className="text-[hsl(var(--primary))] hover:underline" data-testid="login-to-register-link">Creează un cont</Link>
             </p>
           </motion.div>
         </div>

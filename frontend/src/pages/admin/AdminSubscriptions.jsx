@@ -16,8 +16,8 @@ export default function AdminSubscriptions() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="font-display text-3xl tracking-wider">Subscriptions</h1>
-        <p className="text-sm text-muted-foreground">View subscription distribution. Payments coming soon.</p>
+        <h1 className="font-display text-3xl tracking-wider">Abonamente</h1>
+        <p className="text-sm text-muted-foreground">Vezi distribuția abonamentelor. Plățile vor fi disponibile în curând.</p>
       </div>
       <div className="grid grid-cols-3 gap-4 mb-8">
         <div className="rounded-2xl border border-border bg-card/70 p-5">
@@ -35,8 +35,8 @@ export default function AdminSubscriptions() {
       </div>
       <div className="grid lg:grid-cols-2 gap-6">
         <div className="rounded-2xl border border-border bg-card/60 p-5">
-          <h3 className="font-display text-xl tracking-wider mb-3">Cartoonix Plus members</h3>
-          {plus.length === 0 ? <div className="text-sm text-muted-foreground">No Plus members yet.</div> : (
+          <h3 className="font-display text-xl tracking-wider mb-3">Membri Cartoonix Plus</h3>
+          {plus.length === 0 ? <div className="text-sm text-muted-foreground">Niciun membru Plus încă.</div> : (
             <ul className="space-y-2">
               {plus.map((u) => (
                 <li key={u.id} className="flex items-center justify-between rounded-xl border border-border p-3">
@@ -51,8 +51,8 @@ export default function AdminSubscriptions() {
           )}
         </div>
         <div className="rounded-2xl border border-border bg-card/60 p-5">
-          <h3 className="font-display text-xl tracking-wider mb-3">Free members</h3>
-          {free.length === 0 ? <div className="text-sm text-muted-foreground">No free members.</div> : (
+          <h3 className="font-display text-xl tracking-wider mb-3">Membri Free</h3>
+          {free.length === 0 ? <div className="text-sm text-muted-foreground">Niciun membru free.</div> : (
             <ul className="space-y-2 max-h-96 overflow-y-auto">
               {free.map((u) => (
                 <li key={u.id} className="flex items-center justify-between rounded-xl border border-border p-3">

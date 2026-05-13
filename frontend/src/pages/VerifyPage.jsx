@@ -34,10 +34,10 @@ export default function VerifyPage() {
     setLoading(true);
     try {
       await verifyEmail(email, code);
-      toast.success("Email verified!");
+      toast.success("Email verificat!");
       navigate(user?.role === "admin" ? "/admin" : "/dashboard");
     } catch (err) {
-      toast.error(getErrorMessage(err, "Invalid code"));
+      toast.error(getErrorMessage(err, "Cod invalid"));
     } finally {
       setLoading(false);
     }
@@ -46,10 +46,10 @@ export default function VerifyPage() {
   const onResend = async () => {
     try {
       await resendCode(email);
-      toast.success("New code sent");
+      toast.success("Cod nou trimis");
       setResendCooldown(30);
     } catch (err) {
-      toast.error(getErrorMessage(err, "Could not resend"));
+      toast.error(getErrorMessage(err, "Nu am putut retrimite"));
     }
   };
 
@@ -64,8 +64,8 @@ export default function VerifyPage() {
               <div className="mx-auto h-12 w-12 rounded-2xl bg-[hsl(var(--accent))] text-[hsl(var(--accent-foreground))] grid place-items-center mb-3">
                 <Sparkles className="h-5 w-5" />
               </div>
-              <h1 className="font-display text-3xl tracking-wider">Verify your email</h1>
-              <p className="text-sm text-muted-foreground mt-1">Enter the 6-digit code from your inbox.</p>
+              <h1 className="font-display text-3xl tracking-wider">Verifică-ți emailul</h1>
+              <p className="text-sm text-muted-foreground mt-1">Introdu codul de 6 cifre primit pe email.</p>
             </div>
             <form onSubmit={submit} className="space-y-4">
               <div className="space-y-1.5">
@@ -73,18 +73,18 @@ export default function VerifyPage() {
                 <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="h-11 rounded-xl" data-testid="verify-email-input" />
               </div>
               <div className="space-y-1.5">
-                <Label>Code</Label>
+                <Label>Cod</Label>
                 <Input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                   maxLength={6} inputMode="numeric" placeholder="• • • • • •"
                   data-testid="verify-code-input" className="h-14 rounded-xl text-center text-2xl tracking-[0.5em] font-mono" />
               </div>
               <Button type="submit" disabled={loading || code.length !== 6} data-testid="otp-submit-button" className="w-full h-11 rounded-xl">
-                {loading ? "Verifying..." : "Verify"}
+                {loading ? "Se verifică..." : "Verifică"}
               </Button>
             </form>
             <div className="text-center text-sm text-muted-foreground mt-4">
               <button onClick={onResend} disabled={resendCooldown > 0} data-testid="verify-resend-button" className="text-[hsl(var(--primary))] hover:underline disabled:opacity-50">
-                {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend code"}
+                {resendCooldown > 0 ? `Retrimite în ${resendCooldown}s` : "Retrimite codul"}
               </button>
             </div>
           </motion.div>

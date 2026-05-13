@@ -14,21 +14,21 @@ const CHANNEL_VISUALS = {
     pattern: "pattern-hatch",
     badgeBg: "bg-[hsl(var(--brand-jetix))]",
     badgeText: "text-black",
-    tagline: "Action heroes · super-powered Saturday mornings",
+    tagline: "Eroi de acțiune · dimineți de sâmbătă super-puterice",
   },
   "cartoon-network": {
     accent: "hsl(var(--brand-cn))",
     pattern: "pattern-checker",
     badgeBg: "bg-[hsl(var(--brand-cn))]",
     badgeText: "text-black",
-    tagline: "Bold · weird · unforgettable",
+    tagline: "Îndrăzneț · ciudat · de neuitat",
   },
   minimax: {
     accent: "hsl(var(--brand-minimax))",
     pattern: "pattern-polka",
     badgeBg: "bg-[hsl(var(--brand-minimax))]",
     badgeText: "text-white",
-    tagline: "Warm · magical · colorful adventures",
+    tagline: "Cald · magic · aventuri colorate",
   },
 };
 
@@ -45,7 +45,7 @@ function ChannelCard({ category }) {
       <div className="relative">
         <div className="flex items-start justify-between">
           <div className={`px-2.5 py-1 rounded-md text-xs font-bold tracking-wider uppercase ${v.badgeBg} ${v.badgeText}`}>
-            Channel
+            Canal
           </div>
           <Tv className="h-5 w-5 text-muted-foreground" />
         </div>
@@ -65,7 +65,7 @@ function ChannelCard({ category }) {
           <div className={`h-1 w-12 rounded-full`} style={{ background: v.accent }} />
           <Link to={`/category/${category.slug}`}>
             <Button variant="secondary" size="sm" className="rounded-xl" data-testid={`home-explore-${category.slug}`}>
-              Explore <Play className="ml-1 h-3.5 w-3.5" />
+              Explorează <Play className="ml-1 h-3.5 w-3.5" />
             </Button>
           </Link>
         </div>
@@ -108,7 +108,7 @@ export default function HomePage() {
                 transition={{ duration: 0.4 }}
                 className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary text-secondary-foreground text-xs tracking-wider uppercase"
               >
-                <Sparkles className="h-3.5 w-3.5 text-[hsl(var(--accent))]" /> The vault is open
+                <Sparkles className="h-3.5 w-3.5 text-[hsl(var(--accent))]" /> Tezaurul este deschis
               </motion.div>
               <motion.h1
                 initial={{ opacity: 0, y: 16 }}
@@ -116,8 +116,8 @@ export default function HomePage() {
                 transition={{ duration: 0.45, delay: 0.05 }}
                 className="font-display text-5xl sm:text-6xl lg:text-7xl tracking-[0.02em] mt-4"
               >
-                Stream the <span className="text-[hsl(var(--primary))]">classics</span>.
-                <br /> Relive the <span className="text-[hsl(var(--accent))]">golden age</span>.
+                Streamează <span className="text-[hsl(var(--primary))]">clasicele</span>.
+                <br /> Retrăiește <span className="text-[hsl(var(--accent))]">epoca de aur</span>.
               </motion.h1>
               <motion.p
                 initial={{ opacity: 0, y: 12 }}
@@ -125,8 +125,8 @@ export default function HomePage() {
                 transition={{ duration: 0.45, delay: 0.1 }}
                 className="mt-5 text-base sm:text-lg text-muted-foreground max-w-xl"
               >
-                Cartoonix is your warm, premium home for the cartoons that defined Saturday mornings.
-                Three channels. One nostalgic vault.
+                Cartoonix este casa ta caldă și premium pentru desenele care au definit diminețile de sâmbătă.
+                Trei canale. Un singur tezaur nostalgic.
               </motion.p>
               <motion.div
                 initial={{ opacity: 0, y: 12 }}
@@ -136,17 +136,17 @@ export default function HomePage() {
               >
                 <Link to="/register">
                   <Button size="lg" data-testid="primary-cta-button" className="rounded-xl h-12 px-6 text-base">
-                    Start Watching
+                    Începe să vizionezi
                   </Button>
                 </Link>
                 <Link to="/plans">
                   <Button size="lg" variant="secondary" className="rounded-xl h-12 px-6 text-base" data-testid="hero-plans-button">
-                    See plans
+                    Vezi abonamente
                   </Button>
                 </Link>
                 <div className="flex items-center gap-1 text-sm text-muted-foreground ml-2">
                   <Star className="h-4 w-4 fill-[hsl(var(--accent))] text-[hsl(var(--accent))]" />
-                  <span>Curated by superfans</span>
+                  <span>Curat de superfani</span>
                 </div>
               </motion.div>
             </div>
@@ -162,7 +162,7 @@ export default function HomePage() {
                   <div className="absolute inset-0 hero-bg opacity-80" />
                   <div className="relative text-center">
                     <div className="font-display text-7xl tracking-widest text-[hsl(var(--accent))]">CARTOONIX</div>
-                    <div className="mt-2 text-sm text-muted-foreground tracking-[0.3em] uppercase">On Air</div>
+                    <div className="mt-2 text-sm text-muted-foreground tracking-[0.3em] uppercase">Live</div>
                   </div>
                 </div>
               </div>
@@ -175,8 +175,8 @@ export default function HomePage() {
       <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
         <div className="flex items-end justify-between mb-7">
           <div>
-            <h2 className="font-display text-3xl sm:text-4xl tracking-wider">Three legendary channels</h2>
-            <p className="text-muted-foreground mt-1">Pick a vault and dive in.</p>
+            <h2 className="font-display text-3xl sm:text-4xl tracking-wider">Trei canale legendare</h2>
+            <p className="text-muted-foreground mt-1">Alege un tezaur și pătrunde înăuntru.</p>
           </div>
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
@@ -191,8 +191,8 @@ export default function HomePage() {
         <section data-testid="home-featured-section" className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
           <div className="flex items-end justify-between mb-6">
             <div>
-              <h2 className="font-display text-2xl sm:text-3xl tracking-wider">Fresh from the vault</h2>
-              <p className="text-muted-foreground text-sm mt-1">Recently added classics.</p>
+              <h2 className="font-display text-2xl sm:text-3xl tracking-wider">Proaspete din tezaur</h2>
+              <p className="text-muted-foreground text-sm mt-1">Clasice adăugate recent.</p>
             </div>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
@@ -206,8 +206,8 @@ export default function HomePage() {
       {!loading && featured.length === 0 && (
         <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
           <div className="rounded-2xl border border-dashed border-border p-10 text-center">
-            <h3 className="font-display text-2xl tracking-wider">No cartoons yet</h3>
-            <p className="text-muted-foreground text-sm mt-1">An admin can add the first classic from the Admin Panel.</p>
+            <h3 className="font-display text-2xl tracking-wider">Niciun desen încă</h3>
+            <p className="text-muted-foreground text-sm mt-1">Un administrator poate adăuga primul clasic din Panoul Admin.</p>
           </div>
         </section>
       )}

@@ -31,7 +31,7 @@ export default function CartoonDetailPage() {
         setFavorited(!!fav.favorited);
       }
     } catch (e) {
-      toast.error("Cartoon not found");
+      toast.error("Desenul nu a fost găsit");
       navigate("/");
     } finally {
       setLoading(false);
@@ -42,16 +42,16 @@ export default function CartoonDetailPage() {
 
   const toggleFav = async () => {
     if (!user) {
-      toast.message("Sign in to save favorites");
+      toast.message("Autentifică-te pentru a salva favorite");
       navigate("/login");
       return;
     }
     try {
       const { data: r } = await api.post("/me/favorites/toggle", { cartoon_id: id });
       setFavorited(r.favorited);
-      toast.success(r.favorited ? "Added to favorites" : "Removed from favorites");
+      toast.success(r.favorited ? "Adăugat la favorite" : "Eliminat din favorite");
     } catch {
-      toast.error("Could not update favorites");
+      toast.error("Nu am putut actualiza favoritele");
     }
   };
 
@@ -72,7 +72,7 @@ export default function CartoonDetailPage() {
   if (loading || !data) {
     return (
       <PublicLayout>
-        <div className="mx-auto max-w-7xl px-4 py-10">Loading...</div>
+        <div className="mx-auto max-w-7xl px-4 py-10">Se încarcă...</div>
       </PublicLayout>
     );
   }
@@ -88,14 +88,14 @@ export default function CartoonDetailPage() {
               <h1 data-testid="cartoon-detail-title" className="font-display text-3xl sm:text-4xl tracking-wider">{data.title}</h1>
               <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-muted-foreground">
                 <span className="inline-flex items-center gap-1"><Calendar className="h-3.5 w-3.5" /> {data.year || "—"}</span>
-                <span className="inline-flex items-center gap-1"><Tv className="h-3.5 w-3.5" /> {data.episode_count} episodes</span>
+                <span className="inline-flex items-center gap-1"><Tv className="h-3.5 w-3.5" /> {data.episode_count} episoade</span>
                 {data.genres?.map((g) => <Badge key={g} variant="secondary" className="rounded-md">{g}</Badge>)}
               </div>
-              <p className="mt-4 text-muted-foreground">{data.description || "A classic cartoon from the golden era."}</p>
+              <p className="mt-4 text-muted-foreground">{data.description || "Un desen animat clasic din epoca de aur."}</p>
               <div className="mt-5 flex flex-wrap gap-2">
                 <Button onClick={toggleFav} variant={favorited ? "default" : "secondary"} className="rounded-xl" data-testid="cartoon-detail-favorite-button">
                   <Heart className={`mr-2 h-4 w-4 ${favorited ? "fill-current" : ""}`} />
-                  {favorited ? "Favorited" : "Add to favorites"}
+                  {favorited ? "La favorite" : "Adaugă la favorite"}
                 </Button>
               </div>
             </motion.div>
@@ -122,19 +122,19 @@ export default function CartoonDetailPage() {
                 </div>
               ) : (
                 <div className="rounded-2xl border border-dashed border-border p-10 text-center text-muted-foreground">
-                  No episodes available yet.
+                  Niciun episod disponibil încă.
                 </div>
               )}
             </div>
           </div>
 
           <aside className="lg:col-span-1">
-            <h3 className="font-display text-xl tracking-wider mb-3">Episodes</h3>
+            <h3 className="font-display text-xl tracking-wider mb-3">Episoade</h3>
             <div className="rounded-2xl border border-border bg-card/60">
               <ScrollArea className="max-h-[70vh]">
                 <div className="p-2 space-y-1.5">
                   {data.episodes?.length === 0 && (
-                    <div className="p-6 text-sm text-muted-foreground">No episodes yet.</div>
+                    <div className="p-6 text-sm text-muted-foreground">Niciun episod încă.</div>
                   )}
                   {data.episodes?.map((ep) => (
                     <button

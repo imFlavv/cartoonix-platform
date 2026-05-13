@@ -40,7 +40,8 @@ export function TopNav() {
                 { to: "/category/jetix-foxkids", label: "JETIX & Fox Kids" },
                 { to: "/category/cartoon-network", label: "Cartoon Network" },
                 { to: "/category/minimax", label: "Minimax" },
-                { to: "/plans", label: "Plans" },
+                { to: "/plans", label: "Abonamente" },
+                { to: "/concursuri", label: "Concursuri" },
               ].map((it) => (
                 <NavLink
                   key={it.to}
@@ -78,7 +79,7 @@ export function TopNav() {
               onClick={() => navigate("/login")}
               className="rounded-xl"
             >
-              Log in
+              Autentificare
             </Button>
             <Button
               size="sm"
@@ -86,7 +87,7 @@ export function TopNav() {
               onClick={() => navigate("/register")}
               className="rounded-xl"
             >
-              Join Cartoonix
+              Alătură-te
             </Button>
           </div>
         ) : (
@@ -113,16 +114,16 @@ export function TopNav() {
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => navigate("/dashboard")} data-testid="nav-dashboard-link">
-                <LayoutDashboard className="mr-2 h-4 w-4" /> Dashboard
+                <LayoutDashboard className="mr-2 h-4 w-4" /> Contul meu
               </DropdownMenuItem>
               {user.role === "admin" && (
                 <DropdownMenuItem onClick={() => navigate("/admin")} data-testid="nav-admin-link">
-                  <Shield className="mr-2 h-4 w-4" /> Admin Panel
+                  <Shield className="mr-2 h-4 w-4" /> Panou Admin
                 </DropdownMenuItem>
               )}
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={logout} data-testid="nav-logout-button">
-                <LogOut className="mr-2 h-4 w-4" /> Log out
+                <LogOut className="mr-2 h-4 w-4" /> Deconectare
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -141,11 +142,11 @@ export function Footer() {
             <BrandLogo variant="horizontal" size="md" />
           </div>
           <p className="text-sm text-muted-foreground max-w-xs">
-            Stream the classics. A nostalgic vault of cartoons from JETIX & Fox Kids, Cartoon Network, and Minimax.
+            Streamează clasicele. Un tezaur nostalgic de desene animate de la JETIX & Fox Kids, Cartoon Network și Minimax.
           </p>
         </div>
         <div className="text-sm">
-          <h4 className="font-display tracking-wider text-base mb-3">Browse</h4>
+          <h4 className="font-display tracking-wider text-base mb-3">Explorează</h4>
           <ul className="space-y-1.5 text-muted-foreground">
             <li><Link className="hover:text-foreground" to="/category/jetix-foxkids">JETIX & Fox Kids</Link></li>
             <li><Link className="hover:text-foreground" to="/category/cartoon-network">Cartoon Network</Link></li>
@@ -155,13 +156,14 @@ export function Footer() {
         <div className="text-sm">
           <h4 className="font-display tracking-wider text-base mb-3">Cartoonix</h4>
           <ul className="space-y-1.5 text-muted-foreground">
-            <li><Link className="hover:text-foreground" to="/plans">Plans</Link></li>
-            <li><Link className="hover:text-foreground" to="/terms-and-conditions">Terms & Conditions</Link></li>
+            <li><Link className="hover:text-foreground" to="/plans">Abonamente</Link></li>
+            <li><Link className="hover:text-foreground" to="/concursuri">Concursuri</Link></li>
+            <li><Link className="hover:text-foreground" to="/terms-and-conditions">Termeni și Condiții</Link></li>
           </ul>
         </div>
       </div>
       <div className="border-t border-border/60 py-4 text-center text-xs text-muted-foreground">
-        © 2026 Cartoonix. All rights reserved.
+        © 2026 Cartoonix. Toate drepturile rezervate.
       </div>
     </footer>
   );

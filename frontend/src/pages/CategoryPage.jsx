@@ -44,7 +44,7 @@ export default function CategoryPage() {
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
           {category ? (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
-              <div className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Channel</div>
+              <div className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Canal</div>
               <h1 className="mt-1 font-display text-4xl sm:text-5xl lg:text-6xl tracking-wider" style={{ color: v.accent }}>
                 {category.name}
               </h1>
@@ -65,9 +65,9 @@ export default function CategoryPage() {
           </div>
         ) : cartoons.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border p-12 text-center">
-            <h3 className="font-display text-2xl tracking-wider">No cartoons in this channel yet</h3>
-            <p className="text-muted-foreground text-sm mt-1">Admins can add cartoons from the Admin Panel.</p>
-            <Link to="/"><Button variant="secondary" className="mt-4 rounded-xl" data-testid="empty-back-home">Back to home</Button></Link>
+            <h3 className="font-display text-2xl tracking-wider">Niciun desen pe acest canal încă</h3>
+            <p className="text-muted-foreground text-sm mt-1">Adminii pot adăuga desene din Panoul Admin.</p>
+            <Link to="/"><Button variant="secondary" className="mt-4 rounded-xl" data-testid="empty-back-home">Înapoi acasă</Button></Link>
           </div>
         ) : (
           <motion.div

@@ -22,29 +22,29 @@ export default function AdminOverview() {
   useEffect(() => {
     api.get("/admin/stats").then(({ data }) => setStats(data));
   }, []);
-  if (!stats) return <div>Loading...</div>;
+  if (!stats) return <div>Se încarcă...</div>;
 
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="font-display text-3xl tracking-wider">Overview</h1>
-        <p className="text-sm text-muted-foreground">A quick snapshot of your platform.</p>
+        <h1 className="font-display text-3xl tracking-wider">Privire generală</h1>
+        <p className="text-sm text-muted-foreground">O perspectivă rapidă asupra platformei tale.</p>
       </div>
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        <StatCard label="Users" value={stats.users_count} icon={Users} color="hsl(var(--brand-cn))" />
-        <StatCard label="Cartoons" value={stats.cartoons_count} icon={Film} color="hsl(var(--primary))" />
-        <StatCard label="Episodes" value={stats.episodes_count} icon={PlaySquare} color="hsl(var(--brand-minimax))" />
-        <StatCard label="Plus users" value={stats.plus_count} icon={Crown} color="hsl(var(--accent))" />
-        <StatCard label="Verified" value={stats.verified_count} icon={CheckCircle2} color="hsl(var(--brand-jetix))" />
+        <StatCard label="Utilizatori" value={stats.users_count} icon={Users} color="hsl(var(--brand-cn))" />
+        <StatCard label="Desene" value={stats.cartoons_count} icon={Film} color="hsl(var(--primary))" />
+        <StatCard label="Episoade" value={stats.episodes_count} icon={PlaySquare} color="hsl(var(--brand-minimax))" />
+        <StatCard label="Utilizatori Plus" value={stats.plus_count} icon={Crown} color="hsl(var(--accent))" />
+        <StatCard label="Verificați" value={stats.verified_count} icon={CheckCircle2} color="hsl(var(--brand-jetix))" />
       </div>
       <div className="grid lg:grid-cols-2 gap-6">
         <div className="rounded-2xl border border-border bg-card/70 p-5">
           <div className="flex items-center justify-between">
-            <h3 className="font-display text-xl tracking-wider">Recent cartoons</h3>
-            <Link to="/admin/cartoons" className="text-xs text-[hsl(var(--primary))] hover:underline">Manage →</Link>
+            <h3 className="font-display text-xl tracking-wider">Desene recente</h3>
+            <Link to="/admin/cartoons" className="text-xs text-[hsl(var(--primary))] hover:underline">Administrează →</Link>
           </div>
           <div className="mt-3 space-y-2">
-            {stats.recent_cartoons.length === 0 && <div className="text-sm text-muted-foreground">None yet.</div>}
+            {stats.recent_cartoons.length === 0 && <div className="text-sm text-muted-foreground">Niciunul încă.</div>}
             {stats.recent_cartoons.map((c) => (
               <div key={c.id} className="flex items-center justify-between rounded-xl border border-border p-3">
                 <div>
@@ -57,11 +57,11 @@ export default function AdminOverview() {
         </div>
         <div className="rounded-2xl border border-border bg-card/70 p-5">
           <div className="flex items-center justify-between">
-            <h3 className="font-display text-xl tracking-wider">Recent episodes</h3>
-            <Link to="/admin/episodes" className="text-xs text-[hsl(var(--primary))] hover:underline">Manage →</Link>
+            <h3 className="font-display text-xl tracking-wider">Episoade recente</h3>
+            <Link to="/admin/episodes" className="text-xs text-[hsl(var(--primary))] hover:underline">Administrează →</Link>
           </div>
           <div className="mt-3 space-y-2">
-            {stats.recent_episodes.length === 0 && <div className="text-sm text-muted-foreground">None yet.</div>}
+            {stats.recent_episodes.length === 0 && <div className="text-sm text-muted-foreground">Niciunul încă.</div>}
             {stats.recent_episodes.map((e) => (
               <div key={e.id} className="flex items-center justify-between rounded-xl border border-border p-3">
                 <div>

@@ -33,9 +33,9 @@ function EpisodeForm({ episode, cartoons, onSaved, onClose }) {
       fd.append("file", file);
       const { data } = await api.post("/admin/upload/video", fd, { headers: { "Content-Type": "multipart/form-data" } });
       setForm({ ...form, video_url: data.url, source_type: "upload" });
-      toast.success("Video uploaded");
+      toast.success("Video încărcat");
     } catch (e) {
-      toast.error(getErrorMessage(e, "Upload failed"));
+      toast.error(getErrorMessage(e, "Încărcare eșuată"));
     } finally {
       setUploading(false);
     }
@@ -57,11 +57,11 @@ function EpisodeForm({ episode, cartoons, onSaved, onClose }) {
       };
       if (episode?.id) await api.patch(`/admin/episodes/${episode.id}`, payload);
       else await api.post("/admin/episodes", payload);
-      toast.success(episode ? "Episode updated" : "Episode created");
+      toast.success(episode ? "Episod actualizat" : "Episod creat");
       onSaved();
       onClose();
     } catch (e) {
-      toast.error(getErrorMessage(e, "Save failed"));
+      toast.error(getErrorMessage(e, "Salvare eșuată"));
     } finally {
       setSaving(false);
     }
@@ -70,9 +70,9 @@ function EpisodeForm({ episode, cartoons, onSaved, onClose }) {
   return (
     <div className="space-y-4">
       <div>
-        <Label>Cartoon</Label>
+        <Label>Desen</Label>
         <Select value={form.cartoon_id} onValueChange={(v) => setForm({ ...form, cartoon_id: v })}>
-          <SelectTrigger className="h-11 rounded-xl" data-testid="episode-form-cartoon"><SelectValue placeholder="Pick cartoon" /></SelectTrigger>
+          <SelectTrigger className="h-11 rounded-xl" data-testid="episode-form-cartoon"><SelectValue placeholder="Alege desenul" /></SelectTrigger>
           <SelectContent>
             {cartoons.map((c) => <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>)}
           </SelectContent>
@@ -80,45 +80,45 @@ function EpisodeForm({ episode, cartoons, onSaved, onClose }) {
       </div>
       <div className="grid sm:grid-cols-3 gap-4">
         <div className="sm:col-span-2">
-          <Label>Title</Label>
+          <Label>Titlu</Label>
           <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} data-testid="episode-form-title" className="h-11 rounded-xl" />
         </div>
         <div>
-          <Label>Duration (sec)</Label>
+          <Label>Durată (sec)</Label>
           <Input value={form.duration_seconds} onChange={(e) => setForm({ ...form, duration_seconds: e.target.value })} data-testid="episode-form-duration" className="h-11 rounded-xl" />
         </div>
         <div>
-          <Label>Season</Label>
+          <Label>Sezon</Label>
           <Input value={form.season} onChange={(e) => setForm({ ...form, season: e.target.value })} data-testid="episode-form-season" className="h-11 rounded-xl" />
         </div>
         <div>
-          <Label>Episode #</Label>
+          <Label>Episod #</Label>
           <Input value={form.episode_number} onChange={(e) => setForm({ ...form, episode_number: e.target.value })} data-testid="episode-form-number" className="h-11 rounded-xl" />
         </div>
       </div>
       <div>
-        <Label>Description</Label>
+        <Label>Descriere</Label>
         <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} data-testid="episode-form-description" className="min-h-[80px] rounded-xl" />
       </div>
       <div>
-        <Label>Video source</Label>
+        <Label>Sursă video</Label>
         <Tabs value={tab} onValueChange={setTab} className="mt-2">
           <TabsList>
-            <TabsTrigger value="url"><LinkIcon className="h-3.5 w-3.5 mr-1" /> Paste URL</TabsTrigger>
-            <TabsTrigger value="upload"><Upload className="h-3.5 w-3.5 mr-1" /> Upload file</TabsTrigger>
+            <TabsTrigger value="url"><LinkIcon className="h-3.5 w-3.5 mr-1" /> Lipește URL</TabsTrigger>
+            <TabsTrigger value="upload"><Upload className="h-3.5 w-3.5 mr-1" /> Încarcă fișier</TabsTrigger>
           </TabsList>
           <TabsContent value="url" className="mt-2">
-            <Input value={form.video_url} onChange={(e) => setForm({ ...form, video_url: e.target.value })} placeholder="https://...mp4 or HLS .m3u8" data-testid="episode-form-video-url" className="h-11 rounded-xl" />
+            <Input value={form.video_url} onChange={(e) => setForm({ ...form, video_url: e.target.value })} placeholder="https://...mp4 sau HLS .m3u8" data-testid="episode-form-video-url" className="h-11 rounded-xl" />
           </TabsContent>
           <TabsContent value="upload" className="mt-2">
             <Input type="file" accept="video/*" onChange={(e) => e.target.files?.[0] && onUploadVideo(e.target.files[0])} disabled={uploading} data-testid="episode-form-video-upload" className="h-11 rounded-xl" />
-            {form.video_url && <p className="text-xs text-muted-foreground mt-2">Uploaded: {form.video_url}</p>}
+            {form.video_url && <p className="text-xs text-muted-foreground mt-2">Încărcat: {form.video_url}</p>}
           </TabsContent>
         </Tabs>
       </div>
       <DialogFooter>
-        <Button variant="ghost" onClick={onClose}>Cancel</Button>
-        <Button onClick={save} disabled={saving || !form.title.trim() || !form.video_url || !form.cartoon_id} data-testid="episode-form-save">{saving ? "Saving..." : "Save"}</Button>
+        <Button variant="ghost" onClick={onClose}>Anulează</Button>
+        <Button onClick={save} disabled={saving || !form.title.trim() || !form.video_url || !form.cartoon_id} data-testid="episode-form-save">{saving ? "Se salvează..." : "Salvează"}</Button>
       </DialogFooter>
     </div>
   );
@@ -133,11 +133,11 @@ function ImportFolderDialog({ cartoons, onDone }) {
     setBusy(true);
     try {
       const { data } = await api.post("/admin/import-folder", { folder, cartoon_id: cartoonId });
-      toast.success(`Imported ${data.imported} episode${data.imported === 1 ? "" : "s"}`);
+      toast.success(`${data.imported} ${data.imported === 1 ? "episod importat" : "episoade importate"}`);
       onDone();
       setOpen(false);
     } catch (e) {
-      toast.error(getErrorMessage(e, "Import failed"));
+      toast.error(getErrorMessage(e, "Import eșuat"));
     } finally {
       setBusy(false);
     }
@@ -145,27 +145,27 @@ function ImportFolderDialog({ cartoons, onDone }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="secondary" className="rounded-xl h-11" data-testid="admin-import-folder-button"><FolderInput className="h-4 w-4 mr-1" /> Import folder</Button>
+        <Button variant="secondary" className="rounded-xl h-11" data-testid="admin-import-folder-button"><FolderInput className="h-4 w-4 mr-1" /> Importă folder</Button>
       </DialogTrigger>
       <DialogContent>
-        <DialogHeader><DialogTitle>Import episodes from server folder</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>Importă episoade dintr-un folder de pe server</DialogTitle></DialogHeader>
         <div className="space-y-4">
           <div>
-            <Label>Target cartoon</Label>
+            <Label>Desen țintă</Label>
             <Select value={cartoonId} onValueChange={setCartoonId}>
-              <SelectTrigger className="h-11 rounded-xl" data-testid="import-folder-cartoon"><SelectValue placeholder="Pick cartoon" /></SelectTrigger>
+              <SelectTrigger className="h-11 rounded-xl" data-testid="import-folder-cartoon"><SelectValue placeholder="Alege desenul" /></SelectTrigger>
               <SelectContent>{cartoons.map((c) => <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div>
-            <Label>Folder path (must be under /app/backend/uploads)</Label>
+            <Label>Cale folder (trebuie să fie în /app/backend/uploads)</Label>
             <Input value={folder} onChange={(e) => setFolder(e.target.value)} data-testid="import-folder-path" className="h-11 rounded-xl" />
-            <p className="text-xs text-muted-foreground mt-1">All .mp4/.webm files in the folder will be added as episodes.</p>
+            <p className="text-xs text-muted-foreground mt-1">Toate fișierele .mp4/.webm din folder vor fi adăugate ca episoade.</p>
           </div>
         </div>
         <DialogFooter>
-          <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button onClick={run} disabled={busy || !cartoonId} data-testid="import-folder-run">{busy ? "Importing..." : "Import"}</Button>
+          <Button variant="ghost" onClick={() => setOpen(false)}>Anulează</Button>
+          <Button onClick={run} disabled={busy || !cartoonId} data-testid="import-folder-run">{busy ? "Se importă..." : "Importă"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -193,13 +193,13 @@ export default function AdminEpisodes() {
   useEffect(() => { load(); }, []);
 
   const onDelete = async (id) => {
-    if (!window.confirm("Delete this episode?")) return;
+    if (!window.confirm("Șterge acest episod?")) return;
     try {
       await api.delete(`/admin/episodes/${id}`);
-      toast.success("Deleted");
+      toast.success("Șters");
       load();
     } catch (e) {
-      toast.error("Delete failed");
+      toast.error("Ștergere eșuată");
     }
   };
 
@@ -209,23 +209,23 @@ export default function AdminEpisodes() {
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6">
         <div className="flex-1">
-          <h1 className="font-display text-3xl tracking-wider">Episodes</h1>
-          <p className="text-sm text-muted-foreground">Add and manage episodes via upload or URL.</p>
+          <h1 className="font-display text-3xl tracking-wider">Episoade</h1>
+          <p className="text-sm text-muted-foreground">Adaugă și administrează episoade prin upload sau URL.</p>
         </div>
         <Select value={filterCartoon} onValueChange={setFilterCartoon}>
-          <SelectTrigger className="sm:w-56 h-11 rounded-xl" data-testid="episodes-filter-cartoon"><SelectValue placeholder="All cartoons" /></SelectTrigger>
+          <SelectTrigger className="sm:w-56 h-11 rounded-xl" data-testid="episodes-filter-cartoon"><SelectValue placeholder="Toate desenele" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="__all__">All cartoons</SelectItem>
+            <SelectItem value="__all__">Toate desenele</SelectItem>
             {cartoons.map((c) => <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>)}
           </SelectContent>
         </Select>
         <ImportFolderDialog cartoons={cartoons} onDone={load} />
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button onClick={() => setEditing(null)} className="rounded-xl h-11" disabled={!cartoons.length} data-testid="admin-episodes-create-button"><Plus className="h-4 w-4 mr-1" /> New episode</Button>
+            <Button onClick={() => setEditing(null)} className="rounded-xl h-11" disabled={!cartoons.length} data-testid="admin-episodes-create-button"><Plus className="h-4 w-4 mr-1" /> Episod nou</Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader><DialogTitle>{editing ? "Edit episode" : "New episode"}</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{editing ? "Editează episodul" : "Episod nou"}</DialogTitle></DialogHeader>
             <EpisodeForm episode={editing} cartoons={cartoons} onSaved={load} onClose={() => setOpen(false)} />
           </DialogContent>
         </Dialog>
@@ -234,10 +234,10 @@ export default function AdminEpisodes() {
         <table className="w-full text-sm">
           <thead className="bg-secondary/40">
             <tr>
-              <th className="text-left p-3">Episode</th>
-              <th className="text-left p-3 hidden sm:table-cell">Cartoon</th>
-              <th className="text-left p-3 hidden md:table-cell">Source</th>
-              <th className="text-right p-3">Actions</th>
+              <th className="text-left p-3">Episod</th>
+              <th className="text-left p-3 hidden sm:table-cell">Desen</th>
+              <th className="text-left p-3 hidden md:table-cell">Sursă</th>
+              <th className="text-right p-3">Acțiuni</th>
             </tr>
           </thead>
           <tbody>
@@ -257,7 +257,7 @@ export default function AdminEpisodes() {
                 </td>
               </tr>
             ))}
-            {filtered.length === 0 && <tr><td colSpan={4} className="p-10 text-center text-muted-foreground">No episodes yet.</td></tr>}
+            {filtered.length === 0 && <tr><td colSpan={4} className="p-10 text-center text-muted-foreground">Niciun episod încă.</td></tr>}
           </tbody>
         </table>
       </div>

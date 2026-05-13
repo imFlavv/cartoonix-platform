@@ -25,12 +25,12 @@ import { mediaUrl } from "@/lib/api";
 import { BrandLogo } from "@/components/BrandLogo";
 
 const NAV_ITEMS = [
-  { to: "/admin", label: "Overview", icon: LayoutDashboard, end: true, testId: "admin-nav-overview" },
-  { to: "/admin/cartoons", label: "Cartoons", icon: Film, testId: "admin-nav-cartoons" },
-  { to: "/admin/episodes", label: "Episodes", icon: PlaySquare, testId: "admin-nav-episodes" },
-  { to: "/admin/users", label: "Users", icon: Users, testId: "admin-nav-users" },
-  { to: "/admin/subscriptions", label: "Subscriptions", icon: CreditCard, testId: "admin-nav-subs" },
-  { to: "/admin/settings", label: "Settings", icon: SettingsIcon, testId: "admin-nav-settings" },
+  { to: "/admin", label: "Privire generală", icon: LayoutDashboard, end: true, testId: "admin-nav-overview" },
+  { to: "/admin/cartoons", label: "Desene", icon: Film, testId: "admin-nav-cartoons" },
+  { to: "/admin/episodes", label: "Episoade", icon: PlaySquare, testId: "admin-nav-episodes" },
+  { to: "/admin/users", label: "Utilizatori", icon: Users, testId: "admin-nav-users" },
+  { to: "/admin/subscriptions", label: "Abonamente", icon: CreditCard, testId: "admin-nav-subs" },
+  { to: "/admin/settings", label: "Setări", icon: SettingsIcon, testId: "admin-nav-settings" },
 ];
 
 function SidebarContent({ onItemClick }) {
@@ -96,7 +96,7 @@ export default function AdminLayout() {
           </Link>
           <div className="flex-1" />
           <Button variant="ghost" size="sm" onClick={() => navigate("/")} className="hidden sm:inline-flex" data-testid="admin-back-to-site">
-            <ExternalLink className="h-4 w-4 mr-2" /> Visit site
+            <ExternalLink className="h-4 w-4 mr-2" /> Vizitează site-ul
           </Button>
           <Button variant="ghost" size="icon" onClick={toggleTheme} data-testid="admin-theme-toggle">
             {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}

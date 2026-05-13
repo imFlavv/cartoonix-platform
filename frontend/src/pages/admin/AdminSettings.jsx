@@ -65,7 +65,7 @@ export default function AdminSettings() {
       setLocal(data);
       if (refresh) await refresh();
       toast.success(
-        next ? "Presentation mode enabled" : "Presentation mode disabled",
+        next ? "Mod prezentare activat" : "Mod prezentare dezactivat",
         {
           description: next
             ? "Vizitatorii vor vedea pagina de prezentare. Doar înregistrarea este permisă."
@@ -86,7 +86,7 @@ export default function AdminSettings() {
   return (
     <div className="space-y-8 max-w-3xl">
       <div>
-        <h1 className="font-display text-3xl tracking-wider">Settings</h1>
+        <h1 className="font-display text-3xl tracking-wider">Setări</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Configurări globale pentru platforma Cartoonix.
         </p>
@@ -102,16 +102,16 @@ export default function AdminSettings() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="font-display text-xl tracking-wide flex items-center gap-2">
-                  Presentation Mode
+                  Mod prezentare
                   {loading ? (
                     <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                   ) : local.presentation_mode ? (
                     <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 uppercase tracking-widest">
-                      <Eye className="h-3 w-3" /> Enabled
+                      <Eye className="h-3 w-3" /> Activ
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-white/10 text-muted-foreground uppercase tracking-widest">
-                      <EyeOff className="h-3 w-3" /> Disabled
+                      <EyeOff className="h-3 w-3" /> Inactiv
                     </span>
                   )}
                 </h2>

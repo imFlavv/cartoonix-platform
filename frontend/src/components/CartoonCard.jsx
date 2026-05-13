@@ -47,7 +47,7 @@ export function CartoonCard({ cartoon, categoryId }) {
           <div className={`absolute top-3 left-3 h-1 w-12 rounded-full ${styles.stripe}`} />
         </div>
         <div className="p-3 pt-3">
-          <p className="text-xs text-muted-foreground line-clamp-2">{cartoon.description || "A classic cartoon from the golden era."}</p>
+          <p className="text-xs text-muted-foreground line-clamp-2">{cartoon.description || "Un desen animat clasic din epoca de aur."}</p>
         </div>
       </Link>
     </motion.div>

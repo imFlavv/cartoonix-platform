@@ -157,12 +157,12 @@ async def list_avatars():
 @api_router.post("/auth/register", response_model=TokenResponse)
 async def register(payload: UserCreate):
     if not payload.accepted_terms:
-        raise HTTPException(status_code=400, detail="You must accept the Terms & Conditions")
+        raise HTTPException(status_code=400, detail="Trebuie să accepți Termenii și Condițiile")
     # Check uniqueness
     if await db.users.find_one({"email": payload.email.lower()}):
-        raise HTTPException(status_code=400, detail="Email already registered")
+        raise HTTPException(status_code=400, detail="Acest email este deja înregistrat")
     if await db.users.find_one({"nickname": payload.nickname}):
-        raise HTTPException(status_code=400, detail="Nickname already taken")
+        raise HTTPException(status_code=400, detail="Acest pseudonim este deja luat")
 
     # First user -> admin
     total = await db.users.count_documents({})
@@ -215,7 +215,7 @@ async def verify_email(payload: VerifyEmailRequest):
         sort=[("created_at", -1)],
     )
     if not code_doc:
-        raise HTTPException(status_code=404, detail="No verification code found. Please request a new one.")
+        raise HTTPException(status_code=404, detail="Niciun cod de verificare găsit. Te rugăm să soliciți unul nou.")
 
     # Check expiry
     expires_at = code_doc["expires_at"]
@@ -224,18 +224,18 @@ async def verify_email(payload: VerifyEmailRequest):
     if expires_at.tzinfo is None:
         expires_at = expires_at.replace(tzinfo=timezone.utc)
     if datetime.now(timezone.utc) > expires_at:
-        raise HTTPException(status_code=400, detail="Verification code expired. Please request a new one.")
+        raise HTTPException(status_code=400, detail="Codul de verificare a expirat. Te rugăm să soliciți unul nou.")
 
     attempts = int(code_doc.get("attempts", 0))
     if attempts >= 5:
-        raise HTTPException(status_code=429, detail="Too many attempts. Please request a new code.")
+        raise HTTPException(status_code=429, detail="Prea multe încercări. Te rugăm să soliciți un cod nou.")
 
     if code_doc["code"] != payload.code:
         await db.verification_codes.update_one(
             {"email": email, "used": False},
             {"$inc": {"attempts": 1}},
         )
-        raise HTTPException(status_code=401, detail="Invalid verification code")
+        raise HTTPException(status_code=401, detail="Cod de verificare invalid")
 
     # Mark as used & verify user
     await db.verification_codes.update_one(
@@ -252,9 +252,9 @@ async def resend_code(payload: ResendCodeRequest):
     email = payload.email.lower()
     user = await db.users.find_one({"email": email}, {"_id": 0})
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail="Utilizatorul nu a fost găsit")
     if user.get("email_verified"):
-        return {"success": True, "message": "Email already verified"}
+        return {"success": True, "message": "Emailul este deja verificat"}
 
     # Throttle: limit one code per 30s
     last = await db.verification_codes.find_one({"email": email}, sort=[("created_at", -1)])
@@ -265,7 +265,7 @@ async def resend_code(payload: ResendCodeRequest):
         if created_at.tzinfo is None:
             created_at = created_at.replace(tzinfo=timezone.utc)
         if (datetime.now(timezone.utc) - created_at).total_seconds() < 30:
-            raise HTTPException(status_code=429, detail="Please wait before requesting another code.")
+            raise HTTPException(status_code=429, detail="Te rugăm să aștepți înainte de a solicita un alt cod.")
 
     code = gen_code()
     await db.verification_codes.delete_many({"email": email})
@@ -285,7 +285,7 @@ async def resend_code(payload: ResendCodeRequest):
 async def login(payload: UserLogin):
     user = await db.users.find_one({"email": payload.email.lower()})
     if not user or not verify_password(payload.password, user.get("password_hash", "")):
-        raise HTTPException(status_code=401, detail="Invalid email or password")
+        raise HTTPException(status_code=401, detail="Email sau parolă incorectă")
     token = create_access_token(user["id"], user.get("role", "user"))
     return TokenResponse(access_token=token, user=UserPublic(**serialize_user(user)))
 
@@ -300,7 +300,7 @@ async def update_me(payload: UpdateUserRequest, user=Depends(get_current_user)):
     update = {k: v for k, v in payload.model_dump(exclude_none=True).items()}
     if "nickname" in update and update["nickname"] != user.get("nickname"):
         if await db.users.find_one({"nickname": update["nickname"]}):
-            raise HTTPException(status_code=400, detail="Nickname already taken")
+            raise HTTPException(status_code=400, detail="Acest pseudonim este deja luat")
     if update:
         await db.users.update_one({"id": user["id"]}, {"$set": update})
     user = await db.users.find_one({"id": user["id"]}, {"_id": 0})
@@ -615,7 +615,7 @@ async def list_history(user=Depends(get_current_user)):
 # ============================================================
 def _require_plus(user):
     if user.get("subscription") != "plus":
-        raise HTTPException(status_code=403, detail="Playlists are a Cartoonix Plus feature")
+        raise HTTPException(status_code=403, detail="Playlist-urile sunt o funcție Cartoonix Plus")
 
 
 @api_router.get("/me/playlists")

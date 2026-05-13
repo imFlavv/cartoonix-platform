@@ -25,9 +25,9 @@ function CartoonForm({ cartoon, categories, onSaved, onClose }) {
       fd.append("file", file);
       const { data } = await api.post("/admin/upload/thumbnail", fd, { headers: { "Content-Type": "multipart/form-data" } });
       setForm({ ...form, thumbnail_url: data.url });
-      toast.success("Thumbnail uploaded");
+      toast.success("Thumbnail încărcat");
     } catch (e) {
-      toast.error(getErrorMessage(e, "Upload failed"));
+      toast.error(getErrorMessage(e, "Încărcare eșuată"));
     } finally {
       setUploading(false);
     }
@@ -46,11 +46,11 @@ function CartoonForm({ cartoon, categories, onSaved, onClose }) {
       };
       if (cartoon?.id) await api.patch(`/admin/cartoons/${cartoon.id}`, payload);
       else await api.post("/admin/cartoons", payload);
-      toast.success(cartoon ? "Cartoon updated" : "Cartoon created");
+      toast.success(cartoon ? "Desen actualizat" : "Desen creat");
       onSaved();
       onClose();
     } catch (e) {
-      toast.error(getErrorMessage(e, "Save failed"));
+      toast.error(getErrorMessage(e, "Salvare eșuată"));
     } finally {
       setSaving(false);
     }
@@ -60,35 +60,35 @@ function CartoonForm({ cartoon, categories, onSaved, onClose }) {
     <div className="space-y-4">
       <div className="grid sm:grid-cols-2 gap-4">
         <div>
-          <Label>Title</Label>
+          <Label>Titlu</Label>
           <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} data-testid="cartoon-form-title" className="h-11 rounded-xl" />
         </div>
         <div>
-          <Label>Year</Label>
+          <Label>An</Label>
           <Input value={form.year || ""} onChange={(e) => setForm({ ...form, year: e.target.value })} data-testid="cartoon-form-year" className="h-11 rounded-xl" />
         </div>
       </div>
       <div>
-        <Label>Category</Label>
+        <Label>Categorie</Label>
         <Select value={form.category_id} onValueChange={(v) => setForm({ ...form, category_id: v })}>
-          <SelectTrigger className="h-11 rounded-xl" data-testid="cartoon-form-category"><SelectValue placeholder="Pick channel" /></SelectTrigger>
+          <SelectTrigger className="h-11 rounded-xl" data-testid="cartoon-form-category"><SelectValue placeholder="Alege canalul" /></SelectTrigger>
           <SelectContent>
             {categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
       <div>
-        <Label>Description</Label>
+        <Label>Descriere</Label>
         <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} data-testid="cartoon-form-description" className="min-h-[100px] rounded-xl" />
       </div>
       <div>
-        <Label>Genres (comma-separated)</Label>
+        <Label>Genuri (separate prin virgulă)</Label>
         <Input value={Array.isArray(form.genres) ? form.genres.join(", ") : form.genres} onChange={(e) => setForm({ ...form, genres: e.target.value })} data-testid="cartoon-form-genres" className="h-11 rounded-xl" />
       </div>
       <div>
         <Label>Thumbnail</Label>
         <Tabs value={thumbTab} onValueChange={setThumbTab} className="mt-2">
-          <TabsList><TabsTrigger value="url"><LinkIcon className="h-3.5 w-3.5 mr-1" /> URL</TabsTrigger><TabsTrigger value="upload"><Upload className="h-3.5 w-3.5 mr-1" /> Upload</TabsTrigger></TabsList>
+          <TabsList><TabsTrigger value="url"><LinkIcon className="h-3.5 w-3.5 mr-1" /> URL</TabsTrigger><TabsTrigger value="upload"><Upload className="h-3.5 w-3.5 mr-1" /> Încarcă</TabsTrigger></TabsList>
           <TabsContent value="url" className="mt-2">
             <Input value={form.thumbnail_url || ""} onChange={(e) => setForm({ ...form, thumbnail_url: e.target.value })} placeholder="https://..." data-testid="cartoon-form-thumb-url" className="h-11 rounded-xl" />
           </TabsContent>
@@ -103,8 +103,8 @@ function CartoonForm({ cartoon, categories, onSaved, onClose }) {
         )}
       </div>
       <DialogFooter>
-        <Button variant="ghost" onClick={onClose}>Cancel</Button>
-        <Button onClick={save} disabled={saving || !form.title.trim()} data-testid="cartoon-form-save">{saving ? "Saving..." : "Save"}</Button>
+        <Button variant="ghost" onClick={onClose}>Anulează</Button>
+        <Button onClick={save} disabled={saving || !form.title.trim()} data-testid="cartoon-form-save">{saving ? "Se salvează..." : "Salvează"}</Button>
       </DialogFooter>
     </div>
   );
@@ -128,13 +128,13 @@ export default function AdminCartoons() {
   useEffect(() => { load(); }, []);
 
   const onDelete = async (id) => {
-    if (!window.confirm("Delete this cartoon and all its episodes?")) return;
+    if (!window.confirm("Șterge acest desen și toate episoadele lui?")) return;
     try {
       await api.delete(`/admin/cartoons/${id}`);
-      toast.success("Deleted");
+      toast.success("Șters");
       load();
     } catch (e) {
-      toast.error("Delete failed");
+      toast.error("Ștergere eșuată");
     }
   };
 
@@ -144,16 +144,16 @@ export default function AdminCartoons() {
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6">
         <div className="flex-1">
-          <h1 className="font-display text-3xl tracking-wider">Cartoons</h1>
-          <p className="text-sm text-muted-foreground">Manage your series catalog.</p>
+          <h1 className="font-display text-3xl tracking-wider">Desene</h1>
+          <p className="text-sm text-muted-foreground">Administrează catalogul tău de seriale.</p>
         </div>
-        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search..." className="sm:w-64 h-11 rounded-xl" data-testid="admin-cartoons-search" />
+        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Caută..." className="sm:w-64 h-11 rounded-xl" data-testid="admin-cartoons-search" />
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button onClick={() => setEditing(null)} className="rounded-xl h-11" data-testid="admin-cartoons-create-button"><Plus className="h-4 w-4 mr-1" /> New cartoon</Button>
+            <Button onClick={() => setEditing(null)} className="rounded-xl h-11" data-testid="admin-cartoons-create-button"><Plus className="h-4 w-4 mr-1" /> Desen nou</Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader><DialogTitle>{editing ? "Edit cartoon" : "New cartoon"}</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{editing ? "Editează desenul" : "Desen nou"}</DialogTitle></DialogHeader>
             <CartoonForm cartoon={editing} categories={categories} onSaved={load} onClose={() => setOpen(false)} />
           </DialogContent>
         </Dialog>
@@ -162,11 +162,11 @@ export default function AdminCartoons() {
         <table className="w-full text-sm">
           <thead className="bg-secondary/40">
             <tr>
-              <th className="text-left p-3">Cartoon</th>
-              <th className="text-left p-3 hidden sm:table-cell">Channel</th>
-              <th className="text-left p-3 hidden md:table-cell">Year</th>
-              <th className="text-left p-3 hidden md:table-cell">Episodes</th>
-              <th className="text-right p-3">Actions</th>
+              <th className="text-left p-3">Desen</th>
+              <th className="text-left p-3 hidden sm:table-cell">Canal</th>
+              <th className="text-left p-3 hidden md:table-cell">An</th>
+              <th className="text-left p-3 hidden md:table-cell">Episoade</th>
+              <th className="text-right p-3">Acțiuni</th>
             </tr>
           </thead>
           <tbody>
@@ -193,7 +193,7 @@ export default function AdminCartoons() {
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan={5} className="p-10 text-center text-muted-foreground">No cartoons. Click “New cartoon” to add one.</td></tr>
+              <tr><td colSpan={5} className="p-10 text-center text-muted-foreground">Niciun desen. Apasă „Desen nou" pentru a adăuga unul.</td></tr>
             )}
           </tbody>
         </table>

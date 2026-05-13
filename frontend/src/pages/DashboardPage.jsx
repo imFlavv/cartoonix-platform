@@ -58,19 +58,19 @@ export default function DashboardPage() {
     try {
       await api.post("/me/playlists", { name: newPlaylist.trim() });
       setNewPlaylist("");
-      toast.success("Playlist created");
+      toast.success("Playlist creat");
       load();
     } catch (e) {
-      toast.error(getErrorMessage(e, "Could not create playlist"));
+      toast.error(getErrorMessage(e, "Nu am putut crea playlist-ul"));
     }
   };
 
   const onAvatarChange = async (url) => {
     try {
       await updateMe({ avatar_url: url });
-      toast.success("Avatar updated");
+      toast.success("Avatar actualizat");
     } catch {
-      toast.error("Could not update avatar");
+      toast.error("Nu am putut actualiza avatarul");
     }
   };
 
@@ -81,7 +81,7 @@ export default function DashboardPage() {
           className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
           <img src={mediaUrl(user.avatar_url)} alt="" className="h-16 w-16 rounded-xl object-cover" />
           <div className="flex-1">
-            <h1 className="font-display text-3xl tracking-wider">Welcome back, {user.nickname}</h1>
+            <h1 className="font-display text-3xl tracking-wider">Bine ai revenit, {user.nickname}</h1>
             <div className="flex items-center gap-2 mt-1">
               {isPlus ? (
                 <Badge className="bg-[hsl(var(--accent))] text-[hsl(var(--accent-foreground))] rounded-full"><Crown className="h-3 w-3 mr-1" /> Plus</Badge>
@@ -89,33 +89,33 @@ export default function DashboardPage() {
                 <Badge variant="secondary" className="rounded-full">Free</Badge>
               )}
               {!user.email_verified && (
-                <Link to="/verify"><Badge variant="destructive">Email not verified</Badge></Link>
+                <Link to="/verify"><Badge variant="destructive">Email neverificat</Badge></Link>
               )}
             </div>
           </div>
           {!isPlus && (
-            <Link to="/plans"><Button className="rounded-xl" data-testid="dashboard-upgrade-button"><Crown className="h-4 w-4 mr-2" /> Upgrade to Plus</Button></Link>
+            <Link to="/plans"><Button className="rounded-xl" data-testid="dashboard-upgrade-button"><Crown className="h-4 w-4 mr-2" /> Upgrade la Plus</Button></Link>
           )}
         </motion.div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <Stat label="Favorites" value={favs.length} color="hsl(var(--primary))" />
-          <Stat label="In history" value={history.length} color="hsl(var(--accent))" />
-          <Stat label="Playlists" value={isPlus ? playlists.length : 0} color="hsl(var(--brand-minimax))" />
-          <Stat label="Plan" value={isPlus ? "PLUS" : "FREE"} color="hsl(var(--brand-cn))" />
+          <Stat label="Favorite" value={favs.length} color="hsl(var(--primary))" />
+          <Stat label="În istoric" value={history.length} color="hsl(var(--accent))" />
+          <Stat label="Playlist-uri" value={isPlus ? playlists.length : 0} color="hsl(var(--brand-minimax))" />
+          <Stat label="Abonament" value={isPlus ? "PLUS" : "FREE"} color="hsl(var(--brand-cn))" />
         </div>
 
         <Tabs defaultValue="history" className="w-full">
           <TabsList className="rounded-xl">
-            <TabsTrigger value="history" data-testid="dashboard-tab-history"><HistoryIcon className="h-4 w-4 mr-2" /> History</TabsTrigger>
-            <TabsTrigger value="favorites" data-testid="dashboard-tab-favorites"><Heart className="h-4 w-4 mr-2" /> Favorites</TabsTrigger>
-            <TabsTrigger value="playlists" data-testid="dashboard-tab-playlists"><ListMusic className="h-4 w-4 mr-2" /> Playlists {!isPlus && <Lock className="h-3 w-3 ml-1" />}</TabsTrigger>
-            <TabsTrigger value="settings" data-testid="dashboard-tab-settings"><SettingsIcon className="h-4 w-4 mr-2" /> Settings</TabsTrigger>
+            <TabsTrigger value="history" data-testid="dashboard-tab-history"><HistoryIcon className="h-4 w-4 mr-2" /> Istoric</TabsTrigger>
+            <TabsTrigger value="favorites" data-testid="dashboard-tab-favorites"><Heart className="h-4 w-4 mr-2" /> Favorite</TabsTrigger>
+            <TabsTrigger value="playlists" data-testid="dashboard-tab-playlists"><ListMusic className="h-4 w-4 mr-2" /> Playlist-uri {!isPlus && <Lock className="h-3 w-3 ml-1" />}</TabsTrigger>
+            <TabsTrigger value="settings" data-testid="dashboard-tab-settings"><SettingsIcon className="h-4 w-4 mr-2" /> Setări</TabsTrigger>
           </TabsList>
 
           <TabsContent value="history" className="mt-5">
             {history.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-border p-10 text-center text-muted-foreground">No watch history yet. Start a cartoon!</div>
+              <div className="rounded-2xl border border-dashed border-border p-10 text-center text-muted-foreground">Nu ai istoric încă. Pornește un desen!</div>
             ) : (
               <div className="space-y-2">
                 {history.map((h) => (
@@ -124,7 +124,7 @@ export default function DashboardPage() {
                       {h.cartoon?.thumbnail_url ? <img src={mediaUrl(h.cartoon.thumbnail_url)} alt="" className="h-full w-full object-cover" /> : <span className="text-muted-foreground">{h.cartoon?.title?.slice(0,2) || "—"}</span>}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium truncate">{h.cartoon?.title || "Unknown"}</div>
+                      <div className="font-medium truncate">{h.cartoon?.title || "Necunoscut"}</div>
                       <div className="text-xs text-muted-foreground truncate">{h.episode?.title} · S{h.episode?.season} E{h.episode?.episode_number}</div>
                     </div>
                     <ChevronRight className="h-4 w-4 text-muted-foreground" />
@@ -136,7 +136,7 @@ export default function DashboardPage() {
 
           <TabsContent value="favorites" className="mt-5">
             {favs.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-border p-10 text-center text-muted-foreground">No favorites yet. Tap the heart on a cartoon to save it.</div>
+              <div className="rounded-2xl border border-dashed border-border p-10 text-center text-muted-foreground">Niciun favorit încă. Apasă inimioara de pe un desen pentru a-l salva.</div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                 {favs.map((c) => (
@@ -155,24 +155,24 @@ export default function DashboardPage() {
             {!isPlus ? (
               <div className="rounded-2xl border border-border bg-card/60 p-10 text-center">
                 <Lock className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                <h3 className="font-display text-xl tracking-wider">Playlists are a Plus feature</h3>
-                <p className="text-sm text-muted-foreground mt-1">Upgrade to Cartoonix Plus to curate your own collections.</p>
-                <Link to="/plans"><Button className="mt-4 rounded-xl" data-testid="playlists-upgrade-button">Go Plus</Button></Link>
+                <h3 className="font-display text-xl tracking-wider">Playlist-urile sunt o funcție Plus</h3>
+                <p className="text-sm text-muted-foreground mt-1">Trece la Cartoonix Plus pentru a-ți crea propriile colecții.</p>
+                <Link to="/plans"><Button className="mt-4 rounded-xl" data-testid="playlists-upgrade-button">Treci pe Plus</Button></Link>
               </div>
             ) : (
               <div className="space-y-4">
                 <div className="flex gap-2">
-                  <Input value={newPlaylist} onChange={(e) => setNewPlaylist(e.target.value)} placeholder="New playlist name" data-testid="playlist-name-input" className="h-11 rounded-xl" />
-                  <Button onClick={createPlaylist} className="rounded-xl h-11" data-testid="playlist-create-button">Create</Button>
+                  <Input value={newPlaylist} onChange={(e) => setNewPlaylist(e.target.value)} placeholder="Nume playlist nou" data-testid="playlist-name-input" className="h-11 rounded-xl" />
+                  <Button onClick={createPlaylist} className="rounded-xl h-11" data-testid="playlist-create-button">Creează</Button>
                 </div>
                 {playlists.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-border p-10 text-center text-muted-foreground">No playlists yet.</div>
+                  <div className="rounded-2xl border border-dashed border-border p-10 text-center text-muted-foreground">Niciun playlist încă.</div>
                 ) : (
                   <div className="grid sm:grid-cols-2 gap-3">
                     {playlists.map((p) => (
                       <div key={p.id} className="rounded-xl border border-border bg-card/60 p-4" data-testid="playlist-item">
                         <div className="font-medium">{p.name}</div>
-                        <div className="text-xs text-muted-foreground">{p.cartoon_ids?.length || 0} cartoons</div>
+                        <div className="text-xs text-muted-foreground">{p.cartoon_ids?.length || 0} desene</div>
                       </div>
                     ))}
                   </div>
@@ -183,7 +183,7 @@ export default function DashboardPage() {
 
           <TabsContent value="settings" className="mt-5">
             <div className="rounded-2xl border border-border bg-card/60 p-6">
-              <h3 className="font-display text-xl tracking-wider mb-3">Change avatar</h3>
+              <h3 className="font-display text-xl tracking-wider mb-3">Schimbă avatarul</h3>
               <div className="grid grid-cols-5 sm:grid-cols-7 lg:grid-cols-10 gap-3">
                 {avatars.map((a) => {
                   const selected = user.avatar_url === a.url;
@@ -200,7 +200,7 @@ export default function DashboardPage() {
                 <Input value={user.email} disabled className="h-11 rounded-xl mt-1" />
               </div>
               <div className="mt-4">
-                <Label>Nickname</Label>
+                <Label>Pseudonim</Label>
                 <Input value={user.nickname} disabled className="h-11 rounded-xl mt-1" />
               </div>
             </div>
