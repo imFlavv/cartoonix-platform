@@ -142,7 +142,7 @@ export function Footer() {
             <BrandLogo variant="horizontal" size="md" />
           </div>
           <p className="text-sm text-muted-foreground max-w-xs">
-            Streamează clasicele. Un tezaur nostalgic de desene animate de la JETIX & Fox Kids, Cartoon Network și Minimax.
+            Retrăiește magia copilăriei printr-o colecție nostalgică de desene animate clasice inspirate din universul JETIX, Fox Kids, Cartoon Network și Minimax.
           </p>
         </div>
         <div className="text-sm">
