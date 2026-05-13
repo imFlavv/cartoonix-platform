@@ -14,7 +14,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Progress } from "@/components/ui/progress";
 import { Check, ChevronLeft, ChevronRight, Sparkles, Crown, AlertCircle } from "lucide-react";
 
-const STEPS = ["Profil", "Abonament", "Verificare"];
+const STEPS = ["Profil", "Verificare"];
 
 function StepHeader({ step }) {
   return (
@@ -28,7 +28,7 @@ function StepHeader({ step }) {
   );
 }
 
-function Step1Profile({ form, setForm, avatars, onNext }) {
+function Step1Profile({ form, setForm, avatars, onNext, submitting }) {
   const [error, setError] = useState("");
 
   const submit = (e) => {
@@ -111,8 +111,8 @@ function Step1Profile({ form, setForm, avatars, onNext }) {
         </div>
       )}
       <div className="flex justify-end">
-        <Button type="submit" className="rounded-xl h-11" data-testid="register-next-step-button">
-          Continuă <ChevronRight className="ml-1 h-4 w-4" />
+        <Button type="submit" disabled={submitting} className="rounded-xl h-11" data-testid="register-next-step-button">
+          {submitting ? "Se creează contul..." : (<>Creează contul <ChevronRight className="ml-1 h-4 w-4" /></>)}
         </Button>
       </div>
     </form>
@@ -313,7 +313,7 @@ export default function RegisterPage() {
         accepted_terms: form.accepted_terms,
       });
       toast.success("Cod trimis! Verifică emailul pentru codul de confirmare.");
-      setStep(2);
+      setStep(1);
     } catch (err) {
       toast.error(getErrorMessage(err, "Înregistrarea a eșuat"));
     } finally {
@@ -330,7 +330,7 @@ export default function RegisterPage() {
             className="rounded-2xl border border-border bg-card/85 backdrop-blur p-7 sm:p-9 shadow-[0_14px_40px_rgba(0,0,0,0.45)]">
             <div className="mb-5 text-center">
               <h1 className="font-display text-3xl sm:text-4xl tracking-wider">Alătură-te Cartoonix</h1>
-              <p className="text-sm text-muted-foreground mt-1">Trei pași simpli.</p>
+              <p className="text-sm text-muted-foreground mt-1">Doi pași simpli.</p>
             </div>
             <StepHeader step={step} />
             <AnimatePresence mode="wait">
@@ -342,15 +342,16 @@ export default function RegisterPage() {
                 transition={{ duration: 0.25 }}
               >
                 {step === 0 && (
-                  <Step1Profile form={form} setForm={setForm} avatars={avatars} onNext={() => setStep(1)} />
+                  <Step1Profile
+                    form={form}
+                    setForm={setForm}
+                    avatars={avatars}
+                    onNext={doRegister}
+                    submitting={submitting}
+                  />
                 )}
                 {step === 1 && (
-                  <Step2Plan form={form} setForm={setForm} onNext={doRegister} onBack={() => setStep(0)} submitting={submitting} />
-                )}
-                {step === 2 && (
                   <Step3Verify email={form.email} onSuccess={() => {
-                    // After verify, /auth/me has been called inside the auth context
-                    // and `user` is set; pick role from current state.
                     const u = user;
                     if (settings?.presentation_mode && u?.role !== "admin") {
                       toast.info("Cont creat! Accesul la platformă va fi disponibil în curând.");
