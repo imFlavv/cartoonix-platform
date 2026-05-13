@@ -5,6 +5,7 @@ const SettingsContext = createContext(null);
 
 const DEFAULT_SETTINGS = {
   presentation_mode: false,
+  maintenance_mode: false,
 };
 
 export function SettingsProvider({ children }) {

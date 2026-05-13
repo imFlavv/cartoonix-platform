@@ -113,6 +113,7 @@ async def root():
 # ============================================================
 DEFAULT_SETTINGS = {
     "presentation_mode": False,
+    "maintenance_mode": False,
 }
 
 

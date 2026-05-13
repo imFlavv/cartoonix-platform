@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-import { Eye, EyeOff, Globe, Loader2, AlertTriangle } from "lucide-react";
+import { Eye, EyeOff, Globe, Loader2, AlertTriangle, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSettings } from "@/contexts/SettingsContext";
 
@@ -32,7 +32,7 @@ function Toggle({ checked, onChange, disabled, id }) {
 
 export default function AdminSettings() {
   const { settings, refresh } = useSettings() || {};
-  const [local, setLocal] = useState({ presentation_mode: false });
+  const [local, setLocal] = useState({ presentation_mode: false, maintenance_mode: false });
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -75,6 +75,35 @@ export default function AdminSettings() {
     } catch (err) {
       // rollback
       setLocal((s) => ({ ...s, presentation_mode: prev }));
+      toast.error("Nu am putut salva setarea", {
+        description: err?.response?.data?.detail || "Încearcă din nou.",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggleMaintenance = async (next) => {
+    if (saving) return;
+    const prev = local.maintenance_mode;
+    setLocal((s) => ({ ...s, maintenance_mode: next }));
+    setSaving(true);
+    try {
+      const { data } = await api.patch("/admin/settings", {
+        maintenance_mode: next,
+      });
+      setLocal(data);
+      if (refresh) await refresh();
+      toast.success(
+        next ? "Mod mentenanță activat" : "Mod mentenanță dezactivat",
+        {
+          description: next
+            ? "Toți vizitatorii non-admin văd pagina de mentenanță. Adminii păstrează acces total."
+            : "Platforma este din nou complet disponibilă.",
+        }
+      );
+    } catch (err) {
+      setLocal((s) => ({ ...s, maintenance_mode: prev }));
       toast.error("Nu am putut salva setarea", {
         description: err?.response?.data?.detail || "Încearcă din nou.",
       });
@@ -157,6 +186,79 @@ export default function AdminSettings() {
             size="sm"
             className="h-7 text-xs"
             data-testid="settings-preview-presentation"
+          >
+            <a href="/" target="_blank" rel="noreferrer">
+              Previzualizează →
+            </a>
+          </Button>
+        </div>
+      </div>
+
+      {/* MAINTENANCE MODE CARD */}
+      <div className="rounded-2xl border border-border bg-card/70 overflow-hidden">
+        <div className="p-6 flex items-start gap-5">
+          <div className="shrink-0 h-12 w-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 grid place-items-center text-black">
+            <Wrench className="h-6 w-6" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="font-display text-xl tracking-wide flex items-center gap-2">
+                  Mod mentenanță
+                  {loading ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  ) : local.maintenance_mode ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 uppercase tracking-widest">
+                      <Eye className="h-3 w-3" /> Activ
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-white/10 text-muted-foreground uppercase tracking-widest">
+                      <EyeOff className="h-3 w-3" /> Inactiv
+                    </span>
+                  )}
+                </h2>
+                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+                  Când este activ, toți vizitatorii non-admin văd doar un mesaj
+                  de mentenanță. Suprascrie Mod prezentare dacă acesta este
+                  activ. Adminii pot intra în continuare în panou pentru a
+                  dezactiva mentenanța.
+                </p>
+              </div>
+              <Toggle
+                id="settings-maintenance-toggle"
+                checked={!!local.maintenance_mode}
+                onChange={toggleMaintenance}
+                disabled={saving || loading}
+              />
+            </div>
+
+            {local.maintenance_mode && (
+              <div className="mt-5 flex items-start gap-3 rounded-xl border border-red-500/25 bg-red-500/5 p-3">
+                <AlertTriangle className="h-4 w-4 text-red-400 mt-0.5 shrink-0" />
+                <div className="text-sm">
+                  <p className="text-red-200/90 font-medium">
+                    Platforma este indisponibilă public
+                  </p>
+                  <p className="text-red-200/65 mt-0.5 leading-relaxed">
+                    Toate paginile (inclusiv pagina de prezentare și
+                    înregistrarea) afișează mesajul de mentenanță. Doar
+                    /login și /admin rămân accesibile.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="px-6 py-3 bg-black/20 border-t border-border/60 flex items-center justify-between">
+          <span className="text-xs text-muted-foreground">
+            Modificările se aplică instant pentru toți vizitatorii.
+          </span>
+          <Button
+            asChild
+            variant="ghost"
+            size="sm"
+            className="h-7 text-xs"
+            data-testid="settings-preview-maintenance"
           >
             <a href="/" target="_blank" rel="noreferrer">
               Previzualizează →

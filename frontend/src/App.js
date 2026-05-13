@@ -15,6 +15,7 @@ import PlansPage from "@/pages/PlansPage";
 import TermsPage from "@/pages/TermsPage";
 import DashboardPage from "@/pages/DashboardPage";
 import PresentationPage from "@/pages/PresentationPage";
+import MaintenancePage from "@/pages/MaintenancePage";
 import ConcursuriPage from "@/pages/ConcursuriPage";
 import AdminLayout from "@/components/AdminLayout";
 import AdminOverview from "@/pages/admin/AdminOverview";
@@ -42,6 +43,35 @@ const PRESENTATION_ALLOWED_PREFIXES = [
   "/admin",
   "/concursuri",
 ];
+
+/**
+ * Routes that remain available when maintenance_mode is ON.
+ * We keep this very tight: only login + admin so admins can still get in
+ * to disable maintenance. Everything else shows the maintenance screen.
+ */
+const MAINTENANCE_ALLOWED_PREFIXES = ["/login", "/admin"];
+
+function MaintenanceGate({ children }) {
+  const { settings, loading: settingsLoading } = useSettings() || {};
+  const { user, loading: authLoading } = useAuth() || {};
+  const location = useLocation();
+
+  if (settingsLoading || authLoading) return null;
+
+  const maintenanceOn = !!settings?.maintenance_mode;
+  if (!maintenanceOn) return children;
+
+  // Admins always have full access.
+  if (user?.role === "admin") return children;
+
+  const path = location.pathname;
+  const allowed = MAINTENANCE_ALLOWED_PREFIXES.some(
+    (p) => path === p || path.startsWith(p + "/")
+  );
+  if (allowed) return children;
+
+  return <MaintenancePage />;
+}
 
 function PublicRoute({ element }) {
   const { settings, loading: settingsLoading } = useSettings() || {};
@@ -83,7 +113,8 @@ function App() {
         <BrowserRouter>
           <AuthProvider>
             <SettingsProvider>
-              <Routes>
+              <MaintenanceGate>
+                <Routes>
                 <Route path="/" element={<RootRoute />} />
                 <Route path="/category/:slug" element={<PublicRoute element={<CategoryPage />} />} />
                 <Route path="/cartoon/:id" element={<PublicRoute element={<CartoonDetailPage />} />} />
@@ -110,6 +141,7 @@ function App() {
                   <Route path="settings" element={<AdminSettings />} />
                 </Route>
               </Routes>
+              </MaintenanceGate>
               <Toaster position="top-right" expand={false} />
             </SettingsProvider>
           </AuthProvider>
