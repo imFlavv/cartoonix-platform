@@ -48,7 +48,7 @@ function Step1Profile({ form, setForm, avatars, onNext, submitting }) {
       <div>
         <Label className="text-sm">Alege-ți avatarul</Label>
         <div data-testid="register-avatar-grid" className="mt-2 grid grid-cols-4 sm:grid-cols-5 gap-3">
-          {avatars.map((a) => {
+          {(Array.isArray(avatars) ? avatars : []).map((a) => {
             const selected = form.avatar_url === a.url;
             return (
               <button
@@ -294,9 +294,15 @@ export default function RegisterPage() {
 
   useEffect(() => {
     (async () => {
-      const { data } = await api.get("/avatars");
-      setAvatars(data);
-      if (data.length && !form.avatar_url) setForm((f) => ({ ...f, avatar_url: data[0].url }));
+      try {
+        const { data } = await api.get("/avatars");
+        const list = Array.isArray(data) ? data : [];
+        setAvatars(list);
+        if (list.length && !form.avatar_url) setForm((f) => ({ ...f, avatar_url: list[0].url }));
+      } catch (err) {
+        console.error("Failed to load avatars", err);
+        setAvatars([]);
+      }
     })();
     // eslint-disable-next-line
   }, []);
