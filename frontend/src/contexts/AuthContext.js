@@ -38,15 +38,23 @@ export function AuthProvider({ children }) {
   };
 
   const register = async (payload) => {
+    // Backend now returns ONLY {success, email} — no token, no user.
+    // The account is created on /auth/verify-email.
     const { data } = await api.post("/auth/register", payload);
-    localStorage.setItem("cartoonix_token", data.access_token);
-    setUser(data.user);
-    return data.user;
+    return data;
   };
 
   const verifyEmail = async (email, code) => {
+    // Returns TokenResponse {access_token, user} now that user creation happens here.
     const { data } = await api.post("/auth/verify-email", { email, code });
-    await fetchMe();
+    if (data?.access_token) {
+      localStorage.setItem("cartoonix_token", data.access_token);
+    }
+    if (data?.user) {
+      setUser(data.user);
+    } else {
+      await fetchMe();
+    }
     return data;
   };
 

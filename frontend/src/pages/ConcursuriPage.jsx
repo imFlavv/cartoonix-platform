@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
@@ -14,10 +14,23 @@ import {
   Plane,
   BedDouble,
   Castle,
+  LayoutDashboard,
+  Shield,
+  LogOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BrandLogo } from "@/components/BrandLogo";
+import { useAuth } from "@/contexts/AuthContext";
+import { mediaUrl } from "@/lib/api";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const DISNEYLAND_PAYMENT_LINK =
@@ -360,6 +373,8 @@ function FreeContestCard({
 /*  PAGE                                                              */
 /* ----------------------------------------------------------------- */
 export default function ConcursuriPage() {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   return (
     <div className="min-h-screen bg-[#08020a] text-white antialiased selection:bg-[#d6a648]/30 selection:text-white">
       {/* TOP NAV */}
@@ -371,17 +386,60 @@ export default function ConcursuriPage() {
           <nav className="hidden md:flex items-center gap-8 text-sm text-white/70">
             <Link to="/" className="hover:text-white transition-colors">Acasă</Link>
             <Link to="/concursuri" className="text-[#d6a648]">Concursuri</Link>
-            <Link to="/register" className="hover:text-white transition-colors">Cont nou</Link>
+            {!user && (
+              <Link to="/register" className="hover:text-white transition-colors">Cont nou</Link>
+            )}
           </nav>
-          <Link to="/register" data-testid="concursuri-register-btn">
-            <Button
-              size="lg"
-              className="rounded-sm bg-[#d6a648] hover:bg-[#c5972f] text-black font-semibold h-11 px-6 border border-[#e5b95b]/60"
-              style={{ letterSpacing: "0.08em" }}
-            >
-              ÎNREGISTRARE
-            </Button>
-          </Link>
+          {user ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  data-testid="concursuri-user-menu"
+                  className="flex items-center gap-2 rounded-sm border border-[#d6a648]/30 bg-black/40 px-2.5 py-1.5 hover:bg-black/60 transition-colors"
+                >
+                  <img
+                    src={mediaUrl(user.avatar_url)}
+                    alt={user.nickname}
+                    className="h-8 w-8 rounded-sm object-cover"
+                  />
+                  <span className="text-sm font-medium hidden sm:inline text-white/90">
+                    {user.nickname}
+                  </span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium">{user.nickname}</span>
+                    <span className="text-xs text-muted-foreground truncate">{user.email}</span>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate("/dashboard")} data-testid="concursuri-nav-dashboard">
+                  <LayoutDashboard className="mr-2 h-4 w-4" /> Contul meu
+                </DropdownMenuItem>
+                {user.role === "admin" && (
+                  <DropdownMenuItem onClick={() => navigate("/admin")} data-testid="concursuri-nav-admin">
+                    <Shield className="mr-2 h-4 w-4" /> Panou Admin
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={logout} data-testid="concursuri-nav-logout">
+                  <LogOut className="mr-2 h-4 w-4" /> Deconectare
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Link to="/register" data-testid="concursuri-register-btn">
+              <Button
+                size="lg"
+                className="rounded-sm bg-[#d6a648] hover:bg-[#c5972f] text-black font-semibold h-11 px-6 border border-[#e5b95b]/60"
+                style={{ letterSpacing: "0.08em" }}
+              >
+                ÎNREGISTRARE
+              </Button>
+            </Link>
+          )}
         </div>
       </header>
 

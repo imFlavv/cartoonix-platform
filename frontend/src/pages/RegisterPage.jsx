@@ -216,7 +216,7 @@ function Step3Verify({ email, onSuccess }) {
     setLoading(true);
     try {
       await verifyEmail(email, code);
-      toast.success("Email verificat!");
+      toast.success("Cont creat cu succes!");
       onSuccess();
     } catch (err) {
       toast.error(getErrorMessage(err, "Cod invalid"));
@@ -312,7 +312,7 @@ export default function RegisterPage() {
         subscription: form.subscription,
         accepted_terms: form.accepted_terms,
       });
-      toast.success("Cont creat! Verifică-ți emailul pentru codul de verificare.");
+      toast.success("Cod trimis! Verifică emailul pentru codul de confirmare.");
       setStep(2);
     } catch (err) {
       toast.error(getErrorMessage(err, "Înregistrarea a eșuat"));
@@ -330,7 +330,7 @@ export default function RegisterPage() {
             className="rounded-2xl border border-border bg-card/85 backdrop-blur p-7 sm:p-9 shadow-[0_14px_40px_rgba(0,0,0,0.45)]">
             <div className="mb-5 text-center">
               <h1 className="font-display text-3xl sm:text-4xl tracking-wider">Alătură-te Cartoonix</h1>
-              <p className="text-sm text-muted-foreground mt-1">Trei pași simpli până la tezaur.</p>
+              <p className="text-sm text-muted-foreground mt-1">Trei pași simpli.</p>
             </div>
             <StepHeader step={step} />
             <AnimatePresence mode="wait">
@@ -349,6 +349,8 @@ export default function RegisterPage() {
                 )}
                 {step === 2 && (
                   <Step3Verify email={form.email} onSuccess={() => {
+                    // After verify, /auth/me has been called inside the auth context
+                    // and `user` is set; pick role from current state.
                     const u = user;
                     if (settings?.presentation_mode && u?.role !== "admin") {
                       toast.info("Cont creat! Accesul la platformă va fi disponibil în curând.");

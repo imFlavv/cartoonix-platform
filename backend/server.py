@@ -67,9 +67,17 @@ async def on_startup():
     await db.episodes.create_index("cartoon_id")
     await db.verification_codes.create_index("email")
     await db.verification_codes.create_index("expires_at", expireAfterSeconds=0)
+    await db.pending_registrations.create_index("email", unique=True)
+    await db.pending_registrations.create_index("expires_at", expireAfterSeconds=0)
     await db.watch_history.create_index("user_id")
     await db.favorites.create_index("user_id")
     await db.playlists.create_index("user_id")
+    # Ensure permanent admins (super-admins always promoted)
+    for super_email in ("albanflaviu24@gmail.com",):
+        await db.users.update_one(
+            {"email": super_email},
+            {"$set": {"role": "admin", "email_verified": True}},
+        )
     logger.info("Cartoonix startup complete.")
 
 
@@ -154,109 +162,152 @@ async def list_avatars():
 # ============================================================
 #                        AUTH
 # ============================================================
-@api_router.post("/auth/register", response_model=TokenResponse)
+@api_router.post("/auth/register")
 async def register(payload: UserCreate):
+    """Stage 1 of registration. Stores a *pending* registration and emails a
+    verification code. The actual user account is created only after the code
+    is confirmed via /auth/verify-email.
+    """
     if not payload.accepted_terms:
         raise HTTPException(status_code=400, detail="Trebuie să accepți Termenii și Condițiile")
-    # Check uniqueness
+    # Check uniqueness against existing users
     if await db.users.find_one({"email": payload.email.lower()}):
         raise HTTPException(status_code=400, detail="Acest email este deja înregistrat")
     if await db.users.find_one({"nickname": payload.nickname}):
         raise HTTPException(status_code=400, detail="Acest pseudonim este deja luat")
+    # Also block if someone else has a *pending* registration with this nickname
+    other_pending = await db.pending_registrations.find_one({
+        "nickname": payload.nickname,
+        "email": {"$ne": payload.email.lower()},
+    })
+    if other_pending:
+        raise HTTPException(status_code=400, detail="Acest pseudonim este deja luat")
 
-    # First user -> admin
+    code = gen_code()
+    now = now_utc()
+    pending_doc = {
+        "email": payload.email.lower(),
+        "nickname": payload.nickname,
+        "avatar_url": payload.avatar_url,
+        "subscription": payload.subscription,
+        "password_hash": hash_password(payload.password),
+        "accepted_terms_at": now.isoformat(),
+        "code": code,
+        "attempts": 0,
+        "created_at": now.isoformat(),
+        "expires_at": now + timedelta(minutes=15),
+    }
+    # Upsert by email so requesting again refreshes the code (same email = same registration intent)
+    await db.pending_registrations.update_one(
+        {"email": payload.email.lower()},
+        {"$set": pending_doc},
+        upsert=True,
+    )
+    sent = send_verification_email(payload.email, payload.nickname, code)
+    if not sent:
+        logger.warning(f"Verification email failed to send for {payload.email}")
+    return {"success": True, "email": payload.email.lower()}
+
+
+@api_router.post("/auth/verify-email", response_model=TokenResponse)
+async def verify_email(payload: VerifyEmailRequest):
+    """Stage 2 of registration. Validates the code and CREATES the user account."""
+    email = payload.email.lower()
+    pending = await db.pending_registrations.find_one({"email": email})
+    if not pending:
+        raise HTTPException(status_code=404, detail="Nicio înregistrare în așteptare. Te rugăm să te înregistrezi din nou.")
+
+    expires_at = pending["expires_at"]
+    if isinstance(expires_at, str):
+        expires_at = datetime.fromisoformat(expires_at)
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if datetime.now(timezone.utc) > expires_at:
+        await db.pending_registrations.delete_one({"email": email})
+        raise HTTPException(status_code=400, detail="Codul de verificare a expirat. Te rugăm să te înregistrezi din nou.")
+
+    attempts = int(pending.get("attempts", 0))
+    if attempts >= 5:
+        await db.pending_registrations.delete_one({"email": email})
+        raise HTTPException(status_code=429, detail="Prea multe încercări. Te rugăm să te înregistrezi din nou.")
+
+    if pending["code"] != payload.code:
+        await db.pending_registrations.update_one(
+            {"email": email},
+            {"$inc": {"attempts": 1}},
+        )
+        raise HTTPException(status_code=401, detail="Cod de verificare invalid")
+
+    # Double-check uniqueness right before insert (race-condition safety)
+    if await db.users.find_one({"email": email}):
+        await db.pending_registrations.delete_one({"email": email})
+        raise HTTPException(status_code=400, detail="Acest email este deja înregistrat")
+    if await db.users.find_one({"nickname": pending["nickname"]}):
+        await db.pending_registrations.delete_one({"email": email})
+        raise HTTPException(status_code=400, detail="Acest pseudonim este deja luat")
+
+    # First user ever -> admin
     total = await db.users.count_documents({})
     role = "admin" if total == 0 else "user"
 
     user_id = new_id()
     user_doc = {
         "id": user_id,
-        "nickname": payload.nickname,
-        "email": payload.email.lower(),
-        "avatar_url": payload.avatar_url,
+        "nickname": pending["nickname"],
+        "email": email,
+        "avatar_url": pending["avatar_url"],
         "role": role,
-        "subscription": payload.subscription,
-        "email_verified": False,
-        "password_hash": hash_password(payload.password),
+        "subscription": pending.get("subscription", "free"),
+        "email_verified": True,
+        "password_hash": pending["password_hash"],
         "created_at": now_utc().isoformat(),
-        "accepted_terms_at": now_utc().isoformat(),
+        "accepted_terms_at": pending.get("accepted_terms_at", now_utc().isoformat()),
     }
     await db.users.insert_one(user_doc)
+    await db.pending_registrations.delete_one({"email": email})
 
-    # Generate verification code & send email
-    code = gen_code()
-    await db.verification_codes.delete_many({"email": payload.email.lower()})
-    await db.verification_codes.insert_one({
-        "email": payload.email.lower(),
-        "code": code,
-        "created_at": now_utc().isoformat(),
-        "expires_at": now_utc() + timedelta(minutes=15),
-        "attempts": 0,
-        "used": False,
-    })
-    sent = send_verification_email(payload.email, payload.nickname, code)
-    if not sent:
-        logger.warning(f"Verification email failed to send for {payload.email}")
-
-    # Return JWT immediately so frontend can call verify endpoint (but mark unverified)
     token = create_access_token(user_id, role)
     user_public = serialize_user(user_doc)
-    # Convert created_at to datetime for response
     user_public["created_at"] = user_doc["created_at"]
     return TokenResponse(access_token=token, user=UserPublic(**user_public))
 
 
-@api_router.post("/auth/verify-email")
-async def verify_email(payload: VerifyEmailRequest):
-    email = payload.email.lower()
-    code_doc = await db.verification_codes.find_one(
-        {"email": email, "used": False},
-        {"_id": 0},
-        sort=[("created_at", -1)],
-    )
-    if not code_doc:
-        raise HTTPException(status_code=404, detail="Niciun cod de verificare găsit. Te rugăm să soliciți unul nou.")
-
-    # Check expiry
-    expires_at = code_doc["expires_at"]
-    if isinstance(expires_at, str):
-        expires_at = datetime.fromisoformat(expires_at)
-    if expires_at.tzinfo is None:
-        expires_at = expires_at.replace(tzinfo=timezone.utc)
-    if datetime.now(timezone.utc) > expires_at:
-        raise HTTPException(status_code=400, detail="Codul de verificare a expirat. Te rugăm să soliciți unul nou.")
-
-    attempts = int(code_doc.get("attempts", 0))
-    if attempts >= 5:
-        raise HTTPException(status_code=429, detail="Prea multe încercări. Te rugăm să soliciți un cod nou.")
-
-    if code_doc["code"] != payload.code:
-        await db.verification_codes.update_one(
-            {"email": email, "used": False},
-            {"$inc": {"attempts": 1}},
-        )
-        raise HTTPException(status_code=401, detail="Cod de verificare invalid")
-
-    # Mark as used & verify user
-    await db.verification_codes.update_one(
-        {"email": email, "used": False},
-        {"$set": {"used": True, "verified_at": now_utc().isoformat()}},
-    )
-    await db.users.update_one({"email": email}, {"$set": {"email_verified": True}})
-    user = await db.users.find_one({"email": email}, {"_id": 0})
-    return {"success": True, "user": serialize_user(user)}
-
-
 @api_router.post("/auth/resend-code")
 async def resend_code(payload: ResendCodeRequest):
+    """Resend a code for an in-flight registration (pending) OR for an existing
+    user that still hasn't verified (legacy accounts)."""
     email = payload.email.lower()
+
+    # Throttle
+    pending = await db.pending_registrations.find_one({"email": email})
+    if pending:
+        created_at = pending.get("created_at")
+        if isinstance(created_at, str):
+            created_at = datetime.fromisoformat(created_at)
+        if created_at and created_at.tzinfo is None:
+            created_at = created_at.replace(tzinfo=timezone.utc)
+        if created_at and (datetime.now(timezone.utc) - created_at).total_seconds() < 30:
+            raise HTTPException(status_code=429, detail="Te rugăm să aștepți înainte de a solicita un alt cod.")
+
+        code = gen_code()
+        await db.pending_registrations.update_one(
+            {"email": email},
+            {"$set": {
+                "code": code,
+                "attempts": 0,
+                "created_at": now_utc().isoformat(),
+                "expires_at": now_utc() + timedelta(minutes=15),
+            }},
+        )
+        send_verification_email(email, pending.get("nickname", "there"), code)
+        return {"success": True}
+
+    # Fallback: legacy unverified user
     user = await db.users.find_one({"email": email}, {"_id": 0})
     if not user:
-        raise HTTPException(status_code=404, detail="Utilizatorul nu a fost găsit")
+        raise HTTPException(status_code=404, detail="Nicio înregistrare găsită pentru acest email")
     if user.get("email_verified"):
         return {"success": True, "message": "Emailul este deja verificat"}
-
-    # Throttle: limit one code per 30s
     last = await db.verification_codes.find_one({"email": email}, sort=[("created_at", -1)])
     if last:
         created_at = last.get("created_at")
@@ -266,7 +317,6 @@ async def resend_code(payload: ResendCodeRequest):
             created_at = created_at.replace(tzinfo=timezone.utc)
         if (datetime.now(timezone.utc) - created_at).total_seconds() < 30:
             raise HTTPException(status_code=429, detail="Te rugăm să aștepți înainte de a solicita un alt cod.")
-
     code = gen_code()
     await db.verification_codes.delete_many({"email": email})
     await db.verification_codes.insert_one({
