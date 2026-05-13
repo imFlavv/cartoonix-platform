@@ -1,36 +1,82 @@
 import axios from "axios";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-export const API_BASE = `${BACKEND_URL}`;
-export const API = `${BACKEND_URL}/api`;
+// All API calls go through nginx proxy
+export const API_BASE = "/api";
 
+// Axios instance
 export const api = axios.create({
-  baseURL: API,
-  headers: { "Content-Type": "application/json" },
+  baseURL: API_BASE,
+  headers: {
+    "Content-Type": "application/json",
+  },
 });
 
+// Attach JWT token automatically
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("cartoonix_token");
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
   return config;
 });
 
-// Resolve a relative /uploads path to an absolute URL
+// Global auth handling
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error?.response?.status;
+
+    if (status === 401) {
+      localStorage.removeItem("cartoonix_token");
+      window.location.href = "/login";
+    }
+
+    return Promise.reject(error);
+  }
+);
+
+/**
+ * Converts backend media paths to usable URLs
+ * Works with FastAPI StaticFiles mounted on /api/uploads
+ */
 export function mediaUrl(path) {
   if (!path) return "";
-  if (path.startsWith("http://") || path.startsWith("https://")) return path;
-  return `${API_BASE}${path.startsWith("/") ? "" : "/"}${path}`;
+
+  // already absolute
+  if (path.startsWith("http://") || path.startsWith("https://")) {
+    return path;
+  }
+
+  // ensure correct /api prefix
+  if (path.startsWith("/api")) {
+    return path;
+  }
+
+  return `/api${path.startsWith("/") ? "" : "/"}${path}`;
 }
 
-// Format error from axios response (handles FastAPI 422 array format)
+/**
+ * Normalized error handler for FastAPI responses
+ */
 export function getErrorMessage(err, fallback = "Something went wrong") {
   const detail = err?.response?.data?.detail;
+
   if (!detail) return err?.message || fallback;
+
   if (typeof detail === "string") return detail;
+
   if (Array.isArray(detail)) {
-    return detail.map((d) => (typeof d === "string" ? d : d?.msg || JSON.stringify(d))).join(", ");
+    return detail
+      .map((d) => (typeof d === "string" ? d : d?.msg || JSON.stringify(d)))
+      .join(", ");
   }
-  if (typeof detail === "object") return detail.msg || JSON.stringify(detail);
+
+  if (typeof detail === "object") {
+    return detail.msg || JSON.stringify(detail);
+  }
+
   return fallback;
 }
 

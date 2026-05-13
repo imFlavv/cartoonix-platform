@@ -28,6 +28,7 @@ db = client[os.environ["DB_NAME"]]
 # ------------ App ------------
 app = FastAPI(title="Cartoonix API", version="1.0.0")
 api_router = APIRouter(prefix="/api")
+app.include_router(api_router)
 
 # Uploads
 UPLOAD_DIR = ROOT_DIR / "uploads"
