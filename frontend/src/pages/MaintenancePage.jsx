@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import BrandLogo from "@/components/BrandLogo";
 
 /**
  * Pagina de mentenanță — afișată tuturor vizitatorilor non-admin
@@ -56,9 +55,15 @@ export default function MaintenancePage() {
           data-testid="maintenance-card"
           className="w-full max-w-3xl text-center"
         >
-          {/* Logo — mare, central */}
-          <div className="flex justify-center mb-14">
-            <BrandLogo variant="stacked" size="xl" className="scale-150" />
+          {/* Logo — varianta maintenance (cu cască + ciocan + cheie), mare central */}
+          <div className="flex justify-center mb-10">
+            <img
+              data-testid="maintenance-logo"
+              src="/brand/cartoonix-maintenance.png"
+              alt="Cartoonix - Mentenanță"
+              draggable={false}
+              className="block select-none object-contain w-[clamp(320px,55vw,640px)] h-auto drop-shadow-[0_25px_60px_rgba(255,59,59,0.25)]"
+            />
           </div>
 
           {/* Main heading */}
