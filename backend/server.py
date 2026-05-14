@@ -7,7 +7,7 @@ import string
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from dotenv import load_dotenv
 from fastapi import (APIRouter, Depends, FastAPI, File, Form, HTTPException, Header, Request,
@@ -15,6 +15,7 @@ from fastapi import (APIRouter, Depends, FastAPI, File, Form, HTTPException, Hea
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from motor.motor_asyncio import AsyncIOMotorClient
+from pydantic import BaseModel, EmailStr, Field
 from starlette.middleware.cors import CORSMiddleware
 
 ROOT_DIR = Path(__file__).parent
@@ -53,6 +54,13 @@ from models import (AvatarOption, Cartoon, CartoonCreate, CartoonUpdate,  # noqa
                     UpdateUserRequest, UserCreate, UserLogin, UserPublic,
                     VerifyEmailRequest, new_id, now_utc)
 from seed import seed_avatars, seed_categories  # noqa: E402
+
+# Stripe (used by early-access checkout verification + webhook)
+import stripe as _stripe  # noqa: E402
+_STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
+_STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
+if _STRIPE_SECRET_KEY:
+    _stripe.api_key = _STRIPE_SECRET_KEY
 
 
 # ------------ Startup ------------
@@ -114,6 +122,7 @@ async def root():
 DEFAULT_SETTINGS = {
     "presentation_mode": False,
     "maintenance_mode": False,
+    "early_access_mode": False,
 }
 
 
@@ -144,6 +153,14 @@ async def admin_update_settings(payload: dict, user=Depends(require_admin)):
     for k in allowed:
         if isinstance(DEFAULT_SETTINGS[k], bool):
             allowed[k] = bool(allowed[k])
+
+    # Mutual exclusion between early_access_mode and presentation_mode.
+    # Turning one ON automatically turns the other OFF.
+    if allowed.get("early_access_mode") is True:
+        allowed["presentation_mode"] = False
+    elif allowed.get("presentation_mode") is True:
+        allowed["early_access_mode"] = False
+
     await db.settings.update_one(
         {"_id": "global"},
         {"$set": allowed},
@@ -331,6 +348,268 @@ async def resend_code(payload: ResendCodeRequest):
     })
     send_verification_email(email, user.get("nickname", "there"), code)
     return {"success": True}
+
+
+# ============================================================
+#                    EARLY ACCESS REGISTRATION
+# ============================================================
+# 3-step flow used when admin enables `early_access_mode`.
+#   Step 1: /api/early-access/register  -> validates data, stores pending,
+#           sends verification code for FREE users, OR returns Stripe URL for PLUS.
+#   Step 2 (PLUS only): /api/early-access/confirm-payment -> verifies Stripe
+#           session, then sends the verification code.
+#   Step 3: /api/early-access/verify    -> validates code, creates user, returns
+#           access token (auto-login).
+# Resend: /api/early-access/resend
+#
+# Token is a UUID stored in `pending_early_access._id` and serves as
+# `client_reference_id` when redirecting to Stripe. It identifies the
+# in-flight registration without leaking the email in URLs.
+
+EARLY_ACCESS_STRIPE_LINK = os.environ.get(
+    "EARLY_ACCESS_STRIPE_LINK",
+    "https://buy.stripe.com/dRm3co18J0GQ7SxdgG9EI02",
+)
+
+
+class EarlyAccessRegister(BaseModel):
+    nickname: str = Field(min_length=2, max_length=32)
+    email: EmailStr
+    password: str = Field(min_length=6, max_length=100)
+    plan: Literal["free", "plus"]
+    accepted_terms: bool
+
+
+class EarlyAccessConfirmPayment(BaseModel):
+    token: str
+    session_id: str
+
+
+class EarlyAccessVerify(BaseModel):
+    token: str
+    code: str = Field(min_length=6, max_length=6)
+
+
+class EarlyAccessResend(BaseModel):
+    token: str
+
+
+async def _ea_get_default_avatar() -> str:
+    """Best-effort: return the URL of the first seeded avatar option."""
+    av = await db.avatars.find_one({}, {"_id": 0}, sort=[("order", 1)])
+    if av and av.get("url"):
+        return av["url"]
+    return "/api/uploads/avatars/default.png"
+
+
+@api_router.post("/early-access/register")
+async def early_access_register(payload: EarlyAccessRegister):
+    if not payload.accepted_terms:
+        raise HTTPException(400, "Trebuie să accepți Termenii și Condițiile")
+
+    email = payload.email.lower()
+    nickname = payload.nickname.strip()
+
+    if await db.users.find_one({"email": email}):
+        raise HTTPException(400, "Acest email este deja înregistrat")
+    if await db.users.find_one({"nickname": nickname}):
+        raise HTTPException(400, "Acest pseudonim este deja luat")
+
+    # Drop any previous pending entry for this email (allow re-start)
+    await db.pending_early_access.delete_many({"email": email})
+
+    token = new_id()
+    now = now_utc()
+    avatar_url = await _ea_get_default_avatar()
+
+    requires_payment = payload.plan == "plus"
+    code = None if requires_payment else gen_code()
+
+    doc = {
+        "_id": token,
+        "email": email,
+        "nickname": nickname,
+        "password_hash": hash_password(payload.password),
+        "plan": payload.plan,
+        "avatar_url": avatar_url,
+        "accepted_terms_at": now.isoformat(),
+        "requires_payment": requires_payment,
+        "payment_verified": not requires_payment,
+        "code": code,
+        "attempts": 0,
+        "created_at": now.isoformat(),
+        "expires_at": now + timedelta(minutes=45),
+    }
+    await db.pending_early_access.insert_one(doc)
+
+    if not requires_payment:
+        sent = send_verification_email(email, nickname, code)
+        if not sent:
+            logger.warning(f"[early-access] verification email failed for {email}")
+        return {"success": True, "token": token, "next": "verify"}
+
+    # PLUS — build Stripe payment link with client_reference_id and prefilled email.
+    sep = "&" if "?" in EARLY_ACCESS_STRIPE_LINK else "?"
+    stripe_url = (
+        f"{EARLY_ACCESS_STRIPE_LINK}{sep}"
+        f"client_reference_id={token}"
+        f"&prefilled_email={email}"
+    )
+    return {"success": True, "token": token, "next": "payment", "stripe_url": stripe_url}
+
+
+@api_router.post("/early-access/confirm-payment")
+async def early_access_confirm_payment(payload: EarlyAccessConfirmPayment):
+    """Verify Stripe Checkout Session, mark pending as paid, send verification code."""
+    pending = await db.pending_early_access.find_one({"_id": payload.token})
+    if not pending:
+        raise HTTPException(404, "Înregistrarea nu a fost găsită sau a expirat.")
+
+    if pending.get("payment_verified") and pending.get("code"):
+        return {"success": True, "already_verified": True}
+
+    if not _STRIPE_SECRET_KEY:
+        raise HTTPException(500, "Stripe nu este configurat pe server.")
+
+    try:
+        session = _stripe.checkout.Session.retrieve(payload.session_id)
+    except Exception as e:
+        logger.error(f"[early-access] Stripe retrieve failed: {e}")
+        raise HTTPException(400, "Sesiunea de plată nu a putut fi verificată.")
+
+    status_ok = session.get("status") == "complete"
+    payment_ok = session.get("payment_status") == "paid"
+    ref_ok = (session.get("client_reference_id") or "") == payload.token
+    if not (status_ok and payment_ok and ref_ok):
+        logger.warning(
+            f"[early-access] payment verification failed: status={session.get('status')} "
+            f"payment_status={session.get('payment_status')} ref_match={ref_ok}"
+        )
+        raise HTTPException(400, "Plata nu este confirmată.")
+
+    code = gen_code()
+    now = now_utc()
+    await db.pending_early_access.update_one(
+        {"_id": payload.token},
+        {"$set": {
+            "payment_verified": True,
+            "stripe_session_id": payload.session_id,
+            "stripe_amount_total": session.get("amount_total"),
+            "stripe_currency": (session.get("currency") or "eur").upper(),
+            "code": code,
+            "attempts": 0,
+            "expires_at": now + timedelta(minutes=45),
+        }},
+    )
+    sent = send_verification_email(pending["email"], pending["nickname"], code)
+    if not sent:
+        logger.warning(f"[early-access] verification email failed for {pending['email']}")
+    return {"success": True}
+
+
+@api_router.post("/early-access/verify", response_model=TokenResponse)
+async def early_access_verify(payload: EarlyAccessVerify):
+    pending = await db.pending_early_access.find_one({"_id": payload.token})
+    if not pending:
+        raise HTTPException(404, "Înregistrarea nu a fost găsită sau a expirat.")
+
+    expires_at = pending["expires_at"]
+    if isinstance(expires_at, str):
+        expires_at = datetime.fromisoformat(expires_at)
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if datetime.now(timezone.utc) > expires_at:
+        await db.pending_early_access.delete_one({"_id": payload.token})
+        raise HTTPException(400, "Codul de verificare a expirat. Te rugăm să te înregistrezi din nou.")
+
+    if not pending.get("payment_verified"):
+        raise HTTPException(400, "Plata nu a fost confirmată încă.")
+
+    attempts = int(pending.get("attempts", 0))
+    if attempts >= 5:
+        await db.pending_early_access.delete_one({"_id": payload.token})
+        raise HTTPException(429, "Prea multe încercări. Te rugăm să te înregistrezi din nou.")
+
+    if pending.get("code") != payload.code:
+        await db.pending_early_access.update_one(
+            {"_id": payload.token},
+            {"$inc": {"attempts": 1}},
+        )
+        raise HTTPException(401, "Cod de verificare invalid")
+
+    email = pending["email"]
+    nickname = pending["nickname"]
+
+    if await db.users.find_one({"email": email}):
+        await db.pending_early_access.delete_one({"_id": payload.token})
+        raise HTTPException(400, "Acest email este deja înregistrat")
+    if await db.users.find_one({"nickname": nickname}):
+        await db.pending_early_access.delete_one({"_id": payload.token})
+        raise HTTPException(400, "Acest pseudonim este deja luat")
+
+    total = await db.users.count_documents({})
+    role = "admin" if total == 0 else "user"
+
+    user_id = new_id()
+    user_doc = {
+        "id": user_id,
+        "nickname": nickname,
+        "email": email,
+        "avatar_url": pending.get("avatar_url") or await _ea_get_default_avatar(),
+        "role": role,
+        "subscription": pending.get("plan", "free"),
+        "email_verified": True,
+        "password_hash": pending["password_hash"],
+        "created_at": now_utc().isoformat(),
+        "accepted_terms_at": pending.get("accepted_terms_at", now_utc().isoformat()),
+        "early_access": True,
+        "stripe_session_id": pending.get("stripe_session_id"),
+    }
+    await db.users.insert_one(user_doc)
+    await db.pending_early_access.delete_one({"_id": payload.token})
+
+    access = create_access_token(user_id, role)
+    user_public = serialize_user(user_doc)
+    user_public["created_at"] = user_doc["created_at"]
+    return TokenResponse(access_token=access, user=UserPublic(**user_public))
+
+
+@api_router.post("/early-access/resend")
+async def early_access_resend(payload: EarlyAccessResend):
+    pending = await db.pending_early_access.find_one({"_id": payload.token})
+    if not pending:
+        raise HTTPException(404, "Înregistrarea nu a fost găsită sau a expirat.")
+    if not pending.get("payment_verified"):
+        raise HTTPException(400, "Plata nu a fost confirmată încă.")
+
+    last_code_at = pending.get("last_code_sent_at")
+    if isinstance(last_code_at, str):
+        last_code_at = datetime.fromisoformat(last_code_at)
+    if last_code_at and last_code_at.tzinfo is None:
+        last_code_at = last_code_at.replace(tzinfo=timezone.utc)
+    created_at = pending.get("created_at")
+    if isinstance(created_at, str):
+        created_at = datetime.fromisoformat(created_at)
+    if created_at and created_at.tzinfo is None:
+        created_at = created_at.replace(tzinfo=timezone.utc)
+    ref = last_code_at or created_at
+    if ref and (datetime.now(timezone.utc) - ref).total_seconds() < 30:
+        raise HTTPException(429, "Te rugăm să aștepți înainte de a solicita un alt cod.")
+
+    code = gen_code()
+    now = now_utc()
+    await db.pending_early_access.update_one(
+        {"_id": payload.token},
+        {"$set": {
+            "code": code,
+            "attempts": 0,
+            "last_code_sent_at": now.isoformat(),
+            "expires_at": now + timedelta(minutes=45),
+        }},
+    )
+    send_verification_email(pending["email"], pending["nickname"], code)
+    return {"success": True}
+
 
 
 @api_router.post("/auth/login", response_model=TokenResponse)
@@ -716,12 +995,6 @@ async def delete_playlist(playlist_id: str, user=Depends(get_current_user)):
 #                        CONTESTS (public)
 # ============================================================
 import re as _re
-import stripe as _stripe
-
-_STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
-_STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
-if _STRIPE_SECRET_KEY:
-    _stripe.api_key = _STRIPE_SECRET_KEY
 
 # Contest catalog — keep in sync with frontend ConcursuriPage.jsx
 CONTESTS = {

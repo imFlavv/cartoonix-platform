@@ -193,6 +193,18 @@ frontend:
         agent: "main"
         comment: "Added maintenance_mode to DEFAULT_SETTINGS (backend) and SettingsContext (frontend). Created MaintenancePage with elegant background: pure dark base + two large blurred brand-color orbs (red top-left, yellow bottom-right) + soft center gradient (NO grid lines per user request). Large stacked Cartoonix logo (size=xl scale-150). Title 'PLATFORMA ÎN MENTENANȚĂ!' with shimmer gradient + 'Revenim curând.' subtitle. No status pill (removed per user request). MaintenanceGate wraps all routes; only /login and /admin* allowed for non-admins so admins can disable maintenance. AdminSettings shows a second toggle card 'Mod mentenanță' below Mod prezentare with same UX (status pill, alert when active, preview link). Verified visually."
 
+  - task: "Early Access mode (3-step register + Stripe + countdown)"
+    implemented: true
+    working: true
+    file: "backend/server.py (early-access endpoints + mutual exclusion), frontend/src/pages/EarlyAccessPage.jsx, frontend/src/pages/EarlyAccessSuccessPage.jsx, frontend/src/App.js (EarlyAccessGate + RootRoute + EarlyAccessRoute), frontend/src/contexts/SettingsContext.js, frontend/src/pages/admin/AdminSettings.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Added early_access_mode setting (mutually exclusive with presentation_mode in PATCH /admin/settings). New backend endpoints: POST /api/early-access/register (creates pending, sends code for FREE OR returns Stripe URL with client_reference_id=token for PLUS), POST /api/early-access/confirm-payment (verifies Stripe Checkout Session, sends code), POST /api/early-access/verify (creates user, auto-login), POST /api/early-access/resend. Pending stored in pending_early_access with 45-min TTL. Stripe URL: https://buy.stripe.com/dRm3co18J0GQ7SxdgG9EI02 (configurable via EARLY_ACCESS_STRIPE_LINK). User must configure Stripe Payment Link redirect to https://cartoonix.ro/early-access?session_id={CHECKOUT_SESSION_ID}. Frontend: 3-step wizard with framer-motion transitions; PLUS flow saves session to sessionStorage before Stripe redirect, then on return uses session_id from URL to confirm payment. Logged-in non-admin user lands on EarlyAccessSuccessPage with live countdown to 1 June 2026, plan badge (FREE/PLUS), and logout. Admin keeps full access. AdminSettings shows new 'Mod Early Access' card. Visually verified Step 1, Step 2 (FREE & PLUS), and Success page on both desktop and mobile."
+
 metadata:
   created_by: "main_agent"
   version: "1.2"
