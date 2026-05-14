@@ -10,39 +10,143 @@ BREVO_SENDER_EMAIL = os.getenv("BREVO_SENDER_EMAIL", "no-reply@cartoonix.ro")
 BREVO_SENDER_NAME = os.getenv("BREVO_SENDER_NAME", "Cartoonix")
 BREVO_URL = "https://api.brevo.com/v3/smtp/email"
 
+# Absolute URL for assets used in email — must be reachable from the recipient's
+# email client (no "localhost" or relative paths).
+PUBLIC_SITE_URL = os.getenv("PUBLIC_SITE_URL", "https://cartoonix.ro").rstrip("/")
+LOGO_URL = f"{PUBLIC_SITE_URL}/brand/cartoonix-logo.png"
+
 
 def _verification_html(nickname: str, code: str) -> str:
+    # Split the 6-digit code so each digit gets its own elegant tile.
+    digits = list(str(code))
+    digit_tiles = "".join(
+        f'<td align="center" valign="middle" style="width:48px;height:60px;padding:0 6px;">'
+        f'<div style="width:48px;height:60px;line-height:60px;border-radius:10px;'
+        f'background:linear-gradient(180deg,#1a1d24 0%,#101218 100%);'
+        f'border:1px solid rgba(255,255,255,0.08);'
+        f'box-shadow:inset 0 1px 0 rgba(255,255,255,0.04),0 8px 22px rgba(0,0,0,0.35);'
+        f'font-family:\'Courier New\',monospace;font-size:30px;font-weight:800;'
+        f'color:#FFD84A;letter-spacing:0;">{d}</div>'
+        f'</td>'
+        for d in digits
+    )
+
     return f"""<!DOCTYPE html>
-<html lang="ro"><head><meta charset="UTF-8"></head>
-<body style="margin:0;padding:0;background:#0E1116;font-family:'Manrope',Segoe UI,Tahoma,sans-serif;color:#F6EFE6;">
-  <div style="max-width:600px;margin:0 auto;padding:40px 20px;">
-    <div style="background:#121722;border-radius:18px;overflow:hidden;border:1px solid #242B3A;box-shadow:0 14px 40px rgba(0,0,0,0.55);">
-      <div style="background:#171D2A;padding:28px 32px;border-bottom:1px solid #242B3A;">
-        <div style="display:flex;align-items:center;gap:10px;">
-          <div style="width:36px;height:36px;border-radius:10px;background:#FF5A2A;display:inline-block;text-align:center;line-height:36px;font-weight:900;font-size:18px;color:#0E1116;">C</div>
-          <span style="font-size:24px;font-weight:800;letter-spacing:0.06em;">CARTOONIX</span>
-          <span style="flex:1;"></span>
-          <span style="font-size:12px;color:#B9B0A6;letter-spacing:0.1em;text-transform:uppercase;">Verificare email</span>
-        </div>
-      </div>
-      <div style="padding:36px 32px;">
-        <h1 style="font-size:26px;margin:0 0 12px;color:#F6EFE6;font-weight:800;letter-spacing:0.01em;">Bine ai venit, {nickname}!</h1>
-        <p style="margin:0 0 24px;color:#B9B0A6;font-size:15px;line-height:1.6;">Verifică-ți emailul pentru a debloca tezaurul de desene animate clasice. Introdu codul de 6 cifre de mai jos în aplicație:</p>
-        <div style="text-align:center;margin:30px 0;">
-          <div style="display:inline-block;background:#171D2A;border:1px solid #242B3A;border-radius:14px;padding:22px 36px;">
-            <div style="font-size:34px;font-weight:800;letter-spacing:0.35em;color:#FFD84A;font-family:'Courier New',monospace;">{code}</div>
-          </div>
-        </div>
-        <p style="margin:0 0 8px;color:#B9B0A6;font-size:13px;">Acest cod expiră în 15 minute.</p>
-        <p style="margin:0;color:#B9B0A6;font-size:13px;">Nu ai solicitat acest email? Poți să-l ignori în siguranță.</p>
-        <div style="margin-top:28px;padding-top:20px;border-top:1px solid #242B3A;">
-          <p style="margin:0;color:#6F6960;font-size:12px;">Cartoonix — Streamează clasicele. © 2026 Cartoonix.</p>
-        </div>
-      </div>
-    </div>
-    <div style="text-align:center;color:#6F6960;font-size:11px;margin-top:18px;">Acesta este un email automat. Te rugăm să nu răspunzi la această adresă.</div>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <meta name="color-scheme" content="dark">
+  <meta name="supported-color-schemes" content="dark">
+  <title>Cod de verificare Cartoonix</title>
+</head>
+<body style="margin:0;padding:0;background:#0b0c10;font-family:'Helvetica Neue',Helvetica,Arial,'Segoe UI',sans-serif;color:#EDEAE4;-webkit-font-smoothing:antialiased;">
+  <!-- Preheader (hidden) -->
+  <div style="display:none;max-height:0;overflow:hidden;font-size:1px;line-height:1px;color:#0b0c10;opacity:0;">
+    Codul tău de verificare Cartoonix: {code}. Expiră în 15 minute.
   </div>
-</body></html>"""
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#0b0c10;">
+    <tr>
+      <td align="center" style="padding:48px 16px;">
+        <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:560px;">
+
+          <!-- LOGO -->
+          <tr>
+            <td align="center" style="padding:0 0 36px 0;">
+              <img src="{LOGO_URL}" width="120" alt="Cartoonix"
+                   style="display:block;width:120px;height:auto;border:0;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic;" />
+            </td>
+          </tr>
+
+          <!-- EYEBROW -->
+          <tr>
+            <td align="center" style="padding:0 0 14px 0;">
+              <span style="display:inline-block;font-size:11px;font-weight:700;letter-spacing:0.32em;color:#FF5A2A;text-transform:uppercase;">
+                Verificare cont
+              </span>
+            </td>
+          </tr>
+
+          <!-- HEADING -->
+          <tr>
+            <td align="center" style="padding:0 8px 14px 8px;">
+              <h1 style="margin:0;font-size:32px;line-height:1.2;font-weight:800;letter-spacing:-0.01em;color:#FFFFFF;">
+                Bine ai venit, {nickname}!
+              </h1>
+            </td>
+          </tr>
+
+          <!-- SUBTEXT -->
+          <tr>
+            <td align="center" style="padding:0 16px 36px 16px;">
+              <p style="margin:0;font-size:15px;line-height:1.7;color:#A8A39A;max-width:440px;">
+                Confirmă-ți emailul pentru a debloca tezaurul de desene animate clasice.
+                Introdu codul de mai jos în aplicație:
+              </p>
+            </td>
+          </tr>
+
+          <!-- CODE TILES -->
+          <tr>
+            <td align="center" style="padding:0 0 14px 0;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  {digit_tiles}
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- EXPIRY HINT -->
+          <tr>
+            <td align="center" style="padding:0 0 44px 0;">
+              <span style="display:inline-block;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#6F6960;">
+                <span style="color:#FFD84A;">●</span>&nbsp;&nbsp;Expiră în 15 minute
+              </span>
+            </td>
+          </tr>
+
+          <!-- DIVIDER -->
+          <tr>
+            <td align="center" style="padding:0 0 28px 0;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="80">
+                <tr>
+                  <td style="height:1px;background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.18) 50%,transparent 100%);line-height:1px;font-size:0;">&nbsp;</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- SAFETY NOTE -->
+          <tr>
+            <td align="center" style="padding:0 16px 8px 16px;">
+              <p style="margin:0;font-size:13px;line-height:1.7;color:#7A746A;max-width:420px;">
+                Dacă nu ai solicitat acest email, poți să-l ignori în siguranță —
+                nu se va întâmpla nimic.
+              </p>
+            </td>
+          </tr>
+
+          <!-- FOOTER -->
+          <tr>
+            <td align="center" style="padding:56px 16px 0 16px;">
+              <p style="margin:0 0 6px 0;font-size:12px;letter-spacing:0.18em;color:#6F6960;text-transform:uppercase;font-weight:700;">
+                Cartoonix
+              </p>
+              <p style="margin:0;font-size:11px;color:#5A554D;line-height:1.6;">
+                Streamează clasicele. &middot; © 2026 Cartoonix<br/>
+                Acesta este un email automat — te rugăm să nu răspunzi.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>"""
 
 
 def send_verification_email(to_email: str, nickname: str, code: str) -> bool:
