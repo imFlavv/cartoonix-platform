@@ -23,6 +23,7 @@ import { api, getErrorMessage, mediaUrl } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 
 const STORAGE_KEY = "cartoonix_early_access";
+const BACKUP_KEY = "cartoonix_ea_backup"; // For localStorage persistence
 
 /**
  * Plan definitions (kept in this file to keep the page self-contained).
@@ -70,25 +71,44 @@ const PLANS = {
   },
 };
 
-// Helpers for session storage
+// Helpers for persistent storage (using localStorage for mobile persistence)
 function loadSession() {
   try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
+    // Try sessionStorage first (for same-session)
+    let raw = sessionStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+    
+    // Fall back to localStorage (persists across app switches)
+    raw = localStorage.getItem(STORAGE_KEY);
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
   }
 }
+
 function saveSession(data) {
   try {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  } catch {
-    // noop
+    const json = JSON.stringify(data);
+    // Save to both for redundancy
+    sessionStorage.setItem(STORAGE_KEY, json);
+    localStorage.setItem(STORAGE_KEY, json);
+    
+    // Backup with timestamp for recovery
+    const backup = {
+      ...data,
+      saved_at: new Date().toISOString(),
+    };
+    localStorage.setItem(BACKUP_KEY, JSON.stringify(backup));
+  } catch (err) {
+    console.error("Failed to save session:", err);
   }
 }
+
 function clearSession() {
   try {
     sessionStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(BACKUP_KEY);
   } catch {
     // noop
   }
@@ -617,14 +637,49 @@ export default function EarlyAccessPage() {
   useEffect(() => {
     const sessionId = search.get("session_id");
     if (!sessionId) return;
+    
     const stored = loadSession();
-    if (!stored?.token) {
-      // We have a session_id but no local token — clean and ignore.
-      const next = new URLSearchParams(search);
-      next.delete("session_id");
-      setSearch(next, { replace: true });
+    const localToken = stored?.token;
+    
+    if (!localToken) {
+      // We have a session_id but no local token — try recovery by calling backend with just session_id
+      // Backend will find the pending record by extracting client_reference_id from Stripe
+      (async () => {
+        setConfirming(true);
+        try {
+          const { data } = await api.post("/early-access/confirm-payment", {
+            session_id: sessionId,
+          });
+          
+          // Backend returns token and email on success
+          if (data.token) {
+            const recovered = {
+              token: data.token,
+              email: data.email || "",
+              step: 2,
+              payment_confirmed: true,
+            };
+            saveSession(recovered);
+            setToken(data.token);
+            setForm(f => ({ ...f, email: data.email || f.email }));
+            setStep(2);
+            
+            toast.success("Sesiune recuperată!", {
+              description: "Verifică-ți emailul pentru codul de confirmare.",
+            });
+          }
+        } catch (err) {
+          toast.error(getErrorMessage(err, "Nu am putut confirma plata. Te rugăm să contactezi suportul cu session_id-ul din URL."));
+        } finally {
+          setConfirming(false);
+          const next = new URLSearchParams(search);
+          next.delete("session_id");
+          setSearch(next, { replace: true });
+        }
+      })();
       return;
     }
+    
     if (stored.payment_confirmed) {
       // Already confirmed in a prior visit, just jump to step 3.
       setStep(2);
@@ -633,16 +688,23 @@ export default function EarlyAccessPage() {
       setSearch(next, { replace: true });
       return;
     }
+    
     (async () => {
       setConfirming(true);
       try {
-        await api.post("/early-access/confirm-payment", {
+        const { data } = await api.post("/early-access/confirm-payment", {
           token: stored.token,
           session_id: sessionId,
         });
-        const updated = { ...stored, payment_confirmed: true, step: 2 };
+        
+        // Update with returned token (in case it was recovered)
+        const recoveredToken = data.token || stored.token;
+        const updated = { ...stored, token: recoveredToken, payment_confirmed: true, step: 2 };
         saveSession(updated);
+        setToken(recoveredToken);
+        if (data.email) setForm(f => ({ ...f, email: data.email }));
         setStep(2);
+        
         toast.success("Plata confirmată!", {
           description: "Verifică-ți emailul pentru codul de confirmare.",
         });

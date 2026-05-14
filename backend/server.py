@@ -382,7 +382,7 @@ class EarlyAccessRegister(BaseModel):
 
 
 class EarlyAccessConfirmPayment(BaseModel):
-    token: str
+    token: Optional[str] = None  # Optional: we can find by session_id if token is lost
     session_id: str
 
 
@@ -445,7 +445,7 @@ async def early_access_register(payload: EarlyAccessRegister):
         "code": code,
         "attempts": 0,
         "created_at": now.isoformat(),
-        "expires_at": now + timedelta(minutes=45),
+        "expires_at": now + timedelta(minutes=120),  # Extended to 2 hours for mobile users
     }
     await db.pending_early_access.insert_one(doc)
 
@@ -467,22 +467,66 @@ async def early_access_register(payload: EarlyAccessRegister):
 
 @api_router.post("/early-access/confirm-payment")
 async def early_access_confirm_payment(payload: EarlyAccessConfirmPayment):
-    """Verify Stripe Checkout Session, mark pending as paid, send verification code."""
-    logger.info(f"[early-access] confirm-payment called token={payload.token[:8]}... session={payload.session_id[:12]}...")
+    """Verify Stripe Checkout Session, mark pending as paid, send verification code.
+    Can work with or without token — if token is missing, we find by session_id."""
+    logger.info(f"[early-access] confirm-payment called token={payload.token[:8] if payload.token else 'NONE'}... session={payload.session_id[:12]}...")
 
-    try:
-        pending = await db.pending_early_access.find_one({"_id": payload.token})
-    except Exception as e:
-        logger.error(f"[early-access] DB find_one failed: {e}")
-        raise HTTPException(500, "Eroare bază de date. Încearcă din nou.")
+    # Try to find pending record
+    pending = None
+    
+    if payload.token:
+        # Standard flow: look up by token
+        try:
+            pending = await db.pending_early_access.find_one({"_id": payload.token})
+        except Exception as e:
+            logger.error(f"[early-access] DB find_one by token failed: {e}")
+            raise HTTPException(500, "Eroare bază de date. Încearcă din nou.")
+    
+    # If not found by token or token was missing, try to verify Stripe first and find by client_reference_id
+    if not pending:
+        if not _STRIPE_SECRET_KEY:
+            logger.error("[early-access] STRIPE_SECRET_KEY is not configured on the server")
+            raise HTTPException(503, "Stripe nu este configurat pe server. Contactează administratorul.")
+        
+        try:
+            session = _stripe.checkout.Session.retrieve(payload.session_id)
+        except Exception as e:
+            logger.error(f"[early-access] Stripe retrieve failed: {e}")
+            raise HTTPException(400, "Sesiunea de plată nu a putut fi verificată.")
+        
+        # Extract client_reference_id (which is our token)
+        try:
+            s_client_ref = getattr(session, "client_reference_id", None)
+            if not s_client_ref:
+                raise HTTPException(400, "Sesiunea Stripe nu conține referința necesară.")
+            
+            # Try to find pending by this token
+            pending = await db.pending_early_access.find_one({"_id": s_client_ref})
+            if not pending:
+                raise HTTPException(404, "Înregistrarea nu a fost găsită sau a expirat.")
+            
+            # Update our token for subsequent operations
+            payload.token = s_client_ref
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"[early-access] Failed to extract client_reference_id: {e}")
+            raise HTTPException(500, "Nu am putut verifica sesiunea de plată.")
 
     if not pending:
         raise HTTPException(404, "Înregistrarea nu a fost găsită sau a expirat.")
 
+    # Check if already verified
     if pending.get("payment_verified") and pending.get("code"):
-        logger.info("[early-access] already verified, returning success")
-        return {"success": True, "already_verified": True}
+        logger.info("[early-access] already verified, returning success with token")
+        return {
+            "success": True, 
+            "already_verified": True,
+            "token": pending["_id"],  # Return token for frontend recovery
+            "email": pending.get("email", ""),
+        }
 
+    # Verify Stripe payment
     if not _STRIPE_SECRET_KEY:
         logger.error("[early-access] STRIPE_SECRET_KEY is not configured on the server")
         raise HTTPException(503, "Stripe nu este configurat pe server. Contactează administratorul.")
@@ -528,7 +572,7 @@ async def early_access_confirm_payment(payload: EarlyAccessConfirmPayment):
                 "stripe_currency": s_currency.upper(),
                 "code": code,
                 "attempts": 0,
-                "expires_at": now + timedelta(minutes=45),
+                "expires_at": now + timedelta(minutes=120),  # Extended to 2 hours
             }},
         )
     except Exception as e:
@@ -543,7 +587,11 @@ async def early_access_confirm_payment(payload: EarlyAccessConfirmPayment):
     except Exception as e:
         logger.error(f"[early-access] email send unexpected error: {e}")
 
-    return {"success": True}
+    return {
+        "success": True,
+        "token": payload.token,  # Return token so frontend can save it
+        "email": pending.get("email", ""),
+    }
 
 
 @api_router.post("/early-access/verify", response_model=TokenResponse)
