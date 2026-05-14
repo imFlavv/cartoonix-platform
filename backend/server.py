@@ -493,18 +493,26 @@ async def early_access_confirm_payment(payload: EarlyAccessConfirmPayment):
         logger.error(f"[early-access] Stripe retrieve failed: {e}")
         raise HTTPException(400, "Sesiunea de plată nu a putut fi verificată.")
 
+    # Stripe SDK v15+ returns Session objects that no longer expose dict-style .get().
+    # Use getattr() for safe attribute access on Stripe objects.
     try:
-        status_ok = session.get("status") == "complete"
-        payment_ok = session.get("payment_status") == "paid"
-        ref_ok = (session.get("client_reference_id") or "") == payload.token
+        s_status = getattr(session, "status", None)
+        s_payment_status = getattr(session, "payment_status", None)
+        s_client_ref = getattr(session, "client_reference_id", None) or ""
+        s_amount_total = getattr(session, "amount_total", None)
+        s_currency = getattr(session, "currency", None) or "eur"
+
+        status_ok = s_status == "complete"
+        payment_ok = s_payment_status == "paid"
+        ref_ok = s_client_ref == payload.token
     except Exception as e:
         logger.error(f"[early-access] Stripe session inspection failed: {e}")
         raise HTTPException(500, "Răspuns Stripe invalid.")
 
     if not (status_ok and payment_ok and ref_ok):
         logger.warning(
-            f"[early-access] payment verification failed: status={session.get('status')} "
-            f"payment_status={session.get('payment_status')} ref_match={ref_ok}"
+            f"[early-access] payment verification failed: status={s_status} "
+            f"payment_status={s_payment_status} ref_match={ref_ok}"
         )
         raise HTTPException(400, "Plata nu este confirmată.")
 
@@ -516,8 +524,8 @@ async def early_access_confirm_payment(payload: EarlyAccessConfirmPayment):
             {"$set": {
                 "payment_verified": True,
                 "stripe_session_id": payload.session_id,
-                "stripe_amount_total": session.get("amount_total"),
-                "stripe_currency": (session.get("currency") or "eur").upper(),
+                "stripe_amount_total": s_amount_total,
+                "stripe_currency": s_currency.upper(),
                 "code": code,
                 "attempts": 0,
                 "expires_at": now + timedelta(minutes=45),
