@@ -22,7 +22,7 @@ const Toaster = ({ ...props }) => {
       richColors={false}
       closeButton
       duration={4200}
-      visibleToasts={4}
+      visibleToasts={1}
       gap={12}
       offset={20}
       expand={true}
