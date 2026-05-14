@@ -468,15 +468,24 @@ async def early_access_register(payload: EarlyAccessRegister):
 @api_router.post("/early-access/confirm-payment")
 async def early_access_confirm_payment(payload: EarlyAccessConfirmPayment):
     """Verify Stripe Checkout Session, mark pending as paid, send verification code."""
-    pending = await db.pending_early_access.find_one({"_id": payload.token})
+    logger.info(f"[early-access] confirm-payment called token={payload.token[:8]}... session={payload.session_id[:12]}...")
+
+    try:
+        pending = await db.pending_early_access.find_one({"_id": payload.token})
+    except Exception as e:
+        logger.error(f"[early-access] DB find_one failed: {e}")
+        raise HTTPException(500, "Eroare bază de date. Încearcă din nou.")
+
     if not pending:
         raise HTTPException(404, "Înregistrarea nu a fost găsită sau a expirat.")
 
     if pending.get("payment_verified") and pending.get("code"):
+        logger.info("[early-access] already verified, returning success")
         return {"success": True, "already_verified": True}
 
     if not _STRIPE_SECRET_KEY:
-        raise HTTPException(500, "Stripe nu este configurat pe server.")
+        logger.error("[early-access] STRIPE_SECRET_KEY is not configured on the server")
+        raise HTTPException(503, "Stripe nu este configurat pe server. Contactează administratorul.")
 
     try:
         session = _stripe.checkout.Session.retrieve(payload.session_id)
@@ -484,9 +493,14 @@ async def early_access_confirm_payment(payload: EarlyAccessConfirmPayment):
         logger.error(f"[early-access] Stripe retrieve failed: {e}")
         raise HTTPException(400, "Sesiunea de plată nu a putut fi verificată.")
 
-    status_ok = session.get("status") == "complete"
-    payment_ok = session.get("payment_status") == "paid"
-    ref_ok = (session.get("client_reference_id") or "") == payload.token
+    try:
+        status_ok = session.get("status") == "complete"
+        payment_ok = session.get("payment_status") == "paid"
+        ref_ok = (session.get("client_reference_id") or "") == payload.token
+    except Exception as e:
+        logger.error(f"[early-access] Stripe session inspection failed: {e}")
+        raise HTTPException(500, "Răspuns Stripe invalid.")
+
     if not (status_ok and payment_ok and ref_ok):
         logger.warning(
             f"[early-access] payment verification failed: status={session.get('status')} "
@@ -496,21 +510,31 @@ async def early_access_confirm_payment(payload: EarlyAccessConfirmPayment):
 
     code = gen_code()
     now = now_utc()
-    await db.pending_early_access.update_one(
-        {"_id": payload.token},
-        {"$set": {
-            "payment_verified": True,
-            "stripe_session_id": payload.session_id,
-            "stripe_amount_total": session.get("amount_total"),
-            "stripe_currency": (session.get("currency") or "eur").upper(),
-            "code": code,
-            "attempts": 0,
-            "expires_at": now + timedelta(minutes=45),
-        }},
-    )
-    sent = send_verification_email(pending["email"], pending["nickname"], code)
-    if not sent:
-        logger.warning(f"[early-access] verification email failed for {pending['email']}")
+    try:
+        await db.pending_early_access.update_one(
+            {"_id": payload.token},
+            {"$set": {
+                "payment_verified": True,
+                "stripe_session_id": payload.session_id,
+                "stripe_amount_total": session.get("amount_total"),
+                "stripe_currency": (session.get("currency") or "eur").upper(),
+                "code": code,
+                "attempts": 0,
+                "expires_at": now + timedelta(minutes=45),
+            }},
+        )
+    except Exception as e:
+        logger.error(f"[early-access] DB update_one failed: {e}")
+        raise HTTPException(500, "Eroare la salvarea plății. Contactează suportul.")
+
+    # Email sending is best-effort — never fail the response on email errors.
+    try:
+        sent = send_verification_email(pending.get("email", ""), pending.get("nickname", ""), code)
+        if not sent:
+            logger.warning(f"[early-access] verification email failed for {pending.get('email')}")
+    except Exception as e:
+        logger.error(f"[early-access] email send unexpected error: {e}")
+
     return {"success": True}
 
 
