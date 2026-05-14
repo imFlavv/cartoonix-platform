@@ -378,6 +378,7 @@ class EarlyAccessRegister(BaseModel):
     password: str = Field(min_length=6, max_length=100)
     plan: Literal["free", "plus"]
     accepted_terms: bool
+    avatar_url: Optional[str] = None
 
 
 class EarlyAccessConfirmPayment(BaseModel):
@@ -420,7 +421,13 @@ async def early_access_register(payload: EarlyAccessRegister):
 
     token = new_id()
     now = now_utc()
-    avatar_url = await _ea_get_default_avatar()
+    # Validate avatar against the seeded list; fall back to default if invalid/missing.
+    chosen_avatar = (payload.avatar_url or "").strip()
+    if chosen_avatar:
+        valid = await db.avatars.find_one({"url": chosen_avatar})
+        if not valid:
+            chosen_avatar = ""
+    avatar_url = chosen_avatar or await _ea_get_default_avatar()
 
     requires_payment = payload.plan == "plus"
     code = None if requires_payment else gen_code()

@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { api, getErrorMessage } from "@/lib/api";
+import { api, getErrorMessage, mediaUrl } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 
 const STORAGE_KEY = "cartoonix_early_access";
@@ -145,11 +145,12 @@ function Stepper({ step }) {
 // =====================================================================
 //                              STEP 1
 // =====================================================================
-function Step1Profile({ form, setForm, onNext, loading }) {
+function Step1Profile({ form, setForm, avatars, onNext, loading }) {
   const [err, setErr] = useState("");
 
   const submit = (e) => {
     e.preventDefault();
+    if (!form.avatar_url) return setErr("Te rugăm să alegi un avatar");
     if (form.nickname.trim().length < 2) return setErr("Pseudonimul trebuie să aibă minim 2 caractere");
     if (!form.email.trim()) return setErr("Emailul este obligatoriu");
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) return setErr("Email invalid");
@@ -162,6 +163,51 @@ function Step1Profile({ form, setForm, onNext, loading }) {
 
   return (
     <form onSubmit={submit} className="space-y-5" data-testid="ea-step1-form">
+      {/* Avatar grid */}
+      <div>
+        <Label className="text-xs uppercase tracking-[0.18em] text-white/60">
+          Alege-ți avatarul
+        </Label>
+        <div
+          data-testid="ea-avatar-grid"
+          className="mt-2.5 grid grid-cols-4 sm:grid-cols-6 gap-2.5"
+        >
+          {(Array.isArray(avatars) ? avatars : []).map((a) => {
+            const selected = form.avatar_url === a.url;
+            return (
+              <button
+                key={a.slug}
+                type="button"
+                onClick={() => setForm({ ...form, avatar_url: a.url })}
+                data-testid="ea-avatar-option"
+                className={`relative aspect-square overflow-hidden rounded-xl border-2 transition-all ${
+                  selected
+                    ? "border-fuchsia-400 ring-2 ring-fuchsia-400/30 scale-[1.03]"
+                    : "border-white/10 hover:border-white/30"
+                }`}
+              >
+                <img
+                  src={mediaUrl(a.url)}
+                  alt={a.slug}
+                  className="absolute inset-0 h-full w-full object-cover"
+                  draggable={false}
+                />
+                {selected && (
+                  <div className="absolute top-1 right-1 h-5 w-5 rounded-full bg-fuchsia-500 text-white grid place-items-center shadow-md">
+                    <Check className="h-3 w-3" />
+                  </div>
+                )}
+              </button>
+            );
+          })}
+          {avatars && avatars.length === 0 && (
+            <div className="col-span-full text-center text-sm text-white/40 py-4">
+              Se încarcă avatarurile...
+            </div>
+          )}
+        </div>
+      </div>
+
       <div className="grid sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label htmlFor="ea-nickname" className="text-xs uppercase tracking-[0.18em] text-white/60">Pseudonim</Label>
@@ -514,6 +560,7 @@ export default function EarlyAccessPage() {
   const [token, setToken] = useState(null);
   const [confirming, setConfirming] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [avatars, setAvatars] = useState([]);
 
   const [form, setForm] = useState({
     nickname: "",
@@ -522,7 +569,31 @@ export default function EarlyAccessPage() {
     confirm: "",
     accepted_terms: false,
     plan: "free",
+    avatar_url: "",
   });
+
+  // Load available avatars (same source as /register)
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const { data } = await api.get("/avatars");
+        const list = Array.isArray(data) ? data : [];
+        if (!mounted) return;
+        setAvatars(list);
+        // Preselect first avatar if user hasn't chosen yet
+        if (list.length) {
+          setForm((f) => (f.avatar_url ? f : { ...f, avatar_url: list[0].url }));
+        }
+      } catch (err) {
+        console.error("Failed to load avatars", err);
+        if (mounted) setAvatars([]);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // ---- Restore session on mount (Stripe redirect comes back here) ----
   useEffect(() => {
@@ -534,6 +605,7 @@ export default function EarlyAccessPage() {
         email: stored.email || "",
         plan: stored.plan || "free",
         accepted_terms: !!stored.accepted_terms,
+        avatar_url: stored.avatar_url || f.avatar_url,
       }));
       if (stored.token) setToken(stored.token);
       if (typeof stored.step === "number") setStep(stored.step);
@@ -601,6 +673,7 @@ export default function EarlyAccessPage() {
         password: form.password,
         plan: form.plan,
         accepted_terms: form.accepted_terms,
+        avatar_url: form.avatar_url,
       });
       setToken(data.token);
       const baseSession = {
@@ -608,6 +681,7 @@ export default function EarlyAccessPage() {
         email: form.email.trim().toLowerCase(),
         plan: form.plan,
         accepted_terms: form.accepted_terms,
+        avatar_url: form.avatar_url,
         token: data.token,
       };
 
@@ -654,6 +728,7 @@ export default function EarlyAccessPage() {
         <Step1Profile
           form={form}
           setForm={setForm}
+          avatars={avatars}
           onNext={handleStep1Next}
           loading={submitting}
         />
@@ -679,7 +754,7 @@ export default function EarlyAccessPage() {
       />
     );
     // eslint-disable-next-line
-  }, [step, form, submitting, confirming, token]);
+  }, [step, form, submitting, confirming, token, avatars]);
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-[#0a0a0c] text-white">
