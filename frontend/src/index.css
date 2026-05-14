@@ -348,26 +348,10 @@ code {
   border-color: rgba(56, 189, 248, 0.25) !important;
 }
 
-/* Kill Sonner's built-in stack/expand behavior — no transforms, no progress bar */
-[data-sonner-toaster] [data-sonner-toast]::before {
-  display: none !important;
-  content: none !important;
-}
+/* Kill Sonner's stack-expand-on-hover: force all stacked toasts to stay put */
 [data-sonner-toaster][data-expanded="true"] [data-sonner-toast],
 [data-sonner-toaster][data-expanded="false"] [data-sonner-toast] {
-  transform: none !important;
-  --y: 0 !important;
-  --lift: 0 !important;
-  --scale: 1 !important;
-  --lift-amount: 0 !important;
-  height: auto !important;
-}
-[data-sonner-toaster] [data-sonner-toast][data-front="false"] {
-  opacity: 0 !important;
-  pointer-events: none !important;
-}
-[data-sonner-toaster] [data-sonner-toast] [data-progress] {
-  display: none !important;
+  transform: var(--y) !important;
 }
 
 /* Light-mode tweak (when html has no .dark) */

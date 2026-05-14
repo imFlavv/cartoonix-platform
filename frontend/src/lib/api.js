@@ -27,10 +27,26 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     const status = error?.response?.status;
+    const url = error?.config?.url || "";
 
-    if (status === 401) {
+    // Only auto-redirect on 401 for AUTHENTICATED requests (i.e. we had a token
+    // attached). Login/register/verify failures must reach the page handler so
+    // it can display an error toast — we MUST NOT force a page reload for those.
+    const isAuthEndpoint =
+      url.includes("/auth/login") ||
+      url.includes("/auth/register") ||
+      url.includes("/auth/verify") ||
+      url.includes("/auth/resend") ||
+      url.includes("/early-access/");
+
+    if (status === 401 && !isAuthEndpoint) {
+      const hadToken = !!localStorage.getItem("cartoonix_token");
       localStorage.removeItem("cartoonix_token");
-      window.location.href = "/login";
+      // Only force a hard reload to /login if we previously had a token
+      // (i.e. session expired). Guests landing on a 401 don't need a redirect.
+      if (hadToken && window.location.pathname !== "/login") {
+        window.location.href = "/login";
+      }
     }
 
     return Promise.reject(error);

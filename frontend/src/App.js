@@ -206,7 +206,7 @@ function App() {
               </Routes>
               </EarlyAccessGate>
               </MaintenanceGate>
-              <Toaster position="top-right" expand={false} />
+              <Toaster position="top-right" />
             </SettingsProvider>
           </AuthProvider>
         </BrowserRouter>
