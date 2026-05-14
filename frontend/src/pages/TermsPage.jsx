@@ -1,5 +1,7 @@
 import React from "react";
-import PublicLayout from "@/components/PublicLayout";
+import { useNavigate } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 function H2({ children }) {
   return (
@@ -34,8 +36,30 @@ function Divider() {
 }
 
 export default function TermsPage() {
+  const navigate = useNavigate();
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate("/");
+    }
+  };
   return (
-    <PublicLayout>
+    <div className="min-h-screen bg-background text-foreground">
+      <div className="sticky top-0 z-30 w-full border-b border-border/60 bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="mx-auto max-w-3xl px-4 sm:px-6 h-14 flex items-center">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleBack}
+            data-testid="terms-back-button"
+            className="-ml-2 rounded-xl text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4 mr-1.5" />
+            Înapoi
+          </Button>
+        </div>
+      </div>
       <section className="mx-auto max-w-3xl px-4 sm:px-6 py-12">
         <header className="mb-8">
           <div className="inline-flex items-center gap-2 text-[11px] tracking-[0.3em] uppercase text-[hsl(var(--primary))] mb-3">
@@ -366,6 +390,6 @@ export default function TermsPage() {
           © 2026 Cartoonix. Toate drepturile rezervate.
         </p>
       </section>
-    </PublicLayout>
+    </div>
   );
 }

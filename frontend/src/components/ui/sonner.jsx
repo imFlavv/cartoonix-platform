@@ -25,6 +25,7 @@ const Toaster = ({ ...props }) => {
       visibleToasts={4}
       gap={12}
       offset={20}
+      expand={true}
       className="toaster group"
       toastOptions={{
         unstyled: false,

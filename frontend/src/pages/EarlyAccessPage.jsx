@@ -317,7 +317,7 @@ function Step2Plan({ form, setForm, onChoose, loading, onBack }) {
         type="button"
         onClick={() => setForm({ ...form, plan: plan.id })}
         data-testid={`ea-plan-${plan.id}`}
-        className={`relative text-left rounded-2xl p-5 sm:p-6 transition-all overflow-hidden ${
+        className={`relative h-full text-left rounded-2xl p-5 sm:p-6 transition-all overflow-hidden flex flex-col items-stretch ${
           selected
             ? `bg-gradient-to-br ${plan.accent} ring-4 ${plan.ring} ${isPlus ? "text-black" : "text-white"}`
             : "bg-white/5 border border-white/10 hover:border-white/30 text-white"
@@ -382,7 +382,7 @@ function Step2Plan({ form, setForm, onChoose, loading, onBack }) {
 
   return (
     <div className="space-y-6" data-testid="ea-step2">
-      <div className="grid md:grid-cols-2 gap-4 sm:gap-5">
+      <div className="grid md:grid-cols-2 gap-4 sm:gap-5 items-stretch">
         <Card plan={PLANS.free} />
         <Card plan={PLANS.plus} />
       </div>
@@ -786,6 +786,17 @@ export default function EarlyAccessPage() {
 
       {/* ---------- CONTENT ---------- */}
       <main className="relative z-10 min-h-screen flex items-start sm:items-center justify-center px-4 sm:px-6 py-10 sm:py-16">
+        {/* Top-right login shortcut */}
+        <button
+          type="button"
+          onClick={() => navigate("/login")}
+          data-testid="ea-top-login-button"
+          className="absolute top-4 right-4 sm:top-6 sm:right-6 z-20 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border border-white/15 bg-white/[0.06] hover:bg-white/[0.12] hover:border-white/30 backdrop-blur-sm text-xs sm:text-sm text-white/80 hover:text-white transition-colors"
+        >
+          <Lock className="h-3.5 w-3.5" />
+          Autentificare
+        </button>
+
         <div className="w-full max-w-3xl" data-testid="early-access-page">
           {/* Header */}
           <div className="text-center mb-10">
@@ -827,6 +838,25 @@ export default function EarlyAccessPage() {
                 {stepNode}
               </motion.div>
             </AnimatePresence>
+          </div>
+
+          {/* Existing user login hint */}
+          <div className="mt-6 text-center">
+            <div
+              data-testid="ea-existing-user-cta"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full border border-white/10 bg-white/[0.04] backdrop-blur-sm text-sm text-white/70"
+            >
+              <span>Ai deja cont?</span>
+              <button
+                type="button"
+                onClick={() => navigate("/login")}
+                data-testid="ea-login-link"
+                className="inline-flex items-center gap-1 font-semibold text-fuchsia-300 hover:text-fuchsia-200 transition-colors"
+              >
+                Autentifică-te
+                <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
           </div>
 
           <p className="mt-8 text-center text-[11px] tracking-[0.22em] uppercase text-white/30">

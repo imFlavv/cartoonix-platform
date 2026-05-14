@@ -80,9 +80,10 @@ def _verification_html(nickname: str, code: str) -> str:
           <!-- SUBTEXT -->
           <tr>
             <td align="center" style="padding:0 16px 36px 16px;">
-              <p style="margin:0;font-size:15px;line-height:1.7;color:#A8A39A;max-width:440px;">
-                Confirmă-ți emailul pentru a debloca tezaurul de desene animate clasice.
-                Introdu codul de mai jos în aplicație:
+              <p style="margin:0;font-size:15px;line-height:1.7;color:#A8A39A;max-width:480px;">
+                Introdu codul de verificare de mai jos pentru a finaliza
+                activarea contului și pentru a intra în universul desenelor
+                animate:
               </p>
             </td>
           </tr>
