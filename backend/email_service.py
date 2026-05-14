@@ -135,7 +135,7 @@ def _verification_html(nickname: str, code: str) -> str:
                 Cartoonix
               </p>
               <p style="margin:0;font-size:11px;color:#5A554D;line-height:1.6;">
-                Streamează clasicele. &middot; © 2026 Cartoonix<br/>
+                © 2026 Cartoonix<br/>
                 Acesta este un email automat — te rugăm să nu răspunzi.
               </p>
             </td>
