@@ -208,15 +208,27 @@ frontend:
         agent: "main"
         comment: "CRITICAL BUG FIX: Users were losing their registration session on mobile when switching apps (to banking, email) because sessionStorage clears on app close. This caused users to PAY but be unable to create account. Implemented multi-layered solution: 1) Changed storage from sessionStorage to localStorage (persists across app close), 2) Backend now accepts confirm-payment with ONLY session_id (extracts client_reference_id from Stripe to find pending), 3) Extended expiration from 45min to 120min (2 hours) for pending_early_access, 4) Frontend auto-recovery when user returns with session_id but no local token. Backend changes: EarlyAccessConfirmPayment.token → Optional, early_access_confirm_payment() can find pending by querying Stripe session for client_reference_id, returns token+email for frontend recovery. Frontend changes: saveSession() saves to both localStorage+sessionStorage with backup, loadSession() checks both storages, Stripe return flow handles missing token by calling backend with just session_id. Full documentation in /app/EARLY_ACCESS_PAYMENT_FIX.md. This fix ensures users who pay ALWAYS get their account even if they lose the browser session."
 
+  - task: "Upgrade FREE→PLUS from Early Access success page"
+    implemented: true
+    working: true
+    file: "backend/server.py (/api/users/me/upgrade-checkout, /api/users/me/confirm-upgrade), frontend/src/pages/EarlyAccessSuccessPage.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Replaced the lone CARTOONIX FREE/PLUS pill on /early-access success page with a new UserBar: round avatar with red glow ring (matches user's reference image), nickname, divider, plan badge (FREE/PLUS), and an UPGRADE button shown ONLY for FREE users. Clicking UPGRADE calls POST /api/users/me/upgrade-checkout which builds a Stripe URL with client_reference_id=upgrade_<user_id> and prefilled_email; frontend redirects there. After payment, Stripe returns to /early-access?session_id=... — logged-in user lands on EarlyAccessSuccessPage which detects session_id and calls POST /api/users/me/confirm-upgrade. Backend verifies Stripe session (status=complete, payment_status=paid, client_reference_id matches upgrade_<current_user_id>), then updates users.subscription=plus (idempotent via upgrade_stripe_session_id). Frontend refreshes the user, shows toast 'UPGRADE REALIZAT CU SUCCES!' and cleans the URL. Verified: FREE user sees the UPGRADE button, click triggers /upgrade-checkout (200) and redirects to Stripe; PLUS user sees the PLUS badge and NO upgrade button."
+
 metadata:
   created_by: "main_agent"
-  version: "1.2"
-  test_sequence: 2
+  version: "1.3"
+  test_sequence: 3
   run_ui: false
 
 test_plan:
   current_focus:
-    - "Public + Admin settings endpoints (GET /api/settings, GET/PATCH /api/admin/settings)"
+    - "Upgrade FREE→PLUS from Early Access success page"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"

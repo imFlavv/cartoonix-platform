@@ -698,6 +698,89 @@ async def early_access_resend(payload: EarlyAccessResend):
     return {"success": True}
 
 
+# ============================================================
+#               UPGRADE FROM FREE -> PLUS (Stripe)
+# ============================================================
+# Used by logged-in FREE users (typically while early-access mode is ON
+# and they are on the EarlyAccessSuccessPage). Reuses the same Stripe
+# Payment Link as the registration flow, but with a different
+# `client_reference_id` shape: `upgrade_<user_id>`.
+
+class UpgradeConfirm(BaseModel):
+    session_id: str
+
+
+@api_router.post("/users/me/upgrade-checkout")
+async def create_upgrade_checkout(user=Depends(get_current_user)):
+    """Return a Stripe payment URL for upgrading the current FREE user to PLUS."""
+    if user.get("subscription") == "plus":
+        raise HTTPException(400, "Ai deja planul PLUS.")
+
+    ref = f"upgrade_{user['id']}"
+    sep = "&" if "?" in EARLY_ACCESS_STRIPE_LINK else "?"
+    stripe_url = (
+        f"{EARLY_ACCESS_STRIPE_LINK}{sep}"
+        f"client_reference_id={ref}"
+        f"&prefilled_email={user.get('email','')}"
+    )
+    return {"success": True, "stripe_url": stripe_url}
+
+
+@api_router.post("/users/me/confirm-upgrade")
+async def confirm_upgrade(payload: UpgradeConfirm, user=Depends(get_current_user)):
+    """Verify Stripe session and upgrade the current user to PLUS."""
+    # Idempotent success if already on PLUS
+    if user.get("subscription") == "plus":
+        fresh = await db.users.find_one({"id": user["id"]}, {"_id": 0, "password_hash": 0})
+        return {"success": True, "already_upgraded": True, "user": serialize_user(fresh or user)}
+
+    if not _STRIPE_SECRET_KEY:
+        logger.error("[upgrade] STRIPE_SECRET_KEY is not configured")
+        raise HTTPException(503, "Stripe nu este configurat pe server. Contactează administratorul.")
+
+    try:
+        session = _stripe.checkout.Session.retrieve(payload.session_id)
+    except Exception as e:
+        logger.error(f"[upgrade] Stripe retrieve failed: {e}")
+        raise HTTPException(400, "Sesiunea de plată nu a putut fi verificată.")
+
+    s_status = getattr(session, "status", None)
+    s_payment_status = getattr(session, "payment_status", None)
+    s_client_ref = getattr(session, "client_reference_id", None) or ""
+    s_amount_total = getattr(session, "amount_total", None)
+    s_currency = getattr(session, "currency", None) or "eur"
+
+    expected_ref = f"upgrade_{user['id']}"
+    if s_status != "complete" or s_payment_status != "paid":
+        logger.warning(
+            f"[upgrade] payment not confirmed status={s_status} payment_status={s_payment_status}"
+        )
+        raise HTTPException(400, "Plata nu este confirmată.")
+    if s_client_ref != expected_ref:
+        logger.warning(
+            f"[upgrade] client_reference_id mismatch: got={s_client_ref} expected={expected_ref}"
+        )
+        raise HTTPException(400, "Sesiunea de plată nu corespunde acestui cont.")
+
+    # Idempotency: prevent same session_id being applied to two users
+    existing = await db.users.find_one({"upgrade_stripe_session_id": payload.session_id})
+    if existing and existing.get("id") != user["id"]:
+        raise HTTPException(400, "Această sesiune a fost deja utilizată.")
+
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": {
+            "subscription": "plus",
+            "upgrade_stripe_session_id": payload.session_id,
+            "upgrade_amount_total": s_amount_total,
+            "upgrade_currency": (s_currency or "eur").upper(),
+            "upgraded_at": now_utc().isoformat(),
+        }},
+    )
+
+    fresh = await db.users.find_one({"id": user["id"]}, {"_id": 0, "password_hash": 0})
+    return {"success": True, "user": serialize_user(fresh or user)}
+
 
 @api_router.post("/auth/login", response_model=TokenResponse)
 async def login(payload: UserLogin):

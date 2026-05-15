@@ -1,8 +1,10 @@
-import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Crown, Sparkles, LogOut, Rocket } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { Crown, Sparkles, LogOut, Rocket, ArrowUpRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { api, mediaUrl } from "@/lib/api";
 
 const LAUNCH_DATE = new Date("2026-06-01T00:00:00+03:00");
 
@@ -47,10 +49,108 @@ function Cell({ value, label }) {
   );
 }
 
+/**
+ * UserBar — avatar (with red glow ring) + nickname + plan badge + optional UPGRADE button.
+ * Replaces the lone CARTOONIX FREE / PLUS pill.
+ */
+function UserBar({ user, isPlus, onUpgrade, upgrading }) {
+  const avatarSrc = user?.avatar_url ? mediaUrl(user.avatar_url) : "";
+
+  return (
+    <div
+      data-testid="ea-user-bar"
+      className="mx-auto inline-flex items-center gap-3 sm:gap-4 rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-md pl-2 pr-3 sm:pl-3 sm:pr-4 py-2 shadow-[0_18px_48px_-18px_rgba(0,0,0,0.6)]"
+    >
+      {/* Avatar with red glow ring (like the user's reference image) */}
+      <div className="relative flex-shrink-0">
+        <span
+          aria-hidden
+          className="absolute inset-0 rounded-full blur-md opacity-80"
+          style={{ background: "radial-gradient(closest-side, rgba(239,68,68,0.7), transparent 70%)" }}
+        />
+        <span
+          aria-hidden
+          className="absolute -inset-0.5 rounded-full"
+          style={{
+            background:
+              "conic-gradient(from 0deg, #ef4444, #f97316, #ef4444, #b91c1c, #ef4444)",
+          }}
+        />
+        <div className="relative h-10 w-10 sm:h-11 sm:w-11 rounded-full overflow-hidden border-2 border-[#0a0a0c]">
+          {avatarSrc ? (
+            <img src={avatarSrc} alt={user?.nickname || "Avatar"} className="h-full w-full object-cover" />
+          ) : (
+            <div className="h-full w-full bg-gradient-to-br from-fuchsia-500 to-indigo-600 flex items-center justify-center text-sm font-bold">
+              {(user?.nickname || "C").slice(0, 1).toUpperCase()}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Nickname */}
+      <span
+        data-testid="ea-user-nickname"
+        className="font-semibold text-white text-sm sm:text-base max-w-[120px] sm:max-w-none truncate"
+      >
+        {user?.nickname || "Cartoonix Fan"}
+      </span>
+
+      {/* Divider */}
+      <span className="h-6 w-px bg-white/15" aria-hidden />
+
+      {/* Plan badge */}
+      {isPlus ? (
+        <span
+          data-testid="ea-plan-badge"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-400 via-yellow-400 to-orange-500 text-black font-bold shadow-md shadow-amber-400/20"
+        >
+          <Crown className="h-3.5 w-3.5" />
+          <span className="tracking-[0.16em] text-[11px]">PLUS</span>
+        </span>
+      ) : (
+        <span
+          data-testid="ea-plan-badge"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-white"
+        >
+          <Sparkles className="h-3.5 w-3.5 text-fuchsia-300" />
+          <span className="tracking-[0.16em] text-[11px] font-semibold">FREE</span>
+        </span>
+      )}
+
+      {/* Upgrade button — only for FREE users */}
+      {!isPlus && (
+        <button
+          type="button"
+          data-testid="ea-upgrade-button"
+          onClick={onUpgrade}
+          disabled={upgrading}
+          className="group relative inline-flex items-center gap-1.5 rounded-full px-3 sm:px-4 py-1.5 text-[11px] sm:text-xs font-bold tracking-[0.18em] uppercase text-black bg-gradient-to-r from-amber-300 via-yellow-400 to-orange-400 hover:from-amber-200 hover:via-yellow-300 hover:to-orange-300 transition-all shadow-[0_8px_22px_-6px_rgba(251,191,36,0.55)] disabled:opacity-70 disabled:cursor-not-allowed"
+        >
+          {upgrading ? (
+            <>
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <span>...</span>
+            </>
+          ) : (
+            <>
+              <span>Upgrade</span>
+              <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+            </>
+          )}
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function EarlyAccessSuccessPage() {
-  const { user, logout } = useAuth() || {};
+  const { user, logout, fetchMe } = useAuth() || {};
   const navigate = useNavigate();
+  const [search, setSearch] = useSearchParams();
   const { days, hours, minutes, seconds } = useCountdown(LAUNCH_DATE);
+  const [upgrading, setUpgrading] = useState(false);
+  const [confirmingUpgrade, setConfirmingUpgrade] = useState(false);
+  const confirmedRef = useRef(false);
 
   const isPlus = user?.subscription === "plus";
 
@@ -58,6 +158,72 @@ export default function EarlyAccessSuccessPage() {
     if (logout) await logout();
     navigate("/early-access", { replace: true });
   };
+
+  const handleUpgrade = async () => {
+    if (upgrading || isPlus) return;
+    setUpgrading(true);
+    try {
+      const { data } = await api.post("/users/me/upgrade-checkout");
+      if (!data?.stripe_url) {
+        throw new Error("Stripe URL missing");
+      }
+      // Mark that we're heading out for an upgrade so we can react on return.
+      try {
+        localStorage.setItem("cartoonix_upgrade_pending", "1");
+      } catch { /* ignore */ }
+      toast.message("Redirecționare către Stripe...", { duration: 1800 });
+      setTimeout(() => {
+        window.location.href = data.stripe_url;
+      }, 250);
+    } catch (err) {
+      const msg =
+        err?.response?.data?.detail ||
+        err?.message ||
+        "Nu am putut deschide pagina de plată. Încearcă din nou.";
+      toast.error(msg);
+      setUpgrading(false);
+    }
+  };
+
+  // ---- Stripe return: detect session_id and confirm the upgrade ----
+  useEffect(() => {
+    const sessionId = search.get("session_id");
+    if (!sessionId) return;
+    if (confirmedRef.current) return;
+    if (!user) return; // wait until auth ready
+    if (user.subscription === "plus") {
+      // Already PLUS — just clean URL.
+      const next = new URLSearchParams(search);
+      next.delete("session_id");
+      setSearch(next, { replace: true });
+      return;
+    }
+
+    confirmedRef.current = true;
+    (async () => {
+      setConfirmingUpgrade(true);
+      try {
+        await api.post("/users/me/confirm-upgrade", { session_id: sessionId });
+        if (fetchMe) await fetchMe();
+        toast.success("UPGRADE REALIZAT CU SUCCES!", {
+          description: "Contul tău este acum CARTOONIX PLUS. Mulțumim!",
+          duration: 6000,
+        });
+      } catch (err) {
+        const msg =
+          err?.response?.data?.detail ||
+          "Nu am putut confirma upgrade-ul. Dacă plata a fost efectuată, contactează suportul.";
+        toast.error(msg);
+      } finally {
+        try { localStorage.removeItem("cartoonix_upgrade_pending"); } catch { /* ignore */ }
+        setConfirmingUpgrade(false);
+        const next = new URLSearchParams(search);
+        next.delete("session_id");
+        setSearch(next, { replace: true });
+      }
+    })();
+    // eslint-disable-next-line
+  }, [user]);
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-[#0a0a0c] text-white">
@@ -121,26 +287,14 @@ export default function EarlyAccessSuccessPage() {
             Locul tău e rezervat.
           </p>
 
-          {/* Plan badge */}
+          {/* User bar (replaces the lone plan pill) */}
           <div className="mt-6 flex justify-center">
-            {isPlus ? (
-              <div
-                data-testid="ea-plan-badge"
-                className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-gradient-to-r from-amber-400 via-yellow-400 to-orange-500 text-black font-bold shadow-lg shadow-amber-400/20"
-              >
-                <Crown className="h-4 w-4" />
-                <span className="tracking-[0.18em] text-sm">CARTOONIX PLUS</span>
-                <Sparkles className="h-4 w-4" />
-              </div>
-            ) : (
-              <div
-                data-testid="ea-plan-badge"
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/10 border border-white/20 text-white"
-              >
-                <Sparkles className="h-4 w-4 text-fuchsia-300" />
-                <span className="tracking-[0.18em] text-sm font-semibold">CARTOONIX FREE</span>
-              </div>
-            )}
+            <UserBar
+              user={user}
+              isPlus={isPlus}
+              onUpgrade={handleUpgrade}
+              upgrading={upgrading || confirmingUpgrade}
+            />
           </div>
 
           {/* Divider */}
