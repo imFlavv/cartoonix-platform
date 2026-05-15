@@ -220,15 +220,27 @@ frontend:
         agent: "main"
         comment: "Replaced the lone CARTOONIX FREE/PLUS pill on /early-access success page with a new UserBar: round avatar with red glow ring (matches user's reference image), nickname, divider, plan badge (FREE/PLUS), and an UPGRADE button shown ONLY for FREE users. Clicking UPGRADE calls POST /api/users/me/upgrade-checkout which builds a Stripe URL with client_reference_id=upgrade_<user_id> and prefilled_email; frontend redirects there. After payment, Stripe returns to /early-access?session_id=... — logged-in user lands on EarlyAccessSuccessPage which detects session_id and calls POST /api/users/me/confirm-upgrade. Backend verifies Stripe session (status=complete, payment_status=paid, client_reference_id matches upgrade_<current_user_id>), then updates users.subscription=plus (idempotent via upgrade_stripe_session_id). Frontend refreshes the user, shows toast 'UPGRADE REALIZAT CU SUCCES!' and cleans the URL. Verified: FREE user sees the UPGRADE button, click triggers /upgrade-checkout (200) and redirects to Stripe; PLUS user sees the PLUS badge and NO upgrade button."
 
+  - task: "Admin Users: pagination (50/page) + search by email/nickname"
+    implemented: true
+    working: true
+    file: "backend/server.py (GET /api/admin/users), frontend/src/pages/admin/AdminUsers.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Backend: GET /api/admin/users now accepts ?page, ?page_size (default 50, max 200) and ?q for case-insensitive regex match on email OR nickname (escaped). Returns {items, total, page, page_size, pages}. Frontend AdminUsers.jsx: new search bar above the table (debounced 300ms, with X to clear), shows 'N total' counter, loading overlay on fetch, and a compact pagination bar at the bottom with prev/next + smart page numbers (with ellipsis) when more than 1 page. Sticky 50 per page. Verified with 77 users in DB: page 1 returns 50, page 2 returns 27, search 'user001' returns 1, search 'admin' returns 1."
+
 metadata:
   created_by: "main_agent"
-  version: "1.3"
-  test_sequence: 3
+  version: "1.4"
+  test_sequence: 4
   run_ui: false
 
 test_plan:
   current_focus:
-    - "Upgrade FREE→PLUS from Early Access success page"
+    - "Admin Users: pagination (50/page) + search by email/nickname"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"

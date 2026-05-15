@@ -997,9 +997,43 @@ async def admin_import_folder(payload: dict, user=Depends(require_admin)):
 #                        ADMIN: USERS
 # ============================================================
 @api_router.get("/admin/users")
-async def admin_list_users(user=Depends(require_admin)):
-    items = await db.users.find({}, {"_id": 0, "password_hash": 0}).sort("created_at", -1).to_list(1000)
-    return items
+async def admin_list_users(
+    user=Depends(require_admin),
+    page: int = 1,
+    page_size: int = 50,
+    q: Optional[str] = None,
+):
+    page = max(1, int(page or 1))
+    page_size = max(1, min(200, int(page_size or 50)))
+
+    query: dict = {}
+    if q:
+        q_clean = q.strip()
+        if q_clean:
+            import re as _re
+            safe = _re.escape(q_clean)
+            query["$or"] = [
+                {"email": {"$regex": safe, "$options": "i"}},
+                {"nickname": {"$regex": safe, "$options": "i"}},
+            ]
+
+    total = await db.users.count_documents(query)
+    skip = (page - 1) * page_size
+    items = (
+        await db.users.find(query, {"_id": 0, "password_hash": 0})
+        .sort("created_at", -1)
+        .skip(skip)
+        .limit(page_size)
+        .to_list(page_size)
+    )
+    pages = (total + page_size - 1) // page_size if total else 0
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "pages": pages,
+    }
 
 
 @api_router.patch("/admin/users/{user_id}")
