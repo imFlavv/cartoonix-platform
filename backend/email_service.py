@@ -328,3 +328,173 @@ def send_contest_confirmation(to_email: str, contest_name: str, ticket_id: str, 
     except Exception as e:
         logger.error(f"Brevo contest exception: {e}")
         return False
+
+
+
+# ============================================================
+#                  PASSWORD RESET EMAIL
+# ============================================================
+
+def _password_reset_html(nickname: str, reset_url: str) -> str:
+    return f"""<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <meta name="color-scheme" content="dark">
+  <meta name="supported-color-schemes" content="dark">
+  <title>Resetare parolă Cartoonix</title>
+</head>
+<body style="margin:0;padding:0;background:#0b0c10;font-family:'Helvetica Neue',Helvetica,Arial,'Segoe UI',sans-serif;color:#EDEAE4;-webkit-font-smoothing:antialiased;">
+  <div style="display:none;max-height:0;overflow:hidden;font-size:1px;line-height:1px;color:#0b0c10;opacity:0;">
+    Resetează-ți parola Cartoonix. Link-ul expiră în 60 de minute.
+  </div>
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#0b0c10;">
+    <tr>
+      <td align="center" style="padding:48px 16px;">
+        <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:560px;">
+
+          <!-- LOGO -->
+          <tr>
+            <td align="center" style="padding:0 0 36px 0;">
+              <img src="{LOGO_URL}" width="120" alt="Cartoonix"
+                   style="display:block;width:120px;height:auto;border:0;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic;" />
+            </td>
+          </tr>
+
+          <!-- EYEBROW -->
+          <tr>
+            <td align="center" style="padding:0 0 14px 0;">
+              <span style="display:inline-block;font-size:11px;font-weight:700;letter-spacing:0.32em;color:#FF5A2A;text-transform:uppercase;">
+                Resetare parolă
+              </span>
+            </td>
+          </tr>
+
+          <!-- HEADING -->
+          <tr>
+            <td align="center" style="padding:0 8px 14px 8px;">
+              <h1 style="margin:0;font-size:30px;line-height:1.2;font-weight:800;letter-spacing:-0.01em;color:#FFFFFF;">
+                Salut, {nickname}!
+              </h1>
+            </td>
+          </tr>
+
+          <!-- SUBTEXT -->
+          <tr>
+            <td align="center" style="padding:0 16px 32px 16px;">
+              <p style="margin:0;font-size:15px;line-height:1.7;color:#A8A39A;max-width:480px;">
+                Am primit o cerere de resetare a parolei pentru contul tău Cartoonix.
+                Apasă pe butonul de mai jos pentru a-ți seta o parolă nouă.
+              </p>
+            </td>
+          </tr>
+
+          <!-- CTA BUTTON -->
+          <tr>
+            <td align="center" style="padding:0 0 26px 0;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td align="center" style="border-radius:14px;background:linear-gradient(135deg,#FFD84A 0%,#FF8A2A 100%);box-shadow:0 14px 36px rgba(255,138,42,0.35);">
+                    <a href="{reset_url}"
+                       style="display:inline-block;padding:14px 36px;font-size:13px;font-weight:800;letter-spacing:0.22em;text-transform:uppercase;color:#0b0c10;text-decoration:none;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+                      Resetează parola
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- ALT URL -->
+          <tr>
+            <td align="center" style="padding:0 16px 28px 16px;">
+              <p style="margin:0 0 6px 0;font-size:12px;line-height:1.6;color:#7A746A;">
+                Sau copiază acest link în browser:
+              </p>
+              <p style="margin:0;font-size:12px;line-height:1.6;color:#A8A39A;word-break:break-all;">
+                <a href="{reset_url}" style="color:#FFD84A;text-decoration:underline;">{reset_url}</a>
+              </p>
+            </td>
+          </tr>
+
+          <!-- EXPIRY HINT -->
+          <tr>
+            <td align="center" style="padding:0 0 36px 0;">
+              <span style="display:inline-block;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#6F6960;">
+                <span style="color:#FFD84A;">●</span>&nbsp;&nbsp;Link-ul expiră în 60 minute
+              </span>
+            </td>
+          </tr>
+
+          <!-- DIVIDER -->
+          <tr>
+            <td align="center" style="padding:0 0 28px 0;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="80">
+                <tr>
+                  <td style="height:1px;background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.18) 50%,transparent 100%);line-height:1px;font-size:0;">&nbsp;</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- SAFETY NOTE -->
+          <tr>
+            <td align="center" style="padding:0 16px 8px 16px;">
+              <p style="margin:0;font-size:13px;line-height:1.7;color:#7A746A;max-width:420px;">
+                Dacă nu ai solicitat tu această resetare, poți ignora în siguranță acest email
+                — parola contului tău rămâne neschimbată.
+              </p>
+            </td>
+          </tr>
+
+          <!-- FOOTER -->
+          <tr>
+            <td align="center" style="padding:56px 16px 0 16px;">
+              <p style="margin:0 0 6px 0;font-size:12px;letter-spacing:0.18em;color:#6F6960;text-transform:uppercase;font-weight:700;">
+                Cartoonix
+              </p>
+              <p style="margin:0;font-size:11px;color:#5A554D;line-height:1.6;">
+                © 2026 Cartoonix<br/>
+                Acesta este un email automat — te rugăm să nu răspunzi.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>"""
+
+
+def send_password_reset_email(to_email: str, nickname: str, reset_url: str) -> bool:
+    if not BREVO_API_KEY:
+        logger.error("BREVO_API_KEY not configured")
+        return False
+    payload = {
+        "sender": {"name": BREVO_SENDER_NAME, "email": BREVO_SENDER_EMAIL},
+        "to": [{"email": to_email, "name": nickname or to_email}],
+        "subject": "Resetare parolă Cartoonix",
+        "htmlContent": _password_reset_html(nickname or "prieten", reset_url),
+        "textContent": (
+            f"Salut, {nickname or 'prieten'}!\n\n"
+            f"Am primit o cerere de resetare a parolei pentru contul tău Cartoonix.\n"
+            f"Apasă pe link-ul de mai jos pentru a seta o parolă nouă (expiră în 60 minute):\n"
+            f"{reset_url}\n\n"
+            f"Dacă nu ai solicitat tu această resetare, poți ignora acest email.\n\n— Cartoonix"
+        ),
+    }
+    headers = {"accept": "application/json", "api-key": BREVO_API_KEY, "content-type": "application/json"}
+    try:
+        resp = requests.post(BREVO_URL, json=payload, headers=headers, timeout=20)
+        if resp.status_code in (200, 201, 202):
+            logger.info(f"Sent password reset email to {to_email}")
+            return True
+        logger.error(f"Brevo reset send failed {resp.status_code}: {resp.text[:300]}")
+        return False
+    except Exception as e:
+        logger.error(f"Brevo reset exception: {e}")
+        return False

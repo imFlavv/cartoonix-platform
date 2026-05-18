@@ -58,7 +58,16 @@ export default function LoginPage() {
                   data-testid="login-email-input" autoComplete="email" className="h-11 rounded-xl" />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="password">Parolă</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">Parolă</Label>
+                  <Link
+                    to="/forgot-password"
+                    className="text-xs text-muted-foreground hover:text-foreground hover:underline underline-offset-2"
+                    data-testid="login-forgot-password-link"
+                  >
+                    Am uitat parola
+                  </Link>
+                </div>
                 <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required
                   data-testid="login-password-input" autoComplete="current-password" className="h-11 rounded-xl" />
               </div>

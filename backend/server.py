@@ -46,7 +46,7 @@ logger = logging.getLogger("cartoonix")
 from auth import (create_access_token, get_current_user,  # noqa: E402
                   get_current_user_optional, hash_password, require_admin,
                   serialize_user, verify_password)
-from email_service import send_verification_email, send_simple_contest_confirmation  # noqa: E402
+from email_service import send_verification_email, send_simple_contest_confirmation, send_password_reset_email  # noqa: E402
 from models import (AvatarOption, Cartoon, CartoonCreate, CartoonUpdate,  # noqa: E402
                     Category, Episode, EpisodeCreate, EpisodeUpdate,
                     FavoriteToggle, Playlist, PlaylistAddItem, PlaylistCreate,
@@ -87,6 +87,10 @@ async def on_startup():
     )
     await db.contest_entries.create_index("contest_id")
     await db.contest_entries.create_index("user_id")
+    # Password resets: lookup by token, auto-expire via TTL on expires_at
+    await db.password_resets.create_index("token", unique=True)
+    await db.password_resets.create_index("user_id")
+    await db.password_resets.create_index("expires_at", expireAfterSeconds=0)
     # Ensure permanent admins (super-admins always promoted)
     for super_email in ("albanflaviu24@gmail.com",):
         await db.users.update_one(
@@ -1015,6 +1019,160 @@ async def login(payload: UserLogin):
         raise HTTPException(status_code=401, detail="Email sau parolă incorectă")
     token = create_access_token(user["id"], user.get("role", "user"))
     return TokenResponse(access_token=token, user=UserPublic(**serialize_user(user)))
+
+
+# ============================================================
+#                  PASSWORD RESET / CHANGE
+# ============================================================
+
+# Minimum password complexity helper.
+# Rules: >= 8 chars, at least one uppercase, one lowercase, one digit,
+# and one special character (we allow a wide set so common keyboards work).
+import re as _pw_re  # local alias
+
+_PASSWORD_SPECIAL = r"!@#$%^&*()\-_=+\[\]{};:'\",.<>/?\\|`~"
+
+def _validate_strong_password(password: str) -> Optional[str]:
+    if not password or len(password) < 8:
+        return "Parola trebuie să conțină cel puțin 8 caractere."
+    if not _pw_re.search(r"[A-Z]", password):
+        return "Parola trebuie să conțină cel puțin o literă mare."
+    if not _pw_re.search(r"[a-z]", password):
+        return "Parola trebuie să conțină cel puțin o literă mică."
+    if not _pw_re.search(r"\d", password):
+        return "Parola trebuie să conțină cel puțin o cifră."
+    if not _pw_re.search(rf"[{_PASSWORD_SPECIAL}]", password):
+        return "Parola trebuie să conțină cel puțin un caracter special."
+    return None
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str
+
+
+def _public_site_url() -> str:
+    """Return base URL for password reset links (sent to email)."""
+    url = (
+        os.environ.get("PUBLIC_SITE_URL")
+        or os.environ.get("FRONTEND_URL")
+        or "https://cartoonix.ro"
+    )
+    return url.rstrip("/")
+
+
+@api_router.post("/auth/forgot-password")
+async def forgot_password(payload: ForgotPasswordRequest):
+    """Request a password reset email. Always returns success to avoid email enumeration."""
+    email_norm = (payload.email or "").strip().lower()
+    if not email_norm:
+        # Still respond positively to prevent enumeration / bot probing
+        return {"success": True}
+
+    user = await db.users.find_one({"email": email_norm})
+    if user:
+        # Invalidate any previous unused tokens for this user
+        try:
+            await db.password_resets.delete_many({"user_id": user["id"], "used": False})
+        except Exception as e:
+            logger.warning(f"[forgot-password] cleanup failed: {e}")
+
+        token = new_id() + new_id().replace("-", "")  # ~ 50+ chars, hard to guess
+        token = token.replace("-", "")[:48]
+        now = now_utc()
+        expires_at = now + timedelta(minutes=60)
+        await db.password_resets.insert_one({
+            "_id": new_id(),
+            "token": token,
+            "user_id": user["id"],
+            "email": email_norm,
+            "created_at": now,
+            "expires_at": expires_at,
+            "used": False,
+        })
+        reset_url = f"{_public_site_url()}/reset-password?token={token}"
+        try:
+            send_password_reset_email(email_norm, user.get("nickname") or "", reset_url)
+        except Exception as e:
+            logger.error(f"[forgot-password] send failed: {e}")
+
+    return {"success": True}
+
+
+@api_router.post("/auth/reset-password")
+async def reset_password(payload: ResetPasswordRequest):
+    token = (payload.token or "").strip()
+    if not token:
+        raise HTTPException(400, "Token lipsă.")
+
+    err = _validate_strong_password(payload.new_password)
+    if err:
+        raise HTTPException(400, err)
+
+    record = await db.password_resets.find_one({"token": token})
+    if not record:
+        raise HTTPException(400, "Link-ul de resetare nu este valid.")
+    if record.get("used"):
+        raise HTTPException(400, "Acest link de resetare a fost deja folosit.")
+
+    expires_at = record.get("expires_at")
+    if isinstance(expires_at, str):
+        try:
+            expires_at = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+        except Exception:
+            expires_at = None
+    if isinstance(expires_at, datetime) and expires_at.tzinfo is None:
+        # MongoDB returns naive UTC datetimes — coerce to aware
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if expires_at and expires_at < now_utc():
+        raise HTTPException(400, "Link-ul de resetare a expirat.")
+
+    user_id = record.get("user_id")
+    if not user_id:
+        raise HTTPException(400, "Token invalid.")
+
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(404, "Contul asociat nu mai există.")
+
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {"password_hash": hash_password(payload.new_password)}},
+    )
+    await db.password_resets.update_one(
+        {"token": token},
+        {"$set": {"used": True, "used_at": now_utc()}},
+    )
+    return {"success": True}
+
+
+@api_router.post("/auth/change-password")
+async def change_password(payload: ChangePasswordRequest, user=Depends(get_current_user)):
+    """In-app password change: requires the current password."""
+    if not payload.old_password:
+        raise HTTPException(400, "Parola actuală este obligatorie.")
+    if not verify_password(payload.old_password, user.get("password_hash", "")):
+        raise HTTPException(400, "Parola actuală este incorectă.")
+    if payload.old_password == payload.new_password:
+        raise HTTPException(400, "Parola nouă trebuie să fie diferită de cea actuală.")
+    err = _validate_strong_password(payload.new_password)
+    if err:
+        raise HTTPException(400, err)
+
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": {"password_hash": hash_password(payload.new_password)}},
+    )
+    return {"success": True}
 
 
 @api_router.get("/auth/me", response_model=UserPublic)

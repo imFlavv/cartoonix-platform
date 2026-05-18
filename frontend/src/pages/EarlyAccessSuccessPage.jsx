@@ -12,8 +12,16 @@ import {
   Inbox,
   UserCircle2,
   Check,
+  KeyRound,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import PasswordStrengthMeter, {
+  evaluatePasswordStrength,
+} from "@/components/PasswordStrengthMeter";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -80,7 +88,7 @@ function Cell({ value, label }) {
  * UserBar — avatar (with red glow ring) + nickname + plan badge + optional UPGRADE button +
  * a settings cog with dropdown (Inbox, Avatar).
  */
-function UserBar({ user, isPlus, onUpgrade, upgrading, onOpenInbox, onOpenAvatar }) {
+function UserBar({ user, isPlus, onUpgrade, upgrading, onOpenInbox, onOpenAvatar, onOpenPassword }) {
   const avatarSrc = user?.avatar_url ? mediaUrl(user.avatar_url) : "";
 
   return (
@@ -209,6 +217,14 @@ function UserBar({ user, isPlus, onUpgrade, upgrading, onOpenInbox, onOpenAvatar
             <UserCircle2 className="h-4 w-4 text-indigo-300" />
             <span className="flex-1">Avatar</span>
           </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={onOpenPassword}
+            data-testid="ea-menu-password"
+            className="rounded-lg px-2.5 py-2 cursor-pointer focus:bg-white/10 focus:text-white text-sm gap-2.5"
+          >
+            <KeyRound className="h-4 w-4 text-amber-300" />
+            <span className="flex-1">Parolă</span>
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
@@ -224,9 +240,15 @@ export default function EarlyAccessSuccessPage() {
   const [confirmingUpgrade, setConfirmingUpgrade] = useState(false);
   const [inboxOpen, setInboxOpen] = useState(false);
   const [avatarOpen, setAvatarOpen] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
   const [avatars, setAvatars] = useState([]);
   const [avatarsLoading, setAvatarsLoading] = useState(false);
   const [savingAvatarUrl, setSavingAvatarUrl] = useState(null);
+  const [pwOld, setPwOld] = useState("");
+  const [pwNew, setPwNew] = useState("");
+  const [pwConfirm, setPwConfirm] = useState("");
+  const [pwShow, setPwShow] = useState(false);
+  const [pwSaving, setPwSaving] = useState(false);
   const confirmedRef = useRef(false);
 
   const isPlus = user?.subscription === "plus";
@@ -265,6 +287,51 @@ export default function EarlyAccessSuccessPage() {
       );
     } finally {
       setSavingAvatarUrl(null);
+    }
+  };
+
+  // ---- Change password ----
+  const openPasswordDialog = () => {
+    setPwOld("");
+    setPwNew("");
+    setPwConfirm("");
+    setPwShow(false);
+    setPasswordOpen(true);
+  };
+
+  const handleChangePassword = async (e) => {
+    e?.preventDefault?.();
+    const strength = evaluatePasswordStrength(pwNew);
+    if (!pwOld) {
+      toast.error("Introdu parola actuală.");
+      return;
+    }
+    if (!strength.allMet) {
+      toast.error("Parola nouă nu îndeplinește toate cerințele de securitate.");
+      return;
+    }
+    if (pwNew !== pwConfirm) {
+      toast.error("Parolele nu se potrivesc.");
+      return;
+    }
+    if (pwOld === pwNew) {
+      toast.error("Parola nouă trebuie să fie diferită de cea actuală.");
+      return;
+    }
+    setPwSaving(true);
+    try {
+      await api.post("/auth/change-password", {
+        old_password: pwOld,
+        new_password: pwNew,
+      });
+      toast.success("Parola a fost schimbată cu succes!");
+      setPasswordOpen(false);
+    } catch (err) {
+      toast.error(
+        err?.response?.data?.detail || "Schimbarea parolei a eșuat."
+      );
+    } finally {
+      setPwSaving(false);
     }
   };
 
@@ -405,6 +472,7 @@ export default function EarlyAccessSuccessPage() {
               upgrading={upgrading || confirmingUpgrade}
               onOpenInbox={() => setInboxOpen(true)}
               onOpenAvatar={openAvatarPicker}
+              onOpenPassword={openPasswordDialog}
             />
           </div>
 
@@ -607,6 +675,109 @@ export default function EarlyAccessSuccessPage() {
               )}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* --- CHANGE PASSWORD DIALOG --- */}
+      <Dialog open={passwordOpen} onOpenChange={setPasswordOpen}>
+        <DialogContent
+          className="bg-[#101218] border border-white/10 text-white max-w-md rounded-2xl"
+          data-testid="ea-password-dialog"
+        >
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <KeyRound className="h-5 w-5 text-amber-300" />
+              Schimbă parola
+            </DialogTitle>
+            <DialogDescription className="text-white/60">
+              Pentru securitate, introdu parola actuală și alege o parolă nouă, puternică.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleChangePassword} className="space-y-4 mt-1">
+            <div className="space-y-1.5">
+              <Label htmlFor="pwOld" className="text-white/80">Parola actuală</Label>
+              <div className="relative">
+                <Input
+                  id="pwOld"
+                  type={pwShow ? "text" : "password"}
+                  value={pwOld}
+                  onChange={(e) => setPwOld(e.target.value)}
+                  autoComplete="current-password"
+                  className="h-11 rounded-xl bg-white/[0.04] border-white/10 text-white pr-10"
+                  data-testid="pw-old-input"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setPwShow((v) => !v)}
+                  aria-label={pwShow ? "Ascunde parolele" : "Arată parolele"}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md hover:bg-white/10 text-white/55"
+                >
+                  {pwShow ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="pwNew" className="text-white/80">Parolă nouă</Label>
+              <Input
+                id="pwNew"
+                type={pwShow ? "text" : "password"}
+                value={pwNew}
+                onChange={(e) => setPwNew(e.target.value)}
+                autoComplete="new-password"
+                className="h-11 rounded-xl bg-white/[0.04] border-white/10 text-white"
+                data-testid="pw-new-input"
+                required
+              />
+            </div>
+
+            <PasswordStrengthMeter password={pwNew} className="-mt-1" />
+
+            <div className="space-y-1.5">
+              <Label htmlFor="pwConfirm" className="text-white/80">Confirmă parola nouă</Label>
+              <Input
+                id="pwConfirm"
+                type={pwShow ? "text" : "password"}
+                value={pwConfirm}
+                onChange={(e) => setPwConfirm(e.target.value)}
+                autoComplete="new-password"
+                className="h-11 rounded-xl bg-white/[0.04] border-white/10 text-white"
+                data-testid="pw-confirm-input"
+                required
+              />
+              {pwConfirm && pwNew !== pwConfirm && (
+                <p className="text-xs text-red-400 mt-1">Parolele nu se potrivesc.</p>
+              )}
+            </div>
+
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setPasswordOpen(false)}
+                className="text-white/70 hover:text-white hover:bg-white/10"
+              >
+                Anulează
+              </Button>
+              <Button
+                type="submit"
+                disabled={pwSaving}
+                className="h-11 rounded-xl font-bold tracking-[0.18em] uppercase text-xs text-black bg-gradient-to-r from-amber-300 via-yellow-400 to-orange-400 hover:from-amber-200 hover:via-yellow-300 hover:to-orange-300 shadow-[0_10px_28px_-8px_rgba(251,191,36,0.5)] disabled:opacity-70"
+                data-testid="pw-submit-button"
+              >
+                {pwSaving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Se salvează...
+                  </>
+                ) : (
+                  "Schimbă parola"
+                )}
+              </Button>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
     </div>
