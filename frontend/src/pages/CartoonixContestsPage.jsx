@@ -13,6 +13,8 @@ import {
   Ticket,
   Tv,
   Blocks,
+  Clock,
+  Flag,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -48,6 +50,84 @@ const ACCENTS = {
     chip: "bg-amber-500/15 text-amber-200 border-amber-400/30",
   },
 };
+
+/** Hook: returns countdown to a target ISO date. Updates every second. */
+function useCountdown(targetIso) {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  if (!targetIso) return null;
+  const target = new Date(targetIso);
+  const diff = target.getTime() - now.getTime();
+  if (Number.isNaN(target.getTime())) return null;
+  const done = diff <= 0;
+  const abs = Math.max(0, diff);
+  return {
+    done,
+    days: Math.floor(abs / (1000 * 60 * 60 * 24)),
+    hours: Math.floor((abs / (1000 * 60 * 60)) % 24),
+    minutes: Math.floor((abs / (1000 * 60)) % 60),
+    seconds: Math.floor((abs / 1000) % 60),
+  };
+}
+
+function ContestCountdown({ deadlineIso }) {
+  const cd = useCountdown(deadlineIso);
+  if (!cd) return null;
+
+  const pad = (n) => String(n).padStart(2, "0");
+
+  if (cd.done) {
+    return (
+      <div className="flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-white/[0.04] border border-white/10 text-[11px] uppercase tracking-[0.18em] font-semibold text-white/55">
+        <Flag className="h-3.5 w-3.5" />
+        Concurs finalizat
+      </div>
+    );
+  }
+
+  const Block = ({ value, label }) => (
+    <div className="flex flex-col items-center min-w-[40px]">
+      <span
+        className="font-display text-base sm:text-lg font-bold tabular-nums leading-none"
+        style={{
+          backgroundImage: "linear-gradient(180deg,#ffffff 0%,#cbd5e1 100%)",
+          WebkitBackgroundClip: "text",
+          backgroundClip: "text",
+          color: "transparent",
+        }}
+      >
+        {pad(value)}
+      </span>
+      <span className="mt-1 text-[9px] tracking-[0.22em] uppercase text-white/40 font-semibold">
+        {label}
+      </span>
+    </div>
+  );
+
+  return (
+    <div
+      className="rounded-xl border border-white/10 bg-white/[0.04] backdrop-blur-md px-3 py-2.5"
+      data-testid="contest-countdown"
+    >
+      <div className="flex items-center gap-1.5 mb-1.5 text-[9px] tracking-[0.24em] uppercase text-white/45 font-semibold">
+        <Clock className="h-3 w-3" />
+        Mai sunt
+      </div>
+      <div className="flex items-center justify-between gap-1">
+        <Block value={cd.days} label="Zile" />
+        <span className="text-white/30 -mt-3">:</span>
+        <Block value={cd.hours} label="Ore" />
+        <span className="text-white/30 -mt-3">:</span>
+        <Block value={cd.minutes} label="Min" />
+        <span className="text-white/30 -mt-3">:</span>
+        <Block value={cd.seconds} label="Sec" />
+      </div>
+    </div>
+  );
+}
 
 function ContestCard({ contest, onEnter, busy }) {
   const Icon = ICONS[contest.id] || Trophy;
@@ -109,12 +189,19 @@ function ContestCard({ contest, onEnter, busy }) {
       </p>
 
       {/* Prize chip */}
-      <div className="relative z-10 mb-5">
+      <div className="relative z-10 mb-4">
         <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-semibold ${accent.chip}`}>
           <Trophy className="h-3.5 w-3.5" />
           <span>{contest.prize}</span>
         </div>
       </div>
+
+      {/* Countdown to deadline */}
+      {contest.deadline_iso && (
+        <div className="relative z-10 mb-4">
+          <ContestCountdown deadlineIso={contest.deadline_iso} />
+        </div>
+      )}
 
       {/* Entry count */}
       <div className="relative z-10 flex items-center justify-between mb-4 text-xs text-white/45">
@@ -347,7 +434,7 @@ export default function CartoonixContestsPage() {
 
             {/* Footer note */}
             <p className="mt-14 text-center text-xs text-white/35 max-w-xl mx-auto leading-relaxed">
-              Câștigătorii vor fi contactați pe adresa de email cu care ești înregistrat. Mult succes,{" "}
+              Câștigătorii vor fi contactați pe adresa de email cu care sunt înregistrați. Mult succes,{" "}
               <span className="text-white/55 font-medium">{user?.nickname || "Cartoonix Fan"}</span>!
             </p>
           </>

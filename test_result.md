@@ -244,15 +244,27 @@ frontend:
         agent: "main"
         comment: "New /concursuri-cartoonix page (distinct from existing /concursuri) with 4 contests: 2 FREE (Bilete cinema Toy Story 5, Seturi LEGO) + 2 PLUS (Voucher eMAG 500, Media Player Xiaomi). Backend stores entries in `contest_entries` with unique index on (contest_id, user_id) for idempotent registrations; FREE users blocked on PLUS contests with 403. UI: elegant card layout with gradient glow, plan ribbon, prize chip, entry count and PARTICIPĂ button; locked state for FREE users on PLUS cards; entered state with green ÎNSCRIS pill. CTA button 'VEZI CONCURSURI' added on /early-access success page under the user bar with shimmer hover effect. New sidebar item 'Concursuri' in /admin. Admin overview shows 4 contest cards with total entries + last entry date; clicking opens entries table with avatar, email, plan_at_entry vs current_plan, timestamps, search (debounced), and 50/page pagination — same UX as /admin/users. Route /concursuri-cartoonix added to EARLY_ACCESS_ALLOWED_PREFIXES so it stays accessible during early-access mode. Verified end-to-end: FREE user can enter FREE contests, PLUS contests show locked card; admin sees totals and per-contest participant list with search."
 
+  - task: "Contest countdown + EA settings menu (Inbox/Avatar)"
+    implemented: true
+    working: true
+    file: "backend/server.py (deadline_iso on CARTOONIX_CONTESTS), frontend/src/pages/CartoonixContestsPage.jsx, frontend/src/pages/EarlyAccessSuccessPage.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "1) Fixed contests footer text from 'cu care ești înregistrat. Mult succes' to 'cu care sunt înregistrați. Mult succes'. 2) Added deadline_iso='2026-05-25T20:00:00+03:00' on each of the 4 contests; each card now renders a live countdown widget (zile:ore:min:sec, ticks every second) and shows 'Concurs finalizat' once expired. 3) On the /early-access success page, added a settings cog button at the end of the user bar that opens a dropdown menu with two items: Inbox (badge SOON, opens a Dialog with a 'Niciun mesaj nou — Mesageria va fi disponibilă odată cu lansarea platformei' placeholder) and Avatar (opens a Dialog grid with all avatars from /api/avatars; clicking saves via PATCH /auth/me { avatar_url } and refreshes the user). Verified: 14 avatars listed, current avatar highlighted with check, saving shows 'AVATAR ACTUALIZAT!' toast and the new avatar appears in the user bar immediately. Inbox dialog opens and shows the placeholder. Countdown widgets show 4 distinct timers (7d 6h 59m ~ 25 May 20:00)."
+
 metadata:
   created_by: "main_agent"
-  version: "1.5"
-  test_sequence: 5
+  version: "1.6"
+  test_sequence: 6
   run_ui: false
 
 test_plan:
   current_focus:
-    - "Cartoonix Contests page + Admin overview/entries"
+    - "Contest countdown + EA settings menu (Inbox/Avatar)"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"

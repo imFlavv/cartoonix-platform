@@ -804,6 +804,7 @@ CARTOONIX_CONTESTS: List[dict] = [
         "plan": "free",
         "emoji": "🎬",
         "order": 1,
+        "deadline_iso": "2026-05-25T20:00:00+03:00",
     },
     {
         "id": "lego_set",
@@ -813,6 +814,7 @@ CARTOONIX_CONTESTS: List[dict] = [
         "plan": "free",
         "emoji": "🧱",
         "order": 2,
+        "deadline_iso": "2026-05-25T20:00:00+03:00",
     },
     {
         "id": "emag_voucher_500",
@@ -822,6 +824,7 @@ CARTOONIX_CONTESTS: List[dict] = [
         "plan": "plus",
         "emoji": "🎁",
         "order": 3,
+        "deadline_iso": "2026-05-25T20:00:00+03:00",
     },
     {
         "id": "media_player_xiaomi",
@@ -831,6 +834,7 @@ CARTOONIX_CONTESTS: List[dict] = [
         "plan": "plus",
         "emoji": "📺",
         "order": 4,
+        "deadline_iso": "2026-05-25T20:00:00+03:00",
     },
 ]
 

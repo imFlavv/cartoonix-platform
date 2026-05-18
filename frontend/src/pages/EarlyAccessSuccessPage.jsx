@@ -1,7 +1,34 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Crown, Sparkles, LogOut, Rocket, ArrowUpRight, Loader2, Trophy } from "lucide-react";
+import {
+  Crown,
+  Sparkles,
+  LogOut,
+  Rocket,
+  ArrowUpRight,
+  Loader2,
+  Trophy,
+  Settings as SettingsIcon,
+  Inbox,
+  UserCircle2,
+  Check,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { api, mediaUrl } from "@/lib/api";
@@ -50,16 +77,16 @@ function Cell({ value, label }) {
 }
 
 /**
- * UserBar — avatar (with red glow ring) + nickname + plan badge + optional UPGRADE button.
- * Replaces the lone CARTOONIX FREE / PLUS pill.
+ * UserBar — avatar (with red glow ring) + nickname + plan badge + optional UPGRADE button +
+ * a settings cog with dropdown (Inbox, Avatar).
  */
-function UserBar({ user, isPlus, onUpgrade, upgrading }) {
+function UserBar({ user, isPlus, onUpgrade, upgrading, onOpenInbox, onOpenAvatar }) {
   const avatarSrc = user?.avatar_url ? mediaUrl(user.avatar_url) : "";
 
   return (
     <div
       data-testid="ea-user-bar"
-      className="mx-auto inline-flex items-center gap-3 sm:gap-4 rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-md pl-2 pr-3 sm:pl-3 sm:pr-4 py-2 shadow-[0_18px_48px_-18px_rgba(0,0,0,0.6)]"
+      className="mx-auto inline-flex items-center gap-3 sm:gap-4 rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-md pl-2 pr-2 sm:pl-3 sm:pr-2.5 py-2 shadow-[0_18px_48px_-18px_rgba(0,0,0,0.6)]"
     >
       {/* Avatar with red glow ring (like the user's reference image) */}
       <div className="relative flex-shrink-0">
@@ -139,6 +166,51 @@ function UserBar({ user, isPlus, onUpgrade, upgrading }) {
           )}
         </button>
       )}
+
+      {/* Divider before cog */}
+      <span className="h-6 w-px bg-white/15" aria-hidden />
+
+      {/* Settings cog with dropdown */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            aria-label="Setări cont"
+            data-testid="ea-settings-button"
+            className="relative inline-flex items-center justify-center h-9 w-9 rounded-full bg-white/[0.06] border border-white/10 hover:bg-white/[0.10] hover:border-white/20 text-white/70 hover:text-white transition-all"
+          >
+            <SettingsIcon className="h-4 w-4 transition-transform duration-500 hover:rotate-90" strokeWidth={2.1} />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="end"
+          sideOffset={10}
+          className="w-56 bg-[#101218] border border-white/10 text-white shadow-2xl shadow-black/60 rounded-xl p-1.5"
+          data-testid="ea-settings-menu"
+        >
+          <DropdownMenuLabel className="text-[10px] tracking-[0.22em] uppercase text-white/40 font-semibold px-2 pt-1.5 pb-1">
+            Contul meu
+          </DropdownMenuLabel>
+          <DropdownMenuItem
+            onClick={onOpenInbox}
+            data-testid="ea-menu-inbox"
+            className="rounded-lg px-2.5 py-2 cursor-pointer focus:bg-white/10 focus:text-white text-sm gap-2.5"
+          >
+            <Inbox className="h-4 w-4 text-fuchsia-300" />
+            <span className="flex-1">Inbox</span>
+            <span className="text-[9px] tracking-[0.18em] uppercase text-white/35 font-semibold">Soon</span>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator className="bg-white/10 my-1" />
+          <DropdownMenuItem
+            onClick={onOpenAvatar}
+            data-testid="ea-menu-avatar"
+            className="rounded-lg px-2.5 py-2 cursor-pointer focus:bg-white/10 focus:text-white text-sm gap-2.5"
+          >
+            <UserCircle2 className="h-4 w-4 text-indigo-300" />
+            <span className="flex-1">Avatar</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }
@@ -150,6 +222,11 @@ export default function EarlyAccessSuccessPage() {
   const { days, hours, minutes, seconds } = useCountdown(LAUNCH_DATE);
   const [upgrading, setUpgrading] = useState(false);
   const [confirmingUpgrade, setConfirmingUpgrade] = useState(false);
+  const [inboxOpen, setInboxOpen] = useState(false);
+  const [avatarOpen, setAvatarOpen] = useState(false);
+  const [avatars, setAvatars] = useState([]);
+  const [avatarsLoading, setAvatarsLoading] = useState(false);
+  const [savingAvatarUrl, setSavingAvatarUrl] = useState(null);
   const confirmedRef = useRef(false);
 
   const isPlus = user?.subscription === "plus";
@@ -157,6 +234,38 @@ export default function EarlyAccessSuccessPage() {
   const doLogout = async () => {
     if (logout) await logout();
     navigate("/early-access", { replace: true });
+  };
+
+  // ---- Avatar picker ----
+  const openAvatarPicker = async () => {
+    setAvatarOpen(true);
+    if (avatars.length > 0) return;
+    setAvatarsLoading(true);
+    try {
+      const { data } = await api.get("/avatars");
+      setAvatars(Array.isArray(data) ? data : []);
+    } catch (err) {
+      toast.error("Nu am putut încărca lista de avatare.");
+    } finally {
+      setAvatarsLoading(false);
+    }
+  };
+
+  const chooseAvatar = async (avatarUrl) => {
+    if (!avatarUrl || avatarUrl === user?.avatar_url) return;
+    setSavingAvatarUrl(avatarUrl);
+    try {
+      await api.patch("/auth/me", { avatar_url: avatarUrl });
+      if (fetchMe) await fetchMe();
+      toast.success("Avatar actualizat!");
+      setAvatarOpen(false);
+    } catch (err) {
+      toast.error(
+        err?.response?.data?.detail || "Nu am putut salva avatarul. Încearcă din nou."
+      );
+    } finally {
+      setSavingAvatarUrl(null);
+    }
   };
 
   const handleUpgrade = async () => {
@@ -294,6 +403,8 @@ export default function EarlyAccessSuccessPage() {
               isPlus={isPlus}
               onUpgrade={handleUpgrade}
               upgrading={upgrading || confirmingUpgrade}
+              onOpenInbox={() => setInboxOpen(true)}
+              onOpenAvatar={openAvatarPicker}
             />
           </div>
 
@@ -386,6 +497,118 @@ export default function EarlyAccessSuccessPage() {
           </p>
         </div>
       </main>
+
+      {/* --- INBOX DIALOG --- */}
+      <Dialog open={inboxOpen} onOpenChange={setInboxOpen}>
+        <DialogContent
+          className="bg-[#101218] border border-white/10 text-white max-w-md rounded-2xl"
+          data-testid="ea-inbox-dialog"
+        >
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <Inbox className="h-5 w-5 text-fuchsia-300" />
+              Inbox
+            </DialogTitle>
+            <DialogDescription className="text-white/60">
+              Aici vei primi mesajele și notificările din platformă.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-xl border border-dashed border-white/15 bg-white/[0.03] py-10 flex flex-col items-center justify-center text-center">
+            <div className="relative mb-4">
+              <span
+                aria-hidden
+                className="absolute inset-0 rounded-full blur-xl opacity-60"
+                style={{
+                  background:
+                    "radial-gradient(closest-side, rgba(217,70,239,0.45), transparent 70%)",
+                }}
+              />
+              <div className="relative h-14 w-14 rounded-2xl bg-white/[0.06] border border-white/10 flex items-center justify-center">
+                <Inbox className="h-6 w-6 text-white/70" />
+              </div>
+            </div>
+            <p className="text-sm text-white/75 font-medium">Niciun mesaj nou</p>
+            <p className="text-xs text-white/40 mt-1.5 max-w-[260px]">
+              Mesageria și notificările vor fi disponibile odată cu lansarea platformei.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* --- AVATAR PICKER DIALOG --- */}
+      <Dialog open={avatarOpen} onOpenChange={setAvatarOpen}>
+        <DialogContent
+          className="bg-[#101218] border border-white/10 text-white max-w-2xl rounded-2xl"
+          data-testid="ea-avatar-dialog"
+        >
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <UserCircle2 className="h-5 w-5 text-indigo-300" />
+              Schimbă avatarul
+            </DialogTitle>
+            <DialogDescription className="text-white/60">
+              Alege un nou avatar din selecția de mai jos.
+            </DialogDescription>
+          </DialogHeader>
+
+          {avatarsLoading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="h-5 w-5 animate-spin text-white/50" />
+            </div>
+          ) : (
+            <div
+              className="grid grid-cols-3 sm:grid-cols-5 gap-3 sm:gap-4 max-h-[60vh] overflow-y-auto pr-1 -mr-1"
+              data-testid="ea-avatar-grid"
+            >
+              {avatars.map((a) => {
+                const isCurrent = a.url === user?.avatar_url;
+                const isSaving = savingAvatarUrl === a.url;
+                return (
+                  <button
+                    type="button"
+                    key={a.id || a.url}
+                    onClick={() => chooseAvatar(a.url)}
+                    disabled={!!savingAvatarUrl || isCurrent}
+                    data-testid={`ea-avatar-option-${a.id || ""}`}
+                    className={`group relative rounded-2xl overflow-hidden aspect-square transition-all duration-200 ${
+                      isCurrent
+                        ? "ring-2 ring-fuchsia-400 ring-offset-2 ring-offset-[#101218]"
+                        : "ring-1 ring-white/10 hover:ring-fuchsia-400/60 hover:-translate-y-0.5"
+                    } disabled:cursor-not-allowed`}
+                  >
+                    <img
+                      src={mediaUrl(a.url)}
+                      alt={a.label || "Avatar"}
+                      className="absolute inset-0 h-full w-full object-cover bg-secondary"
+                    />
+                    {/* Hover overlay */}
+                    <div
+                      className={`absolute inset-0 transition-opacity ${
+                        isCurrent ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                      } bg-gradient-to-t from-black/60 to-transparent`}
+                    />
+                    {isCurrent && (
+                      <div className="absolute top-1.5 right-1.5 h-5 w-5 rounded-full bg-fuchsia-500 text-white flex items-center justify-center shadow-md">
+                        <Check className="h-3 w-3" />
+                      </div>
+                    )}
+                    {isSaving && (
+                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                        <Loader2 className="h-5 w-5 animate-spin text-white" />
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+              {!avatarsLoading && avatars.length === 0 && (
+                <p className="col-span-full text-center text-sm text-white/50 py-10">
+                  Nu sunt avatare disponibile momentan.
+                </p>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
