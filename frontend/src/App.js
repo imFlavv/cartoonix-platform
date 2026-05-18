@@ -19,11 +19,13 @@ import MaintenancePage from "@/pages/MaintenancePage";
 import EarlyAccessPage from "@/pages/EarlyAccessPage";
 import EarlyAccessSuccessPage from "@/pages/EarlyAccessSuccessPage";
 import ConcursuriPage from "@/pages/ConcursuriPage";
+import CartoonixContestsPage from "@/pages/CartoonixContestsPage";
 import AdminLayout from "@/components/AdminLayout";
 import AdminOverview from "@/pages/admin/AdminOverview";
 import AdminCartoons from "@/pages/admin/AdminCartoons";
 import AdminEpisodes from "@/pages/admin/AdminEpisodes";
 import AdminUsers from "@/pages/admin/AdminUsers";
+import AdminContests from "@/pages/admin/AdminContests";
 import AdminSubscriptions from "@/pages/admin/AdminSubscriptions";
 import AdminSettings from "@/pages/admin/AdminSettings";
 import { RequireAdmin, RequireAuth } from "@/components/RouteGuards";
@@ -87,6 +89,7 @@ const EARLY_ACCESS_ALLOWED_PREFIXES = [
   "/login",
   "/admin",
   "/terms-and-conditions",
+  "/concursuri-cartoonix",
 ];
 
 function EarlyAccessGate({ children }) {
@@ -188,6 +191,14 @@ function App() {
                 <Route path="/terms-and-conditions" element={<TermsPage />} />
                 <Route path="/concursuri" element={<ConcursuriPage />} />
                 <Route
+                  path="/concursuri-cartoonix"
+                  element={
+                    <RequireAuth>
+                      <CartoonixContestsPage />
+                    </RequireAuth>
+                  }
+                />
+                <Route
                   path="/dashboard"
                   element={
                     <RequireAuth>
@@ -200,6 +211,7 @@ function App() {
                   <Route path="cartoons" element={<AdminCartoons />} />
                   <Route path="episodes" element={<AdminEpisodes />} />
                   <Route path="users" element={<AdminUsers />} />
+                  <Route path="contests" element={<AdminContests />} />
                   <Route path="subscriptions" element={<AdminSubscriptions />} />
                   <Route path="settings" element={<AdminSettings />} />
                 </Route>

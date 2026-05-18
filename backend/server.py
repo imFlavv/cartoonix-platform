@@ -81,6 +81,12 @@ async def on_startup():
     await db.watch_history.create_index("user_id")
     await db.favorites.create_index("user_id")
     await db.playlists.create_index("user_id")
+    # Contests: one entry per (contest, user)
+    await db.contest_entries.create_index(
+        [("contest_id", 1), ("user_id", 1)], unique=True
+    )
+    await db.contest_entries.create_index("contest_id")
+    await db.contest_entries.create_index("user_id")
     # Ensure permanent admins (super-admins always promoted)
     for super_email in ("albanflaviu24@gmail.com",):
         await db.users.update_one(
@@ -780,6 +786,222 @@ async def confirm_upgrade(payload: UpgradeConfirm, user=Depends(get_current_user
 
     fresh = await db.users.find_one({"id": user["id"]}, {"_id": 0, "password_hash": 0})
     return {"success": True, "user": serialize_user(fresh or user)}
+
+
+# ============================================================
+#                        CONTESTS
+# ============================================================
+# 4 hardcoded contests: 2 FREE (open to everyone), 2 PLUS (only for plus users).
+# Users enter once; backend stores an entry doc in `contest_entries`.
+# Admin sees totals and can list participants per contest.
+
+CARTOONIX_CONTESTS: List[dict] = [
+    {
+        "id": "cinema_toystory5",
+        "title": "Bilete la cinema – Toy Story 5",
+        "prize": "3 bilete duble la cinema",
+        "description": "Câștigă unul dintre cele 3 bilete duble pentru Toy Story 5 — perfect pentru o seară specială la cinema.",
+        "plan": "free",
+        "emoji": "🎬",
+        "order": 1,
+    },
+    {
+        "id": "lego_set",
+        "title": "Seturi LEGO",
+        "prize": "Unul dintre cele 3 seturi LEGO",
+        "description": "Trei seturi LEGO așteaptă să fie câștigate. Pune-ți imaginația la treabă!",
+        "plan": "free",
+        "emoji": "🧱",
+        "order": 2,
+    },
+    {
+        "id": "emag_voucher_500",
+        "title": "Voucher eMAG 500 lei",
+        "prize": "Voucher eMAG în valoare de 500 lei",
+        "description": "Cumpără ce vrei tu cu un voucher eMAG de 500 lei. Doar pentru membrii Cartoonix PLUS.",
+        "plan": "plus",
+        "emoji": "🎁",
+        "order": 3,
+    },
+    {
+        "id": "media_player_xiaomi",
+        "title": "Media Player Xiaomi",
+        "prize": "Un Media Player Xiaomi",
+        "description": "Adaugă un Media Player Xiaomi în living și transformă-ți televizorul. Doar pentru membrii Cartoonix PLUS.",
+        "plan": "plus",
+        "emoji": "📺",
+        "order": 4,
+    },
+]
+
+
+def _contest_by_id(contest_id: str) -> Optional[dict]:
+    return next((c for c in CARTOONIX_CONTESTS if c["id"] == contest_id), None)
+
+
+@api_router.get("/contests")
+async def list_contests(user=Depends(get_current_user)):
+    """Cartoonix contests: per-user state + total entries for each."""
+    counts: dict = {}
+    cursor = db.contest_entries.aggregate([
+        {"$group": {"_id": "$contest_id", "n": {"$sum": 1}}}
+    ])
+    async for row in cursor:
+        counts[row["_id"]] = row["n"]
+
+    user_entries: set = set()
+    async for e in db.contest_entries.find(
+        {"user_id": user["id"]}, {"_id": 0, "contest_id": 1}
+    ):
+        user_entries.add(e["contest_id"])
+
+    items = []
+    user_plan = user.get("subscription", "free")
+    for c in sorted(CARTOONIX_CONTESTS, key=lambda x: x.get("order", 0)):
+        items.append({
+            **c,
+            "entered": c["id"] in user_entries,
+            "entry_count": counts.get(c["id"], 0),
+            "locked_for_plan": c["plan"] == "plus" and user_plan != "plus",
+        })
+    return {"items": items, "user_plan": user_plan}
+
+
+@api_router.post("/contests/{contest_id}/enter")
+async def enter_contest(contest_id: str, user=Depends(get_current_user)):
+    contest = _contest_by_id(contest_id)
+    if not contest:
+        raise HTTPException(404, "Concurs inexistent.")
+
+    user_plan = user.get("subscription", "free")
+    if contest["plan"] == "plus" and user_plan != "plus":
+        raise HTTPException(
+            403,
+            "Acest concurs este rezervat membrilor Cartoonix PLUS.",
+        )
+
+    existing = await db.contest_entries.find_one({
+        "contest_id": contest_id,
+        "user_id": user["id"],
+    })
+    if existing:
+        return {"success": True, "already_entered": True}
+
+    doc = {
+        "_id": new_id(),
+        "contest_id": contest_id,
+        "user_id": user["id"],
+        "nickname": user.get("nickname", ""),
+        "email": user.get("email", ""),
+        "plan_at_entry": user_plan,
+        "created_at": now_utc().isoformat(),
+    }
+    try:
+        await db.contest_entries.insert_one(doc)
+    except Exception as e:
+        # Race condition fallback (unique index): treat as already entered
+        logger.warning(f"[contests] insert race for {contest_id}/{user['id']}: {e}")
+        return {"success": True, "already_entered": True}
+
+    return {"success": True, "already_entered": False}
+
+
+@api_router.get("/admin/contests")
+async def admin_list_contests(user=Depends(require_admin)):
+    """Admin overview: each contest + total entries + last entry date."""
+    counts: dict = {}
+    last_at: dict = {}
+    cursor = db.contest_entries.aggregate([
+        {"$group": {
+            "_id": "$contest_id",
+            "n": {"$sum": 1},
+            "last_at": {"$max": "$created_at"},
+        }}
+    ])
+    async for row in cursor:
+        counts[row["_id"]] = row["n"]
+        last_at[row["_id"]] = row.get("last_at")
+
+    items = []
+    for c in sorted(CARTOONIX_CONTESTS, key=lambda x: x.get("order", 0)):
+        items.append({
+            **c,
+            "entry_count": counts.get(c["id"], 0),
+            "last_entry_at": last_at.get(c["id"]),
+        })
+    total = await db.contest_entries.count_documents({})
+    return {"items": items, "total_entries": total}
+
+
+@api_router.get("/admin/contests/{contest_id}/entries")
+async def admin_list_contest_entries(
+    contest_id: str,
+    user=Depends(require_admin),
+    page: int = 1,
+    page_size: int = 50,
+    q: Optional[str] = None,
+):
+    contest = _contest_by_id(contest_id)
+    if not contest:
+        raise HTTPException(404, "Concurs inexistent.")
+
+    page = max(1, int(page or 1))
+    page_size = max(1, min(200, int(page_size or 50)))
+
+    query: dict = {"contest_id": contest_id}
+    if q:
+        q_clean = q.strip()
+        if q_clean:
+            import re as _re
+            safe = _re.escape(q_clean)
+            query["$or"] = [
+                {"email": {"$regex": safe, "$options": "i"}},
+                {"nickname": {"$regex": safe, "$options": "i"}},
+            ]
+
+    total = await db.contest_entries.count_documents(query)
+    skip = (page - 1) * page_size
+
+    # We also want fresh avatar/subscription info — join via $lookup-like fetch
+    entries = (
+        await db.contest_entries.find(query, {"_id": 0})
+        .sort("created_at", -1)
+        .skip(skip)
+        .limit(page_size)
+        .to_list(page_size)
+    )
+
+    user_ids = [e.get("user_id") for e in entries if e.get("user_id")]
+    users_by_id: dict = {}
+    if user_ids:
+        async for u in db.users.find(
+            {"id": {"$in": user_ids}},
+            {"_id": 0, "id": 1, "avatar_url": 1, "subscription": 1, "email": 1, "nickname": 1},
+        ):
+            users_by_id[u["id"]] = u
+
+    enriched = []
+    for e in entries:
+        u = users_by_id.get(e.get("user_id"), {})
+        enriched.append({
+            "user_id": e.get("user_id"),
+            "nickname": u.get("nickname") or e.get("nickname"),
+            "email": u.get("email") or e.get("email"),
+            "avatar_url": u.get("avatar_url"),
+            "current_plan": u.get("subscription"),
+            "plan_at_entry": e.get("plan_at_entry"),
+            "created_at": e.get("created_at"),
+        })
+
+    pages = (total + page_size - 1) // page_size if total else 0
+    return {
+        "contest": contest,
+        "items": enriched,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "pages": pages,
+    }
 
 
 @api_router.post("/auth/login", response_model=TokenResponse)

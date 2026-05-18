@@ -15,6 +15,7 @@ import {
   LogOut,
   ExternalLink,
   Menu,
+  Trophy,
 } from "lucide-react";
 import {
   Sheet,
@@ -29,6 +30,7 @@ const NAV_ITEMS = [
   { to: "/admin/cartoons", label: "Desene", icon: Film, testId: "admin-nav-cartoons" },
   { to: "/admin/episodes", label: "Episoade", icon: PlaySquare, testId: "admin-nav-episodes" },
   { to: "/admin/users", label: "Utilizatori", icon: Users, testId: "admin-nav-users" },
+  { to: "/admin/contests", label: "Concursuri", icon: Trophy, testId: "admin-nav-contests" },
   { to: "/admin/subscriptions", label: "Abonamente", icon: CreditCard, testId: "admin-nav-subs" },
   { to: "/admin/settings", label: "Setări", icon: SettingsIcon, testId: "admin-nav-settings" },
 ];

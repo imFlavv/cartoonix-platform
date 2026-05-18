@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Crown, Sparkles, LogOut, Rocket, ArrowUpRight, Loader2 } from "lucide-react";
+import { Crown, Sparkles, LogOut, Rocket, ArrowUpRight, Loader2, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -296,6 +296,50 @@ export default function EarlyAccessSuccessPage() {
               upgrading={upgrading || confirmingUpgrade}
             />
           </div>
+
+          {/* Contests CTA */}
+          <div className="mt-7 flex justify-center">
+            <button
+              type="button"
+              onClick={() => navigate("/concursuri-cartoonix")}
+              data-testid="ea-contests-button"
+              className="group relative inline-flex items-center gap-3 rounded-full px-6 py-3 text-sm font-bold tracking-[0.22em] uppercase text-white overflow-hidden transition-all duration-300 hover:scale-[1.02] active:scale-[0.99]"
+              style={{
+                background:
+                  "linear-gradient(120deg, rgba(217,70,239,0.20) 0%, rgba(129,140,248,0.20) 50%, rgba(250,204,21,0.20) 100%)",
+                border: "1px solid rgba(255,255,255,0.18)",
+                boxShadow:
+                  "0 12px 38px -10px rgba(217,70,239,0.45), inset 0 1px 0 rgba(255,255,255,0.08)",
+              }}
+            >
+              {/* Animated shimmer */}
+              <span
+                aria-hidden
+                className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                style={{
+                  background:
+                    "linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.18) 50%, transparent 70%)",
+                  transform: "translateX(-100%)",
+                  animation: "ea-shine 1.6s ease-in-out infinite",
+                }}
+              />
+              <Trophy
+                className="h-4 w-4 text-amber-300 drop-shadow-[0_0_8px_rgba(251,191,36,0.55)] transition-transform group-hover:rotate-[-6deg]"
+                strokeWidth={2.4}
+              />
+              <span className="relative z-10">Vezi concursuri</span>
+              <ArrowUpRight className="relative z-10 h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+            </button>
+          </div>
+
+          {/* Local keyframes for the shimmer effect */}
+          <style>{`
+            @keyframes ea-shine {
+              0%   { transform: translateX(-100%); }
+              60%  { transform: translateX(100%);  }
+              100% { transform: translateX(100%);  }
+            }
+          `}</style>
 
           {/* Divider */}
           <div className="mx-auto mt-12 mb-8 h-px w-32 bg-gradient-to-r from-transparent via-white/30 to-transparent" />

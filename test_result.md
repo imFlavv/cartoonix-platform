@@ -232,15 +232,27 @@ frontend:
         agent: "main"
         comment: "Backend: GET /api/admin/users now accepts ?page, ?page_size (default 50, max 200) and ?q for case-insensitive regex match on email OR nickname (escaped). Returns {items, total, page, page_size, pages}. Frontend AdminUsers.jsx: new search bar above the table (debounced 300ms, with X to clear), shows 'N total' counter, loading overlay on fetch, and a compact pagination bar at the bottom with prev/next + smart page numbers (with ellipsis) when more than 1 page. Sticky 50 per page. Verified with 77 users in DB: page 1 returns 50, page 2 returns 27, search 'user001' returns 1, search 'admin' returns 1."
 
+  - task: "Cartoonix Contests page + Admin overview/entries"
+    implemented: true
+    working: true
+    file: "backend/server.py (CARTOONIX_CONTESTS + /api/contests, /api/contests/{id}/enter, /api/admin/contests, /api/admin/contests/{id}/entries), frontend/src/pages/CartoonixContestsPage.jsx, frontend/src/pages/admin/AdminContests.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "New /concursuri-cartoonix page (distinct from existing /concursuri) with 4 contests: 2 FREE (Bilete cinema Toy Story 5, Seturi LEGO) + 2 PLUS (Voucher eMAG 500, Media Player Xiaomi). Backend stores entries in `contest_entries` with unique index on (contest_id, user_id) for idempotent registrations; FREE users blocked on PLUS contests with 403. UI: elegant card layout with gradient glow, plan ribbon, prize chip, entry count and PARTICIPĂ button; locked state for FREE users on PLUS cards; entered state with green ÎNSCRIS pill. CTA button 'VEZI CONCURSURI' added on /early-access success page under the user bar with shimmer hover effect. New sidebar item 'Concursuri' in /admin. Admin overview shows 4 contest cards with total entries + last entry date; clicking opens entries table with avatar, email, plan_at_entry vs current_plan, timestamps, search (debounced), and 50/page pagination — same UX as /admin/users. Route /concursuri-cartoonix added to EARLY_ACCESS_ALLOWED_PREFIXES so it stays accessible during early-access mode. Verified end-to-end: FREE user can enter FREE contests, PLUS contests show locked card; admin sees totals and per-contest participant list with search."
+
 metadata:
   created_by: "main_agent"
-  version: "1.4"
-  test_sequence: 4
+  version: "1.5"
+  test_sequence: 5
   run_ui: false
 
 test_plan:
   current_focus:
-    - "Admin Users: pagination (50/page) + search by email/nickname"
+    - "Cartoonix Contests page + Admin overview/entries"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
