@@ -1717,7 +1717,7 @@ ANNOUNCEMENTS = [
     {
         "id": "2026-02-resetare-parola",
         "version": "v1.4",
-        "date": "Februarie 2026",
+        "date": "Mai 2026",
         "title": "Noutăți Cartoonix",
         "subtitle": "Cont mai sigur, mai ușor de recuperat",
         "highlights": [
