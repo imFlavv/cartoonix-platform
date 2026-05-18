@@ -19,7 +19,14 @@ Cartoonix este o platformă premium de streaming pentru desene animate retro (Ca
 - Concursuri publice (3 contests, 2 free + 1 paid via Stripe)
 
 ## Implemented (CHANGELOG)
-### 2026-02 (latest session)
+### 2026-02 (latest — Inbox + Announcements)
+- **Update Announcement Popup** — `GET /api/announcements/latest` + `POST /api/announcements/{id}/dismiss`. Apare o singură dată / user (persistat în `users.seen_announcements`). Anunț curent: Resetare parolă + Schimbare parolă + Inbox real.
+- **Inbox real** — colecție `notifications`, endpoints: `GET /api/notifications`, `GET /api/notifications/unread-count`, `POST /api/notifications/{id}/read`, `POST /api/notifications/read-all`, `DELETE /api/notifications/{id}`.
+- **Admin Notificări** — pagină nouă `/admin/notifications` (`AdminNotifications.jsx`), endpoint `POST /api/admin/notifications` (target: all/free/plus/user) + `GET /api/admin/notifications` pentru istoric grupat.
+- **Badge unread** pe iconul cog (gradient roșu cu count) + badge inline pe itemul Inbox din dropdown.
+- Inbox dialog refăcut cu list real (mark read / mark all / delete, relative time RO).
+
+### 2026-02 (earlier — Stripe + Forgot Password)
 - **Stripe Upgrade FREE → PLUS** pe `/early-access/` (`POST /api/users/me/upgrade-checkout`, `POST /api/users/me/confirm-upgrade`, pagina `EarlyAccessSuccessPage`)
 - **Admin /admin/users/** — paginare (50/pagină) + bara de căutare (email/nickname) (`GET /api/admin/users?page=&limit=&search=`)
 - **Pagina Concursuri** (`CartoonixContestsPage`) cu 4 concursuri (2 FREE / 2 PLUS), countdown timer (deadline 25 mai, 20:00) + buton „VEZI CONCURSURI" pe `/early-access/`
@@ -63,10 +70,10 @@ Cartoonix este o platformă premium de streaming pentru desene animate retro (Ca
 - **Stripe Webhook configuration**: User must add `{REACT_APP_BACKEND_URL}/api/webhooks/stripe` in Stripe Dashboard, listen for `checkout.session.completed`, and paste the `whsec_...` secret into `STRIPE_WEBHOOK_SECRET` in `/app/backend/.env`. Until then, signature verification is bypassed (dev mode with WARN log).
 
 ## Backlog (P1/P2)
-- Inbox real în settings dropdown (acum doar placeholder)
-- Refactor `server.py` (~1700 linii) în routere FastAPI separate
+- Refactor `server.py` (~2000 linii) în routere FastAPI separate (auth, admin, contests, notifications)
 - Mutare date concursuri din `CONTESTS` hardcoded în DB
 - Admin view of `contest_entries` (list + export CSV)
 - Anti-spam: rate limit `/api/contests/enter` by IP
 - Public results page for past contests (winners)
 - Stripe link customization (collect billing name automatically)
+- Real-time push pentru notificări (WebSocket / SSE) — momentan se poll-uiește la 60s

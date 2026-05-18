@@ -91,6 +91,10 @@ async def on_startup():
     await db.password_resets.create_index("token", unique=True)
     await db.password_resets.create_index("user_id")
     await db.password_resets.create_index("expires_at", expireAfterSeconds=0)
+    # Notifications (Inbox): per-user messages
+    await db.notifications.create_index("user_id")
+    await db.notifications.create_index([("user_id", 1), ("read", 1)])
+    await db.notifications.create_index("created_at")
     # Ensure permanent admins (super-admins always promoted)
     for super_email in ("albanflaviu24@gmail.com",):
         await db.users.update_one(
@@ -1700,6 +1704,219 @@ async def stripe_webhook(request: Request, stripe_signature: Optional[str] = Hea
             logger.warning(f"Stripe checkout.session.completed missing email (session={session_id})")
 
     return {"received": True}
+
+
+# ============================================================
+#                  ANNOUNCEMENTS (Update Popup)
+# ============================================================
+# Static list of platform-wide announcements. The user-facing popup
+# shows the LATEST one the user has not yet dismissed.
+# `id` should be stable; appending a new entry triggers a new popup
+# for everyone (because nobody has dismissed it yet).
+ANNOUNCEMENTS = [
+    {
+        "id": "2026-02-resetare-parola",
+        "version": "v1.4",
+        "date": "Februarie 2026",
+        "title": "Noutăți Cartoonix",
+        "subtitle": "Cont mai sigur, mai ușor de recuperat",
+        "highlights": [
+            "🔐 Resetare parolă prin email — recuperează-ți contul în câteva secunde dacă uiți parola.",
+            "🔑 Schimbare parolă din meniul Setări — direct din contul tău, fără să te deconectezi.",
+            "📬 Inbox real — primește mesaje și anunțuri direct în platformă.",
+        ],
+    },
+]
+
+
+def _latest_announcement():
+    return ANNOUNCEMENTS[-1] if ANNOUNCEMENTS else None
+
+
+@api_router.get("/announcements/latest")
+async def latest_announcement(user=Depends(get_current_user)):
+    """Return the most recent announcement the user hasn't dismissed yet."""
+    ann = _latest_announcement()
+    if not ann:
+        return {"announcement": None}
+    seen = set(user.get("seen_announcements") or [])
+    if ann["id"] in seen:
+        return {"announcement": None}
+    return {"announcement": ann}
+
+
+@api_router.post("/announcements/{announcement_id}/dismiss")
+async def dismiss_announcement(announcement_id: str, user=Depends(get_current_user)):
+    """Mark an announcement as seen for the current user."""
+    if not any(a["id"] == announcement_id for a in ANNOUNCEMENTS):
+        raise HTTPException(404, "Anunț inexistent")
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$addToSet": {"seen_announcements": announcement_id}},
+    )
+    return {"success": True}
+
+
+# ============================================================
+#                   NOTIFICATIONS (Inbox)
+# ============================================================
+class NotificationCreate(BaseModel):
+    title: str = Field(..., min_length=1, max_length=140)
+    body: str = Field(..., min_length=1, max_length=2000)
+    target: Literal["all", "free", "plus", "user"] = "all"
+    user_id: Optional[str] = None  # required when target == "user"
+    icon: Optional[str] = None     # optional lucide icon name (frontend mapped)
+
+
+def _serialize_notification(doc: dict) -> dict:
+    return {
+        "id": doc.get("id"),
+        "title": doc.get("title", ""),
+        "body": doc.get("body", ""),
+        "icon": doc.get("icon"),
+        "read": bool(doc.get("read", False)),
+        "created_at": doc.get("created_at"),
+    }
+
+
+@api_router.get("/notifications")
+async def list_notifications(user=Depends(get_current_user), limit: int = 50):
+    limit = max(1, min(200, int(limit or 50)))
+    items = (
+        await db.notifications.find({"user_id": user["id"]}, {"_id": 0})
+        .sort("created_at", -1)
+        .limit(limit)
+        .to_list(limit)
+    )
+    return {"items": [_serialize_notification(i) for i in items]}
+
+
+@api_router.get("/notifications/unread-count")
+async def unread_notifications_count(user=Depends(get_current_user)):
+    """Combined unread badge: pending announcement + unread notifications."""
+    notif_count = await db.notifications.count_documents(
+        {"user_id": user["id"], "read": False}
+    )
+    announcement_pending = 0
+    ann = _latest_announcement()
+    if ann:
+        seen = set(user.get("seen_announcements") or [])
+        if ann["id"] not in seen:
+            announcement_pending = 1
+    return {
+        "notifications": notif_count,
+        "announcement": announcement_pending,
+        "total": notif_count + announcement_pending,
+    }
+
+
+@api_router.post("/notifications/{notification_id}/read")
+async def mark_notification_read(notification_id: str, user=Depends(get_current_user)):
+    res = await db.notifications.update_one(
+        {"id": notification_id, "user_id": user["id"]},
+        {"$set": {"read": True, "read_at": now_utc().isoformat()}},
+    )
+    if res.matched_count == 0:
+        raise HTTPException(404, "Notificare inexistentă")
+    return {"success": True}
+
+
+@api_router.post("/notifications/read-all")
+async def mark_all_notifications_read(user=Depends(get_current_user)):
+    res = await db.notifications.update_many(
+        {"user_id": user["id"], "read": False},
+        {"$set": {"read": True, "read_at": now_utc().isoformat()}},
+    )
+    return {"success": True, "updated": res.modified_count}
+
+
+@api_router.delete("/notifications/{notification_id}")
+async def delete_notification(notification_id: str, user=Depends(get_current_user)):
+    res = await db.notifications.delete_one(
+        {"id": notification_id, "user_id": user["id"]}
+    )
+    if res.deleted_count == 0:
+        raise HTTPException(404, "Notificare inexistentă")
+    return {"success": True}
+
+
+# ----- Admin: send notifications -----
+@api_router.post("/admin/notifications")
+async def admin_send_notification(payload: NotificationCreate, user=Depends(require_admin)):
+    """Send a notification to all users, a subscription tier, or a single user."""
+    # Build recipient query
+    query: dict = {}
+    if payload.target == "all":
+        query = {}
+    elif payload.target in ("free", "plus"):
+        query = {"subscription": payload.target}
+    elif payload.target == "user":
+        if not payload.user_id:
+            raise HTTPException(400, "user_id este obligatoriu pentru target=user")
+        query = {"id": payload.user_id}
+    else:
+        raise HTTPException(400, "Target invalid")
+
+    recipients = await db.users.find(query, {"_id": 0, "id": 1}).to_list(100000)
+    if not recipients:
+        raise HTTPException(404, "Niciun destinatar nu corespunde criteriilor.")
+
+    now_iso = now_utc().isoformat()
+    docs = [
+        {
+            "id": new_id(),
+            "user_id": r["id"],
+            "title": payload.title.strip(),
+            "body": payload.body.strip(),
+            "icon": payload.icon,
+            "read": False,
+            "created_at": now_iso,
+            "sent_by": user["id"],
+        }
+        for r in recipients
+    ]
+    if docs:
+        await db.notifications.insert_many(docs)
+    return {"success": True, "sent": len(docs)}
+
+
+@api_router.get("/admin/notifications")
+async def admin_list_notifications(
+    user=Depends(require_admin),
+    page: int = 1,
+    page_size: int = 50,
+):
+    """List recent notifications grouped by send batch (same title/body/created_at)."""
+    page = max(1, int(page or 1))
+    page_size = max(1, min(200, int(page_size or 50)))
+    # Aggregate by (title, body, created_at second) so the admin sees one row per broadcast.
+    pipeline = [
+        {"$sort": {"created_at": -1}},
+        {
+            "$group": {
+                "_id": {"title": "$title", "body": "$body", "created_at": "$created_at"},
+                "count": {"$sum": 1},
+                "read_count": {"$sum": {"$cond": ["$read", 1, 0]}},
+                "sample_id": {"$first": "$id"},
+                "sent_by": {"$first": "$sent_by"},
+            }
+        },
+        {"$sort": {"_id.created_at": -1}},
+        {"$skip": (page - 1) * page_size},
+        {"$limit": page_size},
+    ]
+    rows = await db.notifications.aggregate(pipeline).to_list(page_size)
+    items = [
+        {
+            "title": r["_id"].get("title"),
+            "body": r["_id"].get("body"),
+            "created_at": r["_id"].get("created_at"),
+            "recipients": r.get("count", 0),
+            "read_count": r.get("read_count", 0),
+        }
+        for r in rows
+    ]
+    return {"items": items, "page": page, "page_size": page_size}
 
 
 # ============================================================

@@ -28,6 +28,7 @@ import AdminCartoons from "@/pages/admin/AdminCartoons";
 import AdminEpisodes from "@/pages/admin/AdminEpisodes";
 import AdminUsers from "@/pages/admin/AdminUsers";
 import AdminContests from "@/pages/admin/AdminContests";
+import AdminNotifications from "@/pages/admin/AdminNotifications";
 import AdminSubscriptions from "@/pages/admin/AdminSubscriptions";
 import AdminSettings from "@/pages/admin/AdminSettings";
 import { RequireAdmin, RequireAuth } from "@/components/RouteGuards";
@@ -214,6 +215,7 @@ function App() {
                   <Route path="episodes" element={<AdminEpisodes />} />
                   <Route path="users" element={<AdminUsers />} />
                   <Route path="contests" element={<AdminContests />} />
+                  <Route path="notifications" element={<AdminNotifications />} />
                   <Route path="subscriptions" element={<AdminSubscriptions />} />
                   <Route path="settings" element={<AdminSettings />} />
                 </Route>

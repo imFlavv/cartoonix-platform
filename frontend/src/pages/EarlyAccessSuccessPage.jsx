@@ -40,6 +40,8 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { api, mediaUrl } from "@/lib/api";
+import UpdateAnnouncementPopup from "@/components/UpdateAnnouncementPopup";
+import InboxPanel from "@/components/InboxPanel";
 
 const LAUNCH_DATE = new Date("2026-06-01T00:00:00+03:00");
 
@@ -88,8 +90,10 @@ function Cell({ value, label }) {
  * UserBar — avatar (with red glow ring) + nickname + plan badge + optional UPGRADE button +
  * a settings cog with dropdown (Inbox, Avatar).
  */
-function UserBar({ user, isPlus, onUpgrade, upgrading, onOpenInbox, onOpenAvatar, onOpenPassword }) {
+function UserBar({ user, isPlus, onUpgrade, upgrading, onOpenInbox, onOpenAvatar, onOpenPassword, unreadCount = 0 }) {
   const avatarSrc = user?.avatar_url ? mediaUrl(user.avatar_url) : "";
+  const badgeText = unreadCount > 9 ? "9+" : String(unreadCount);
+  const hasUnread = unreadCount > 0;
 
   return (
     <div
@@ -188,6 +192,15 @@ function UserBar({ user, isPlus, onUpgrade, upgrading, onOpenInbox, onOpenAvatar
             className="relative inline-flex items-center justify-center h-9 w-9 rounded-full bg-white/[0.06] border border-white/10 hover:bg-white/[0.10] hover:border-white/20 text-white/70 hover:text-white transition-all"
           >
             <SettingsIcon className="h-4 w-4 transition-transform duration-500 hover:rotate-90" strokeWidth={2.1} />
+            {hasUnread && (
+              <span
+                data-testid="ea-settings-unread-badge"
+                aria-label={`${unreadCount} mesaje necitite`}
+                className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 inline-flex items-center justify-center rounded-full text-[10px] font-bold leading-none text-white bg-gradient-to-br from-rose-500 to-red-600 ring-2 ring-[#0a0a0c] shadow-[0_0_10px_rgba(239,68,68,0.65)]"
+              >
+                {badgeText}
+              </span>
+            )}
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent
@@ -206,7 +219,14 @@ function UserBar({ user, isPlus, onUpgrade, upgrading, onOpenInbox, onOpenAvatar
           >
             <Inbox className="h-4 w-4 text-fuchsia-300" />
             <span className="flex-1">Inbox</span>
-            <span className="text-[9px] tracking-[0.18em] uppercase text-white/35 font-semibold">Soon</span>
+            {hasUnread ? (
+              <span
+                data-testid="ea-menu-inbox-badge"
+                className="min-w-[18px] h-[18px] px-1 inline-flex items-center justify-center rounded-full text-[10px] font-bold leading-none text-white bg-gradient-to-br from-rose-500 to-red-600 shadow-[0_0_8px_rgba(239,68,68,0.55)]"
+              >
+                {badgeText}
+              </span>
+            ) : null}
           </DropdownMenuItem>
           <DropdownMenuSeparator className="bg-white/10 my-1" />
           <DropdownMenuItem
@@ -249,7 +269,24 @@ export default function EarlyAccessSuccessPage() {
   const [pwConfirm, setPwConfirm] = useState("");
   const [pwShow, setPwShow] = useState(false);
   const [pwSaving, setPwSaving] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const confirmedRef = useRef(false);
+
+  const refreshUnread = async () => {
+    try {
+      const { data } = await api.get("/notifications/unread-count");
+      setUnreadCount(Number(data?.total || 0));
+    } catch {
+      /* silent */
+    }
+  };
+
+  useEffect(() => {
+    if (!user) return;
+    refreshUnread();
+    const id = setInterval(refreshUnread, 60000); // refresh every 60s
+    return () => clearInterval(id);
+  }, [user]);
 
   const isPlus = user?.subscription === "plus";
 
@@ -473,6 +510,7 @@ export default function EarlyAccessSuccessPage() {
               onOpenInbox={() => setInboxOpen(true)}
               onOpenAvatar={openAvatarPicker}
               onOpenPassword={openPasswordDialog}
+              unreadCount={unreadCount}
             />
           </div>
 
@@ -578,28 +616,10 @@ export default function EarlyAccessSuccessPage() {
               Inbox
             </DialogTitle>
             <DialogDescription className="text-white/60">
-              Aici vei primi mesajele și notificările din platformă.
+              Mesajele și anunțurile primite de la echipa Cartoonix.
             </DialogDescription>
           </DialogHeader>
-          <div className="rounded-xl border border-dashed border-white/15 bg-white/[0.03] py-10 flex flex-col items-center justify-center text-center">
-            <div className="relative mb-4">
-              <span
-                aria-hidden
-                className="absolute inset-0 rounded-full blur-xl opacity-60"
-                style={{
-                  background:
-                    "radial-gradient(closest-side, rgba(217,70,239,0.45), transparent 70%)",
-                }}
-              />
-              <div className="relative h-14 w-14 rounded-2xl bg-white/[0.06] border border-white/10 flex items-center justify-center">
-                <Inbox className="h-6 w-6 text-white/70" />
-              </div>
-            </div>
-            <p className="text-sm text-white/75 font-medium">Niciun mesaj nou</p>
-            <p className="text-xs text-white/40 mt-1.5 max-w-[260px]">
-              Mesageria și notificările vor fi disponibile odată cu lansarea platformei.
-            </p>
-          </div>
+          <InboxPanel open={inboxOpen} onUnreadChange={refreshUnread} />
         </DialogContent>
       </Dialog>
 
@@ -780,6 +800,9 @@ export default function EarlyAccessSuccessPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* --- UPDATE ANNOUNCEMENT (one-time per user) --- */}
+      <UpdateAnnouncementPopup enabled={!!user} onDismiss={refreshUnread} />
     </div>
   );
 }
