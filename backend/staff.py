@@ -71,6 +71,27 @@ def _format_application(doc: dict) -> dict:
     return out
 
 
+REAPPLY_COOLDOWN_DAYS = 7
+
+
+def _can_reapply_at(rejected_doc: dict) -> Optional[datetime]:
+    """Return the earliest UTC datetime when a rejected user can re-apply."""
+    if not rejected_doc:
+        return None
+    ts = rejected_doc.get("status_updated_at") or rejected_doc.get("created_at")
+    if isinstance(ts, str):
+        try:
+            ts = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+        except Exception:
+            return None
+    if not isinstance(ts, datetime):
+        return None
+    if ts.tzinfo is None:
+        ts = ts.replace(tzinfo=timezone.utc)
+    from datetime import timedelta
+    return ts + timedelta(days=REAPPLY_COOLDOWN_DAYS)
+
+
 # ============================================================
 # ROUTER
 # ============================================================
@@ -89,7 +110,15 @@ def attach_staff_handlers(get_current_user, require_admin):
         doc = await db.staff_applications.find_one(
             {"user_id": user["id"]}, {"_id": 0}
         )
-        return {"application": _format_application(doc) if doc else None}
+        if not doc:
+            return {"application": None, "reapply_at": None}
+        out = _format_application(doc)
+        reapply_at = None
+        if doc.get("status") == "rejected":
+            ra = _can_reapply_at(doc)
+            if ra:
+                reapply_at = ra.isoformat()
+        return {"application": out, "reapply_at": reapply_at}
 
     @staff_router.post("/apply")
     async def submit_application(
@@ -106,7 +135,21 @@ def attach_staff_handlers(get_current_user, require_admin):
                 )
             if status == "accepted":
                 raise HTTPException(400, "Faci deja parte din staff Cartoonix.")
-            # If previously rejected, allow re-apply (overwrite the doc)
+            # If previously rejected, enforce the 7-day cooldown
+            if status == "rejected":
+                ra = _can_reapply_at(existing)
+                if ra and ra > _now():
+                    remaining = ra - _now()
+                    days = remaining.days
+                    hours = remaining.seconds // 3600
+                    if days >= 1:
+                        msg = (
+                            f"Mai poți aplica din nou peste {days} zi(le) "
+                            f"și {hours} oră(e)."
+                        )
+                    else:
+                        msg = f"Mai poți aplica din nou peste {hours} oră(e)."
+                    raise HTTPException(429, msg)
 
         from models import new_id
 

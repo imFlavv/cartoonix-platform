@@ -46,7 +46,7 @@ const DEFAULT_FORM = {
   improvements: "",
 };
 
-function StatusCard({ application }) {
+function StatusCard({ application, reapplyAt }) {
   const { status, admin_note } = application || {};
   const cfg = useMemo(() => {
     if (status === "accepted") {
@@ -66,7 +66,7 @@ function StatusCard({ application }) {
       return {
         title: "Aplicație respinsă",
         subtitle:
-          "Mulțumim pentru interes! Continuă să fii activ în comunitate — vei putea aplica din nou.",
+          "Mulțumim pentru interes! Continuă să fii activ în comunitate — poți aplica din nou după perioada de așteptare.",
         icon: XCircle,
         gradient: "linear-gradient(135deg,#ef4444 0%,#b91c1c 100%)",
         border: "rgba(239,68,68,0.4)",
@@ -88,6 +88,27 @@ function StatusCard({ application }) {
     };
   }, [status]);
   const Icon = cfg.icon;
+
+  // Format cooldown remaining (days + hours)
+  let cooldownText = null;
+  if (status === "rejected" && reapplyAt) {
+    const ra = new Date(reapplyAt);
+    const diffMs = ra - new Date();
+    if (diffMs > 0) {
+      const totalH = Math.ceil(diffMs / (1000 * 60 * 60));
+      const days = Math.floor(totalH / 24);
+      const hours = totalH % 24;
+      if (days >= 1) {
+        cooldownText = `Vei putea aplica din nou peste ${days} ${
+          days === 1 ? "zi" : "zile"
+        }${hours > 0 ? ` și ${hours} ${hours === 1 ? "oră" : "ore"}` : ""}.`;
+      } else {
+        cooldownText = `Vei putea aplica din nou peste ${hours} ${
+          hours === 1 ? "oră" : "ore"
+        }.`;
+      }
+    }
+  }
 
   return (
     <motion.div
@@ -125,6 +146,20 @@ function StatusCard({ application }) {
                 Mesaj de la echipă
               </div>
               <div className="text-foreground/90">{admin_note}</div>
+            </div>
+          )}
+          {cooldownText && (
+            <div
+              className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[12px] font-semibold"
+              style={{
+                background: "rgba(245,158,11,0.10)",
+                border: "1px solid rgba(245,158,11,0.35)",
+                color: "rgb(252,211,77)",
+              }}
+              data-testid="reapply-cooldown"
+            >
+              <Clock className="h-3.5 w-3.5" />
+              {cooldownText}
             </div>
           )}
           <div className="mt-5 flex items-center gap-2 text-[11px] text-muted-foreground">
@@ -254,7 +289,13 @@ export default function StaffPage() {
   }
 
   const application = appState?.application;
-  const canReapply = application?.status === "rejected";
+  const reapplyAt = appState?.reapply_at;
+  const reapplyDate = reapplyAt ? new Date(reapplyAt) : null;
+  const canReapply =
+    application?.status === "rejected" &&
+    (!reapplyDate || reapplyDate <= new Date());
+  const rejectedInCooldown =
+    application?.status === "rejected" && reapplyDate && reapplyDate > new Date();
 
   return (
     <Frame>
@@ -284,13 +325,13 @@ export default function StaffPage() {
         </p>
       </motion.div>
 
-      {application && !canReapply ? (
-        <StatusCard application={application} />
+      {application && (!canReapply || rejectedInCooldown) ? (
+        <StatusCard application={application} reapplyAt={reapplyAt} />
       ) : (
         <>
           {canReapply && (
             <div className="mb-6">
-              <StatusCard application={application} />
+              <StatusCard application={application} reapplyAt={reapplyAt} />
               <div className="mt-3 text-center text-xs text-muted-foreground">
                 Poți aplica din nou completând formularul de mai jos.
               </div>
