@@ -296,9 +296,9 @@ export default function ChatWidget() {
 
   const refreshMessages = useCallback(async () => {
     try {
-      const { data } = await api.get(`/chat/messages?room=${room}&limit=80`);
+      const { data } = await api.get(`/chat/messages?room=${room}&limit=200`);
       setMessages((prev) => {
-        const next = data?.items || [];
+        const next = (data?.items || []).slice(-200);
         // Mark unread if last message changed and chat is collapsed
         if (
           next.length > 0 &&
@@ -436,7 +436,7 @@ export default function ChatWidget() {
       setDraft("");
       // Optimistically append message
       if (data?.message) {
-        setMessages((prev) => [...prev, data.message]);
+        setMessages((prev) => [...prev, data.message].slice(-200));
       }
       // Pull fresh state for accurate cooldown
       refreshState();
