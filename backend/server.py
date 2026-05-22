@@ -108,7 +108,7 @@ async def on_startup():
             {"$set": {"role": "admin", "email_verified": True}},
         )
     # Seed default banned words for chat (only if not initialised yet)
-    from chat import DEFAULT_BANNED_WORDS_SEED
+    from chat import DEFAULT_BANNED_WORDS_SEED, DEFAULT_CARTOONIXTV_MESSAGES
     settings_doc = await db.settings.find_one({"_id": "global"}) or {}
     if "chat_banned_words" not in settings_doc:
         await db.settings.update_one(
@@ -116,11 +116,24 @@ async def on_startup():
             {"$set": {"chat_banned_words": sorted(set(DEFAULT_BANNED_WORDS_SEED))}},
             upsert=True,
         )
+    if "cartoonixtv_messages" not in settings_doc:
+        await db.settings.update_one(
+            {"_id": "global"},
+            {"$set": {"cartoonixtv_messages": list(DEFAULT_CARTOONIXTV_MESSAGES)}},
+            upsert=True,
+        )
+
+    # Start the CartoonixTV background scheduler
+    from chat import start_bot_scheduler
+    start_bot_scheduler()
+
     logger.info("Cartoonix startup complete.")
 
 
 @app.on_event("shutdown")
 async def on_shutdown():
+    from chat import stop_bot_scheduler
+    stop_bot_scheduler()
     client.close()
 
 

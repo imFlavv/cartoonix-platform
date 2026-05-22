@@ -19,7 +19,19 @@ Cartoonix este o platformă premium de streaming pentru desene animate retro (Ca
 - Concursuri publice (3 contests, 2 free + 1 paid via Stripe)
 
 ## Implemented (CHANGELOG)
-### 2026-02 (latest — Chat + Yahoo Emoticoane)
+### 2026-02 (latest — CartoonixTV bot + ASCII shortcuts + fix /forgot-password)
+- **CartoonixTV bot** (gen Nightbot pe YouTube):
+  - Backend `chat.py`: scheduler asyncio în background, endpoints admin `GET/PATCH /api/chat/admin/cartoonixtv` + `POST /api/chat/admin/cartoonixtv/post-now`
+  - Settings noi în DB: `cartoonixtv_enabled`, `cartoonixtv_interval_minutes`, `cartoonixtv_messages`, `cartoonixtv_random_order`, `cartoonixtv_rooms`, `cartoonixtv_last_sent_at`
+  - 5 mesaje default seed-uite la prima pornire
+  - Mesajele bot au `role=bot`, `is_bot=true`, badge cyan "BOT" + iconiță TV, fundal cyan ușor
+  - Admin UI în `/admin/chat` (secțiune dedicată): toggle, interval, camere (global/plus toggle), ordine random/rotație, listă editabilă mesaje, post ad-hoc one-shot
+- **ASCII shortcuts (stil anii 2000)** — `emoticons.js > convertAsciiShortcuts()`:
+  - `:)` `:-)` → smile, `:D` `=D` → lol, `xD` → joy, `:P` → tongue, `;)` → wink, `:(` → disappointed, `:'(` → cry, `:o` `:O` → open_mouth, `:|` → neutral, `B)` `8)` → sunglasses, `:*` → kiss, `<3` → heart, `</3` → heartbreak, `O:)` → innocent
+  - Detectează doar la word boundary (nu mangle-uiește URL-uri sau ore gen 8:30)
+- **Fix `/forgot-password` 404/blank** — ruta era importată în `App.js` dar lipsea din `<Routes>`. Adăugat și `/reset-password`.
+
+### 2026-02 (earlier — Chat + Yahoo Emoticoane)
 - **Chat live Cartoonix** (`/app/backend/chat.py` + `/app/frontend/src/components/chat/ChatWidget.jsx`):
   - 2 camere (Global / PLUS), cooldown progresiv 5→15→60s, restricție utilizatori noi (3 zile)
   - Filtru cuvinte vulgare RO+EN, block linkuri, anti-CAPS, anti-duplicate

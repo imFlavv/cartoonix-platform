@@ -228,6 +228,8 @@ function App() {
                 <Route path="/category/:slug" element={<PublicRoute element={<CategoryPage />} />} />
                 <Route path="/cartoon/:id" element={<PublicRoute element={<CartoonDetailPage />} />} />
                 <Route path="/login" element={<LoginPage />} />
+                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                <Route path="/reset-password" element={<ResetPasswordPage />} />
                 <Route path="/register" element={<RegisterPage />} />
                 <Route path="/verify" element={<VerifyPage />} />
                 <Route path="/plans" element={<PublicRoute element={<PlansPage />} />} />

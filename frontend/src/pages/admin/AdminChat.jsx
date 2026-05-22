@@ -51,6 +51,9 @@ import {
   Settings as SettingsIcon,
   Save,
   AlertTriangle,
+  Tv,
+  RefreshCw,
+  Shuffle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -127,6 +130,20 @@ function StatCard({ icon: Icon, label, value, accent = "default" }) {
 }
 
 function PlanPill({ plan, role }) {
+  if (role === "bot") {
+    return (
+      <span
+        className="inline-flex items-center gap-1 rounded-md px-1.5 py-[1px] text-[10px] font-bold uppercase tracking-wider"
+        style={{
+          background: "linear-gradient(135deg,#22d3ee,#3b82f6)",
+          color: "#06121f",
+        }}
+      >
+        <Tv className="h-3 w-3" strokeWidth={2.5} />
+        Bot
+      </span>
+    );
+  }
   if (role === "admin") {
     return (
       <span className="inline-flex items-center gap-1 rounded-md bg-red-500/20 px-1.5 py-[1px] text-[10px] font-bold uppercase tracking-wider text-red-300 ring-1 ring-red-500/40">
@@ -274,25 +291,44 @@ function _PlanPill_legacy_unused() { return null; }
 function MessageRow({ msg, onPin, onDelete, onModerate, onHistory, animatedAvatars }) {
   const [open, setOpen] = useState(false);
   const isAnimated = animatedAvatars && animatedAvatars.has(msg.avatar_url);
+  const isBot = msg.role === "bot" || msg.is_bot;
   return (
     <div
       className={`group relative flex items-start gap-3 px-3 py-2 rounded-xl transition-colors ${
         msg.deleted ? "opacity-50" : "hover:bg-white/[0.03]"
-      }`}
+      } ${isBot ? "bg-cyan-500/[0.04]" : ""}`}
     >
-      <PremiumAvatarFrame
-        url={msg.avatar_url}
-        alt={msg.nickname}
-        size={36}
-        rounded="rounded-lg"
-        animated={isAnimated}
-        className="shrink-0"
-      />
+      {isBot ? (
+        <div
+          className="rounded-lg ring-1 ring-cyan-400/40 grid place-items-center shrink-0"
+          style={{
+            width: 36,
+            height: 36,
+            background:
+              "linear-gradient(135deg, #0c2030 0%, #082135 50%, #06141f 100%)",
+            boxShadow:
+              "0 0 0 1px rgba(34,211,238,0.25) inset, 0 0 18px -6px rgba(34,211,238,0.55)",
+          }}
+        >
+          <Tv className="h-4 w-4 text-cyan-300" strokeWidth={2.4} />
+        </div>
+      ) : (
+        <PremiumAvatarFrame
+          url={msg.avatar_url}
+          alt={msg.nickname}
+          size={36}
+          rounded="rounded-lg"
+          animated={isAnimated}
+          className="shrink-0"
+        />
+      )}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 flex-wrap">
           <span
             className={`font-semibold text-sm ${
-              msg.role === "admin"
+              isBot
+                ? "text-cyan-300"
+                : msg.role === "admin"
                 ? "text-red-300"
                 : msg.plan === "plus"
                 ? "text-amber-200"
@@ -397,6 +433,10 @@ export default function AdminChat() {
   const [sanctions, setSanctions] = useState([]);
   const [confirm, setConfirm] = useState(null); // { title, body, onConfirm }
   const [animatedAvatars, setAnimatedAvatars] = useState(new Set());
+  const [botCfg, setBotCfg] = useState(null);
+  const [botSaving, setBotSaving] = useState(false);
+  const [newBotMsg, setNewBotMsg] = useState("");
+  const [quickBotMsg, setQuickBotMsg] = useState("");
 
   useEffect(() => {
     api
@@ -436,8 +476,63 @@ export default function AdminChat() {
 
   useEffect(() => {
     refreshAll();
+    loadBotCfg();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const loadBotCfg = useCallback(async () => {
+    try {
+      const { data } = await api.get("/chat/admin/cartoonixtv");
+      setBotCfg(data);
+    } catch (e) {
+      /* ignore — endpoint may not be ready yet on first deploy */
+    }
+  }, []);
+
+  const patchBot = async (patch) => {
+    setBotSaving(true);
+    try {
+      const { data } = await api.patch("/chat/admin/cartoonixtv", patch);
+      setBotCfg(data);
+      toast.success("CartoonixTV actualizat");
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || "Nu am putut salva bot-ul");
+    } finally {
+      setBotSaving(false);
+    }
+  };
+
+  const handleBotAddMsg = async () => {
+    const t = newBotMsg.trim();
+    if (!t) return;
+    const next = [...(botCfg?.messages || []), t];
+    setNewBotMsg("");
+    await patchBot({ messages: next });
+  };
+
+  const handleBotRemoveMsg = async (idx) => {
+    const next = (botCfg?.messages || []).filter((_, i) => i !== idx);
+    await patchBot({ messages: next });
+  };
+
+  const handleBotPostNow = async () => {
+    const t = quickBotMsg.trim();
+    if (!t) {
+      toast.error("Scrie un mesaj pentru bot");
+      return;
+    }
+    try {
+      await api.post("/chat/admin/cartoonixtv/post-now", {
+        message: t,
+        room: "global",
+      });
+      toast.success("Mesaj CartoonixTV postat acum");
+      setQuickBotMsg("");
+      refreshMessages();
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || "Nu am putut posta");
+    }
+  };
 
   useEffect(() => {
     refreshMessages();
@@ -838,6 +933,254 @@ export default function AdminChat() {
               Lista este goală. Adaugă primul cuvânt.
             </span>
           )}
+        </div>
+      </div>
+
+      {/* CartoonixTV bot management */}
+      <div
+        className="rounded-2xl border p-5 space-y-4"
+        style={{
+          background:
+            "linear-gradient(135deg, rgba(34,211,238,0.06) 0%, rgba(59,130,246,0.04) 100%)",
+          borderColor: "rgba(34,211,238,0.25)",
+        }}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <div
+              className="h-11 w-11 rounded-xl grid place-items-center shrink-0"
+              style={{
+                background: "linear-gradient(135deg,#22d3ee 0%,#3b82f6 100%)",
+                color: "#06121f",
+                boxShadow: "0 0 24px -6px rgba(34,211,238,0.6)",
+              }}
+            >
+              <Tv className="h-5 w-5" strokeWidth={2.6} />
+            </div>
+            <div>
+              <h2 className="font-display text-xl tracking-wide flex items-center gap-2">
+                CartoonixTV
+                <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-300 font-bold">
+                  Bot
+                </span>
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5 max-w-xl">
+                Bot oficial care postează automat reclame și anunțuri în chat,
+                la intervale configurabile (gen Nightbot pe YouTube).
+              </p>
+            </div>
+          </div>
+          <Toggle
+            id="bot-enabled-toggle"
+            checked={!!botCfg?.enabled}
+            onChange={(v) => patchBot({ enabled: v })}
+            disabled={botSaving || !botCfg}
+          />
+        </div>
+
+        {/* Interval + rooms + order */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="p-3 rounded-xl bg-black/30 border border-cyan-500/10">
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+              Interval (minute)
+            </Label>
+            <Input
+              type="number"
+              min={1}
+              max={720}
+              value={botCfg?.interval_minutes ?? 15}
+              onChange={(e) =>
+                setBotCfg((p) => ({
+                  ...(p || {}),
+                  interval_minutes: Number(e.target.value),
+                }))
+              }
+              onBlur={() =>
+                patchBot({
+                  interval_minutes: Math.max(
+                    1,
+                    Math.min(720, Number(botCfg?.interval_minutes || 15))
+                  ),
+                })
+              }
+              data-testid="bot-interval"
+              className="mt-1 bg-black/40 border-cyan-500/20"
+            />
+            <p className="text-[10px] text-muted-foreground/70 mt-1">
+              Min: 1 · Max: 720 (12 ore)
+            </p>
+          </div>
+
+          <div className="p-3 rounded-xl bg-black/30 border border-cyan-500/10">
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+              Camere
+            </Label>
+            <div className="mt-2 flex gap-2">
+              {["global", "plus"].map((r) => {
+                const active = (botCfg?.rooms || []).includes(r);
+                return (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => {
+                      const cur = new Set(botCfg?.rooms || []);
+                      if (cur.has(r)) cur.delete(r);
+                      else cur.add(r);
+                      const next = Array.from(cur);
+                      if (next.length === 0) {
+                        toast.error("Alege cel puțin o cameră");
+                        return;
+                      }
+                      patchBot({ rooms: next });
+                    }}
+                    data-testid={`bot-room-${r}`}
+                    className={`flex-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all flex items-center justify-center gap-1 ${
+                      active
+                        ? r === "plus"
+                          ? "text-black"
+                          : "bg-cyan-500/20 text-cyan-200 ring-1 ring-cyan-400/40"
+                        : "bg-white/5 text-muted-foreground hover:bg-white/10"
+                    }`}
+                    style={
+                      active && r === "plus"
+                        ? { background: "linear-gradient(135deg,#ff7a1a,#facc15)" }
+                        : undefined
+                    }
+                  >
+                    {r === "plus" ? <Crown className="h-3 w-3" /> : <Globe2 className="h-3 w-3" />}
+                    {r}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="p-3 rounded-xl bg-black/30 border border-cyan-500/10">
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+              Ordine mesaje
+            </Label>
+            <div className="mt-2 flex gap-2">
+              <button
+                type="button"
+                onClick={() => patchBot({ random_order: true })}
+                data-testid="bot-order-random"
+                className={`flex-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
+                  botCfg?.random_order
+                    ? "bg-cyan-500/20 text-cyan-200 ring-1 ring-cyan-400/40"
+                    : "bg-white/5 text-muted-foreground hover:bg-white/10"
+                }`}
+              >
+                <Shuffle className="h-3 w-3" />
+                Random
+              </button>
+              <button
+                type="button"
+                onClick={() => patchBot({ random_order: false })}
+                data-testid="bot-order-rotate"
+                className={`flex-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
+                  !botCfg?.random_order
+                    ? "bg-cyan-500/20 text-cyan-200 ring-1 ring-cyan-400/40"
+                    : "bg-white/5 text-muted-foreground hover:bg-white/10"
+                }`}
+              >
+                <RefreshCw className="h-3 w-3" />
+                Rotație
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Quick post-now */}
+        <div className="p-3 rounded-xl bg-black/30 border border-cyan-500/10">
+          <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+            Postează ad-hoc (one-shot, în camera global)
+          </Label>
+          <div className="flex gap-2 mt-2">
+            <Input
+              value={quickBotMsg}
+              onChange={(e) => setQuickBotMsg(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleBotPostNow()}
+              placeholder="ex: Episod nou disponibil — vezi /category/cartoon-network"
+              data-testid="bot-quick-input"
+              className="bg-black/40 border-cyan-500/20"
+            />
+            <Button
+              onClick={handleBotPostNow}
+              disabled={!quickBotMsg.trim()}
+              data-testid="bot-post-now"
+              className="font-semibold text-[#06121f]"
+              style={{
+                background: "linear-gradient(135deg,#22d3ee,#3b82f6)",
+              }}
+            >
+              <SendIcon className="h-4 w-4 mr-1" /> Postează acum
+            </Button>
+          </div>
+        </div>
+
+        {/* Messages list */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+              Mesaje recurente ({botCfg?.messages?.length || 0})
+            </Label>
+            {botCfg?.last_sent_at && (
+              <span className="text-[10px] text-muted-foreground/70">
+                Ultimul: {new Date(botCfg.last_sent_at).toLocaleString("ro-RO")}
+              </span>
+            )}
+          </div>
+          <div className="flex gap-2 mb-3">
+            <Input
+              value={newBotMsg}
+              onChange={(e) => setNewBotMsg(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleBotAddMsg()}
+              placeholder="Adaugă mesaj recurent..."
+              data-testid="bot-new-msg-input"
+              className="bg-black/40 border-cyan-500/20"
+            />
+            <Button
+              onClick={handleBotAddMsg}
+              disabled={!newBotMsg.trim()}
+              data-testid="bot-add-msg"
+              className="font-semibold text-[#06121f]"
+              style={{
+                background: "linear-gradient(135deg,#22d3ee,#3b82f6)",
+              }}
+            >
+              <Plus className="h-4 w-4 mr-1" /> Adaugă
+            </Button>
+          </div>
+          <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
+            {(!botCfg?.messages || botCfg.messages.length === 0) ? (
+              <div className="text-xs text-muted-foreground italic text-center py-4">
+                Nicio reclamă configurată. Bot-ul nu va posta nimic.
+              </div>
+            ) : (
+              botCfg.messages.map((msg, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-start gap-2 p-2.5 rounded-lg bg-black/40 border border-cyan-500/10 group hover:border-cyan-500/30 transition-colors"
+                  data-testid={`bot-msg-${idx}`}
+                >
+                  <div className="h-6 w-6 rounded-md bg-cyan-500/15 text-cyan-300 grid place-items-center text-[10px] font-bold shrink-0 mt-0.5">
+                    {idx + 1}
+                  </div>
+                  <div className="flex-1 text-sm text-cyan-100/90 break-words whitespace-pre-wrap">
+                    {msg}
+                  </div>
+                  <button
+                    onClick={() => handleBotRemoveMsg(idx)}
+                    className="opacity-50 group-hover:opacity-100 hover:text-red-400 transition-opacity shrink-0"
+                    aria-label="Șterge mesaj bot"
+                    data-testid={`bot-msg-remove-${idx}`}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </div>
 

@@ -42,7 +42,31 @@ DEFAULT_CHAT_SETTINGS = {
     "chat_max_length": 300,
     "chat_pinned_message": None,     # { content, nickname, created_at }
     "chat_block_links": True,
+    # CartoonixTV "Nightbot"-style auto-poster
+    "cartoonixtv_enabled": False,
+    "cartoonixtv_interval_minutes": 15,
+    "cartoonixtv_messages": [],
+    "cartoonixtv_random_order": True,
+    "cartoonixtv_rooms": ["global"],   # which rooms it posts in
 }
+
+# CartoonixTV bot identity (fixed, not a real user in the users collection)
+CARTOONIXTV_BOT = {
+    "id": "cartoonixtv-bot",
+    "nickname": "CartoonixTV",
+    "avatar_url": "/emoticons/transformer.gif",  # placeholder bot avatar (overridden in frontend)
+    "plan": "bot",
+    "role": "bot",
+}
+
+# Default seed messages (Romanian) used the very first time the admin opens the bot
+DEFAULT_CARTOONIXTV_MESSAGES = [
+    "📺 Bun venit pe Cartoonix! Lansarea oficială vine pe 1 iunie 2026.",
+    "🎬 Știați că PLUS-ul deblochează camera secretă de chat și conținut exclusiv?",
+    "🏆 Avem concursuri active — accesează /concursuri pentru detalii.",
+    "💎 Upgrade la PLUS direct din profil — păstrează nostalgia la maxim!",
+    "🔔 Verifică tab-ul Inbox pentru anunțuri importante.",
+]
 
 # Common Romanian + English profanity. Kept compact; admin can extend.
 DEFAULT_BANNED_WORDS_SEED = [
@@ -99,6 +123,19 @@ class PinMessage(BaseModel):
 
 class BannedWordsUpdate(BaseModel):
     words: List[str]
+
+
+class CartoonixTVUpdate(BaseModel):
+    enabled: Optional[bool] = None
+    interval_minutes: Optional[int] = None
+    messages: Optional[List[str]] = None
+    random_order: Optional[bool] = None
+    rooms: Optional[List[Literal["global", "plus"]]] = None
+
+
+class CartoonixTVPost(BaseModel):
+    message: str = Field(min_length=1, max_length=400)
+    room: Literal["global", "plus"] = "global"
 
 
 # ============================================================
@@ -231,7 +268,131 @@ def _format_message_doc(m: dict) -> dict:
         "created_at": m.get("created_at"),
         "deleted": bool(m.get("deleted", False)),
         "censored": bool(m.get("censored", False)),
+        "is_bot": bool(m.get("is_bot", False)),
     }
+
+
+async def _post_bot_message(db, content: str, room: str = "global") -> dict:
+    """Insert a CartoonixTV bot message into the chat (bypasses all user limits)."""
+    from models import new_id
+    now = _now()
+    doc = {
+        "id": new_id(),
+        "room": room,
+        "user_id": CARTOONIXTV_BOT["id"],
+        "nickname": CARTOONIXTV_BOT["nickname"],
+        "avatar_url": CARTOONIXTV_BOT["avatar_url"],
+        "plan": CARTOONIXTV_BOT["plan"],
+        "role": CARTOONIXTV_BOT["role"],
+        "content": content.strip(),
+        "censored": False,
+        "deleted": False,
+        "is_bot": True,
+        "created_at": now.isoformat(),
+    }
+    await db.chat_messages.insert_one(doc)
+    return doc
+
+
+# ============================================================
+# CARTOONIX TV BOT SCHEDULER (background asyncio task)
+# ============================================================
+_bot_task = None
+_bot_state = {"index": 0}  # rotation pointer for non-random mode
+
+
+async def _cartoonixtv_scheduler():
+    """Background loop that posts a CartoonixTV message every X minutes.
+
+    Survives partial-doc errors and keeps running until cancelled at shutdown.
+    State (`cartoonixtv_last_sent_at`) is stored in the settings doc so
+    intervals are honoured across process restarts.
+    """
+    import asyncio
+    from random import choice, randrange
+
+    logger.info("CartoonixTV scheduler started.")
+    while True:
+        try:
+            db = await _get_db()
+            doc = await db.settings.find_one({"_id": "global"}) or {}
+            enabled = bool(doc.get("cartoonixtv_enabled", False))
+            interval = int(doc.get("cartoonixtv_interval_minutes", 15) or 15)
+            messages = [m for m in (doc.get("cartoonixtv_messages") or []) if (m or "").strip()]
+            random_order = bool(doc.get("cartoonixtv_random_order", True))
+            rooms = doc.get("cartoonixtv_rooms") or ["global"]
+            chat_enabled = bool(doc.get("chat_enabled", True))
+
+            if not enabled or not messages or not chat_enabled:
+                await asyncio.sleep(30)
+                continue
+
+            interval = max(1, min(720, interval))  # 1 min .. 12 h
+            last_iso = doc.get("cartoonixtv_last_sent_at")
+            last_dt = None
+            if isinstance(last_iso, str):
+                try:
+                    last_dt = datetime.fromisoformat(last_iso.replace("Z", "+00:00"))
+                    if last_dt.tzinfo is None:
+                        last_dt = last_dt.replace(tzinfo=timezone.utc)
+                except Exception:
+                    last_dt = None
+            elif isinstance(last_iso, datetime):
+                last_dt = last_iso
+                if last_dt.tzinfo is None:
+                    last_dt = last_dt.replace(tzinfo=timezone.utc)
+
+            now = _now()
+            due = last_dt is None or (now - last_dt).total_seconds() >= interval * 60
+            if not due:
+                # Sleep until due (capped to 30s for fresh settings reads)
+                remaining = interval * 60 - (now - last_dt).total_seconds() if last_dt else 30
+                await asyncio.sleep(max(5, min(30, remaining)))
+                continue
+
+            # Pick message
+            if random_order:
+                content = choice(messages)
+            else:
+                idx = _bot_state["index"] % len(messages)
+                content = messages[idx]
+                _bot_state["index"] = (idx + 1) % len(messages)
+
+            # Post to each configured room
+            for room in rooms:
+                try:
+                    await _post_bot_message(db, content, room=room)
+                except Exception as e:
+                    logger.warning(f"CartoonixTV failed to post in {room}: {e}")
+
+            await db.settings.update_one(
+                {"_id": "global"},
+                {"$set": {"cartoonixtv_last_sent_at": now.isoformat()}},
+                upsert=True,
+            )
+            logger.info(f"CartoonixTV posted to {rooms}: {content[:60]}…")
+            await asyncio.sleep(min(interval * 60, 30))
+        except asyncio.CancelledError:
+            logger.info("CartoonixTV scheduler cancelled.")
+            raise
+        except Exception as e:
+            logger.exception(f"CartoonixTV scheduler error: {e}")
+            await asyncio.sleep(30)
+
+
+def start_bot_scheduler():
+    """Start the background scheduler (idempotent)."""
+    import asyncio
+    global _bot_task
+    if _bot_task is None or _bot_task.done():
+        _bot_task = asyncio.create_task(_cartoonixtv_scheduler())
+    return _bot_task
+
+
+def stop_bot_scheduler():
+    global _bot_task
+    if _bot_task and not _bot_task.done():
+        _bot_task.cancel()
 
 
 # ============================================================
@@ -800,5 +961,74 @@ def attach_handlers(get_current_user, require_admin):
                 "user": target,
             })
         return {"items": out}
+
+    # --------- CARTOONIX TV BOT (admin) ---------
+    @chat_router.get("/admin/cartoonixtv")
+    async def admin_get_cartoonixtv(user=Depends(require_admin)):
+        db = await _get_db()
+        doc = await db.settings.find_one({"_id": "global"}) or {}
+        return {
+            "enabled": bool(doc.get("cartoonixtv_enabled", False)),
+            "interval_minutes": int(doc.get("cartoonixtv_interval_minutes", 15) or 15),
+            "messages": list(doc.get("cartoonixtv_messages") or []),
+            "random_order": bool(doc.get("cartoonixtv_random_order", True)),
+            "rooms": list(doc.get("cartoonixtv_rooms") or ["global"]),
+            "last_sent_at": doc.get("cartoonixtv_last_sent_at"),
+            "bot": {
+                "id": CARTOONIXTV_BOT["id"],
+                "nickname": CARTOONIXTV_BOT["nickname"],
+            },
+        }
+
+    @chat_router.patch("/admin/cartoonixtv")
+    async def admin_update_cartoonixtv(
+        payload: CartoonixTVUpdate, user=Depends(require_admin)
+    ):
+        db = await _get_db()
+        update = {}
+        if payload.enabled is not None:
+            update["cartoonixtv_enabled"] = bool(payload.enabled)
+        if payload.interval_minutes is not None:
+            update["cartoonixtv_interval_minutes"] = max(1, min(720, int(payload.interval_minutes)))
+        if payload.messages is not None:
+            cleaned = [
+                (m or "").strip()
+                for m in payload.messages
+                if (m or "").strip()
+            ]
+            # Cap each message to 400 chars to be consistent with normal chat
+            cleaned = [m[:400] for m in cleaned]
+            update["cartoonixtv_messages"] = cleaned
+        if payload.random_order is not None:
+            update["cartoonixtv_random_order"] = bool(payload.random_order)
+        if payload.rooms is not None:
+            rooms = sorted({r for r in payload.rooms if r in ("global", "plus")})
+            if not rooms:
+                rooms = ["global"]
+            update["cartoonixtv_rooms"] = rooms
+
+        if update:
+            await db.settings.update_one(
+                {"_id": "global"}, {"$set": update}, upsert=True
+            )
+        doc = await db.settings.find_one({"_id": "global"}) or {}
+        return {
+            "enabled": bool(doc.get("cartoonixtv_enabled", False)),
+            "interval_minutes": int(doc.get("cartoonixtv_interval_minutes", 15) or 15),
+            "messages": list(doc.get("cartoonixtv_messages") or []),
+            "random_order": bool(doc.get("cartoonixtv_random_order", True)),
+            "rooms": list(doc.get("cartoonixtv_rooms") or ["global"]),
+            "last_sent_at": doc.get("cartoonixtv_last_sent_at"),
+        }
+
+    @chat_router.post("/admin/cartoonixtv/post-now")
+    async def admin_post_bot_now(payload: CartoonixTVPost, user=Depends(require_admin)):
+        """Push a one-off CartoonixTV announcement immediately."""
+        db = await _get_db()
+        s = await _get_settings_full()
+        if not s.get("chat_enabled", True):
+            raise HTTPException(503, "Chat-ul este dezactivat.")
+        doc = await _post_bot_message(db, payload.message, room=payload.room)
+        return {"success": True, "message": _format_message_doc(doc)}
 
     return chat_router

@@ -12,6 +12,7 @@ import {
   Pin,
   Clock,
   Smile,
+  Tv,
   X,
 } from "lucide-react";
 import { api, mediaUrl } from "@/lib/api";
@@ -68,6 +69,45 @@ function AdminBadge() {
   );
 }
 
+function BotBadge() {
+  return (
+    <span
+      className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-[1px] text-[9px] font-bold uppercase tracking-wider"
+      style={{
+        background: "linear-gradient(135deg,#22d3ee 0%,#3b82f6 100%)",
+        color: "#06121f",
+        boxShadow: "0 0 12px -2px rgba(59,130,246,0.5)",
+      }}
+      title="CartoonixTV bot oficial"
+    >
+      <Tv className="h-2.5 w-2.5" strokeWidth={2.5} />
+      Bot
+    </span>
+  );
+}
+
+function BotAvatar({ size = 32 }) {
+  return (
+    <div
+      className="rounded-lg ring-1 ring-cyan-400/40 grid place-items-center"
+      style={{
+        width: size,
+        height: size,
+        background:
+          "linear-gradient(135deg, #0c2030 0%, #082135 50%, #06141f 100%)",
+        boxShadow:
+          "0 0 0 1px rgba(34,211,238,0.25) inset, 0 0 18px -6px rgba(34,211,238,0.55)",
+      }}
+    >
+      <Tv
+        className="h-4 w-4 text-cyan-300"
+        strokeWidth={2.4}
+        style={{ filter: "drop-shadow(0 0 4px rgba(34,211,238,0.7))" }}
+      />
+    </div>
+  );
+}
+
 function formatTime(iso) {
   if (!iso) return "";
   const d = new Date(iso);
@@ -113,26 +153,33 @@ function MessageRow({ msg, isMine, animatedAvatars }) {
     );
   }
   const isAnimated = animatedAvatars && animatedAvatars.has(msg.avatar_url);
+  const isBot = msg.role === "bot" || msg.is_bot;
   return (
     <div
       className={`group flex items-start gap-2 px-3 py-1.5 hover:bg-white/[0.03] transition-colors ${
         isMine ? "bg-[#facc15]/[0.025]" : ""
-      }`}
+      } ${isBot ? "bg-cyan-500/[0.04]" : ""}`}
     >
       <div className="shrink-0 mt-0.5">
-        <PremiumAvatarFrame
-          url={msg.avatar_url}
-          alt={msg.nickname}
-          size={32}
-          rounded="rounded-lg"
-          animated={isAnimated}
-        />
+        {isBot ? (
+          <BotAvatar size={32} />
+        ) : (
+          <PremiumAvatarFrame
+            url={msg.avatar_url}
+            alt={msg.nickname}
+            size={32}
+            rounded="rounded-lg"
+            animated={isAnimated}
+          />
+        )}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline gap-1.5 flex-wrap leading-tight">
           <span
             className={`text-[12px] font-semibold ${
-              msg.role === "admin"
+              isBot
+                ? "text-cyan-300"
+                : msg.role === "admin"
                 ? "text-red-300"
                 : msg.plan === "plus"
                 ? "text-amber-200"
@@ -141,12 +188,22 @@ function MessageRow({ msg, isMine, animatedAvatars }) {
           >
             {msg.nickname}
           </span>
-          {msg.role === "admin" ? <AdminBadge /> : msg.plan === "plus" ? <PlusBadge /> : null}
+          {isBot ? (
+            <BotBadge />
+          ) : msg.role === "admin" ? (
+            <AdminBadge />
+          ) : msg.plan === "plus" ? (
+            <PlusBadge />
+          ) : null}
           <span className="text-[10px] text-muted-foreground/70 ml-auto pl-2">
             {formatTime(msg.created_at)}
           </span>
         </div>
-        <div className="text-[13px] text-white/90 break-words whitespace-pre-wrap leading-snug mt-0.5">
+        <div
+          className={`text-[13px] break-words whitespace-pre-wrap leading-snug mt-0.5 ${
+            isBot ? "text-cyan-100/95" : "text-white/90"
+          }`}
+        >
           {renderMessageContent(msg.content)}
         </div>
       </div>
