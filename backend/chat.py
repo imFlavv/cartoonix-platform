@@ -205,9 +205,11 @@ async def _active_sanction(db, user_id: str) -> Optional[dict]:
             until = datetime.fromisoformat(until.replace("Z", "+00:00"))
         except Exception:
             return None
-    if until and until.tzinfo is None:
+    if isinstance(until, datetime) and until.tzinfo is None:
         until = until.replace(tzinfo=timezone.utc)
     if until and until > _now():
+        # write back normalized value to be safe for downstream consumers
+        doc["until"] = until
         return doc
     # expired — clean it up
     await db.chat_bans.delete_one({"_id": user_id})
@@ -274,9 +276,9 @@ def attach_handlers(get_current_user, require_admin):
                 last_sent = datetime.fromisoformat(last_sent.replace("Z", "+00:00"))
             except Exception:
                 last_sent = None
+        if isinstance(last_sent, datetime) and last_sent.tzinfo is None:
+            last_sent = last_sent.replace(tzinfo=timezone.utc)
         if last_sent:
-            if last_sent.tzinfo is None:
-                last_sent = last_sent.replace(tzinfo=timezone.utc)
             elapsed = (_now() - last_sent).total_seconds()
             cooldown_remaining = max(0, int(effective_cd - elapsed))
 
@@ -301,6 +303,8 @@ def attach_handlers(get_current_user, require_admin):
                 u = sanction.get("until")
                 if u:
                     if isinstance(u, datetime):
+                        if u.tzinfo is None:
+                            u = u.replace(tzinfo=timezone.utc)
                         mute_until = u.isoformat()
                     elif isinstance(u, str):
                         mute_until = u
@@ -391,6 +395,8 @@ def attach_handlers(get_current_user, require_admin):
             if sanction.get("type") == "mute":
                 until = sanction.get("until")
                 if isinstance(until, datetime):
+                    if until.tzinfo is None:
+                        until = until.replace(tzinfo=timezone.utc)
                     mins = max(1, int((until - _now()).total_seconds() / 60))
                     raise HTTPException(403, f"Ești silențiat încă ~{mins} minut(e).")
                 raise HTTPException(403, "Contul tău este silențiat în chat.")
@@ -446,7 +452,7 @@ def attach_handlers(get_current_user, require_admin):
                 last_sent = datetime.fromisoformat(last_sent.replace("Z", "+00:00"))
             except Exception:
                 last_sent = None
-        elif isinstance(last_sent, datetime) and last_sent.tzinfo is None:
+        if isinstance(last_sent, datetime) and last_sent.tzinfo is None:
             last_sent = last_sent.replace(tzinfo=timezone.utc)
 
         level_cooldowns = [5, 15, 60]

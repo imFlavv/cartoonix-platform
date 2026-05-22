@@ -110,7 +110,7 @@ user_problem_statement: |
 backend:
   - task: "Public + Admin chat endpoints (rooms, send, presence, moderation)"
     implemented: true
-    working: false
+    working: true
     file: "backend/chat.py, backend/server.py"
     stuck_count: 0
     priority: "high"
@@ -118,7 +118,13 @@ backend:
     status_history:
       - working: "NA"
         agent: "main"
-        comment: "New chat module: GET /api/chat/state, GET /api/chat/messages?room=global|plus, POST /api/chat/send, POST /api/chat/heartbeat, GET /api/chat/presence. Admin: PATCH /api/chat/admin/settings, GET /api/chat/admin/state, GET /api/chat/admin/messages, DELETE /api/chat/admin/messages/{id}, POST /api/chat/admin/pin, POST /api/chat/admin/moderate, GET /api/chat/admin/sanctions, GET /api/chat/admin/users/{id}/history. Features: progressive 5→15→60s cooldown, account-age restriction (default 3 days), profanity censor (~80 word seed), spam/duplicate detection, link blocking, CAPS auto-correction, PLUS room gating, slow mode, pinned message, mute/ban, message deletion."
+        comment: "New chat module: state, messages, send, heartbeat, presence, plus admin (settings, state, messages, delete, pin, moderate, sanctions, history). Features: progressive 5→15→60s cooldown, account-age restriction (default 3 days), profanity censor (~80 word seed), spam/duplicate detection, link blocking, CAPS auto-correction, PLUS room gating, slow mode, pinned message, mute/ban, message deletion."
+      - working: false
+        agent: "testing"
+        comment: "27/28 passed. Failure: muted user → /chat/send returned 500 instead of 403 due to naive vs aware datetime subtraction."
+      - working: true
+        agent: "main"
+        comment: "Fixed: normalized `until` datetime (mongo may return tz-naive) to UTC in _active_sanction() and in the mute response path in send_message + state. Verified via curl: muted user now gets 403 with 'Ești silențiat încă ~4 minut(e).'"
       - working: false
         agent: "testing"
         comment: "Comprehensive backend testing completed with 28 test cases. PASSED (27/28): ✅ GET /chat/state (all 4 user types: admin, plus, free, new - correct permissions and restrictions), ✅ POST /chat/send (free user success with nickname/avatar/plan, cooldown enforcement 429, new user blocked 403 with '3 zile' message, plus user to plus room success, free user to plus room blocked 403, link blocking 400, profanity censored 'BOU'→'b***', duplicate spam detection 429 on 3rd identical message), ✅ GET /chat/messages (free user global room, free user plus room blocked 403, plus user plus room success), ✅ POST /chat/heartbeat success, ✅ GET /chat/presence online_total>=1, ✅ GET /chat/admin/state (settings+stats), ✅ GET /chat/admin/messages, ✅ PATCH /chat/admin/settings (disable messages→send fails 403, re-enable works), ✅ POST /chat/admin/moderate (cannot ban self 400), ✅ DELETE /chat/admin/messages + POST /chat/admin/pin (pin→check state→unpin→delete), ✅ GET /chat/admin/sanctions, ✅ GET /chat/admin/users/{id}/history, ✅ Authorization checks (no token 401, free user admin endpoint 403, plus user admin settings 403). FAILED (1/28): ❌ POST /chat/admin/moderate mute_5m → muted user send returns 500 instead of 403. ROOT CAUSE: TypeError in /app/backend/chat.py line 394: 'can't subtract offset-naive and offset-aware datetimes'. The 'until' datetime retrieved from DB (chat_bans collection) is timezone-naive, but _now() returns timezone-aware datetime. When calculating remaining minutes for mute message, the subtraction fails. FIX REQUIRED: In chat.py send_message() function around line 391-395, ensure 'until' datetime is timezone-aware before subtraction. Similar issue may exist in _active_sanction() helper. All test users from /app/memory/test_credentials.md working correctly."
