@@ -162,6 +162,148 @@ code {
 .scrollbar-none::-webkit-scrollbar { display: none; }
 .scrollbar-none { scrollbar-width: none; }
 
+/* Elegant chat scroll bar (brand-tinted) */
+.chat-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(250, 204, 21, 0.45) rgba(255, 255, 255, 0.04);
+}
+.chat-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.chat-scroll::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+}
+.chat-scroll::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(255, 59, 59, 0.6), rgba(250, 204, 21, 0.6));
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.chat-scroll::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(255, 59, 59, 0.85), rgba(250, 204, 21, 0.85));
+  background-clip: padding-box;
+  border: 2px solid transparent;
+}
+
+/* ==========================================================================
+   Premium animated avatar frame (PLUS-only avatars)
+   ========================================================================== */
+.premium-avatar {
+  position: relative;
+  isolation: isolate;
+}
+
+/* Rotating conic gradient halo (the colorful frame around the avatar) */
+.premium-avatar__halo {
+  position: absolute;
+  border-radius: 18px;
+  background: conic-gradient(
+    from 0deg,
+    #ff3b3b 0deg,
+    #ff7a1a 90deg,
+    #facc15 180deg,
+    #ff7a1a 270deg,
+    #ff3b3b 360deg
+  );
+  animation: premium-spin 4s linear infinite;
+  filter: drop-shadow(0 0 6px rgba(250, 204, 21, 0.45));
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+}
+.premium-avatar__halo-inner {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 14px;
+  background: #0a0a0a;
+}
+
+/* Soft pulsing outer glow */
+.premium-avatar__glow {
+  position: absolute;
+  border-radius: 22px;
+  background: radial-gradient(
+    circle,
+    rgba(255, 122, 26, 0.55) 0%,
+    rgba(250, 204, 21, 0.25) 35%,
+    rgba(255, 59, 59, 0.0) 70%
+  );
+  filter: blur(8px);
+  opacity: 0.85;
+  animation: premium-pulse 2.6s ease-in-out infinite;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Diagonal shimmer sweep across the avatar */
+.premium-avatar__shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    115deg,
+    transparent 35%,
+    rgba(255, 255, 255, 0.28) 50%,
+    transparent 65%
+  );
+  transform: translateX(-100%);
+  animation: premium-shimmer 3.4s ease-in-out infinite;
+  pointer-events: none;
+  mix-blend-mode: overlay;
+}
+
+/* Floating sparkles */
+.premium-avatar__sparkle {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    #fff 0%,
+    #facc15 60%,
+    transparent 70%
+  );
+  box-shadow: 0 0 8px 1px rgba(250, 204, 21, 0.85);
+  opacity: 0;
+  animation: premium-sparkle 2.4s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 20;
+}
+
+@keyframes premium-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes premium-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.55; }
+  50%      { transform: scale(1.08); opacity: 0.95; }
+}
+@keyframes premium-shimmer {
+  0%   { transform: translateX(-100%); opacity: 0; }
+  35%  { opacity: 1; }
+  60%  { transform: translateX(100%); opacity: 1; }
+  100% { transform: translateX(100%); opacity: 0; }
+}
+@keyframes premium-sparkle {
+  0%, 100% { transform: scale(0); opacity: 0; }
+  40%      { transform: scale(1);   opacity: 1; }
+  70%      { transform: scale(1.3); opacity: 0.7; }
+}
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .premium-avatar__halo,
+  .premium-avatar__glow,
+  .premium-avatar__shimmer,
+  .premium-avatar__sparkle {
+    animation: none !important;
+  }
+  .premium-avatar__glow { opacity: 0.7; }
+}
+
 /* ==========================================================================
    Cartoonix elegant toast notifications (Sonner)
    ========================================================================== */

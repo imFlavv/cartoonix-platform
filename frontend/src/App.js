@@ -29,7 +29,6 @@ import AdminEpisodes from "@/pages/admin/AdminEpisodes";
 import AdminUsers from "@/pages/admin/AdminUsers";
 import AdminContests from "@/pages/admin/AdminContests";
 import AdminNotifications from "@/pages/admin/AdminNotifications";
-import AdminSubscriptions from "@/pages/admin/AdminSubscriptions";
 import AdminSettings from "@/pages/admin/AdminSettings";
 import AdminChat from "@/pages/admin/AdminChat";
 import { RequireAdmin, RequireAuth } from "@/components/RouteGuards";
@@ -58,7 +57,13 @@ const PRESENTATION_ALLOWED_PREFIXES = [
  * We keep this very tight: only login + admin so admins can still get in
  * to disable maintenance. Everything else shows the maintenance screen.
  */
-const MAINTENANCE_ALLOWED_PREFIXES = ["/login", "/admin"];
+const MAINTENANCE_ALLOWED_PREFIXES = [
+  "/login",
+  "/admin",
+  "/forgot-password",
+  "/reset-password",
+  "/verify",
+];
 
 function MaintenanceGate({ children }) {
   const { settings, loading: settingsLoading } = useSettings() || {};
@@ -95,6 +100,9 @@ const EARLY_ACCESS_ALLOWED_PREFIXES = [
   "/admin",
   "/terms-and-conditions",
   "/concursuri-cartoonix",
+  "/forgot-password",
+  "/reset-password",
+  "/verify",
 ];
 
 function EarlyAccessGate({ children }) {
@@ -248,7 +256,6 @@ function App() {
                   <Route path="users" element={<AdminUsers />} />
                   <Route path="contests" element={<AdminContests />} />
                   <Route path="notifications" element={<AdminNotifications />} />
-                  <Route path="subscriptions" element={<AdminSubscriptions />} />
                   <Route path="settings" element={<AdminSettings />} />
                   <Route path="chat" element={<AdminChat />} />
                 </Route>

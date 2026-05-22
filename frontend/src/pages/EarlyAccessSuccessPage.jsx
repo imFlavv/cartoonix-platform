@@ -15,6 +15,7 @@ import {
   KeyRound,
   Eye,
   EyeOff,
+  Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -90,7 +91,7 @@ function Cell({ value, label }) {
  * UserBar — avatar (with red glow ring) + nickname + plan badge + optional UPGRADE button +
  * a settings cog with dropdown (Inbox, Avatar).
  */
-function UserBar({ user, isPlus, onUpgrade, upgrading, onOpenInbox, onOpenAvatar, onOpenPassword, unreadCount = 0 }) {
+function UserBar({ user, isPlus, isAnimatedAvatar = false, onUpgrade, upgrading, onOpenInbox, onOpenAvatar, onOpenPassword, unreadCount = 0 }) {
   const avatarSrc = user?.avatar_url ? mediaUrl(user.avatar_url) : "";
   const badgeText = unreadCount > 9 ? "9+" : String(unreadCount);
   const hasUnread = unreadCount > 0;
@@ -100,20 +101,36 @@ function UserBar({ user, isPlus, onUpgrade, upgrading, onOpenInbox, onOpenAvatar
       data-testid="ea-user-bar"
       className="mx-auto inline-flex items-center gap-3 sm:gap-4 rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-md pl-2 pr-2 sm:pl-3 sm:pr-2.5 py-2 shadow-[0_18px_48px_-18px_rgba(0,0,0,0.6)]"
     >
-      {/* Avatar with red glow ring (like the user's reference image) */}
+      {/* Avatar with red glow ring (becomes animated for PLUS premium avatar) */}
       <div className="relative flex-shrink-0">
         <span
           aria-hidden
           className="absolute inset-0 rounded-full blur-md opacity-80"
-          style={{ background: "radial-gradient(closest-side, rgba(239,68,68,0.7), transparent 70%)" }}
+          style={
+            isAnimatedAvatar
+              ? {
+                  background:
+                    "radial-gradient(closest-side, rgba(250,204,21,0.65), rgba(255,122,26,0.35) 50%, transparent 80%)",
+                  animation: "premium-pulse 2.6s ease-in-out infinite",
+                }
+              : { background: "radial-gradient(closest-side, rgba(239,68,68,0.7), transparent 70%)" }
+          }
         />
         <span
           aria-hidden
           className="absolute -inset-0.5 rounded-full"
-          style={{
-            background:
-              "conic-gradient(from 0deg, #ef4444, #f97316, #ef4444, #b91c1c, #ef4444)",
-          }}
+          style={
+            isAnimatedAvatar
+              ? {
+                  background:
+                    "conic-gradient(from 0deg, #ff3b3b 0deg, #ff7a1a 90deg, #facc15 180deg, #ff7a1a 270deg, #ff3b3b 360deg)",
+                  animation: "premium-spin 4s linear infinite",
+                }
+              : {
+                  background:
+                    "conic-gradient(from 0deg, #ef4444, #f97316, #ef4444, #b91c1c, #ef4444)",
+                }
+          }
         />
         <div className="relative h-10 w-10 sm:h-11 sm:w-11 rounded-full overflow-hidden border-2 border-[#0a0a0c]">
           {avatarSrc ? (
@@ -296,6 +313,22 @@ export default function EarlyAccessSuccessPage() {
   };
 
   // ---- Avatar picker ----
+  // Eager fetch on mount so UserBar can detect if user's avatar is animated.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await api.get("/avatars");
+        if (!cancelled) setAvatars(Array.isArray(data) ? data : []);
+      } catch (e) {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const openAvatarPicker = async () => {
     setAvatarOpen(true);
     if (avatars.length > 0) return;
@@ -505,6 +538,10 @@ export default function EarlyAccessSuccessPage() {
             <UserBar
               user={user}
               isPlus={isPlus}
+              isAnimatedAvatar={
+                !!user?.avatar_url &&
+                avatars.some((a) => a.url === user.avatar_url && a.animated)
+              }
               onUpgrade={handleUpgrade}
               upgrading={upgrading || confirmingUpgrade}
               onOpenInbox={() => setInboxOpen(true)}
@@ -651,24 +688,60 @@ export default function EarlyAccessSuccessPage() {
               {avatars.map((a) => {
                 const isCurrent = a.url === user?.avatar_url;
                 const isSaving = savingAvatarUrl === a.url;
+                const isPlusTier = a.tier === "plus";
+                const userIsPlus =
+                  user?.subscription === "plus" || user?.role === "admin";
+                const isLocked = isPlusTier && !userIsPlus;
+                const disableClick =
+                  !!savingAvatarUrl || isCurrent || isLocked;
                 return (
                   <button
                     type="button"
                     key={a.id || a.url}
-                    onClick={() => chooseAvatar(a.url)}
-                    disabled={!!savingAvatarUrl || isCurrent}
+                    onClick={() => !isLocked && chooseAvatar(a.url)}
+                    disabled={disableClick}
                     data-testid={`ea-avatar-option-${a.id || ""}`}
+                    title={
+                      isLocked
+                        ? "Disponibil doar pentru membrii Cartoonix PLUS"
+                        : a.label || ""
+                    }
                     className={`group relative rounded-2xl overflow-hidden aspect-square transition-all duration-200 ${
                       isCurrent
                         ? "ring-2 ring-fuchsia-400 ring-offset-2 ring-offset-[#101218]"
                         : "ring-1 ring-white/10 hover:ring-fuchsia-400/60 hover:-translate-y-0.5"
-                    } disabled:cursor-not-allowed`}
+                    } ${isLocked ? "cursor-not-allowed" : "disabled:cursor-not-allowed"}`}
                   >
                     <img
                       src={mediaUrl(a.url)}
                       alt={a.label || "Avatar"}
-                      className="absolute inset-0 h-full w-full object-cover bg-secondary"
+                      className={`absolute inset-0 h-full w-full object-cover bg-secondary ${
+                        isLocked ? "grayscale opacity-60" : ""
+                      }`}
                     />
+                    {/* Top-left PLUS badge for plus-tier avatars */}
+                    {isPlusTier && (
+                      <div
+                        className="absolute top-1.5 left-1.5 inline-flex items-center gap-1 rounded-md px-1.5 py-[1px] text-[9px] font-bold uppercase tracking-wider"
+                        style={{
+                          background:
+                            "linear-gradient(135deg,#ff3b3b 0%,#ff7a1a 50%,#facc15 100%)",
+                          color: "#0a0a0a",
+                          boxShadow:
+                            "0 0 10px -2px rgba(250,204,21,0.55)",
+                        }}
+                      >
+                        ✦ Plus
+                      </div>
+                    )}
+                    {/* Lock overlay for non-plus users */}
+                    {isLocked && (
+                      <div className="absolute inset-0 grid place-items-center bg-black/40">
+                        <div className="rounded-full bg-black/60 backdrop-blur-sm p-2 ring-1 ring-amber-300/40">
+                          <Lock className="h-4 w-4 text-amber-300" />
+                        </div>
+                      </div>
+                    )}
                     {/* Hover overlay */}
                     <div
                       className={`absolute inset-0 transition-opacity ${

@@ -16,9 +16,27 @@ import {
 import { api, mediaUrl } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSettings } from "@/contexts/SettingsContext";
+import PremiumAvatarFrame from "@/components/chat/PremiumAvatarFrame";
 
 const MESSAGE_POLL_MS = 3000;
 const PRESENCE_POLL_MS = 30000;
+
+// Cache the set of animated avatar URLs across the app (loaded once).
+let _animatedAvatarsCache = null;
+async function loadAnimatedAvatars() {
+  if (_animatedAvatarsCache) return _animatedAvatarsCache;
+  try {
+    const { data } = await api.get("/avatars");
+    const animated = new Set(
+      (data || []).filter((a) => a.animated).map((a) => a.url)
+    );
+    _animatedAvatarsCache = animated;
+    return animated;
+  } catch (e) {
+    _animatedAvatarsCache = new Set();
+    return _animatedAvatarsCache;
+  }
+}
 
 function PlusBadge() {
   return (
@@ -55,7 +73,7 @@ function formatTime(iso) {
   return `${hh}:${mm}`;
 }
 
-function MessageRow({ msg, isMine }) {
+function MessageRow({ msg, isMine, animatedAvatars }) {
   if (msg.deleted) {
     return (
       <div className="px-3 py-1 text-[11px] italic text-muted-foreground/60">
@@ -63,6 +81,7 @@ function MessageRow({ msg, isMine }) {
       </div>
     );
   }
+  const isAnimated = animatedAvatars && animatedAvatars.has(msg.avatar_url);
   return (
     <div
       className={`group flex items-start gap-2 px-3 py-1.5 hover:bg-white/[0.03] transition-colors ${
@@ -70,22 +89,13 @@ function MessageRow({ msg, isMine }) {
       }`}
     >
       <div className="shrink-0 mt-0.5">
-        <div className="h-8 w-8 rounded-lg overflow-hidden ring-1 ring-white/10 bg-black/40">
-          {msg.avatar_url ? (
-            <img
-              src={mediaUrl(msg.avatar_url)}
-              alt={msg.nickname}
-              className="h-full w-full object-cover"
-              onError={(e) => {
-                e.currentTarget.style.display = "none";
-              }}
-            />
-          ) : (
-            <div className="h-full w-full grid place-items-center text-[10px] text-white/40">
-              ?
-            </div>
-          )}
-        </div>
+        <PremiumAvatarFrame
+          url={msg.avatar_url}
+          alt={msg.nickname}
+          size={32}
+          rounded="rounded-lg"
+          animated={isAnimated}
+        />
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline gap-1.5 flex-wrap leading-tight">
@@ -173,9 +183,15 @@ export default function ChatWidget() {
   const [error, setError] = useState("");
   const [hasUnread, setHasUnread] = useState(false);
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
+  const [animatedAvatars, setAnimatedAvatars] = useState(null);
 
   const scrollRef = useRef(null);
   const lastSeenIdRef = useRef(null);
+
+  // Load animated avatar set once on mount
+  useEffect(() => {
+    loadAnimatedAvatars().then(setAnimatedAvatars);
+  }, []);
 
   // ---- Polling helpers ----
   const refreshState = useCallback(async () => {
@@ -477,7 +493,7 @@ export default function ChatWidget() {
             {/* Messages */}
             <div
               ref={scrollRef}
-              className="flex-1 overflow-y-auto py-2 mt-1 scrollbar-thin"
+              className="flex-1 overflow-y-auto py-2 mt-1 chat-scroll"
               style={{ scrollBehavior: "smooth" }}
             >
               {loading ? (
@@ -493,7 +509,12 @@ export default function ChatWidget() {
                 </div>
               ) : (
                 messages.map((m) => (
-                  <MessageRow key={m.id} msg={m} isMine={m.user_id === user.id} />
+                  <MessageRow
+                    key={m.id}
+                    msg={m}
+                    isMine={m.user_id === user.id}
+                    animatedAvatars={animatedAvatars}
+                  />
                 ))
               )}
             </div>

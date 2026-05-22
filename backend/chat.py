@@ -92,7 +92,9 @@ class ModerateAction(BaseModel):
 
 
 class PinMessage(BaseModel):
-    message_id: Optional[str] = None  # if null/empty → unpin
+    message_id: Optional[str] = None  # if null/empty → unpin (or use custom)
+    content: Optional[str] = Field(default=None, max_length=500)
+    # If content is provided, an admin "announcement" is pinned (no message_id required)
 
 
 class BannedWordsUpdate(BaseModel):
@@ -636,11 +638,34 @@ def attach_handlers(get_current_user, require_admin):
     @chat_router.post("/admin/pin")
     async def admin_pin_message(payload: PinMessage, user=Depends(require_admin)):
         db = await _get_db()
-        if not payload.message_id:
+        # Path A: explicit unpin
+        if not payload.message_id and not (payload.content and payload.content.strip()):
             await db.settings.update_one(
                 {"_id": "global"}, {"$set": {"chat_pinned_message": None}}, upsert=True
             )
             return {"success": True, "pinned": None}
+
+        # Path B: custom admin announcement (no message_id, just text)
+        if payload.content and payload.content.strip():
+            text = payload.content.strip()
+            pin = {
+                "message_id": None,
+                "kind": "announcement",
+                "room": "global",
+                "user_id": user["id"],
+                "nickname": user.get("nickname") or "Admin",
+                "avatar_url": user.get("avatar_url"),
+                "plan": user.get("subscription", "free"),
+                "content": text,
+                "pinned_at": _now().isoformat(),
+                "pinned_by": user["id"],
+            }
+            await db.settings.update_one(
+                {"_id": "global"}, {"$set": {"chat_pinned_message": pin}}, upsert=True
+            )
+            return {"success": True, "pinned": pin}
+
+        # Path C: pin an existing chat message
         msg = await db.chat_messages.find_one(
             {"id": payload.message_id}, {"_id": 0}
         )
@@ -648,6 +673,7 @@ def attach_handlers(get_current_user, require_admin):
             raise HTTPException(404, "Mesaj inexistent.")
         pin = {
             "message_id": msg["id"],
+            "kind": "message",
             "room": msg.get("room"),
             "user_id": msg.get("user_id"),
             "nickname": msg.get("nickname"),

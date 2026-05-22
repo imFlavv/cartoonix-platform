@@ -191,3 +191,6 @@ class FavoriteToggle(BaseModel):
 class AvatarOption(BaseModel):
     slug: str
     url: str
+    label: Optional[str] = None
+    tier: Optional[str] = None  # "free" (default) | "plus"
+    animated: Optional[bool] = False

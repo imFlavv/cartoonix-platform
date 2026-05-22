@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { api, mediaUrl } from "@/lib/api";
 import { toast } from "sonner";
+import PremiumAvatarFrame from "@/components/chat/PremiumAvatarFrame";
 import {
   MessageSquare,
   Power,
@@ -131,23 +132,138 @@ function PlanPill({ plan, role }) {
   );
 }
 
-function MessageRow({ msg, onPin, onDelete, onModerate, onHistory }) {
+function PinnedAnnouncementCard({ pinned, onPin, onUnpin }) {
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const max = 500;
+
+  const isAnnouncement = pinned && pinned.kind === "announcement";
+  const isMessage = pinned && pinned.message_id && pinned.kind !== "announcement";
+
+  const handleSubmit = async (e) => {
+    e?.preventDefault?.();
+    if (!text.trim() || busy) return;
+    setBusy(true);
+    const ok = await onPin(text);
+    if (ok) setText("");
+    setBusy(false);
+  };
+
+  return (
+    <div className="rounded-2xl border border-amber-500/25 bg-gradient-to-br from-amber-500/[0.04] to-orange-500/[0.04] p-5">
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div>
+          <h2 className="font-display text-xl tracking-wide flex items-center gap-2">
+            <Pin className="h-5 w-5 text-amber-300" />
+            Anunț fixat în chat
+          </h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Scrie un mesaj care va apărea fixat în partea de sus a chat-ului pentru toți utilizatorii.
+          </p>
+        </div>
+      </div>
+
+      {/* Current pinned preview */}
+      {pinned && pinned.content ? (
+        <div className="rounded-xl border border-amber-400/30 bg-amber-400/[0.06] p-3 mb-3">
+          <div className="flex items-start gap-3">
+            <div className="shrink-0 grid place-items-center h-8 w-8 rounded-lg bg-amber-500/20 ring-1 ring-amber-400/40">
+              <Pin className="h-4 w-4 text-amber-300" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="text-[10px] uppercase tracking-widest font-bold text-amber-300/90">
+                  {isAnnouncement ? "Anunț admin" : "Mesaj fixat"}
+                </span>
+                {pinned.nickname && (
+                  <span className="text-[11px] text-muted-foreground">
+                    de <span className="text-amber-200 font-medium">{pinned.nickname}</span>
+                  </span>
+                )}
+              </div>
+              <div className="text-sm text-amber-100 break-words whitespace-pre-wrap">
+                {pinned.content}
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onUnpin}
+              className="text-amber-200 shrink-0"
+              data-testid="pinned-unpin-btn"
+            >
+              <X className="h-4 w-4 mr-1" /> Anulează
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-xl border border-dashed border-border bg-black/20 p-3 mb-3 text-center text-xs text-muted-foreground italic">
+          Niciun anunț fixat momentan.
+        </div>
+      )}
+
+      {/* Composer */}
+      <form onSubmit={handleSubmit} className="space-y-2">
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value.slice(0, max))}
+          placeholder={`Scrie aici anunțul tău (ex: „🎬 Astăzi de la 19:00 — Marathon Power Rangers!")`}
+          rows={3}
+          className="w-full resize-none rounded-xl bg-black/40 border border-border px-3 py-2 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-amber-400/40 focus:border-transparent transition-all"
+          data-testid="pinned-announcement-input"
+        />
+        <div className="flex items-center justify-between gap-3">
+          <span className={`text-[11px] ${text.length > max - 30 ? "text-amber-300" : "text-muted-foreground"}`}>
+            {text.length}/{max} caractere
+          </span>
+          <div className="flex items-center gap-2">
+            {isMessage && (
+              <span className="text-[11px] text-muted-foreground italic">
+                Fixarea curentă va fi înlocuită.
+              </span>
+            )}
+            <Button
+              type="submit"
+              disabled={busy || !text.trim()}
+              data-testid="pinned-announcement-submit"
+              className="text-black font-semibold"
+              style={{
+                background: "linear-gradient(135deg,#ff7a1a 0%,#facc15 100%)",
+              }}
+            >
+              {busy ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-1" />
+              ) : (
+                <Pin className="h-4 w-4 mr-1" />
+              )}
+              {pinned && pinned.content ? "Înlocuiește anunțul" : "Fixează anunțul"}
+            </Button>
+          </div>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function _PlanPill_legacy_unused() { return null; }
+
+function MessageRow({ msg, onPin, onDelete, onModerate, onHistory, animatedAvatars }) {
   const [open, setOpen] = useState(false);
+  const isAnimated = animatedAvatars && animatedAvatars.has(msg.avatar_url);
   return (
     <div
       className={`group relative flex items-start gap-3 px-3 py-2 rounded-xl transition-colors ${
         msg.deleted ? "opacity-50" : "hover:bg-white/[0.03]"
       }`}
     >
-      <div className="h-9 w-9 shrink-0 rounded-lg overflow-hidden ring-1 ring-white/10 bg-black/40">
-        {msg.avatar_url && (
-          <img
-            src={mediaUrl(msg.avatar_url)}
-            alt={msg.nickname}
-            className="h-full w-full object-cover"
-          />
-        )}
-      </div>
+      <PremiumAvatarFrame
+        url={msg.avatar_url}
+        alt={msg.nickname}
+        size={36}
+        rounded="rounded-lg"
+        animated={isAnimated}
+        className="shrink-0"
+      />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 flex-wrap">
           <span
@@ -256,6 +372,16 @@ export default function AdminChat() {
   const [historyData, setHistoryData] = useState(null);
   const [sanctions, setSanctions] = useState([]);
   const [confirm, setConfirm] = useState(null); // { title, body, onConfirm }
+  const [animatedAvatars, setAnimatedAvatars] = useState(new Set());
+
+  useEffect(() => {
+    api
+      .get("/avatars")
+      .then(({ data }) =>
+        setAnimatedAvatars(new Set((data || []).filter((a) => a.animated).map((a) => a.url)))
+      )
+      .catch(() => {});
+  }, []);
 
   const refreshAll = useCallback(async () => {
     try {
@@ -339,6 +465,23 @@ export default function AdminChat() {
       refreshAll();
     } catch (e) {
       toast.error("Nu am putut fixa mesajul");
+    }
+  };
+
+  const handlePinAnnouncement = async (text) => {
+    const trimmed = (text || "").trim();
+    if (!trimmed) {
+      toast.error("Anunțul nu poate fi gol");
+      return false;
+    }
+    try {
+      await api.post("/chat/admin/pin", { content: trimmed });
+      toast.success("Anunț fixat în chat");
+      refreshAll();
+      return true;
+    } catch (e) {
+      toast.error("Nu am putut fixa anunțul");
+      return false;
     }
   };
 
@@ -674,29 +817,12 @@ export default function AdminChat() {
         </div>
       </div>
 
-      {/* Pinned message */}
-      {pinned && (
-        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/[0.06] p-4 flex items-start gap-3">
-          <Pin className="h-5 w-5 text-amber-300 mt-0.5 shrink-0" />
-          <div className="flex-1 min-w-0">
-            <div className="text-[10px] uppercase tracking-widest font-semibold text-amber-300/80">
-              Mesaj fixat
-            </div>
-            <div className="text-sm text-amber-100 mt-0.5 break-words">
-              <span className="font-semibold">{pinned.nickname}:</span>{" "}
-              {pinned.content}
-            </div>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleUnpin}
-            className="text-amber-200"
-          >
-            <X className="h-4 w-4 mr-1" /> Anulează fixarea
-          </Button>
-        </div>
-      )}
+      {/* Pinned announcement composer + current pinned */}
+      <PinnedAnnouncementCard
+        pinned={pinned}
+        onPin={handlePinAnnouncement}
+        onUnpin={handleUnpin}
+      />
 
       {/* Live messages */}
       <div className="rounded-2xl border border-border bg-card/70 overflow-hidden">
@@ -733,7 +859,7 @@ export default function AdminChat() {
             </button>
           </div>
         </div>
-        <div className="max-h-[60vh] overflow-y-auto p-2">
+        <div className="h-[460px] overflow-y-auto p-2 chat-scroll">
           {messages.length === 0 ? (
             <div className="grid place-items-center py-12 text-center">
               <MessageSquare className="h-10 w-10 text-muted-foreground/30 mb-2" />
@@ -750,6 +876,7 @@ export default function AdminChat() {
                 onDelete={handleDelete}
                 onModerate={handleModerate}
                 onHistory={openHistory}
+                animatedAvatars={animatedAvatars}
               />
             ))
           )}
@@ -778,15 +905,16 @@ export default function AdminChat() {
                 key={sa.user_id}
                 className="flex items-center gap-3 p-3 hover:bg-white/[0.02]"
               >
-                <div className="h-9 w-9 rounded-lg overflow-hidden ring-1 ring-white/10 bg-black/40 shrink-0">
-                  {sa.user?.avatar_url && (
-                    <img
-                      src={mediaUrl(sa.user.avatar_url)}
-                      alt={sa.user?.nickname}
-                      className="h-full w-full object-cover"
-                    />
-                  )}
-                </div>
+                <PremiumAvatarFrame
+                  url={sa.user?.avatar_url}
+                  alt={sa.user?.nickname}
+                  size={36}
+                  rounded="rounded-lg"
+                  animated={
+                    sa.user?.avatar_url && animatedAvatars.has(sa.user.avatar_url)
+                  }
+                  className="shrink-0"
+                />
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold flex items-center gap-1.5">
                     {sa.user?.nickname || sa.user_id.slice(0, 8)}
@@ -870,15 +998,16 @@ export default function AdminChat() {
           ) : (
             <div className="space-y-4">
               <div className="flex items-center gap-3 p-3 rounded-xl bg-black/30 border border-border/40">
-                <div className="h-12 w-12 rounded-xl overflow-hidden ring-1 ring-white/10 bg-black/40">
-                  {historyData.user?.avatar_url && (
-                    <img
-                      src={mediaUrl(historyData.user.avatar_url)}
-                      alt={historyData.user?.nickname}
-                      className="h-full w-full object-cover"
-                    />
-                  )}
-                </div>
+                <PremiumAvatarFrame
+                  url={historyData.user?.avatar_url}
+                  alt={historyData.user?.nickname}
+                  size={48}
+                  rounded="rounded-xl"
+                  animated={
+                    historyData.user?.avatar_url &&
+                    animatedAvatars.has(historyData.user.avatar_url)
+                  }
+                />
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold flex items-center gap-2">
                     {historyData.user?.nickname}

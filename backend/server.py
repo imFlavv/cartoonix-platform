@@ -1238,6 +1238,15 @@ async def update_me(payload: UpdateUserRequest, user=Depends(get_current_user)):
     if "nickname" in update and update["nickname"] != user.get("nickname"):
         if await db.users.find_one({"nickname": update["nickname"]}):
             raise HTTPException(status_code=400, detail="Acest pseudonim este deja luat")
+    # Enforce avatar tier: PLUS-only avatars are reserved for plus members / admins.
+    if "avatar_url" in update and update["avatar_url"]:
+        chosen = await db.avatars.find_one({"url": update["avatar_url"]}, {"_id": 0})
+        if chosen and chosen.get("tier") == "plus":
+            if user.get("subscription") != "plus" and user.get("role") != "admin":
+                raise HTTPException(
+                    status_code=403,
+                    detail="Acest avatar este disponibil doar pentru membrii Cartoonix PLUS.",
+                )
     if update:
         await db.users.update_one({"id": user["id"]}, {"$set": update})
     user = await db.users.find_one({"id": user["id"]}, {"_id": 0})
