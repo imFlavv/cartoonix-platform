@@ -1,0 +1,560 @@
+[
+  {
+    "code": "angry",
+    "file": "angry.gif",
+    "w": 23,
+    "h": 18
+  },
+  {
+    "code": "anguished",
+    "file": "anguished.gif",
+    "w": 44,
+    "h": 18
+  },
+  {
+    "code": "bawling",
+    "file": "bawling.gif",
+    "w": 22,
+    "h": 18
+  },
+  {
+    "code": "bee",
+    "file": "bee.gif",
+    "w": 29,
+    "h": 22
+  },
+  {
+    "code": "blush",
+    "file": "blush.gif",
+    "w": 18,
+    "h": 18
+  },
+  {
+    "code": "bow",
+    "file": "bow.gif",
+    "w": 32,
+    "h": 18
+  },
+  {
+    "code": "bring_it",
+    "file": "bring_it.gif",
+    "w": 23,
+    "h": 18
+  },
+  {
+    "code": "chicken",
+    "file": "chicken.gif",
+    "w": 18,
+    "h": 18
+  },
+  {
+    "code": "clap",
+    "file": "clap.gif",
+    "w": 18,
+    "h": 18
+  },
+  {
+    "code": "coffee",
+    "file": "coffee.gif",
+    "w": 18,
+    "h": 18
+  },
+  {
+    "code": "confounded",
+    "file": "confounded.gif",
+    "w": 18,
+    "h": 18
+  },
+  {
+    "code": "confused",
+    "file": "confused.gif",
+    "w": 20,
+    "h": 18
+  },
+  {
+    "code": "cow",
+    "file": "cow.gif",
+    "w": 18,
+    "h": 18
+  },
+  {
+    "code": "cowboy",
+    "file": "cowboy.gif",
+    "w": 18,
+    "h": 18
+  },
+  {
+    "code": "cry",
+    "file": "cry.gif",
+    "w": 22,
+    "h": 18
+  },
+  {
+    "code": "disappointed",
+    "file": "disappointed.gif",
+    "w": 24,
+    "h": 18
+  },
+  {
+    "code": "dizzy",
+    "file": "dizzy.gif",
+    "w": 24,
+    "h": 18
+  },
+  {
+    "code": "dog",
+    "file": "dog.gif",
+    "w": 31,
+    "h": 18
+  },
+  {
+    "code": "fearful",
+    "file": "fearful.gif",
+    "w": 25,
+    "h": 18
+  },
+  {
+    "code": "flushed",
+    "file": "flushed.gif",
+    "w": 18,
+    "h": 18
+  },
+  {
+    "code": "frowning",
+    "file": "frowning.gif",
+    "w": 18,
+    "h": 18
+  },
+  {
+    "code": "get_outta_here",
+    "file": "get_outta_here.gif",
+    "w": 26,
+    "h": 18
+  },
+  {
+    "code": "giggle",
+    "file": "giggle.gif",
+    "w": 18,
+    "h": 18
+  },
+  {
+    "code": "glasses",
+    "file": "glasses.gif",
+    "w": 24,
+    "h": 18
+  },
+  {
+    "code": "grimacing",
+    "file": "grimacing.gif",
+    "w": 24,
+    "h": 18
+  },
+  {
+    "code": "grin",
+    "file": "grin.gif",
+    "w": 18,
+    "h": 18
+  },
+  {
+    "code": "hang_loose",
+    "file": "hang_loose.gif",
+    "w": 28,
+    "h": 18
+  },
+  {
+    "code": "heart",
+    "file": "heart.gif",
+    "w": 18,
+    "h": 18
+  },
+  {
+    "code": "heartbreak",
+    "file": "heartbreak.gif",
+    "w": 18,
+    "h": 18
+  },
+  {
+    "code": "how_interesting",
+    "file": "how_interesting.gif",
+    "w": 23,
+    "h": 18
+  },
+  {
+    "code": "hug",
+    "file": "hug.gif",
+    "w": 42,
+    "h": 18
+  },
+  {
+    "code": "hushed",
+    "file": "hushed.gif",
+    "w": 36,
+    "h": 18
+  },
+  {
+    "code": "i_dunno",
+    "file": "i_dunno.gif",
+    "w": 40,
+    "h": 18
+  },
+  {
+    "code": "innocent",
+    "file": "innocent.gif",
+    "w": 30,
+    "h": 18
+  },
+  {
+    "code": "jack_o_lantern",
+    "file": "jack_o_lantern.gif",
+    "w": 17,
+    "h": 18
+  },
+  {
+    "code": "joker",
+    "file": "joker.gif",
+    "w": 28,
+    "h": 18
+  },
+  {
+    "code": "joy",
+    "file": "joy.gif",
+    "w": 38,
+    "h": 18
+  },
+  {
+    "code": "kiss",
+    "file": "kiss.gif",
+    "w": 18,
+    "h": 18
+  },
+  {
+    "code": "liar",
+    "file": "liar.gif",
+    "w": 18,
+    "h": 18
+  },
+  {
+    "code": "lightbulb",
+    "file": "lightbulb.gif",
+    "w": 30,
+    "h": 18
+  },
+  {
+    "code": "lol",
+    "file": "lol.gif",
+    "w": 18,
+    "h": 18
+  },
+  {
+    "code": "look_at_the_time",
+    "file": "look_at_the_time.gif",
+    "w": 36,
+    "h": 18
+  },
+  {
+    "code": "loser",
+    "file": "loser.gif",
+    "w": 24,
+    "h": 18
+  },
+  {
+    "code": "lucky",
+    "file": "lucky.gif",
+    "w": 18,
+    "h": 18
+  },
+  {
+    "code": "minus_one",
+    "file": "minus_one.gif",
+    "w": 28,
+    "h": 18
+  },
+  {
+    "code": "money",
+    "file": "money.gif",
+    "w": 18,
+    "h": 18
+  },
+  {
+    "code": "monkey",
+    "file": "monkey.gif",
+    "w": 21,
+    "h": 18
+  },
+  {
+    "code": "mrgreen",
+    "file": "mrgreen.gif",
+    "w": 20,
+    "h": 18
+  },
+  {
+    "code": "murica",
+    "file": "murica.gif",
+    "w": 25,
+    "h": 18
+  },
+  {
+    "code": "naughty",
+    "file": "naughty.gif",
+    "w": 18,
+    "h": 18
+  },
+  {
+    "code": "neutral",
+    "file": "neutral.gif",
+    "w": 18,
+    "h": 18
+  },
+  {
+    "code": "no_mouth",
+    "file": "no_mouth.gif",
+    "w": 18,
+    "h": 18
+  },
+  {
+    "code": "not_listening",
+    "file": "not_listening.gif",
+    "w": 52,
+    "h": 18
+  },
+  {
+    "code": "nuh_uh",
+    "file": "nuh_uh.gif",
+    "w": 22,
+    "h": 18
+  },
+  {
+    "code": "ohstop",
+    "file": "ohstop.gif",
+    "w": 18,
+    "h": 18
+  },
+  {
+    "code": "one_finger",
+    "file": "one_finger.gif",
+    "w": 31,
+    "h": 18
+  },
+  {
+    "code": "open_mouth",
+    "file": "open_mouth.gif",
+    "w": 18,
+    "h": 18
+  },
+  {
+    "code": "peace",
+    "file": "peace.gif",
+    "w": 22,
+    "h": 18
+  },
+  {
+    "code": "pensive",
+    "file": "pensive.gif",
+    "w": 18,
+    "h": 18
+  },
+  {
+    "code": "perturbed",
+    "file": "perturbed.gif",
+    "w": 18,
+    "h": 18
+  },
+  {
+    "code": "pig",
+    "file": "pig.gif",
+    "w": 18,
+    "h": 18
+  },
+  {
+    "code": "pirate",
+    "file": "pirate.gif",
+    "w": 20,
+    "h": 20
+  },
+  {
+    "code": "plus_one",
+    "file": "plus_one.gif",
+    "w": 39,
+    "h": 18
+  },
+  {
+    "code": "prayer",
+    "file": "prayer.gif",
+    "w": 18,
+    "h": 18
+  },
+  {
+    "code": "punch",
+    "file": "punch.gif",
+    "w": 18,
+    "h": 18
+  },
+  {
+    "code": "rage",
+    "file": "rage.gif",
+    "w": 34,
+    "h": 18
+  },
+  {
+    "code": "relaxed",
+    "file": "relaxed.gif",
+    "w": 18,
+    "h": 18
+  },
+  {
+    "code": "relieved",
+    "file": "relieved.gif",
+    "w": 34,
+    "h": 18
+  },
+  {
+    "code": "rock_on",
+    "file": "rock_on.gif",
+    "w": 32,
+    "h": 18
+  },
+  {
+    "code": "rofl",
+    "file": "rofl.gif",
+    "w": 30,
+    "h": 18
+  },
+  {
+    "code": "rose",
+    "file": "rose.gif",
+    "w": 18,
+    "h": 18
+  },
+  {
+    "code": "scream",
+    "file": "scream.gif",
+    "w": 18,
+    "h": 18
+  },
+  {
+    "code": "sick",
+    "file": "sick.gif",
+    "w": 18,
+    "h": 18
+  },
+  {
+    "code": "skull",
+    "file": "skull.gif",
+    "w": 18,
+    "h": 18
+  },
+  {
+    "code": "sleeping",
+    "file": "sleeping.gif",
+    "w": 21,
+    "h": 18
+  },
+  {
+    "code": "sleepy",
+    "file": "sleepy.gif",
+    "w": 18,
+    "h": 18
+  },
+  {
+    "code": "smile",
+    "file": "smile.gif",
+    "w": 18,
+    "h": 18
+  },
+  {
+    "code": "smiley",
+    "file": "smiley.gif",
+    "w": 18,
+    "h": 18
+  },
+  {
+    "code": "smirk",
+    "file": "smirk.gif",
+    "w": 18,
+    "h": 18
+  },
+  {
+    "code": "star",
+    "file": "star.gif",
+    "w": 18,
+    "h": 18
+  },
+  {
+    "code": "sunglasses",
+    "file": "sunglasses.gif",
+    "w": 18,
+    "h": 18
+  },
+  {
+    "code": "time_out",
+    "file": "time_out.gif",
+    "w": 30,
+    "h": 18
+  },
+  {
+    "code": "tired_face",
+    "file": "tired_face.gif",
+    "w": 18,
+    "h": 18
+  },
+  {
+    "code": "tongue",
+    "file": "tongue.gif",
+    "w": 18,
+    "h": 18
+  },
+  {
+    "code": "transformer",
+    "file": "transformer.gif",
+    "w": 20,
+    "h": 18
+  },
+  {
+    "code": "triumph",
+    "file": "triumph.gif",
+    "w": 26,
+    "h": 18
+  },
+  {
+    "code": "unamused",
+    "file": "unamused.gif",
+    "w": 18,
+    "h": 18
+  },
+  {
+    "code": "weary",
+    "file": "weary.gif",
+    "w": 18,
+    "h": 18
+  },
+  {
+    "code": "whistle",
+    "file": "whistle.gif",
+    "w": 22,
+    "h": 18
+  },
+  {
+    "code": "who_me",
+    "file": "who_me.gif",
+    "w": 40,
+    "h": 18
+  },
+  {
+    "code": "wink",
+    "file": "wink.gif",
+    "w": 18,
+    "h": 18
+  },
+  {
+    "code": "worried",
+    "file": "worried.gif",
+    "w": 36,
+    "h": 18
+  },
+  {
+    "code": "yin_yang",
+    "file": "yin_yang.gif",
+    "w": 18,
+    "h": 18
+  }
+]

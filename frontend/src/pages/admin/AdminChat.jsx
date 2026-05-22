@@ -2,6 +2,30 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { api, mediaUrl } from "@/lib/api";
 import { toast } from "sonner";
 import PremiumAvatarFrame from "@/components/chat/PremiumAvatarFrame";
+import { parseEmoticons } from "@/components/chat/emoticons";
+
+// Render chat message content with inline Yahoo emoticons (no resize).
+function renderChatContent(text) {
+  const parts = parseEmoticons(text || "");
+  if (parts.length === 0) return null;
+  return parts.map((p, i) => {
+    if (p.type === "text") return <span key={i}>{p.value}</span>;
+    const { emo } = p;
+    return (
+      <img
+        key={i}
+        src={`/emoticons/${emo.file}`}
+        alt={`:${emo.code}:`}
+        title={`:${emo.code}:`}
+        width={emo.w}
+        height={emo.h}
+        draggable={false}
+        className="inline-block align-text-bottom mx-[1px]"
+        style={{ verticalAlign: "-3px" }}
+      />
+    );
+  });
+}
 import {
   MessageSquare,
   Power,
@@ -182,7 +206,7 @@ function PinnedAnnouncementCard({ pinned, onPin, onUnpin }) {
                 )}
               </div>
               <div className="text-sm text-amber-100 break-words whitespace-pre-wrap">
-                {pinned.content}
+                {renderChatContent(pinned.content)}
               </div>
             </div>
             <Button
@@ -291,7 +315,7 @@ function MessageRow({ msg, onPin, onDelete, onModerate, onHistory, animatedAvata
               [Mesaj șters]
             </span>
           ) : (
-            msg.content
+            renderChatContent(msg.content)
           )}
         </div>
       </div>
@@ -1105,7 +1129,7 @@ export default function AdminChat() {
                         Cameră: {m.room}
                         {m.deleted && " · ȘTERS"}
                       </div>
-                      <div className="text-sm">{m.content}</div>
+                      <div className="text-sm">{renderChatContent(m.content)}</div>
                     </div>
                   ))
                 )}

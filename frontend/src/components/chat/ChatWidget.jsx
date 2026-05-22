@@ -11,12 +11,15 @@ import {
   ShieldAlert,
   Pin,
   Clock,
+  Smile,
   X,
 } from "lucide-react";
 import { api, mediaUrl } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import PremiumAvatarFrame from "@/components/chat/PremiumAvatarFrame";
+import EmoticonPicker from "@/components/chat/EmoticonPicker";
+import { parseEmoticons } from "@/components/chat/emoticons";
 
 const MESSAGE_POLL_MS = 3000;
 const PRESENCE_POLL_MS = 30000;
@@ -73,6 +76,34 @@ function formatTime(iso) {
   return `${hh}:${mm}`;
 }
 
+/**
+ * Render message text with inline Yahoo emoticons. Emoticons keep their
+ * original GIF dimensions (no resize) per product spec.
+ */
+function renderMessageContent(text) {
+  const parts = parseEmoticons(text || "");
+  if (parts.length === 0) return null;
+  return parts.map((p, i) => {
+    if (p.type === "text") {
+      return <span key={i}>{p.value}</span>;
+    }
+    const { emo } = p;
+    return (
+      <img
+        key={i}
+        src={`/emoticons/${emo.file}`}
+        alt={`:${emo.code}:`}
+        title={`:${emo.code}:`}
+        width={emo.w}
+        height={emo.h}
+        draggable={false}
+        className="inline-block align-text-bottom mx-[1px]"
+        style={{ verticalAlign: "-3px" }}
+      />
+    );
+  });
+}
+
 function MessageRow({ msg, isMine, animatedAvatars }) {
   if (msg.deleted) {
     return (
@@ -116,7 +147,7 @@ function MessageRow({ msg, isMine, animatedAvatars }) {
           </span>
         </div>
         <div className="text-[13px] text-white/90 break-words whitespace-pre-wrap leading-snug mt-0.5">
-          {msg.content}
+          {renderMessageContent(msg.content)}
         </div>
       </div>
     </div>
@@ -184,9 +215,11 @@ export default function ChatWidget() {
   const [hasUnread, setHasUnread] = useState(false);
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
   const [animatedAvatars, setAnimatedAvatars] = useState(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const scrollRef = useRef(null);
   const lastSeenIdRef = useRef(null);
+  const inputRef = useRef(null);
 
   // Load animated avatar set once on mount
   useEffect(() => {
@@ -363,6 +396,32 @@ export default function ChatWidget() {
   const maxLen = state?.settings?.chat_max_length || 300;
   const remaining = maxLen - draft.length;
 
+  function insertEmoticon(code) {
+    const token = `:${code}:`;
+    const el = inputRef.current;
+    setDraft((prev) => {
+      if (!el) {
+        const next = (prev + token).slice(0, maxLen);
+        return next;
+      }
+      const start = el.selectionStart ?? prev.length;
+      const end = el.selectionEnd ?? prev.length;
+      const next = (prev.slice(0, start) + token + prev.slice(end)).slice(
+        0,
+        maxLen
+      );
+      // Restore caret after the inserted token on next paint
+      requestAnimationFrame(() => {
+        if (inputRef.current) {
+          const pos = Math.min(start + token.length, maxLen);
+          inputRef.current.focus();
+          inputRef.current.setSelectionRange(pos, pos);
+        }
+      });
+      return next;
+    });
+  }
+
   return (
     <div
       className="fixed bottom-0 right-0 z-[60]"
@@ -484,7 +543,7 @@ export default function ChatWidget() {
                     Fixat de admin
                   </div>
                   <div className="text-[12px] text-amber-100 leading-snug break-words">
-                    {pinned.content}
+                    {renderMessageContent(pinned.content)}
                   </div>
                 </div>
               </div>
@@ -534,8 +593,9 @@ export default function ChatWidget() {
                       {error}
                     </div>
                   )}
-                  <div className="flex items-end gap-2">
+                  <div className="flex items-end gap-2 relative">
                     <textarea
+                      ref={inputRef}
                       value={draft}
                       onChange={(e) => setDraft(e.target.value.slice(0, maxLen))}
                       onKeyDown={(e) => {
@@ -552,11 +612,34 @@ export default function ChatWidget() {
                       }
                       disabled={sending || cooldownRemaining > 0}
                       data-testid="chat-input"
-                      className="flex-1 resize-none rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-[13px] placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-[#facc15]/50 focus:border-transparent transition-all max-h-24 min-h-[36px] disabled:opacity-60"
+                      className="flex-1 resize-none rounded-xl bg-white/5 border border-white/10 px-3 py-2 pr-9 text-[13px] placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-[#facc15]/50 focus:border-transparent transition-all max-h-24 min-h-[36px] disabled:opacity-60"
                       style={{
                         scrollbarWidth: "thin",
                       }}
                     />
+                    {/* Emoticon picker trigger (inside textarea on the right) */}
+                    <button
+                      type="button"
+                      onClick={() => setPickerOpen((v) => !v)}
+                      disabled={sending}
+                      data-testid="chat-emoticon-btn"
+                      aria-label="Deschide emoticoane"
+                      className={`absolute right-[52px] bottom-1.5 h-7 w-7 grid place-items-center rounded-md transition-all ${
+                        pickerOpen
+                          ? "bg-amber-400/20 text-amber-300"
+                          : "text-muted-foreground hover:bg-white/10 hover:text-amber-300"
+                      }`}
+                    >
+                      <Smile className="h-4 w-4" />
+                    </button>
+                    {pickerOpen && (
+                      <EmoticonPicker
+                        onPick={(code) => {
+                          insertEmoticon(code);
+                        }}
+                        onClose={() => setPickerOpen(false)}
+                      />
+                    )}
                     <button
                       type="submit"
                       disabled={

@@ -19,7 +19,19 @@ Cartoonix este o platformă premium de streaming pentru desene animate retro (Ca
 - Concursuri publice (3 contests, 2 free + 1 paid via Stripe)
 
 ## Implemented (CHANGELOG)
-### 2026-02 (latest — Inbox + Announcements)
+### 2026-02 (latest — Chat + Yahoo Emoticoane)
+- **Chat live Cartoonix** (`/app/backend/chat.py` + `/app/frontend/src/components/chat/ChatWidget.jsx`):
+  - 2 camere (Global / PLUS), cooldown progresiv 5→15→60s, restricție utilizatori noi (3 zile)
+  - Filtru cuvinte vulgare RO+EN, block linkuri, anti-CAPS, anti-duplicate
+  - Admin panel `/admin/chat` (1147 linii): moderare (mute 5m/1h/24h/perm, ban), pin, settings global toggle
+  - Endpoints `/api/chat/*` user + `/api/chat/admin/*` admin
+- **Yahoo Emoticoane (93 GIFs)** — `/app/frontend/public/emoticons/*.gif`
+  - Registru `emoticons.json` (cod + dimensiuni native)
+  - Componente: `EmoticonPicker.jsx` (picker grid 8-col + search) + helper `parseEmoticons()`
+  - Inserare în mesaj prin click pe picker (`:cod:`) sau tastare manuală
+  - Render inline cu dimensiunile ORIGINALE ale fiecărui GIF (fără resize), atât în chat widget cât și în AdminChat (lista mesaje + history)
+
+### 2026-02 (earlier — Inbox + Announcements)
 - **Update Announcement Popup** — `GET /api/announcements/latest` + `POST /api/announcements/{id}/dismiss`. Apare o singură dată / user (persistat în `users.seen_announcements`). Anunț curent: Resetare parolă + Schimbare parolă + Inbox real.
 - **Inbox real** — colecție `notifications`, endpoints: `GET /api/notifications`, `GET /api/notifications/unread-count`, `POST /api/notifications/{id}/read`, `POST /api/notifications/read-all`, `DELETE /api/notifications/{id}`.
 - **Admin Notificări** — pagină nouă `/admin/notifications` (`AdminNotifications.jsx`), endpoint `POST /api/admin/notifications` (target: all/free/plus/user) + `GET /api/admin/notifications` pentru istoric grupat.
