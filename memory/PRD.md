@@ -19,7 +19,14 @@ Cartoonix este o platformă premium de streaming pentru desene animate retro (Ca
 - Concursuri publice (3 contests, 2 free + 1 paid via Stripe)
 
 ## Implemented (CHANGELOG)
-### 2026-02 (latest — CartoonixTV bot + ASCII shortcuts + fix /forgot-password)
+### 2026-02 (latest — Yahoo Messenger ASCII shortcuts full set)
+- **ASCII shortcuts aliniate la legenda Yahoo Messenger** (imaginea oficială) — 47 de coduri exacte din spec mapate la GIF-urile din `/emoticons/`:
+  - `:)` happy, `:(` sad, `;)` winking, `:D` big grin, `;;)` batting eyelashes (blush), `>:D<` big hug, `:-/` confused, `:x` love struck (heart), `:">` blushing, `:P` tongue, `:-*` kiss, `=((` broken heart, `:-O` surprise, `X(` angry, `:>` smug (smirk), `B-)` cool (sunglasses), `:-S` worried, `#:-S` whew (relieved), `>:)` devil (joker), `:((` crying, `:))` laughing (joy), `:|` straight face (neutral), `/:)` raised eyebrow (confounded), `=))` rolling on floor (rofl), `O:-)` angel (innocent), `:-B` nerd (glasses), `=;` talk to the hand (ohstop)
+  - Plus: `~X(` at wits' end, `:-t` time out, `8->` daydreaming (pensive), `I-)` sleepy, `8-|` rolling eyes (unamused), `L-)` loser, `:-&` sick, `:-$` don't tell anyone (no_mouth), `[-(` not talking (not_listening), `8-}` silly (giggle), `(:|` yawn (tired_face), `:-?` thinking (how_interesting), `#-o` d'oh (scream), `=D>` applause (clap), `:-SS` nailbiting (fearful), `@-)` hypnotized (dizzy), `:^o` liar, `:-w` waiting (look_at_the_time), `:-<` sigh (frowning), `>:P` phbbbbt (tongue), `<):)` cowboy
+- Ordine ASCII_SHORTCUTS optimizată: cele mai lungi/specifice (`:-SS`, `:))`, `=((`, `O:-)`) listate ÎNAINTEA scurtelor pentru ca regex-ul alternation să nu fure caractere
+- **Verificat live**: 6 mesaje cu toate shortcurile din poză → 62 GIF-uri Yahoo randate inline corect
+
+### 2026-02 (earlier — CartoonixTV bot + ASCII shortcuts + fix /forgot-password)
 - **CartoonixTV bot** (gen Nightbot pe YouTube):
   - Backend `chat.py`: scheduler asyncio în background, endpoints admin `GET/PATCH /api/chat/admin/cartoonixtv` + `POST /api/chat/admin/cartoonixtv/post-now`
   - Settings noi în DB: `cartoonixtv_enabled`, `cartoonixtv_interval_minutes`, `cartoonixtv_messages`, `cartoonixtv_random_order`, `cartoonixtv_rooms`, `cartoonixtv_last_sent_at`

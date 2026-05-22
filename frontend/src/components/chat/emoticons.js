@@ -16,33 +16,93 @@ export const EMOTICON_REGEX = /:([a-z0-9_]+):/gi;
 
 // ---- 2000s-style ASCII shortcuts → :code: ----
 // Order matters: longer / more specific patterns must come BEFORE shorter
-// ambiguous ones (e.g. :-D before :D, <3 before :|).
+// ambiguous ones (e.g. :-D before :D, :)) before :), :-SS before :-S).
+// Mappings follow the official Yahoo! Messenger shortcode legend.
 // Each entry: [literal trigger, emoticon code].
 const ASCII_SHORTCUTS = [
-  // Joy / laughter
-  [":-D", "lol"], [":D", "lol"], ["=D", "lol"],
-  ["xD", "joy"], ["XD", "joy"], ["xd", "joy"],
-  // Tongue
-  [":-P", "tongue"], [":P", "tongue"], [":-p", "tongue"], [":p", "tongue"],
-  // Wink
-  [";-)", "wink"], [";)", "wink"], [";-]", "wink"],
-  // Smile
-  [":-)", "smile"], [":)", "smile"], ["=)", "smile"], [":]", "smile"],
-  // Frown / sad
-  [":'(", "cry"], [":'-(", "cry"],
-  [":-(", "disappointed"], [":(", "disappointed"], ["=(", "disappointed"], [":[", "disappointed"],
-  // Surprise
-  [":-O", "open_mouth"], [":-o", "open_mouth"], [":O", "open_mouth"], [":o", "open_mouth"],
-  // Neutral
-  [":-|", "neutral"], [":|", "neutral"],
-  // Sunglasses
-  ["B-)", "sunglasses"], ["B)", "sunglasses"], ["8-)", "sunglasses"], ["8)", "sunglasses"],
-  // Kiss
-  [":-*", "kiss"], [":*", "kiss"],
-  // Heart / love
-  ["<3", "heart"], ["</3", "heartbreak"],
-  // Angel / devil
-  ["O:)", "innocent"], ["o:)", "innocent"],
+  // ---- 4+ char Yahoo shortcuts ----
+  [">:D<", "hug"],            // big hug
+  ["<):)", "cowboy"],         // cowboy
+  ["#:-S", "relieved"],       // whew!
+  [":-SS", "fearful"],        // nailbiting (MUST come before :-S)
+  ["O:-)", "innocent"],       // angel (MUST come before O:))
+  [":'-(", "cry"],
+
+  // ---- 3-char shortcuts ----
+  [":))", "joy"],             // laughing (MUST come before :))
+  [":((", "cry"],             // crying (MUST come before :()
+  ["=))", "rofl"],            // rolling on the floor (MUST come before =))
+  ["=((", "heartbreak"],      // broken heart (MUST come before =()
+  [";;)", "blush"],           // batting eyelashes
+  [":-)", "smile"],
+  [":-(", "disappointed"],
+  [":-D", "grin"],            // big grin
+  [":-P", "tongue"],
+  [":-p", "tongue"],
+  [":-O", "open_mouth"],      // surprise
+  [":-o", "open_mouth"],
+  [":-*", "kiss"],
+  [":-|", "neutral"],
+  [":-/", "confused"],
+  [":-S", "worried"],
+  [":-B", "glasses"],         // nerd
+  [":-&", "sick"],
+  [":-$", "no_mouth"],        // don't tell anyone
+  [":-?", "how_interesting"], // thinking
+  [":-t", "time_out"],
+  [":-w", "look_at_the_time"], // waiting
+  [":-<", "frowning"],        // sigh
+  [":'(", "cry"],
+  [";-)", "wink"],
+  [";-]", "wink"],
+  ["B-)", "sunglasses"],      // cool
+  ["8-)", "sunglasses"],
+  ["8->", "pensive"],         // daydreaming
+  ["8-|", "unamused"],        // rolling eyes
+  ["8-}", "giggle"],          // silly
+  ["L-)", "loser"],
+  ["I-)", "sleepy"],
+  ["[-(", "not_listening"],   // not talking
+  ["=D>", "clap"],            // applause
+  ["@-)", "dizzy"],           // hypnotized
+  ["#-o", "scream"],          // d'oh
+  ["~X(", "weary"],           // at wits' end
+  ["(:|", "tired_face"],      // yawn
+  [":^o", "liar"],
+  ["/:)", "confounded"],      // raised eyebrow
+  [":\">", "blush"],          // blushing
+  [">:)", "joker"],           // devil
+  [">:P", "tongue"],          // phbbbbt (raspberry)
+  ["O:)", "innocent"],
+  ["o:)", "innocent"],
+  ["</3", "heartbreak"],
+
+  // ---- 2-char shortcuts ----
+  [":)", "smile"],            // happy
+  [":(", "disappointed"],     // sad
+  [":D", "grin"],             // big grin (changed from lol per Yahoo legend)
+  [":P", "tongue"],
+  [":p", "tongue"],
+  [":O", "open_mouth"],
+  [":o", "open_mouth"],
+  [":*", "kiss"],
+  [":|", "neutral"],           // straight face
+  [":x", "heart"],             // love struck
+  [":>", "smirk"],             // smug
+  [":[", "disappointed"],
+  [":]", "smile"],
+  [";)", "wink"],
+  ["=)", "smile"],
+  ["=(", "disappointed"],
+  ["=D", "lol"],
+  ["B)", "sunglasses"],
+  ["8)", "sunglasses"],
+  ["xD", "joy"],
+  ["XD", "joy"],
+  ["xd", "joy"],
+  ["X(", "angry"],
+  ["<3", "heart"],
+  ["=;", "ohstop"],            // talk to the hand
 ];
 
 // Escape regex special chars in literal triggers
