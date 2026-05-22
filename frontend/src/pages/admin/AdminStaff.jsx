@@ -55,6 +55,7 @@ const QUESTIONS = [
   ["age", "Vârsta"],
   ["used_since", "De cât timp folosește platforma"],
   ["activity_level", "Cât de des este activ"],
+  ["social_link", "Social media (Facebook/Instagram)"],
   ["motivation", "Motivație"],
   ["moderation_experience", "Experiență de moderare"],
   ["conflict_handling", "Cum ar gestiona un conflict"],

@@ -27,6 +27,7 @@ class StaffApplyPayload(BaseModel):
     age: int = Field(ge=10, le=99)
     used_since: str = Field(min_length=1, max_length=200)       # "De cât timp folosești platforma?"
     activity_level: str = Field(min_length=1, max_length=200)   # zilnic / ocazional
+    social_link: Optional[str] = Field(default=None, max_length=300)  # Facebook/Instagram URL
     # 2. Motivation
     motivation: str = Field(min_length=30, max_length=2000)
     # 3. Experience
