@@ -29,7 +29,7 @@ const ASCII_SHORTCUTS = [
   [":'-(", "cry"],
 
   // ---- 3-char shortcuts ----
-  [":))", "joy"],             // laughing (MUST come before :))
+  [":))", "lol"],             // laughing (MUST come before :))
   [":((", "cry"],             // crying (MUST come before :()
   ["=))", "rofl"],            // rolling on the floor (MUST come before =))
   ["=((", "heartbreak"],      // broken heart (MUST come before =()
