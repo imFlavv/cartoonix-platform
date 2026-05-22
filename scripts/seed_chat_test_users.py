@@ -6,10 +6,14 @@ Creates:
   - test_free@cartoonix.ro  / TestFree#2026  (role=user,  plan=free, account_age=10 days)
   - test_new@cartoonix.ro   / TestNew#2026   (role=user,  plan=free, account_age=now)
 All marked email_verified=True.
+
+Avatars are picked dynamically from the seeded avatar list in the DB so we
+never reference a non-existent file.
 """
 import asyncio
 import os
 import sys
+import uuid
 from datetime import datetime, timezone, timedelta
 
 sys.path.insert(0, "/app/backend")
@@ -27,6 +31,7 @@ USERS = [
         "role": "admin",
         "subscription": "free",
         "age_days": 365,
+        "avatar_slug": "wizard_kid",
     },
     {
         "email": "test_plus@cartoonix.ro",
@@ -35,6 +40,7 @@ USERS = [
         "role": "user",
         "subscription": "plus",
         "age_days": 30,
+        "avatar_slug": "hero_girl",
     },
     {
         "email": "test_free@cartoonix.ro",
@@ -43,6 +49,7 @@ USERS = [
         "role": "user",
         "subscription": "free",
         "age_days": 10,
+        "avatar_slug": "hero_boy",
     },
     {
         "email": "test_new@cartoonix.ro",
@@ -51,6 +58,7 @@ USERS = [
         "role": "user",
         "subscription": "free",
         "age_days": 0,
+        "avatar_slug": "ninja",
     },
 ]
 
@@ -60,10 +68,16 @@ async def main():
     db_name = os.environ.get("DB_NAME", "cartoonix")
     client = AsyncIOMotorClient(mongo)
     db = client[db_name]
-    import uuid
+
+    # Load avatars from DB and build slug→url map (with fallback to the first).
+    avs = await db.avatars.find({}, {"_id": 0, "slug": 1, "url": 1}).to_list(100)
+    if not avs:
+        raise RuntimeError("No avatars seeded. Start backend at least once first.")
+    by_slug = {a["slug"]: a["url"] for a in avs}
+    default_url = avs[0]["url"]
 
     for u in USERS:
-        existing = await db.users.find_one({"email": u["email"]})
+        avatar_url = by_slug.get(u["avatar_slug"], default_url)
         now = datetime.now(timezone.utc)
         created_at = now - timedelta(days=u["age_days"])
         doc = {
@@ -73,19 +87,31 @@ async def main():
             "role": u["role"],
             "subscription": u["subscription"],
             "email_verified": True,
-            "avatar_url": "/uploads/avatars/avatar-tom.png",
+            "avatar_url": avatar_url,
             "created_at": created_at,
         }
+        existing = await db.users.find_one({"email": u["email"]})
         if existing:
             await db.users.update_one(
                 {"email": u["email"]},
                 {"$set": doc},
             )
-            print(f"Updated {u['email']} ({u['role']}, {u['subscription']}, age={u['age_days']}d)")
+            action = "Updated"
         else:
             doc["id"] = str(uuid.uuid4())
             await db.users.insert_one(doc)
-            print(f"Created {u['email']} ({u['role']}, {u['subscription']}, age={u['age_days']}d)")
+            action = "Created"
+        print(f"{action} {u['email']} ({u['role']}, {u['subscription']}, age={u['age_days']}d) avatar={avatar_url}")
+
+    # Also fix any historical chat_messages produced by these test users so their
+    # past messages render with the real avatar.
+    test_emails = [u["email"] for u in USERS]
+    cursor = db.users.find({"email": {"$in": test_emails}}, {"_id": 0, "id": 1, "avatar_url": 1})
+    async for u in cursor:
+        await db.chat_messages.update_many(
+            {"user_id": u["id"]},
+            {"$set": {"avatar_url": u["avatar_url"]}},
+        )
 
     client.close()
 
