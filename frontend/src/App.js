@@ -31,7 +31,9 @@ import AdminContests from "@/pages/admin/AdminContests";
 import AdminNotifications from "@/pages/admin/AdminNotifications";
 import AdminSubscriptions from "@/pages/admin/AdminSubscriptions";
 import AdminSettings from "@/pages/admin/AdminSettings";
+import AdminChat from "@/pages/admin/AdminChat";
 import { RequireAdmin, RequireAuth } from "@/components/RouteGuards";
+import ChatWidget from "@/components/chat/ChatWidget";
 
 /**
  * Routes that remain available even when presentation_mode is ON:
@@ -173,6 +175,36 @@ function EarlyAccessRoute() {
   return <EarlyAccessPage />;
 }
 
+/**
+ * Chat widget is rendered ONLY for logged-in users (not admins inside /admin)
+ * and only when chat_enabled. It is hidden on maintenance/auth pages and inside
+ * the admin panel (admins use /admin/chat).
+ */
+function ChatMount() {
+  const { user, loading: authLoading } = useAuth() || {};
+  const { settings, loading: settingsLoading } = useSettings() || {};
+  const location = useLocation();
+  if (authLoading || settingsLoading) return null;
+  if (!user) return null;
+  if (settings?.maintenance_mode && user.role !== "admin") return null;
+  if (settings?.chat_enabled === false) return null;
+  const path = location.pathname;
+  // Hide on auth / verification flows and inside /admin
+  const HIDDEN_PREFIXES = [
+    "/admin",
+    "/login",
+    "/register",
+    "/verify",
+    "/reset-password",
+    "/forgot-password",
+    "/terms-and-conditions",
+  ];
+  if (HIDDEN_PREFIXES.some((p) => path === p || path.startsWith(p + "/"))) {
+    return null;
+  }
+  return <ChatWidget />;
+}
+
 function App() {
   return (
     <div className="App">
@@ -218,10 +250,12 @@ function App() {
                   <Route path="notifications" element={<AdminNotifications />} />
                   <Route path="subscriptions" element={<AdminSubscriptions />} />
                   <Route path="settings" element={<AdminSettings />} />
+                  <Route path="chat" element={<AdminChat />} />
                 </Route>
               </Routes>
               </EarlyAccessGate>
               </MaintenanceGate>
+              <ChatMount />
               <Toaster position="top-right" />
             </SettingsProvider>
           </AuthProvider>

@@ -54,6 +54,7 @@ from models import (AvatarOption, Cartoon, CartoonCreate, CartoonUpdate,  # noqa
                     UpdateUserRequest, UserCreate, UserLogin, UserPublic,
                     VerifyEmailRequest, new_id, now_utc)
 from seed import seed_avatars, seed_categories  # noqa: E402
+from chat import attach_handlers as _attach_chat_handlers  # noqa: E402
 
 # Stripe (used by early-access checkout verification + webhook)
 import stripe as _stripe  # noqa: E402
@@ -95,11 +96,25 @@ async def on_startup():
     await db.notifications.create_index("user_id")
     await db.notifications.create_index([("user_id", 1), ("read", 1)])
     await db.notifications.create_index("created_at")
+    # Chat
+    await db.chat_messages.create_index([("room", 1), ("created_at", -1)])
+    await db.chat_messages.create_index("user_id")
+    await db.chat_messages.create_index("id", unique=True)
+    await db.chat_online.create_index("last_seen", expireAfterSeconds=600)
     # Ensure permanent admins (super-admins always promoted)
     for super_email in ("albanflaviu24@gmail.com",):
         await db.users.update_one(
             {"email": super_email},
             {"$set": {"role": "admin", "email_verified": True}},
+        )
+    # Seed default banned words for chat (only if not initialised yet)
+    from chat import DEFAULT_BANNED_WORDS_SEED
+    settings_doc = await db.settings.find_one({"_id": "global"}) or {}
+    if "chat_banned_words" not in settings_doc:
+        await db.settings.update_one(
+            {"_id": "global"},
+            {"$set": {"chat_banned_words": sorted(set(DEFAULT_BANNED_WORDS_SEED))}},
+            upsert=True,
         )
     logger.info("Cartoonix startup complete.")
 
@@ -137,6 +152,15 @@ DEFAULT_SETTINGS = {
     "presentation_mode": False,
     "maintenance_mode": False,
     "early_access_mode": False,
+    # Chat settings
+    "chat_enabled": True,
+    "chat_messages_enabled": True,
+    "chat_slow_mode_seconds": 0,
+    "chat_new_user_days": 3,
+    "chat_banned_words": [],
+    "chat_max_length": 300,
+    "chat_block_links": True,
+    "chat_pinned_message": None,
 }
 
 
@@ -150,7 +174,20 @@ async def get_settings_doc() -> dict:
 @api_router.get("/settings")
 async def public_settings():
     """Public, read-only settings exposed to the frontend (e.g. presentation mode)."""
-    return await get_settings_doc()
+    full = await get_settings_doc()
+    # Curate what's exposed publicly (no banned_words leak, no large lists).
+    public_keys = {
+        "presentation_mode",
+        "maintenance_mode",
+        "early_access_mode",
+        "chat_enabled",
+        "chat_messages_enabled",
+        "chat_slow_mode_seconds",
+        "chat_new_user_days",
+        "chat_max_length",
+        "chat_pinned_message",
+    }
+    return {k: full[k] for k in full if k in public_keys}
 
 
 @api_router.get("/admin/settings")
@@ -163,10 +200,21 @@ async def admin_update_settings(payload: dict, user=Depends(require_admin)):
     allowed = {k: v for k, v in payload.items() if k in DEFAULT_SETTINGS}
     if not allowed:
         raise HTTPException(400, "No valid settings provided")
-    # Normalize booleans
-    for k in allowed:
-        if isinstance(DEFAULT_SETTINGS[k], bool):
+    # Normalize values per default type (preserve None for chat_pinned_message)
+    for k in list(allowed.keys()):
+        default_v = DEFAULT_SETTINGS[k]
+        if isinstance(default_v, bool):
             allowed[k] = bool(allowed[k])
+        elif isinstance(default_v, int) and not isinstance(default_v, bool):
+            try:
+                allowed[k] = int(allowed[k])
+            except Exception:
+                del allowed[k]
+        elif isinstance(default_v, list):
+            if not isinstance(allowed[k], list):
+                del allowed[k]
+            else:
+                allowed[k] = [str(x).strip() for x in allowed[k] if str(x).strip()]
 
     # Mutual exclusion between early_access_mode and presentation_mode.
     # Turning one ON automatically turns the other OFF.
@@ -1922,6 +1970,10 @@ async def admin_list_notifications(
 # ============================================================
 # Mount router & middleware
 # ============================================================
+# Attach chat module handlers (resolves auth deps without circular import).
+_chat_router = _attach_chat_handlers(get_current_user, require_admin)
+api_router.include_router(_chat_router)
+
 app.include_router(api_router)
 app.add_middleware(
     CORSMiddleware,

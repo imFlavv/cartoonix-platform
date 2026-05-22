@@ -108,6 +108,21 @@ user_problem_statement: |
   - Add a "Maintenance Mode" toggle in Admin Settings (below Presentation Mode). When enabled, it overrides Presentation Mode and shows only an elegant maintenance message ("PLATFORMA IN MENTENANTA! REVENIM CURAND") with on-brand background. Only /login and /admin remain accessible so admins can disable it.
 
 backend:
+  - task: "Public + Admin chat endpoints (rooms, send, presence, moderation)"
+    implemented: true
+    working: false
+    file: "backend/chat.py, backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "New chat module: GET /api/chat/state, GET /api/chat/messages?room=global|plus, POST /api/chat/send, POST /api/chat/heartbeat, GET /api/chat/presence. Admin: PATCH /api/chat/admin/settings, GET /api/chat/admin/state, GET /api/chat/admin/messages, DELETE /api/chat/admin/messages/{id}, POST /api/chat/admin/pin, POST /api/chat/admin/moderate, GET /api/chat/admin/sanctions, GET /api/chat/admin/users/{id}/history. Features: progressive 5→15→60s cooldown, account-age restriction (default 3 days), profanity censor (~80 word seed), spam/duplicate detection, link blocking, CAPS auto-correction, PLUS room gating, slow mode, pinned message, mute/ban, message deletion."
+      - working: false
+        agent: "testing"
+        comment: "Comprehensive backend testing completed with 28 test cases. PASSED (27/28): ✅ GET /chat/state (all 4 user types: admin, plus, free, new - correct permissions and restrictions), ✅ POST /chat/send (free user success with nickname/avatar/plan, cooldown enforcement 429, new user blocked 403 with '3 zile' message, plus user to plus room success, free user to plus room blocked 403, link blocking 400, profanity censored 'BOU'→'b***', duplicate spam detection 429 on 3rd identical message), ✅ GET /chat/messages (free user global room, free user plus room blocked 403, plus user plus room success), ✅ POST /chat/heartbeat success, ✅ GET /chat/presence online_total>=1, ✅ GET /chat/admin/state (settings+stats), ✅ GET /chat/admin/messages, ✅ PATCH /chat/admin/settings (disable messages→send fails 403, re-enable works), ✅ POST /chat/admin/moderate (cannot ban self 400), ✅ DELETE /chat/admin/messages + POST /chat/admin/pin (pin→check state→unpin→delete), ✅ GET /chat/admin/sanctions, ✅ GET /chat/admin/users/{id}/history, ✅ Authorization checks (no token 401, free user admin endpoint 403, plus user admin settings 403). FAILED (1/28): ❌ POST /chat/admin/moderate mute_5m → muted user send returns 500 instead of 403. ROOT CAUSE: TypeError in /app/backend/chat.py line 394: 'can't subtract offset-naive and offset-aware datetimes'. The 'until' datetime retrieved from DB (chat_bans collection) is timezone-naive, but _now() returns timezone-aware datetime. When calculating remaining minutes for mute message, the subtraction fails. FIX REQUIRED: In chat.py send_message() function around line 391-395, ensure 'until' datetime is timezone-aware before subtraction. Similar issue may exist in _active_sanction() helper. All test users from /app/memory/test_credentials.md working correctly."
+
   - task: "Public + Admin settings endpoints (GET /api/settings, GET/PATCH /api/admin/settings)"
     implemented: true
     working: true
@@ -264,13 +279,19 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Contest countdown + EA settings menu (Inbox/Avatar)"
+    - "Public + Admin chat endpoints (rooms, send, presence, moderation)"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
 agent_communication:
   - agent: "main"
+    message: "NEW FEATURE — Cartoonix Chat. Full chat system (global + PLUS rooms) with bottom-right widget, admin panel at /admin/chat. Test users seeded in /app/memory/test_credentials.md (test_admin, test_plus, test_free, test_new). Please backend-test the chat endpoints: 1) /api/chat/state returns settings + per-user can_send/cooldown/restriction; 2) send message succeeds for test_free, fails (403) for test_new (account < 3 days); 3) 5s cooldown enforced; 4) banned word 'pula' gets censored to 'p***'; 5) duplicate same message 3 times returns 429; 6) link blocking (chat_block_links=true by default) rejects 'check http://example.com'; 7) /chat/messages?room=plus is 403 for test_free, ok for test_plus; 8) /chat/admin/moderate mute_5m on test_free, then send returns 403; 9) /chat/admin/settings PATCH chat_messages_enabled=false makes send return 403 even for unrestricted users; 10) heartbeat + presence returns >0 online_total. Admin path: prefix /api/chat/admin/* requires admin token; test_admin@cartoonix.ro / TestAdmin#2026."
+
+  - agent: "main"
     message: "Implemented official logo update, elegant toast redesign, Admin Settings (Presentation Mode toggle), Romanian Presentation Page and routing gate. Admin credentials in /app/memory/test_credentials.md. Backend endpoints verified via curl. Frontend visually verified through screenshots. Ready for backend test of the new /api/settings and /api/admin/settings endpoints if needed."
   - agent: "main"
     message: "CRITICAL BUG FIX for Early Access registration: Users reported losing their session when switching apps on mobile (to approve banking payment or check email), resulting in PAID but NO ACCOUNT created. Root cause: sessionStorage clears when app closes on mobile. Implemented comprehensive fix: 1) localStorage persistence (survives app close), 2) Backend can now find pending registration with ONLY Stripe session_id (extracts client_reference_id), 3) Extended expiration 45min→120min, 4) Auto-recovery in frontend. Changes: backend/server.py (EarlyAccessConfirmPayment.token→Optional, confirm-payment endpoint recovery logic), frontend EarlyAccessPage.jsx (localStorage storage, recovery flow). Full docs in /app/EARLY_ACCESS_PAYMENT_FIX.md. Needs testing on real mobile device with actual Stripe payment."
+
+  - agent: "testing"
+    message: "BACKEND TESTING COMPLETE for Cartoonix Chat. Comprehensive test suite executed with 28 test cases covering all chat endpoints. RESULTS: 27/28 tests PASSED (96.4% success rate). CRITICAL BUG FOUND: Timezone-aware/naive datetime mismatch in /app/backend/chat.py line 394 causes 500 error when muted user tries to send message. The 'until' datetime from DB is naive but _now() returns aware datetime. All other functionality working correctly: state endpoints, message sending with cooldown/restrictions, profanity censoring, spam detection, link blocking, room gating, heartbeat/presence, admin moderation (except mute error message), message deletion, pinning, sanctions list, user history. Authorization checks all passing. Test credentials from /app/memory/test_credentials.md working correctly."
