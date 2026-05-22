@@ -19,7 +19,20 @@ Cartoonix este o platformă premium de streaming pentru desene animate retro (Ca
 - Concursuri publice (3 contests, 2 free + 1 paid via Stripe)
 
 ## Implemented (CHANGELOG)
-### 2026-02 (latest — Yahoo Messenger ASCII shortcuts full set)
+### 2026-02 (latest — Staff Applications + Chat live limit 200)
+- **Pagina `/staff`** — formular pentru a aplica la staff Cartoonix:
+  - Accesibilă și în Presentation Mode + Early Access Mode (adăugată în ambele allow-list)
+  - 6 secțiuni: Informații de bază (vârstă, vechime, frecvență), Motivație, Experiență (moderare + gestionare conflict), 3 scenarii practice (spam/toxic-joke/prieten încalcă reguli), Disponibilitate (ore + intervale), Extra (sugestii)
+  - Card de status elegant care înlocuiește formularul după aplicare: 🟡 În revizuire, 🟢 Acceptat, 🔴 Respins — cu notă opțională de la admin
+  - Permite re-aplicare după respingere
+- **Backend `staff.py`**: colecție nouă `staff_applications` (indexat unique pe `user_id`)
+  - User endpoints: `GET /api/staff/me`, `POST /api/staff/apply`
+  - Admin endpoints: `GET /api/staff/admin/applications?status=...`, `GET /admin/applications/{id}`, `PATCH /admin/applications/{id}/status`
+  - La schimbare status admin → notificare auto în Inbox-ul utilizatorului
+- **Admin Panel `/admin/staff`** (link nou în sidebar AdminLayout): stats pe 4 categorii, filtre pending/accepted/rejected/all, căutare nickname/email, dialog cu toate răspunsurile + selector status + notă admin
+- **Chat live limitat la 200 mesaje** — atât la fetch (`limit=200`) cât și la append-ul optimistic (`slice(-200)`) — backend cap-uia deja la 200
+
+### 2026-02 (earlier — Yahoo Messenger ASCII shortcuts full set)
 - **ASCII shortcuts aliniate la legenda Yahoo Messenger** (imaginea oficială) — 47 de coduri exacte din spec mapate la GIF-urile din `/emoticons/`:
   - `:)` happy, `:(` sad, `;)` winking, `:D` big grin, `;;)` batting eyelashes (blush), `>:D<` big hug, `:-/` confused, `:x` love struck (heart), `:">` blushing, `:P` tongue, `:-*` kiss, `=((` broken heart, `:-O` surprise, `X(` angry, `:>` smug (smirk), `B-)` cool (sunglasses), `:-S` worried, `#:-S` whew (relieved), `>:)` devil (joker), `:((` crying, `:))` laughing (joy), `:|` straight face (neutral), `/:)` raised eyebrow (confounded), `=))` rolling on floor (rofl), `O:-)` angel (innocent), `:-B` nerd (glasses), `=;` talk to the hand (ohstop)
   - Plus: `~X(` at wits' end, `:-t` time out, `8->` daydreaming (pensive), `I-)` sleepy, `8-|` rolling eyes (unamused), `L-)` loser, `:-&` sick, `:-$` don't tell anyone (no_mouth), `[-(` not talking (not_listening), `8-}` silly (giggle), `(:|` yawn (tired_face), `:-?` thinking (how_interesting), `#-o` d'oh (scream), `=D>` applause (clap), `:-SS` nailbiting (fearful), `@-)` hypnotized (dizzy), `:^o` liar, `:-w` waiting (look_at_the_time), `:-<` sigh (frowning), `>:P` phbbbbt (tongue), `<):)` cowboy

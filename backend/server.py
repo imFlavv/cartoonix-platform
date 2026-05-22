@@ -55,6 +55,7 @@ from models import (AvatarOption, Cartoon, CartoonCreate, CartoonUpdate,  # noqa
                     VerifyEmailRequest, new_id, now_utc)
 from seed import seed_avatars, seed_categories  # noqa: E402
 from chat import attach_handlers as _attach_chat_handlers  # noqa: E402
+from staff import attach_staff_handlers as _attach_staff_handlers  # noqa: E402
 
 # Stripe (used by early-access checkout verification + webhook)
 import stripe as _stripe  # noqa: E402
@@ -101,6 +102,10 @@ async def on_startup():
     await db.chat_messages.create_index("user_id")
     await db.chat_messages.create_index("id", unique=True)
     await db.chat_online.create_index("last_seen", expireAfterSeconds=600)
+    # Staff applications
+    await db.staff_applications.create_index("user_id", unique=True)
+    await db.staff_applications.create_index("status")
+    await db.staff_applications.create_index("created_at")
     # Ensure permanent admins (super-admins always promoted)
     for super_email in ("albanflaviu24@gmail.com",):
         await db.users.update_one(
@@ -1995,6 +2000,10 @@ async def admin_list_notifications(
 # Attach chat module handlers (resolves auth deps without circular import).
 _chat_router = _attach_chat_handlers(get_current_user, require_admin)
 api_router.include_router(_chat_router)
+
+# Attach staff applications module
+_staff_router = _attach_staff_handlers(get_current_user, require_admin)
+api_router.include_router(_staff_router)
 
 app.include_router(api_router)
 app.add_middleware(

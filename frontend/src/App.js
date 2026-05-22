@@ -31,6 +31,8 @@ import AdminContests from "@/pages/admin/AdminContests";
 import AdminNotifications from "@/pages/admin/AdminNotifications";
 import AdminSettings from "@/pages/admin/AdminSettings";
 import AdminChat from "@/pages/admin/AdminChat";
+import AdminStaff from "@/pages/admin/AdminStaff";
+import StaffPage from "@/pages/StaffPage";
 import { RequireAdmin, RequireAuth } from "@/components/RouteGuards";
 import ChatWidget from "@/components/chat/ChatWidget";
 
@@ -50,6 +52,7 @@ const PRESENTATION_ALLOWED_PREFIXES = [
   "/login",
   "/admin",
   "/concursuri",
+  "/staff",
 ];
 
 /**
@@ -103,6 +106,7 @@ const EARLY_ACCESS_ALLOWED_PREFIXES = [
   "/forgot-password",
   "/reset-password",
   "/verify",
+  "/staff",
 ];
 
 function EarlyAccessGate({ children }) {
@@ -235,6 +239,7 @@ function App() {
                 <Route path="/plans" element={<PublicRoute element={<PlansPage />} />} />
                 <Route path="/terms-and-conditions" element={<TermsPage />} />
                 <Route path="/concursuri" element={<ConcursuriPage />} />
+                <Route path="/staff" element={<StaffPage />} />
                 <Route
                   path="/concursuri-cartoonix"
                   element={
@@ -260,6 +265,7 @@ function App() {
                   <Route path="notifications" element={<AdminNotifications />} />
                   <Route path="settings" element={<AdminSettings />} />
                   <Route path="chat" element={<AdminChat />} />
+                  <Route path="staff" element={<AdminStaff />} />
                 </Route>
               </Routes>
               </EarlyAccessGate>
