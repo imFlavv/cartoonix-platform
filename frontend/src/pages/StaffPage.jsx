@@ -212,6 +212,33 @@ function Field({ label, hint, required, children, testId }) {
   );
 }
 
+// IMPORTANT: declared OUTSIDE the page component, otherwise a new component
+// reference is created on every keystroke, React unmounts the form subtree
+// and inputs lose focus after one character.
+function Frame({ onClose, children }) {
+  return (
+    <div
+      className="min-h-screen w-full relative"
+      style={{
+        background:
+          "radial-gradient(ellipse 80% 60% at 50% 0%, rgba(255,122,26,0.10) 0%, rgba(8,8,10,0) 70%), radial-gradient(ellipse 60% 80% at 100% 100%, rgba(250,204,21,0.06) 0%, rgba(8,8,10,0) 70%), #08080a",
+      }}
+    >
+      <button
+        onClick={onClose}
+        data-testid="staff-close-btn"
+        aria-label="Înapoi la pagina principală"
+        className="fixed top-4 right-4 z-30 h-10 w-10 grid place-items-center rounded-xl bg-white/5 backdrop-blur border border-white/10 hover:bg-white/10 transition-all"
+      >
+        <X className="h-5 w-5" />
+      </button>
+      <div className="relative z-10 mx-auto max-w-3xl px-4 sm:px-6 py-12 sm:py-16">
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export default function StaffPage() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -257,30 +284,12 @@ export default function StaffPage() {
     }
   };
 
-  // Standalone full-page frame (no header/footer)
-  const Frame = ({ children }) => (
-    <div
-      className="min-h-screen w-full relative"
-      style={{
-        background:
-          "radial-gradient(ellipse 80% 60% at 50% 0%, rgba(255,122,26,0.10) 0%, rgba(8,8,10,0) 70%), radial-gradient(ellipse 60% 80% at 100% 100%, rgba(250,204,21,0.06) 0%, rgba(8,8,10,0) 70%), #08080a",
-      }}
-    >
-      <button
-        onClick={() => navigate("/")}
-        data-testid="staff-close-btn"
-        aria-label="Înapoi la pagina principală"
-        className="fixed top-4 right-4 z-30 h-10 w-10 grid place-items-center rounded-xl bg-white/5 backdrop-blur border border-white/10 hover:bg-white/10 transition-all"
-      >
-        <X className="h-5 w-5" />
-      </button>
-      <div className="relative z-10 mx-auto max-w-3xl px-4 sm:px-6 py-12 sm:py-16">{children}</div>
-    </div>
-  );
+  // Standalone full-page frame (no header/footer) — Frame is declared above
+  // OUTSIDE this component (critical: otherwise inputs lose focus on each key).
 
   if (authLoading || appState === null) {
     return (
-      <Frame>
+      <Frame onClose={() => navigate("/")}>
         <div className="min-h-[60vh] grid place-items-center">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
@@ -298,7 +307,7 @@ export default function StaffPage() {
     application?.status === "rejected" && reapplyDate && reapplyDate > new Date();
 
   return (
-    <Frame>
+    <Frame onClose={() => navigate("/")}>
       {/* Hero */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
