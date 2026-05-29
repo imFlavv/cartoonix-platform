@@ -108,7 +108,10 @@ function EpisodeForm({ episode, cartoons, onSaved, onClose }) {
             <TabsTrigger value="upload"><Upload className="h-3.5 w-3.5 mr-1" /> Încarcă fișier</TabsTrigger>
           </TabsList>
           <TabsContent value="url" className="mt-2">
-            <Input value={form.video_url} onChange={(e) => setForm({ ...form, video_url: e.target.value })} placeholder="https://...mp4 sau HLS .m3u8" data-testid="episode-form-video-url" className="h-11 rounded-xl" />
+            <Input value={form.video_url} onChange={(e) => setForm({ ...form, video_url: e.target.value })} placeholder="/media/videos/dexter/s01e01.mp4 sau https://...mp4" data-testid="episode-form-video-url" className="h-11 rounded-xl" />
+            <p className="text-xs text-muted-foreground mt-2">
+              Pune calea directă din librăria video de pe server, ex: <span className="text-foreground">/media/videos/dexter/s01e01.mp4</span>. Acceptă și URL-uri externe (http/https). Format recomandat: <span className="text-foreground">.mp4 (H.264)</span> — .mkv/.avi pot să nu ruleze în toate browserele.
+            </p>
           </TabsContent>
           <TabsContent value="upload" className="mt-2">
             <Input type="file" accept="video/*" onChange={(e) => e.target.files?.[0] && onUploadVideo(e.target.files[0])} disabled={uploading} data-testid="episode-form-video-upload" className="h-11 rounded-xl" />

@@ -19,7 +19,7 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import UserBadges from "@/components/UserBadges";
-import { clampLevel, MAX_LEVEL, levelBadgeUrl, PLUS_BADGE_URL } from "@/lib/badges";
+import { clampLevel, MAX_LEVEL, levelBadgeUrl } from "@/lib/badges";
 
 function Stat({ label, value }) {
   return (
@@ -140,17 +140,6 @@ export default function ProfilePage() {
                 )}
               </div>
             </div>
-
-            {!isPlus && (
-              <Link to="/plans" className="shrink-0">
-                <Button
-                  className="rounded-xl bg-[hsl(var(--accent))] text-black hover:bg-[hsl(var(--accent))]/90 font-semibold"
-                  data-testid="dashboard-upgrade-button"
-                >
-                  <img src={PLUS_BADGE_URL} alt="" className="h-4 w-auto mr-2" /> Treci pe PLUS
-                </Button>
-              </Link>
-            )}
           </div>
 
           {/* Level progress strip */}
@@ -231,8 +220,7 @@ export default function ProfilePage() {
               <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-10 text-center">
                 <Lock className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
                 <h3 className="font-display text-xl tracking-wider">Playlist-urile sunt o funcție Plus</h3>
-                <p className="text-sm text-muted-foreground mt-1">Trece la Cartoonix Plus pentru a-ți crea propriile colecții.</p>
-                <Link to="/plans"><Button className="mt-4 rounded-xl bg-[hsl(var(--accent))] text-black hover:bg-[hsl(var(--accent))]/90 font-semibold" data-testid="playlists-upgrade-button">Treci pe Plus</Button></Link>
+                <p className="text-sm text-muted-foreground mt-1">Disponibile pentru membrii Cartoonix Plus.</p>
               </div>
             ) : (
               <div className="space-y-4">

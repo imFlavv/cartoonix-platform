@@ -165,14 +165,14 @@ export default function HomePage() {
                     Începe să vizionezi <Play className="ml-2 h-4 w-4 fill-black" />
                   </Button>
                 </Link>
-                <Link to="/plans">
+                <Link to="/category/jetix-foxkids">
                   <Button
                     size="lg"
                     variant="outline"
-                    data-testid="hero-plans-button"
+                    data-testid="hero-channels-button"
                     className="h-12 rounded-xl border-white/15 bg-transparent px-6 text-base text-white hover:bg-white/[0.06]"
                   >
-                    Vezi abonamente
+                    Explorează canalele
                   </Button>
                 </Link>
                 <div className="ml-1 flex items-center gap-1.5 text-sm text-white/45">

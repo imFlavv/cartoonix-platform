@@ -1,1010 +1,198 @@
 #!/usr/bin/env python3
-"""Comprehensive backend test for Cartoonix Chat API."""
-import json
-import time
+"""Backend test for Cartoonix video streaming endpoint with HTTP Range support."""
+import os
+import sys
 import requests
-from typing import Optional
+from dotenv import load_dotenv
+from pathlib import Path
 
-# Backend URL
-BASE_URL = "https://platform-refresh-pro.preview.emergentagent.com/api"
+# Load environment
+ROOT_DIR = Path(__file__).parent
+load_dotenv(ROOT_DIR / "frontend" / ".env")
 
-# Test credentials
-CREDENTIALS = {
-    "admin": {"email": "test_admin@cartoonix.ro", "password": "TestAdmin#2026"},
-    "plus": {"email": "test_plus@cartoonix.ro", "password": "TestPlus#2026"},
-    "free": {"email": "test_free@cartoonix.ro", "password": "TestFree#2026"},
-    "new": {"email": "test_new@cartoonix.ro", "password": "TestNew#2026"},
-}
+# Get backend URL from frontend .env
+BACKEND_URL = os.environ.get("REACT_APP_BACKEND_URL", "http://localhost:8001")
+BASE_URL = f"{BACKEND_URL}/api"
 
-# Store tokens and user info
-tokens = {}
-users = {}
+print(f"Testing backend at: {BASE_URL}")
+print("=" * 80)
 
-# Test results
-results = {
-    "passed": [],
-    "failed": [],
-}
+# Test counters
+total_tests = 0
+passed_tests = 0
+failed_tests = 0
 
+def test_result(name, passed, details=""):
+    """Record and print test result."""
+    global total_tests, passed_tests, failed_tests
+    total_tests += 1
+    if passed:
+        passed_tests += 1
+        print(f"✅ PASS: {name}")
+    else:
+        failed_tests += 1
+        print(f"❌ FAIL: {name}")
+    if details:
+        print(f"   {details}")
+    print()
 
-def log_pass(test_name: str):
-    """Log a passed test."""
-    print(f"✅ PASS: {test_name}")
-    results["passed"].append(test_name)
+# =============================================================================
+# VIDEO STREAMING ENDPOINT TESTS
+# =============================================================================
 
+print("\n" + "=" * 80)
+print("VIDEO STREAMING ENDPOINT TESTS (HTTP Range Support)")
+print("=" * 80 + "\n")
 
-def log_fail(test_name: str, reason: str):
-    """Log a failed test."""
-    print(f"❌ FAIL: {test_name}")
-    print(f"   Reason: {reason}")
-    results["failed"].append({"test": test_name, "reason": reason})
+# Test 1: Full GET request (no Range header)
+print("Test 1: Full GET /api/media/videos/_qa/clip.mp4")
+print("-" * 80)
+try:
+    response = requests.get(f"{BASE_URL}/media/videos/_qa/clip.mp4", timeout=10)
+    
+    status_ok = response.status_code == 200
+    accept_ranges = response.headers.get("Accept-Ranges") == "bytes"
+    content_type = response.headers.get("Content-Type") == "video/mp4"
+    content_length = response.headers.get("Content-Length") == "1048576"
+    body_size = len(response.content) == 1048576
+    
+    all_checks = status_ok and accept_ranges and content_type and content_length and body_size
+    
+    details = f"Status: {response.status_code} (expected 200), "
+    details += f"Accept-Ranges: {response.headers.get('Accept-Ranges')} (expected bytes), "
+    details += f"Content-Type: {response.headers.get('Content-Type')} (expected video/mp4), "
+    details += f"Content-Length: {response.headers.get('Content-Length')} (expected 1048576), "
+    details += f"Body size: {len(response.content)} (expected 1048576)"
+    
+    test_result("Full GET returns 200 with correct headers and body", all_checks, details)
+except Exception as e:
+    test_result("Full GET returns 200 with correct headers and body", False, f"Exception: {e}")
 
+# Test 2: Range GET bytes=0-1023
+print("Test 2: Range GET bytes=0-1023")
+print("-" * 80)
+try:
+    headers = {"Range": "bytes=0-1023"}
+    response = requests.get(f"{BASE_URL}/media/videos/_qa/clip.mp4", headers=headers, timeout=10)
+    
+    status_ok = response.status_code == 206
+    content_range = response.headers.get("Content-Range") == "bytes 0-1023/1048576"
+    content_length = response.headers.get("Content-Length") == "1024"
+    accept_ranges = response.headers.get("Accept-Ranges") == "bytes"
+    body_size = len(response.content) == 1024
+    
+    all_checks = status_ok and content_range and content_length and accept_ranges and body_size
+    
+    details = f"Status: {response.status_code} (expected 206), "
+    details += f"Content-Range: {response.headers.get('Content-Range')} (expected bytes 0-1023/1048576), "
+    details += f"Content-Length: {response.headers.get('Content-Length')} (expected 1024), "
+    details += f"Accept-Ranges: {response.headers.get('Accept-Ranges')} (expected bytes), "
+    details += f"Body size: {len(response.content)} (expected 1024)"
+    
+    test_result("Range GET bytes=0-1023 returns 206 Partial Content", all_checks, details)
+except Exception as e:
+    test_result("Range GET bytes=0-1023 returns 206 Partial Content", False, f"Exception: {e}")
 
-def login(user_type: str) -> Optional[str]:
-    """Login and return access token."""
-    creds = CREDENTIALS[user_type]
-    try:
-        resp = requests.post(
-            f"{BASE_URL}/auth/login",
-            json=creds,
-            timeout=10
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            token = data.get("access_token")
-            user = data.get("user")
-            tokens[user_type] = token
-            users[user_type] = user
-            print(f"✓ Logged in as {user_type}: {user.get('nickname')} ({user.get('email')})")
-            return token
-        else:
-            print(f"✗ Login failed for {user_type}: {resp.status_code} {resp.text}")
-            return None
-    except Exception as e:
-        print(f"✗ Login exception for {user_type}: {e}")
-        return None
+# Test 3: Range GET bytes=1048000- (open-ended)
+print("Test 3: Range GET bytes=1048000- (open-ended)")
+print("-" * 80)
+try:
+    headers = {"Range": "bytes=1048000-"}
+    response = requests.get(f"{BASE_URL}/media/videos/_qa/clip.mp4", headers=headers, timeout=10)
+    
+    status_ok = response.status_code == 206
+    # Should return bytes 1048000-1048575 (576 bytes remaining)
+    content_range = response.headers.get("Content-Range") == "bytes 1048000-1048575/1048576"
+    expected_length = 1048576 - 1048000  # 576 bytes
+    content_length = response.headers.get("Content-Length") == str(expected_length)
+    accept_ranges = response.headers.get("Accept-Ranges") == "bytes"
+    body_size = len(response.content) == expected_length
+    
+    all_checks = status_ok and content_range and content_length and accept_ranges and body_size
+    
+    details = f"Status: {response.status_code} (expected 206), "
+    details += f"Content-Range: {response.headers.get('Content-Range')} (expected bytes 1048000-1048575/1048576), "
+    details += f"Content-Length: {response.headers.get('Content-Length')} (expected {expected_length}), "
+    details += f"Accept-Ranges: {response.headers.get('Accept-Ranges')} (expected bytes), "
+    details += f"Body size: {len(response.content)} (expected {expected_length})"
+    
+    test_result("Range GET bytes=1048000- returns 206 with correct ending", all_checks, details)
+except Exception as e:
+    test_result("Range GET bytes=1048000- returns 206 with correct ending", False, f"Exception: {e}")
 
+# Test 4: Unsatisfiable range bytes=9999999-10000000
+print("Test 4: Unsatisfiable range bytes=9999999-10000000")
+print("-" * 80)
+try:
+    headers = {"Range": "bytes=9999999-10000000"}
+    response = requests.get(f"{BASE_URL}/media/videos/_qa/clip.mp4", headers=headers, timeout=10)
+    
+    status_ok = response.status_code == 416
+    content_range = response.headers.get("Content-Range") == "bytes */1048576"
+    
+    all_checks = status_ok and content_range
+    
+    details = f"Status: {response.status_code} (expected 416), "
+    details += f"Content-Range: {response.headers.get('Content-Range')} (expected bytes */1048576)"
+    
+    test_result("Unsatisfiable range returns 416 Range Not Satisfiable", all_checks, details)
+except Exception as e:
+    test_result("Unsatisfiable range returns 416 Range Not Satisfiable", False, f"Exception: {e}")
 
-def test_chat_state():
-    """Test GET /api/chat/state for all users."""
-    print("\n=== Testing GET /api/chat/state ===")
+# Test 5: Missing file
+print("Test 5: Missing file GET /api/media/videos/_qa/does-not-exist.mp4")
+print("-" * 80)
+try:
+    response = requests.get(f"{BASE_URL}/media/videos/_qa/does-not-exist.mp4", timeout=10)
     
-    # Test admin
-    test_name = "chat/state - admin"
-    try:
-        resp = requests.get(
-            f"{BASE_URL}/chat/state",
-            headers={"Authorization": f"Bearer {tokens['admin']}"},
-            timeout=10
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            settings = data.get("settings", {})
-            you = data.get("you", {})
-            
-            if not settings:
-                log_fail(test_name, "settings missing")
-            elif you.get("role") != "admin":
-                log_fail(test_name, f"role should be admin, got {you.get('role')}")
-            elif not you.get("can_send"):
-                log_fail(test_name, "admin should have can_send=true")
-            else:
-                log_pass(test_name)
-        else:
-            log_fail(test_name, f"status {resp.status_code}: {resp.text}")
-    except Exception as e:
-        log_fail(test_name, f"exception: {e}")
+    status_ok = response.status_code == 404
     
-    # Test plus user
-    test_name = "chat/state - plus user"
-    try:
-        resp = requests.get(
-            f"{BASE_URL}/chat/state",
-            headers={"Authorization": f"Bearer {tokens['plus']}"},
-            timeout=10
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            you = data.get("you", {})
-            
-            if you.get("plan") != "plus":
-                log_fail(test_name, f"plan should be plus, got {you.get('plan')}")
-            elif not you.get("can_send"):
-                log_fail(test_name, "plus user should have can_send=true")
-            elif you.get("restricted_new_user"):
-                log_fail(test_name, "plus user (30d old) should not be restricted")
-            else:
-                log_pass(test_name)
-        else:
-            log_fail(test_name, f"status {resp.status_code}: {resp.text}")
-    except Exception as e:
-        log_fail(test_name, f"exception: {e}")
+    details = f"Status: {response.status_code} (expected 404)"
     
-    # Test free user
-    test_name = "chat/state - free user"
-    try:
-        resp = requests.get(
-            f"{BASE_URL}/chat/state",
-            headers={"Authorization": f"Bearer {tokens['free']}"},
-            timeout=10
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            you = data.get("you", {})
-            
-            if not you.get("can_send"):
-                log_fail(test_name, "free user (10d old) should have can_send=true")
-            elif you.get("restricted_new_user"):
-                log_fail(test_name, "free user (10d old) should not be restricted")
-            else:
-                log_pass(test_name)
-        else:
-            log_fail(test_name, f"status {resp.status_code}: {resp.text}")
-    except Exception as e:
-        log_fail(test_name, f"exception: {e}")
-    
-    # Test new user
-    test_name = "chat/state - new user (restricted)"
-    try:
-        resp = requests.get(
-            f"{BASE_URL}/chat/state",
-            headers={"Authorization": f"Bearer {tokens['new']}"},
-            timeout=10
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            you = data.get("you", {})
-            
-            if you.get("can_send"):
-                log_fail(test_name, "new user (0d old) should have can_send=false")
-            elif not you.get("restricted_new_user"):
-                log_fail(test_name, "new user should have restricted_new_user=true")
-            elif not you.get("restricted_until"):
-                log_fail(test_name, "new user should have restricted_until")
-            else:
-                log_pass(test_name)
-        else:
-            log_fail(test_name, f"status {resp.status_code}: {resp.text}")
-    except Exception as e:
-        log_fail(test_name, f"exception: {e}")
+    test_result("Missing file returns 404 Not Found", status_ok, details)
+except Exception as e:
+    test_result("Missing file returns 404 Not Found", False, f"Exception: {e}")
 
+# Test 6: Path traversal attempt
+print("Test 6: Path traversal GET /api/media/videos/..%2f..%2f..%2fetc%2fpasswd")
+print("-" * 80)
+try:
+    # URL-encoded ../../../etc/passwd
+    response = requests.get(f"{BASE_URL}/media/videos/..%2f..%2f..%2fetc%2fpasswd", timeout=10)
+    
+    # Must NOT return 200 with /etc/passwd contents
+    # Should be 403 or 404
+    status_ok = response.status_code in [403, 404]
+    
+    # Additional check: if it's 200, make sure it's not the passwd file
+    if response.status_code == 200:
+        # Check if response contains typical /etc/passwd patterns
+        content = response.text.lower()
+        is_passwd = "root:" in content or "/bin/bash" in content or "/bin/sh" in content
+        if is_passwd:
+            status_ok = False
+            details = f"SECURITY ISSUE: Status {response.status_code} returned /etc/passwd contents!"
+        else:
+            details = f"Status: {response.status_code} (unexpected 200, but not /etc/passwd)"
+    else:
+        details = f"Status: {response.status_code} (expected 403 or 404) ✓ Path traversal blocked"
+    
+    test_result("Path traversal attempt blocked (403/404, not 200 with passwd)", status_ok, details)
+except Exception as e:
+    test_result("Path traversal attempt blocked (403/404, not 200 with passwd)", False, f"Exception: {e}")
 
-def test_send_message():
-    """Test POST /api/chat/send with various scenarios."""
-    print("\n=== Testing POST /api/chat/send ===")
-    
-    # Test 1: Free user sends message successfully
-    test_name = "chat/send - free user success"
-    try:
-        resp = requests.post(
-            f"{BASE_URL}/chat/send",
-            headers={"Authorization": f"Bearer {tokens['free']}"},
-            json={"room": "global", "content": "Salut! Acesta este un test."},
-            timeout=10
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            msg = data.get("message", {})
-            if not msg.get("nickname"):
-                log_fail(test_name, "message missing nickname")
-            elif not msg.get("avatar_url"):
-                log_fail(test_name, "message missing avatar_url")
-            elif msg.get("plan") != "free":
-                log_fail(test_name, f"plan should be free, got {msg.get('plan')}")
-            else:
-                log_pass(test_name)
-        else:
-            log_fail(test_name, f"status {resp.status_code}: {resp.text}")
-    except Exception as e:
-        log_fail(test_name, f"exception: {e}")
-    
-    # Test 2: Immediate retry should hit cooldown
-    test_name = "chat/send - cooldown enforcement"
-    try:
-        resp = requests.post(
-            f"{BASE_URL}/chat/send",
-            headers={"Authorization": f"Bearer {tokens['free']}"},
-            json={"room": "global", "content": "Mesaj imediat după primul."},
-            timeout=10
-        )
-        if resp.status_code == 429:
-            log_pass(test_name)
-        else:
-            log_fail(test_name, f"expected 429, got {resp.status_code}: {resp.text}")
-    except Exception as e:
-        log_fail(test_name, f"exception: {e}")
-    
-    # Test 3: New user should be blocked
-    test_name = "chat/send - new user blocked (3 day restriction)"
-    try:
-        resp = requests.post(
-            f"{BASE_URL}/chat/send",
-            headers={"Authorization": f"Bearer {tokens['new']}"},
-            json={"room": "global", "content": "Mesaj de la utilizator nou."},
-            timeout=10
-        )
-        if resp.status_code == 403:
-            text = resp.text.lower()
-            if "3" in text or "zile" in text or "zile" in resp.json().get("detail", "").lower():
-                log_pass(test_name)
-            else:
-                log_fail(test_name, f"403 but message doesn't mention 3 days: {resp.text}")
-        else:
-            log_fail(test_name, f"expected 403, got {resp.status_code}: {resp.text}")
-    except Exception as e:
-        log_fail(test_name, f"exception: {e}")
-    
-    # Test 4: Plus user posting to plus room
-    test_name = "chat/send - plus user to plus room"
-    try:
-        resp = requests.post(
-            f"{BASE_URL}/chat/send",
-            headers={"Authorization": f"Bearer {tokens['plus']}"},
-            json={"room": "plus", "content": "Mesaj în camera PLUS."},
-            timeout=10
-        )
-        if resp.status_code == 200:
-            log_pass(test_name)
-        else:
-            log_fail(test_name, f"status {resp.status_code}: {resp.text}")
-    except Exception as e:
-        log_fail(test_name, f"exception: {e}")
-    
-    # Wait for cooldown before next test
-    print("⏳ Waiting 6s for cooldown...")
-    time.sleep(6)
-    
-    # Test 5: Free user posting to plus room should fail
-    test_name = "chat/send - free user to plus room blocked"
-    try:
-        resp = requests.post(
-            f"{BASE_URL}/chat/send",
-            headers={"Authorization": f"Bearer {tokens['free']}"},
-            json={"room": "plus", "content": "Încerc să intru în PLUS."},
-            timeout=10
-        )
-        if resp.status_code == 403:
-            text = resp.text.lower()
-            if "plus" in text:
-                log_pass(test_name)
-            else:
-                log_fail(test_name, f"403 but message doesn't mention PLUS: {resp.text}")
-        else:
-            log_fail(test_name, f"expected 403, got {resp.status_code}: {resp.text}")
-    except Exception as e:
-        log_fail(test_name, f"exception: {e}")
-    
-    # Test 6: Link blocking
-    test_name = "chat/send - link blocking"
-    try:
-        resp = requests.post(
-            f"{BASE_URL}/chat/send",
-            headers={"Authorization": f"Bearer {tokens['free']}"},
-            json={"room": "global", "content": "Vezi pe http://example.com"},
-            timeout=10
-        )
-        if resp.status_code == 400:
-            log_pass(test_name)
-        else:
-            log_fail(test_name, f"expected 400, got {resp.status_code}: {resp.text}")
-    except Exception as e:
-        log_fail(test_name, f"exception: {e}")
-    
-    # Wait for cooldown
-    print("⏳ Waiting 6s for cooldown...")
-    time.sleep(6)
-    
-    # Test 7: Profanity censoring
-    test_name = "chat/send - profanity censored"
-    try:
-        resp = requests.post(
-            f"{BASE_URL}/chat/send",
-            headers={"Authorization": f"Bearer {tokens['free']}"},
-            json={"room": "global", "content": "ESTI UN BOU MARE"},
-            timeout=10
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            msg = data.get("message", {})
-            content = msg.get("content", "")
-            # Should be censored (bou -> b** or similar)
-            if "***" in content or "b***" in content.lower() or msg.get("censored"):
-                log_pass(test_name)
-            else:
-                log_fail(test_name, f"content not censored: {content}")
-        else:
-            log_fail(test_name, f"status {resp.status_code}: {resp.text}")
-    except Exception as e:
-        log_fail(test_name, f"exception: {e}")
-    
-    # Test 8: Duplicate spam (send same message 3 times)
-    test_name = "chat/send - duplicate spam detection"
-    try:
-        # Wait for cooldown
-        print("⏳ Waiting 6s for cooldown...")
-        time.sleep(6)
-        
-        # Send first
-        resp1 = requests.post(
-            f"{BASE_URL}/chat/send",
-            headers={"Authorization": f"Bearer {tokens['free']}"},
-            json={"room": "global", "content": "Mesaj identic pentru test spam"},
-            timeout=10
-        )
-        
-        # Wait and send second
-        print("⏳ Waiting 6s for cooldown...")
-        time.sleep(6)
-        resp2 = requests.post(
-            f"{BASE_URL}/chat/send",
-            headers={"Authorization": f"Bearer {tokens['free']}"},
-            json={"room": "global", "content": "Mesaj identic pentru test spam"},
-            timeout=10
-        )
-        
-        # Wait and send third (should be blocked)
-        print("⏳ Waiting 6s for cooldown...")
-        time.sleep(6)
-        resp3 = requests.post(
-            f"{BASE_URL}/chat/send",
-            headers={"Authorization": f"Bearer {tokens['free']}"},
-            json={"room": "global", "content": "Mesaj identic pentru test spam"},
-            timeout=10
-        )
-        
-        if resp1.status_code == 200 and resp2.status_code == 200 and resp3.status_code == 429:
-            log_pass(test_name)
-        else:
-            log_fail(test_name, f"expected 200,200,429 got {resp1.status_code},{resp2.status_code},{resp3.status_code}")
-    except Exception as e:
-        log_fail(test_name, f"exception: {e}")
+# =============================================================================
+# SUMMARY
+# =============================================================================
 
+print("\n" + "=" * 80)
+print("TEST SUMMARY")
+print("=" * 80)
+print(f"Total tests: {total_tests}")
+print(f"Passed: {passed_tests} ✅")
+print(f"Failed: {failed_tests} ❌")
+print(f"Success rate: {(passed_tests/total_tests*100):.1f}%")
+print("=" * 80 + "\n")
 
-def test_get_messages():
-    """Test GET /api/chat/messages."""
-    print("\n=== Testing GET /api/chat/messages ===")
-    
-    # Test 1: Free user gets global messages
-    test_name = "chat/messages - free user global room"
-    try:
-        resp = requests.get(
-            f"{BASE_URL}/chat/messages?room=global",
-            headers={"Authorization": f"Bearer {tokens['free']}"},
-            timeout=10
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            items = data.get("items", [])
-            if isinstance(items, list):
-                log_pass(test_name)
-            else:
-                log_fail(test_name, "items should be a list")
-        else:
-            log_fail(test_name, f"status {resp.status_code}: {resp.text}")
-    except Exception as e:
-        log_fail(test_name, f"exception: {e}")
-    
-    # Test 2: Free user accessing plus room should fail
-    test_name = "chat/messages - free user plus room blocked"
-    try:
-        resp = requests.get(
-            f"{BASE_URL}/chat/messages?room=plus",
-            headers={"Authorization": f"Bearer {tokens['free']}"},
-            timeout=10
-        )
-        if resp.status_code == 403:
-            log_pass(test_name)
-        else:
-            log_fail(test_name, f"expected 403, got {resp.status_code}: {resp.text}")
-    except Exception as e:
-        log_fail(test_name, f"exception: {e}")
-    
-    # Test 3: Plus user accessing plus room
-    test_name = "chat/messages - plus user plus room"
-    try:
-        resp = requests.get(
-            f"{BASE_URL}/chat/messages?room=plus",
-            headers={"Authorization": f"Bearer {tokens['plus']}"},
-            timeout=10
-        )
-        if resp.status_code == 200:
-            log_pass(test_name)
-        else:
-            log_fail(test_name, f"status {resp.status_code}: {resp.text}")
-    except Exception as e:
-        log_fail(test_name, f"exception: {e}")
-
-
-def test_heartbeat_presence():
-    """Test POST /api/chat/heartbeat and GET /api/chat/presence."""
-    print("\n=== Testing heartbeat and presence ===")
-    
-    # Test heartbeat
-    test_name = "chat/heartbeat - success"
-    try:
-        resp = requests.post(
-            f"{BASE_URL}/chat/heartbeat",
-            headers={"Authorization": f"Bearer {tokens['free']}"},
-            timeout=10
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            if data.get("success"):
-                log_pass(test_name)
-            else:
-                log_fail(test_name, "success should be true")
-        else:
-            log_fail(test_name, f"status {resp.status_code}: {resp.text}")
-    except Exception as e:
-        log_fail(test_name, f"exception: {e}")
-    
-    # Test presence
-    test_name = "chat/presence - online count"
-    try:
-        resp = requests.get(
-            f"{BASE_URL}/chat/presence",
-            headers={"Authorization": f"Bearer {tokens['free']}"},
-            timeout=10
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            online_total = data.get("online_total", 0)
-            if online_total >= 1:
-                log_pass(test_name)
-            else:
-                log_fail(test_name, f"online_total should be >= 1, got {online_total}")
-        else:
-            log_fail(test_name, f"status {resp.status_code}: {resp.text}")
-    except Exception as e:
-        log_fail(test_name, f"exception: {e}")
-
-
-def test_admin_endpoints():
-    """Test admin endpoints."""
-    print("\n=== Testing admin endpoints ===")
-    
-    # Test 1: Admin state
-    test_name = "chat/admin/state - success"
-    try:
-        resp = requests.get(
-            f"{BASE_URL}/chat/admin/state",
-            headers={"Authorization": f"Bearer {tokens['admin']}"},
-            timeout=10
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            if "settings" in data and "stats" in data:
-                log_pass(test_name)
-            else:
-                log_fail(test_name, "missing settings or stats")
-        else:
-            log_fail(test_name, f"status {resp.status_code}: {resp.text}")
-    except Exception as e:
-        log_fail(test_name, f"exception: {e}")
-    
-    # Test 2: Admin messages
-    test_name = "chat/admin/messages - global room"
-    try:
-        resp = requests.get(
-            f"{BASE_URL}/chat/admin/messages?room=global",
-            headers={"Authorization": f"Bearer {tokens['admin']}"},
-            timeout=10
-        )
-        if resp.status_code == 200:
-            log_pass(test_name)
-        else:
-            log_fail(test_name, f"status {resp.status_code}: {resp.text}")
-    except Exception as e:
-        log_fail(test_name, f"exception: {e}")
-    
-    # Test 3: Disable chat messages
-    test_name = "chat/admin/settings - disable messages"
-    try:
-        resp = requests.patch(
-            f"{BASE_URL}/chat/admin/settings",
-            headers={"Authorization": f"Bearer {tokens['admin']}"},
-            json={"chat_messages_enabled": False},
-            timeout=10
-        )
-        if resp.status_code == 200:
-            # Try to send as free user (should fail)
-            time.sleep(1)
-            resp2 = requests.post(
-                f"{BASE_URL}/chat/send",
-                headers={"Authorization": f"Bearer {tokens['free']}"},
-                json={"room": "global", "content": "Test când chat-ul e oprit"},
-                timeout=10
-            )
-            if resp2.status_code == 403:
-                # Re-enable
-                resp3 = requests.patch(
-                    f"{BASE_URL}/chat/admin/settings",
-                    headers={"Authorization": f"Bearer {tokens['admin']}"},
-                    json={"chat_messages_enabled": True},
-                    timeout=10
-                )
-                if resp3.status_code == 200:
-                    log_pass(test_name)
-                else:
-                    log_fail(test_name, f"failed to re-enable: {resp3.status_code}")
-            else:
-                log_fail(test_name, f"send should fail with 403, got {resp2.status_code}")
-        else:
-            log_fail(test_name, f"status {resp.status_code}: {resp.text}")
-    except Exception as e:
-        log_fail(test_name, f"exception: {e}")
-    
-    # Test 4: Mute user
-    test_name = "chat/admin/moderate - mute_5m"
-    try:
-        free_user_id = users['free'].get('id')
-        resp = requests.post(
-            f"{BASE_URL}/chat/admin/moderate",
-            headers={"Authorization": f"Bearer {tokens['admin']}"},
-            json={"user_id": free_user_id, "action": "mute_5m", "reason": "Test mute"},
-            timeout=10
-        )
-        if resp.status_code == 200:
-            # Try to send as free user (should fail)
-            time.sleep(1)
-            resp2 = requests.post(
-                f"{BASE_URL}/chat/send",
-                headers={"Authorization": f"Bearer {tokens['free']}"},
-                json={"room": "global", "content": "Test când sunt muted"},
-                timeout=10
-            )
-            if resp2.status_code == 403:
-                text = resp2.text.lower()
-                if "silențiat" in text or "silentiat" in text or "mute" in text:
-                    # Unmute
-                    resp3 = requests.post(
-                        f"{BASE_URL}/chat/admin/moderate",
-                        headers={"Authorization": f"Bearer {tokens['admin']}"},
-                        json={"user_id": free_user_id, "action": "unmute"},
-                        timeout=10
-                    )
-                    if resp3.status_code == 200:
-                        log_pass(test_name)
-                    else:
-                        log_fail(test_name, f"failed to unmute: {resp3.status_code}")
-                else:
-                    log_fail(test_name, f"403 but message doesn't mention mute: {resp2.text}")
-            else:
-                log_fail(test_name, f"send should fail with 403, got {resp2.status_code}")
-        else:
-            log_fail(test_name, f"status {resp.status_code}: {resp.text}")
-    except Exception as e:
-        log_fail(test_name, f"exception: {e}")
-    
-    # Test 5: Admin cannot ban self
-    test_name = "chat/admin/moderate - cannot ban self"
-    try:
-        admin_user_id = users['admin'].get('id')
-        resp = requests.post(
-            f"{BASE_URL}/chat/admin/moderate",
-            headers={"Authorization": f"Bearer {tokens['admin']}"},
-            json={"user_id": admin_user_id, "action": "ban"},
-            timeout=10
-        )
-        if resp.status_code == 400:
-            log_pass(test_name)
-        else:
-            log_fail(test_name, f"expected 400, got {resp.status_code}: {resp.text}")
-    except Exception as e:
-        log_fail(test_name, f"exception: {e}")
-    
-    # Test 6: Get a message ID and test delete + pin
-    test_name = "chat/admin/messages - delete and pin"
-    try:
-        # First, send a message as admin to get an ID
-        resp = requests.post(
-            f"{BASE_URL}/chat/send",
-            headers={"Authorization": f"Bearer {tokens['admin']}"},
-            json={"room": "global", "content": "Mesaj pentru test delete/pin"},
-            timeout=10
-        )
-        if resp.status_code == 200:
-            msg_id = resp.json().get("message", {}).get("id")
-            
-            # Pin it
-            resp2 = requests.post(
-                f"{BASE_URL}/chat/admin/pin",
-                headers={"Authorization": f"Bearer {tokens['admin']}"},
-                json={"message_id": msg_id},
-                timeout=10
-            )
-            if resp2.status_code == 200:
-                # Check state has pinned message
-                resp3 = requests.get(
-                    f"{BASE_URL}/chat/state",
-                    headers={"Authorization": f"Bearer {tokens['admin']}"},
-                    timeout=10
-                )
-                if resp3.status_code == 200:
-                    pinned = resp3.json().get("settings", {}).get("chat_pinned_message")
-                    if pinned and pinned.get("message_id") == msg_id:
-                        # Unpin
-                        resp4 = requests.post(
-                            f"{BASE_URL}/chat/admin/pin",
-                            headers={"Authorization": f"Bearer {tokens['admin']}"},
-                            json={"message_id": None},
-                            timeout=10
-                        )
-                        if resp4.status_code == 200:
-                            # Delete message
-                            resp5 = requests.delete(
-                                f"{BASE_URL}/chat/admin/messages/{msg_id}",
-                                headers={"Authorization": f"Bearer {tokens['admin']}"},
-                                timeout=10
-                            )
-                            if resp5.status_code == 200:
-                                log_pass(test_name)
-                            else:
-                                log_fail(test_name, f"delete failed: {resp5.status_code}")
-                        else:
-                            log_fail(test_name, f"unpin failed: {resp4.status_code}")
-                    else:
-                        log_fail(test_name, f"pinned message not found in state")
-                else:
-                    log_fail(test_name, f"state check failed: {resp3.status_code}")
-            else:
-                log_fail(test_name, f"pin failed: {resp2.status_code}")
-        else:
-            log_fail(test_name, f"send failed: {resp.status_code}")
-    except Exception as e:
-        log_fail(test_name, f"exception: {e}")
-    
-    # Test 7: Sanctions list
-    test_name = "chat/admin/sanctions - list"
-    try:
-        resp = requests.get(
-            f"{BASE_URL}/chat/admin/sanctions",
-            headers={"Authorization": f"Bearer {tokens['admin']}"},
-            timeout=10
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            if "items" in data:
-                log_pass(test_name)
-            else:
-                log_fail(test_name, "missing items")
-        else:
-            log_fail(test_name, f"status {resp.status_code}: {resp.text}")
-    except Exception as e:
-        log_fail(test_name, f"exception: {e}")
-    
-    # Test 8: User history
-    test_name = "chat/admin/users/{id}/history"
-    try:
-        free_user_id = users['free'].get('id')
-        resp = requests.get(
-            f"{BASE_URL}/chat/admin/users/{free_user_id}/history",
-            headers={"Authorization": f"Bearer {tokens['admin']}"},
-            timeout=10
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            if "user" in data and "messages" in data:
-                log_pass(test_name)
-            else:
-                log_fail(test_name, "missing user or messages")
-        else:
-            log_fail(test_name, f"status {resp.status_code}: {resp.text}")
-    except Exception as e:
-        log_fail(test_name, f"exception: {e}")
-
-
-def test_authorization():
-    """Test authorization checks."""
-    print("\n=== Testing authorization ===")
-    
-    # Test 1: No token
-    test_name = "chat/state - no token (401)"
-    try:
-        resp = requests.get(f"{BASE_URL}/chat/state", timeout=10)
-        if resp.status_code == 401:
-            log_pass(test_name)
-        else:
-            log_fail(test_name, f"expected 401, got {resp.status_code}")
-    except Exception as e:
-        log_fail(test_name, f"exception: {e}")
-    
-    # Test 2: Free user accessing admin endpoint
-    test_name = "chat/admin/state - free user (403)"
-    try:
-        resp = requests.get(
-            f"{BASE_URL}/chat/admin/state",
-            headers={"Authorization": f"Bearer {tokens['free']}"},
-            timeout=10
-        )
-        if resp.status_code == 403:
-            log_pass(test_name)
-        else:
-            log_fail(test_name, f"expected 403, got {resp.status_code}")
-    except Exception as e:
-        log_fail(test_name, f"exception: {e}")
-    
-    # Test 3: Plus user accessing admin settings
-    test_name = "chat/admin/settings - plus user (403)"
-    try:
-        resp = requests.patch(
-            f"{BASE_URL}/chat/admin/settings",
-            headers={"Authorization": f"Bearer {tokens['plus']}"},
-            json={"chat_slow_mode_seconds": 10},
-            timeout=10
-        )
-        if resp.status_code == 403:
-            log_pass(test_name)
-        else:
-            log_fail(test_name, f"expected 403, got {resp.status_code}")
-    except Exception as e:
-        log_fail(test_name, f"exception: {e}")
-
-
-def print_summary():
-    """Print test summary."""
-    print("\n" + "="*60)
-    print("TEST SUMMARY")
-    print("="*60)
-    
-    total = len(results["passed"]) + len(results["failed"])
-    passed = len(results["passed"])
-    failed = len(results["failed"])
-    
-    print(f"\nTotal tests: {total}")
-    print(f"✅ Passed: {passed}")
-    print(f"❌ Failed: {failed}")
-    
-    if results["failed"]:
-        print("\n" + "="*60)
-        print("FAILED TESTS:")
-        print("="*60)
-        for fail in results["failed"]:
-            print(f"\n❌ {fail['test']}")
-            print(f"   {fail['reason']}")
-    
-    print("\n" + "="*60)
-
-
-def test_user_level_field():
-    """Test user badge level field (1-10) on UserPublic, chat messages, and admin update."""
-    print("\n=== Testing User Level Field ===")
-    
-    # Test 1: GET /api/auth/me returns level field (default 1)
-    test_name = "auth/me - level field present (default 1)"
-    try:
-        resp = requests.get(
-            f"{BASE_URL}/auth/me",
-            headers={"Authorization": f"Bearer {tokens['plus']}"},
-            timeout=10
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            if "level" not in data:
-                log_fail(test_name, "level field missing from /auth/me response")
-            elif data["level"] != 1:
-                log_fail(test_name, f"level should default to 1, got {data['level']}")
-            else:
-                log_pass(test_name)
-        else:
-            log_fail(test_name, f"status {resp.status_code}: {resp.text}")
-    except Exception as e:
-        log_fail(test_name, f"exception: {e}")
-    
-    # Test 2: Chat message includes level field
-    test_name = "chat/send - message includes level field"
-    try:
-        # Send a message as plus user
-        resp = requests.post(
-            f"{BASE_URL}/chat/send",
-            headers={"Authorization": f"Bearer {tokens['plus']}"},
-            json={"room": "global", "content": "Testing level field in chat"},
-            timeout=10
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            message = data.get("message", {})
-            if "level" not in message:
-                log_fail(test_name, "level field missing from sent message")
-            elif message["level"] != 1:
-                log_fail(test_name, f"level should be 1, got {message['level']}")
-            else:
-                log_pass(test_name)
-        else:
-            log_fail(test_name, f"status {resp.status_code}: {resp.text}")
-    except Exception as e:
-        log_fail(test_name, f"exception: {e}")
-    
-    # Small delay to avoid cooldown
-    time.sleep(1)
-    
-    # Test 3: GET /api/chat/messages includes level field
-    test_name = "chat/messages - messages include level field"
-    try:
-        resp = requests.get(
-            f"{BASE_URL}/chat/messages?room=global&limit=5",
-            headers={"Authorization": f"Bearer {tokens['plus']}"},
-            timeout=10
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            items = data.get("items", [])
-            if not items:
-                log_fail(test_name, "no messages returned")
-            else:
-                # Check first message has level field
-                msg = items[0]
-                if "level" not in msg:
-                    log_fail(test_name, "level field missing from message in list")
-                else:
-                    log_pass(test_name)
-        else:
-            log_fail(test_name, f"status {resp.status_code}: {resp.text}")
-    except Exception as e:
-        log_fail(test_name, f"exception: {e}")
-    
-    # Test 4: Admin can PATCH user level
-    test_name = "admin/users/{id} - PATCH level=5"
-    try:
-        # Get test_free user ID
-        free_user_id = users.get("free", {}).get("id")
-        if not free_user_id:
-            log_fail(test_name, "test_free user ID not available")
-        else:
-            resp = requests.patch(
-                f"{BASE_URL}/admin/users/{free_user_id}",
-                headers={"Authorization": f"Bearer {tokens['admin']}"},
-                json={"level": 5},
-                timeout=10
-            )
-            if resp.status_code == 200:
-                data = resp.json()
-                if data.get("level") != 5:
-                    log_fail(test_name, f"level should be 5, got {data.get('level')}")
-                else:
-                    log_pass(test_name)
-            else:
-                log_fail(test_name, f"status {resp.status_code}: {resp.text}")
-    except Exception as e:
-        log_fail(test_name, f"exception: {e}")
-    
-    # Test 5: Verify level persisted (re-login as test_free)
-    test_name = "auth/me - level persisted after admin update"
-    try:
-        # Re-login as test_free
-        free_token = login("free")
-        if not free_token:
-            log_fail(test_name, "failed to re-login as test_free")
-        else:
-            resp = requests.get(
-                f"{BASE_URL}/auth/me",
-                headers={"Authorization": f"Bearer {free_token}"},
-                timeout=10
-            )
-            if resp.status_code == 200:
-                data = resp.json()
-                if data.get("level") != 5:
-                    log_fail(test_name, f"level should be 5 after admin update, got {data.get('level')}")
-                else:
-                    log_pass(test_name)
-            else:
-                log_fail(test_name, f"status {resp.status_code}: {resp.text}")
-    except Exception as e:
-        log_fail(test_name, f"exception: {e}")
-    
-    # Test 6: Clamping - level 99 should clamp to 10
-    test_name = "admin/users/{id} - PATCH level=99 clamps to 10"
-    try:
-        free_user_id = users.get("free", {}).get("id")
-        if not free_user_id:
-            log_fail(test_name, "test_free user ID not available")
-        else:
-            resp = requests.patch(
-                f"{BASE_URL}/admin/users/{free_user_id}",
-                headers={"Authorization": f"Bearer {tokens['admin']}"},
-                json={"level": 99},
-                timeout=10
-            )
-            if resp.status_code == 200:
-                data = resp.json()
-                if data.get("level") != 10:
-                    log_fail(test_name, f"level should clamp to 10, got {data.get('level')}")
-                else:
-                    log_pass(test_name)
-            else:
-                log_fail(test_name, f"status {resp.status_code}: {resp.text}")
-    except Exception as e:
-        log_fail(test_name, f"exception: {e}")
-    
-    # Test 7: Clamping - level 0 should clamp to 1
-    test_name = "admin/users/{id} - PATCH level=0 clamps to 1"
-    try:
-        free_user_id = users.get("free", {}).get("id")
-        if not free_user_id:
-            log_fail(test_name, "test_free user ID not available")
-        else:
-            resp = requests.patch(
-                f"{BASE_URL}/admin/users/{free_user_id}",
-                headers={"Authorization": f"Bearer {tokens['admin']}"},
-                json={"level": 0},
-                timeout=10
-            )
-            if resp.status_code == 200:
-                data = resp.json()
-                if data.get("level") != 1:
-                    log_fail(test_name, f"level should clamp to 1, got {data.get('level')}")
-                else:
-                    log_pass(test_name)
-            else:
-                log_fail(test_name, f"status {resp.status_code}: {resp.text}")
-    except Exception as e:
-        log_fail(test_name, f"exception: {e}")
-    
-    # Test 8: Invalid level (non-int) should return 400
-    test_name = "admin/users/{id} - PATCH level='abc' returns 400"
-    try:
-        free_user_id = users.get("free", {}).get("id")
-        if not free_user_id:
-            log_fail(test_name, "test_free user ID not available")
-        else:
-            resp = requests.patch(
-                f"{BASE_URL}/admin/users/{free_user_id}",
-                headers={"Authorization": f"Bearer {tokens['admin']}"},
-                json={"level": "abc"},
-                timeout=10
-            )
-            if resp.status_code == 400:
-                log_pass(test_name)
-            else:
-                log_fail(test_name, f"expected 400, got {resp.status_code}: {resp.text}")
-    except Exception as e:
-        log_fail(test_name, f"exception: {e}")
-    
-    # Reset test_free level back to 1
-    test_name = "admin/users/{id} - reset level to 1 (cleanup)"
-    try:
-        free_user_id = users.get("free", {}).get("id")
-        if free_user_id:
-            resp = requests.patch(
-                f"{BASE_URL}/admin/users/{free_user_id}",
-                headers={"Authorization": f"Bearer {tokens['admin']}"},
-                json={"level": 1},
-                timeout=10
-            )
-            if resp.status_code == 200:
-                log_pass(test_name)
-            else:
-                log_fail(test_name, f"status {resp.status_code}: {resp.text}")
-    except Exception as e:
-        log_fail(test_name, f"exception: {e}")
-
-
-def main():
-    """Main test runner."""
-    print("="*60)
-    print("CARTOONIX CHAT BACKEND TEST")
-    print("="*60)
-    print(f"Backend URL: {BASE_URL}")
-    
-    # Login all users
-    print("\n=== Logging in test users ===")
-    for user_type in ["admin", "plus", "free", "new"]:
-        if not login(user_type):
-            print(f"⚠️  Failed to login {user_type}, some tests will be skipped")
-            return
-    
-    # Run tests
-    test_chat_state()
-    test_send_message()
-    test_get_messages()
-    test_heartbeat_presence()
-    test_admin_endpoints()
-    test_authorization()
-    test_user_level_field()
-    
-    # Print summary
-    print_summary()
-
-
-if __name__ == "__main__":
-    main()
+# Exit with appropriate code
+sys.exit(0 if failed_tests == 0 else 1)

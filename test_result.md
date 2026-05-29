@@ -108,6 +108,20 @@ user_problem_statement: |
   - Add a "Maintenance Mode" toggle in Admin Settings (below Presentation Mode). When enabled, it overrides Presentation Mode and shows only an elegant maintenance message ("PLATFORMA IN MENTENANTA! REVENIM CURAND") with on-brand background. Only /login and /admin remain accessible so admins can disable it.
 
 backend:
+  - task: "Video library streaming endpoint with HTTP Range (GET /api/media/videos/{path})"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "New endpoint GET /api/media/videos/{file_path:path} serves files from VIDEO_DIR (env, default /media/videos) with HTTP Range support (206 Partial Content, Accept-Ranges, Content-Range) for in-browser seeking. Path-traversal guarded via realpath. content-type by extension (mp4/webm/mkv/etc). Verified via curl: 206 on Range, 200 full, 404 missing. Please retest: Range request returns 206 with correct Content-Range/Content-Length; full GET returns 200 with Accept-Ranges; missing file 404; path traversal attempt does not escape VIDEO_DIR (403/404). NOTE: create a temp file under /media/videos for the test and remove after."
+      - working: true
+        agent: "testing"
+        comment: "Comprehensive backend testing completed with 6 test cases for video streaming endpoint with HTTP Range support. ALL TESTS PASSED (6/6): ✅ Test 1: Full GET /api/media/videos/_qa/clip.mp4 returns HTTP 200 with Accept-Ranges: bytes, Content-Type: video/mp4, Content-Length: 1048576, body size: 1048576 bytes. ✅ Test 2: Range GET with header 'Range: bytes=0-1023' returns HTTP 206 Partial Content with Content-Range: bytes 0-1023/1048576, Content-Length: 1024, Accept-Ranges: bytes, body size: 1024 bytes. ✅ Test 3: Range GET with header 'Range: bytes=1048000-' (open-ended) returns HTTP 206 with Content-Range: bytes 1048000-1048575/1048576, Content-Length: 576, body size: 576 bytes (correct remaining length). ✅ Test 4: Unsatisfiable range 'Range: bytes=9999999-10000000' returns HTTP 416 Range Not Satisfiable with Content-Range: bytes */1048576. ✅ Test 5: Missing file GET /api/media/videos/_qa/does-not-exist.mp4 returns HTTP 404 Not Found. ✅ Test 6: Path traversal attempt GET /api/media/videos/..%2f..%2f..%2fetc%2fpasswd (URL-encoded ../../../etc/passwd) returns HTTP 403 Forbidden - path traversal successfully blocked, does NOT return /etc/passwd contents. Implementation verified: endpoint serves files from VIDEO_DIR (/media/videos) with full HTTP Range support for video seeking, correct MIME types (video/mp4), proper error handling (404 for missing files, 416 for unsatisfiable ranges), and robust security (403 for path traversal attempts via realpath guard). Test file created at /media/videos/_qa/clip.mp4 (1 MiB) and cleaned up after testing."
   - task: "User badge level field (level 1-10) on UserPublic + chat messages + admin update"
     implemented: true
     working: true
@@ -293,8 +307,8 @@ frontend:
 
 metadata:
   created_by: "main_agent"
-  version: "1.6"
-  test_sequence: 6
+  version: "1.7"
+  test_sequence: 7
   run_ui: false
 
 test_plan:
@@ -317,3 +331,6 @@ agent_communication:
 
   - agent: "testing"
     message: "BACKEND TESTING COMPLETE for Cartoonix Chat. Comprehensive test suite executed with 28 test cases covering all chat endpoints. RESULTS: 27/28 tests PASSED (96.4% success rate). CRITICAL BUG FOUND: Timezone-aware/naive datetime mismatch in /app/backend/chat.py line 394 causes 500 error when muted user tries to send message. The 'until' datetime from DB is naive but _now() returns aware datetime. All other functionality working correctly: state endpoints, message sending with cooldown/restrictions, profanity censoring, spam detection, link blocking, room gating, heartbeat/presence, admin moderation (except mute error message), message deletion, pinning, sanctions list, user history. Authorization checks all passing. Test credentials from /app/memory/test_credentials.md working correctly."
+
+  - agent: "testing"
+    message: "BACKEND TESTING COMPLETE for Video Streaming Endpoint with HTTP Range Support. Comprehensive test suite executed with 6 test cases covering all scenarios. RESULTS: 6/6 tests PASSED (100% success rate). All functionality working correctly: ✅ Full GET returns 200 with Accept-Ranges, Content-Type video/mp4, correct Content-Length and body size, ✅ Range GET bytes=0-1023 returns 206 Partial Content with correct Content-Range and 1024 bytes, ✅ Open-ended Range GET bytes=1048000- returns 206 with correct ending at 1048575/1048576 and 576 bytes, ✅ Unsatisfiable range returns 416 with Content-Range bytes */1048576, ✅ Missing file returns 404, ✅ Path traversal attempt (../../../etc/passwd) returns 403 and does NOT expose system files. Security verified: realpath guard successfully blocks path traversal. Feature is production-ready for video seeking in browser."

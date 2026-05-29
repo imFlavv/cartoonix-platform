@@ -13,14 +13,12 @@ import ForgotPasswordPage from "@/pages/ForgotPasswordPage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
 import RegisterPage from "@/pages/RegisterPage";
 import VerifyPage from "@/pages/VerifyPage";
-import PlansPage from "@/pages/PlansPage";
 import TermsPage from "@/pages/TermsPage";
 import ProfilePage from "@/pages/ProfilePage";
 import PresentationPage from "@/pages/PresentationPage";
 import MaintenancePage from "@/pages/MaintenancePage";
 import EarlyAccessPage from "@/pages/EarlyAccessPage";
 import EarlyAccessSuccessPage from "@/pages/EarlyAccessSuccessPage";
-import ConcursuriPage from "@/pages/ConcursuriPage";
 import CartoonixContestsPage from "@/pages/CartoonixContestsPage";
 import AdminLayout from "@/components/AdminLayout";
 import AdminOverview from "@/pages/admin/AdminOverview";
@@ -236,9 +234,9 @@ function App() {
                 <Route path="/reset-password" element={<ResetPasswordPage />} />
                 <Route path="/register" element={<RegisterPage />} />
                 <Route path="/verify" element={<VerifyPage />} />
-                <Route path="/plans" element={<PublicRoute element={<PlansPage />} />} />
+                <Route path="/plans" element={<Navigate to="/" replace />} />
                 <Route path="/terms-and-conditions" element={<TermsPage />} />
-                <Route path="/concursuri" element={<ConcursuriPage />} />
+                <Route path="/concursuri" element={<Navigate to="/" replace />} />
                 <Route path="/staff" element={<StaffPage />} />
                 <Route
                   path="/concursuri-cartoonix"

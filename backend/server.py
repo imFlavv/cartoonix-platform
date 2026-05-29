@@ -2,6 +2,7 @@
 import logging
 import os
 import random
+import re
 import shutil
 import string
 import uuid
@@ -12,7 +13,7 @@ from typing import List, Literal, Optional
 from dotenv import load_dotenv
 from fastapi import (APIRouter, Depends, FastAPI, File, Form, HTTPException, Header, Request,
                      UploadFile, status)
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, EmailStr, Field
@@ -37,6 +38,78 @@ UPLOAD_DIR = ROOT_DIR / "uploads"
 (UPLOAD_DIR / "videos").mkdir(parents=True, exist_ok=True)
 (UPLOAD_DIR / "thumbnails").mkdir(parents=True, exist_ok=True)
 app.mount("/api/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
+
+# External video library (e.g. /media/videos on the VPS). Served through a
+# custom range-enabled endpoint (see /api/media/videos/{path}) so seeking works
+# for mp4/webm/mkv/etc. Configurable via VIDEO_DIR env.
+VIDEO_DIR = os.environ.get("VIDEO_DIR", "/media/videos")
+try:
+    os.makedirs(VIDEO_DIR, exist_ok=True)
+except Exception:
+    pass
+
+VIDEO_EXT_MIME = {
+    "mp4": "video/mp4", "m4v": "video/mp4", "webm": "video/webm",
+    "ogg": "video/ogg", "ogv": "video/ogg", "mkv": "video/x-matroska",
+    "mov": "video/quicktime", "avi": "video/x-msvideo",
+    "wmv": "video/x-ms-wmv", "flv": "video/x-flv", "mpeg": "video/mpeg",
+    "mpg": "video/mpeg", "ts": "video/mp2t",
+}
+
+
+@api_router.get("/media/videos/{file_path:path}")
+async def serve_video(file_path: str, request: Request):
+    """Serve a video file from the external library with HTTP Range support
+    (required for in-browser seeking). Guards against path traversal."""
+    from urllib.parse import unquote
+    base = os.path.realpath(VIDEO_DIR)
+    target = os.path.realpath(os.path.join(base, unquote(file_path)))
+    if not (target == base or target.startswith(base + os.sep)):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    if not os.path.isfile(target):
+        raise HTTPException(status_code=404, detail="Video not found")
+
+    file_size = os.path.getsize(target)
+    ext = os.path.splitext(target)[1].lower().lstrip(".")
+    content_type = VIDEO_EXT_MIME.get(ext, "application/octet-stream")
+    range_header = request.headers.get("range")
+
+    def _iter(start: int, end: int, chunk: int = 1024 * 1024):
+        with open(target, "rb") as f:
+            f.seek(start)
+            remaining = end - start + 1
+            while remaining > 0:
+                data = f.read(min(chunk, remaining))
+                if not data:
+                    break
+                remaining -= len(data)
+                yield data
+
+    if range_header:
+        m = re.match(r"bytes=(\d*)-(\d*)", range_header.strip())
+        if m:
+            start_s, end_s = m.group(1), m.group(2)
+            start = int(start_s) if start_s else 0
+            end = int(end_s) if end_s else file_size - 1
+            end = min(end, file_size - 1)
+            if start > end or start >= file_size:
+                return Response(status_code=416, headers={"Content-Range": f"bytes */{file_size}"})
+            length = end - start + 1
+            headers = {
+                "Content-Range": f"bytes {start}-{end}/{file_size}",
+                "Accept-Ranges": "bytes",
+                "Content-Length": str(length),
+                "Cache-Control": "public, max-age=3600",
+            }
+            return StreamingResponse(_iter(start, end), status_code=206, headers=headers, media_type=content_type)
+
+    headers = {
+        "Accept-Ranges": "bytes",
+        "Content-Length": str(file_size),
+        "Cache-Control": "public, max-age=3600",
+    }
+    return StreamingResponse(_iter(0, file_size - 1), status_code=200, headers=headers, media_type=content_type)
+
 
 # ------------ Logging ------------
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")

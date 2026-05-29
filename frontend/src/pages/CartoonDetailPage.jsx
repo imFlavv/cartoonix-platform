@@ -9,7 +9,49 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import ReactPlayer from "react-player";
+
+/**
+ * Resolve an episode video path to a playable URL.
+ *  - absolute http(s) → used as-is
+ *  - paths containing "media/videos" (e.g. /media/videos/dexter/s01e01.mp4)
+ *    → mapped to the /api/media/videos mount (served by the backend, with
+ *      range support for seeking; on the VPS this reads from /media/videos)
+ *  - /uploads/... → existing upload mount
+ *  - other relative paths → assumed to live under the media/videos library
+ */
+function resolveVideoUrl(p) {
+  if (!p) return "";
+  const s = String(p).trim().replace(/\\/g, "/");
+  if (/^https?:\/\//i.test(s)) return s;
+  if (s.startsWith("/api/")) return s;
+  const idx = s.toLowerCase().indexOf("media/videos");
+  if (idx >= 0) {
+    const rel = s.slice(idx + "media/videos".length).replace(/^\/+/, "");
+    return `/api/media/videos/${rel}`;
+  }
+  if (s.startsWith("/uploads")) return `/api${s}`;
+  if (s.startsWith("/")) return s;
+  return `/api/media/videos/${s}`;
+}
+
+const MIME_BY_EXT = {
+  mp4: "video/mp4",
+  m4v: "video/mp4",
+  webm: "video/webm",
+  ogg: "video/ogg",
+  ogv: "video/ogg",
+  mkv: "video/x-matroska",
+  mov: "video/quicktime",
+  avi: "video/x-msvideo",
+  wmv: "video/x-ms-wmv",
+  flv: "video/x-flv",
+};
+
+function mimeForUrl(url) {
+  const m = /\.([a-z0-9]+)(?:\?.*)?$/i.exec(url || "");
+  const ext = m ? m[1].toLowerCase() : "";
+  return MIME_BY_EXT[ext] || "";
+}
 
 export default function CartoonDetailPage() {
   const { id } = useParams();
@@ -55,15 +97,16 @@ export default function CartoonDetailPage() {
     }
   };
 
-  const onProgress = async (state) => {
+  const onProgress = async (e) => {
     if (!user || !activeEp) return;
-    // Throttle: record every ~10s
-    if (Math.floor(state.playedSeconds) % 10 === 0 && state.playedSeconds > 0) {
+    const t = Math.floor(e?.target?.currentTime || 0);
+    // Throttle: record roughly every ~10s
+    if (t > 0 && t % 10 === 0) {
       try {
         await api.post("/me/history", {
           cartoon_id: data.id,
           episode_id: activeEp.id,
-          progress_seconds: Math.floor(state.playedSeconds),
+          progress_seconds: t,
         });
       } catch {}
     }
@@ -77,7 +120,8 @@ export default function CartoonDetailPage() {
     );
   }
 
-  const videoSrc = activeEp ? mediaUrl(activeEp.video_url) : "";
+  const videoSrc = activeEp ? resolveVideoUrl(activeEp.video_url) : "";
+  const videoType = mimeForUrl(videoSrc);
 
   return (
     <PublicLayout>
@@ -104,20 +148,32 @@ export default function CartoonDetailPage() {
               {activeEp ? (
                 <div data-testid="watch-player" className="tv-bezel scanlines relative overflow-hidden">
                   <div className="aspect-video rounded-xl bg-black overflow-hidden">
-                    <ReactPlayer
-                      url={videoSrc}
+                    <video
+                      key={activeEp.id}
+                      src={videoSrc}
                       controls
-                      width="100%"
-                      height="100%"
-                      onProgress={onProgress}
-                      config={{ file: { attributes: { controlsList: "nodownload", crossOrigin: "anonymous" } } }}
-                    />
+                      playsInline
+                      controlsList="nodownload"
+                      className="h-full w-full bg-black"
+                      onTimeUpdate={onProgress}
+                      data-testid="watch-video-element"
+                    >
+                      {videoType ? <source src={videoSrc} type={videoType} /> : null}
+                    </video>
                   </div>
-                  <div className="mt-2 px-1 text-sm flex items-center justify-between">
-                    <div>
-                      <div className="font-medium">{activeEp.title}</div>
+                  <div className="mt-2 px-1 text-sm flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium truncate">{activeEp.title}</div>
                       <div className="text-xs text-muted-foreground">S{activeEp.season} · E{activeEp.episode_number}</div>
                     </div>
+                    <a
+                      href={videoSrc}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="shrink-0 text-xs text-white/45 hover:text-[hsl(var(--accent))] underline underline-offset-2"
+                    >
+                      Nu pornește? Deschide direct
+                    </a>
                   </div>
                 </div>
               ) : (

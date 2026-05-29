@@ -1,8 +1,8 @@
-import React from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { LogOut, User as UserIcon, Shield } from "lucide-react";
+import { LogOut, User as UserIcon, Shield, Mail } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,10 +11,68 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { mediaUrl } from "@/lib/api";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { mediaUrl, api } from "@/lib/api";
 import { BrandLogo } from "@/components/BrandLogo";
 import { useSettings } from "@/contexts/SettingsContext";
 import UserBadges from "@/components/UserBadges";
+import InboxPanel from "@/components/InboxPanel";
+
+function NotificationsBell() {
+  const [open, setOpen] = useState(false);
+  const [unread, setUnread] = useState(0);
+
+  const refreshUnread = useCallback(async () => {
+    try {
+      const { data } = await api.get("/notifications/unread-count");
+      setUnread(Number(data?.total || 0));
+    } catch {
+      /* silent */
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshUnread();
+    const id = setInterval(refreshUnread, 60000);
+    return () => clearInterval(id);
+  }, [refreshUnread]);
+
+  const badge = unread > 9 ? "9+" : String(unread);
+
+  return (
+    <Popover open={open} onOpenChange={(v) => { setOpen(v); if (v) refreshUnread(); }}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          data-testid="nav-notifications-button"
+          aria-label={`Notificări${unread ? ` (${unread} necitite)` : ""}`}
+          className="relative grid h-10 w-10 place-items-center rounded-full border border-white/[0.08] bg-white/[0.03] text-white/70 hover:text-white hover:border-white/[0.16] hover:bg-white/[0.06] transition-all"
+        >
+          <Mail className="h-[18px] w-[18px]" />
+          {unread > 0 && (
+            <span
+              data-testid="nav-notifications-badge"
+              className="absolute -top-1 -right-1 grid min-w-[18px] h-[18px] place-items-center rounded-full bg-[hsl(var(--accent))] px-1 text-[10px] font-bold text-black ring-2 ring-[#0b0c10]"
+            >
+              {badge}
+            </span>
+          )}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        sideOffset={10}
+        className="w-[360px] max-w-[92vw] border-white/[0.08] bg-[#101117]/97 backdrop-blur-xl text-white p-4"
+      >
+        <div className="mb-2 flex items-center gap-2">
+          <Mail className="h-4 w-4 text-[hsl(var(--accent))]" />
+          <h3 className="text-sm font-semibold tracking-wide">Notificări</h3>
+        </div>
+        <InboxPanel open={open} onUnreadChange={refreshUnread} />
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 export function TopNav() {
   const { user, logout } = useAuth();
@@ -28,8 +86,6 @@ export function TopNav() {
     { to: "/category/jetix-foxkids", label: "JETIX & Fox Kids" },
     { to: "/category/cartoon-network", label: "Cartoon Network" },
     { to: "/category/minimax", label: "Minimax" },
-    { to: "/plans", label: "Abonamente" },
-    { to: "/concursuri", label: "Concursuri" },
   ];
 
   return (
@@ -37,7 +93,6 @@ export function TopNav() {
       data-testid="top-nav"
       className="sticky top-0 z-40 w-full border-b border-white/[0.06] bg-[#0b0c10]/80 backdrop-blur-xl supports-[backdrop-filter]:bg-[#0b0c10]/70"
     >
-      {/* hairline gold accent */}
       <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[hsl(var(--accent))]/30 to-transparent" />
       <div className="mx-auto flex h-[68px] max-w-7xl items-center gap-3 px-4 sm:px-6 lg:px-8">
         <Link to="/" data-testid="nav-logo" className="flex items-center group shrink-0">
@@ -54,9 +109,7 @@ export function TopNav() {
                   data-testid={`nav-${it.to.replace(/\//g, "-")}`}
                   className={({ isActive }) =>
                     `relative px-3.5 py-2 rounded-lg text-[13px] font-medium tracking-wide transition-all duration-200 ${
-                      isActive
-                        ? "text-white"
-                        : "text-white/55 hover:text-white/90"
+                      isActive ? "text-white" : "text-white/55 hover:text-white/90"
                     }`
                   }
                 >
@@ -97,68 +150,71 @@ export function TopNav() {
             </Button>
           </div>
         ) : (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                data-testid="nav-user-menu"
-                className="group flex items-center gap-2.5 rounded-full border border-white/[0.08] bg-white/[0.03] py-1.5 pl-1.5 pr-3 hover:border-white/[0.16] hover:bg-white/[0.06] transition-all duration-200"
+          <div className="flex items-center gap-2.5">
+            <NotificationsBell />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  data-testid="nav-user-menu"
+                  className="group flex items-center gap-2.5 rounded-full border border-white/[0.08] bg-white/[0.03] py-1.5 pl-1.5 pr-3 hover:border-white/[0.16] hover:bg-white/[0.06] transition-all duration-200"
+                >
+                  <span className="relative">
+                    <img
+                      src={mediaUrl(user.avatar_url)}
+                      alt={user.nickname}
+                      className="h-8 w-8 rounded-full object-cover ring-1 ring-white/10"
+                    />
+                    {isPlus && (
+                      <span className="absolute -inset-0.5 rounded-full ring-1 ring-[hsl(var(--accent))]/50" />
+                    )}
+                  </span>
+                  <span className="hidden sm:flex items-center gap-2 min-w-0">
+                    <span className="text-[13px] font-semibold text-white/90 truncate max-w-[120px]">
+                      {user.nickname}
+                    </span>
+                    <UserBadges level={user.level} isPlus={isPlus} size={18} gap={3} />
+                  </span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                className="w-64 border-white/[0.08] bg-[#101117]/95 backdrop-blur-xl"
               >
-                <span className="relative">
-                  <img
-                    src={mediaUrl(user.avatar_url)}
-                    alt={user.nickname}
-                    className="h-8 w-8 rounded-full object-cover ring-1 ring-white/10"
-                  />
-                  {isPlus && (
-                    <span className="absolute -inset-0.5 rounded-full ring-1 ring-[hsl(var(--accent))]/50" />
-                  )}
-                </span>
-                <span className="hidden sm:flex items-center gap-2 min-w-0">
-                  <span className="text-[13px] font-semibold text-white/90 truncate max-w-[120px]">
-                    {user.nickname}
-                  </span>
-                  <UserBadges level={user.level} isPlus={isPlus} size={18} gap={3} />
-                </span>
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              className="w-64 border-white/[0.08] bg-[#101117]/95 backdrop-blur-xl"
-            >
-              <DropdownMenuLabel>
-                <div className="flex items-center gap-3 py-1">
-                  <img
-                    src={mediaUrl(user.avatar_url)}
-                    alt=""
-                    className="h-10 w-10 rounded-xl object-cover ring-1 ring-white/10"
-                  />
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-sm font-semibold truncate">{user.nickname}</span>
-                    <span className="text-xs text-muted-foreground truncate">{user.email}</span>
+                <DropdownMenuLabel>
+                  <div className="flex items-center gap-3 py-1">
+                    <img
+                      src={mediaUrl(user.avatar_url)}
+                      alt=""
+                      className="h-10 w-10 rounded-xl object-cover ring-1 ring-white/10"
+                    />
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-sm font-semibold truncate">{user.nickname}</span>
+                      <span className="text-xs text-muted-foreground truncate">{user.email}</span>
+                    </div>
                   </div>
-                </div>
-                <div className="mt-2 flex items-center justify-between rounded-lg bg-white/[0.04] px-2.5 py-2">
-                  <span className="text-[11px] uppercase tracking-[0.2em] text-white/50">
-                    Badge-urile tale
-                  </span>
-                  <UserBadges level={user.level} isPlus={isPlus} size={22} gap={4} />
-                </div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator className="bg-white/[0.06]" />
-              <DropdownMenuItem onClick={() => navigate("/profile")} data-testid="nav-dashboard-link">
-                <UserIcon className="mr-2 h-4 w-4" /> Profilul meu
-              </DropdownMenuItem>
-              {user.role === "admin" && (
-                <DropdownMenuItem onClick={() => navigate("/admin")} data-testid="nav-admin-link">
-                  <Shield className="mr-2 h-4 w-4" /> Panou Admin
+                  <div className="mt-2 flex items-center justify-between rounded-lg bg-white/[0.04] px-2.5 py-2">
+                    <span className="text-[11px] uppercase tracking-[0.2em] text-white/50">
+                      Badge-urile tale
+                    </span>
+                    <UserBadges level={user.level} isPlus={isPlus} size={22} gap={4} />
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator className="bg-white/[0.06]" />
+                <DropdownMenuItem onClick={() => navigate("/profile")} data-testid="nav-dashboard-link">
+                  <UserIcon className="mr-2 h-4 w-4" /> Profilul meu
                 </DropdownMenuItem>
-              )}
-              <DropdownMenuSeparator className="bg-white/[0.06]" />
-              <DropdownMenuItem onClick={logout} data-testid="nav-logout-button">
-                <LogOut className="mr-2 h-4 w-4" /> Deconectare
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                {user.role === "admin" && (
+                  <DropdownMenuItem onClick={() => navigate("/admin")} data-testid="nav-admin-link">
+                    <Shield className="mr-2 h-4 w-4" /> Panou Admin
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator className="bg-white/[0.06]" />
+                <DropdownMenuItem onClick={logout} data-testid="nav-logout-button">
+                  <LogOut className="mr-2 h-4 w-4" /> Deconectare
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         )}
       </div>
     </header>
@@ -188,8 +244,6 @@ export function Footer() {
         <div className="text-sm">
           <h4 className="font-display tracking-wider text-base mb-3">Cartoonix</h4>
           <ul className="space-y-1.5 text-muted-foreground">
-            <li><Link className="hover:text-foreground transition-colors" to="/plans">Abonamente</Link></li>
-            <li><Link className="hover:text-foreground transition-colors" to="/concursuri">Concursuri</Link></li>
             <li><Link className="hover:text-foreground transition-colors" to="/terms-and-conditions">Termeni și Condiții</Link></li>
           </ul>
         </div>
