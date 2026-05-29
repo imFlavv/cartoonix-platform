@@ -25,7 +25,7 @@ function NotificationsBell() {
   const refreshUnread = useCallback(async () => {
     try {
       const { data } = await api.get("/notifications/unread-count");
-      setUnread(Number(data?.total || 0));
+      setUnread(Number(data?.notifications || 0));
     } catch {
       /* silent */
     }
@@ -151,7 +151,6 @@ export function TopNav() {
           </div>
         ) : (
           <div className="flex items-center gap-2.5">
-            <NotificationsBell />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
@@ -214,6 +213,7 @@ export function TopNav() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            <NotificationsBell />
           </div>
         )}
       </div>

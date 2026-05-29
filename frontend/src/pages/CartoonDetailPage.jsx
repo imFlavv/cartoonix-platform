@@ -34,25 +34,6 @@ function resolveVideoUrl(p) {
   return `/api/media/videos/${s}`;
 }
 
-const MIME_BY_EXT = {
-  mp4: "video/mp4",
-  m4v: "video/mp4",
-  webm: "video/webm",
-  ogg: "video/ogg",
-  ogv: "video/ogg",
-  mkv: "video/x-matroska",
-  mov: "video/quicktime",
-  avi: "video/x-msvideo",
-  wmv: "video/x-ms-wmv",
-  flv: "video/x-flv",
-};
-
-function mimeForUrl(url) {
-  const m = /\.([a-z0-9]+)(?:\?.*)?$/i.exec(url || "");
-  const ext = m ? m[1].toLowerCase() : "";
-  return MIME_BY_EXT[ext] || "";
-}
-
 export default function CartoonDetailPage() {
   const { id } = useParams();
   const { user } = useAuth();
@@ -121,7 +102,6 @@ export default function CartoonDetailPage() {
   }
 
   const videoSrc = activeEp ? resolveVideoUrl(activeEp.video_url) : "";
-  const videoType = mimeForUrl(videoSrc);
 
   return (
     <PublicLayout>
@@ -153,27 +133,16 @@ export default function CartoonDetailPage() {
                       src={videoSrc}
                       controls
                       playsInline
+                      preload="metadata"
                       controlsList="nodownload"
-                      className="h-full w-full bg-black"
+                      className="h-full w-full bg-black object-contain"
                       onTimeUpdate={onProgress}
                       data-testid="watch-video-element"
-                    >
-                      {videoType ? <source src={videoSrc} type={videoType} /> : null}
-                    </video>
+                    />
                   </div>
-                  <div className="mt-2 px-1 text-sm flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="font-medium truncate">{activeEp.title}</div>
-                      <div className="text-xs text-muted-foreground">S{activeEp.season} · E{activeEp.episode_number}</div>
-                    </div>
-                    <a
-                      href={videoSrc}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="shrink-0 text-xs text-white/45 hover:text-[hsl(var(--accent))] underline underline-offset-2"
-                    >
-                      Nu pornește? Deschide direct
-                    </a>
+                  <div className="mt-2 px-1 text-sm">
+                    <div className="font-medium truncate">{activeEp.title}</div>
+                    <div className="text-xs text-muted-foreground">S{activeEp.season} · E{activeEp.episode_number}</div>
                   </div>
                 </div>
               ) : (
