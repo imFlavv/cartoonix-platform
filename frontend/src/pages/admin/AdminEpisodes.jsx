@@ -161,9 +161,9 @@ function ImportFolderDialog({ cartoons, onDone }) {
             </Select>
           </div>
           <div>
-            <Label>Cale folder (trebuie să fie în /app/backend/uploads)</Label>
-            <Input value={folder} onChange={(e) => setFolder(e.target.value)} data-testid="import-folder-path" className="h-11 rounded-xl" />
-            <p className="text-xs text-muted-foreground mt-1">Toate fișierele .mp4/.webm din folder vor fi adăugate ca episoade.</p>
+            <Label>Cale folder (în /media/videos sau în uploads)</Label>
+            <Input value={folder} onChange={(e) => setFolder(e.target.value)} placeholder="/media/videos/Vaca Si Puiul/" data-testid="import-folder-path" className="h-11 rounded-xl" />
+            <p className="text-xs text-muted-foreground mt-1">Toate fișierele video din folder (.mp4, .webm, .mkv, .mov, .avi, .wmv...) vor fi adăugate ca episoade.</p>
           </div>
         </div>
         <DialogFooter>

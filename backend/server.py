@@ -1498,19 +1498,36 @@ async def admin_import_folder(payload: dict, user=Depends(require_admin)):
     if not await db.cartoons.find_one({"id": cartoon_id}):
         raise HTTPException(400, "Invalid cartoon_id")
     folder_p = Path(folder)
-    # Allow only paths under /app/backend/uploads for safety
+    # Allow folders under the uploads dir OR the external video library (VIDEO_DIR)
+    upload_base = UPLOAD_DIR.resolve()
+    video_base = Path(VIDEO_DIR).resolve()
+    resolved = folder_p.resolve()
+    base_kind = None
     try:
-        folder_p.resolve().relative_to(UPLOAD_DIR.resolve())
+        resolved.relative_to(upload_base)
+        base_kind = "upload"
     except Exception:
-        raise HTTPException(400, f"Folder must be inside {UPLOAD_DIR}")
+        try:
+            resolved.relative_to(video_base)
+            base_kind = "video"
+        except Exception:
+            raise HTTPException(400, f"Folder must be inside {UPLOAD_DIR} or {VIDEO_DIR}")
     if not folder_p.exists() or not folder_p.is_dir():
         raise HTTPException(400, "Folder does not exist")
     added = []
     existing_count = await db.episodes.count_documents({"cartoon_id": cartoon_id})
-    files = sorted([f for f in folder_p.glob("*") if f.suffix.lower() in {".mp4", ".webm", ".mov", ".m4v", ".mkv"}])
+    video_exts = {".mp4", ".webm", ".mov", ".m4v", ".mkv", ".avi", ".wmv", ".flv", ".mpeg", ".mpg", ".ts"}
+    files = sorted([f for f in folder_p.glob("*") if f.suffix.lower() in video_exts])
     for idx, fpath in enumerate(files, start=1):
-        rel = fpath.resolve().relative_to(UPLOAD_DIR.resolve())
-        url = f"/api/uploads/{rel.as_posix()}"
+        fres = fpath.resolve()
+        if base_kind == "upload":
+            rel = fres.relative_to(upload_base)
+            url = f"/api/uploads/{rel.as_posix()}"
+            src_type = "upload"
+        else:
+            rel = fres.relative_to(video_base)
+            url = f"/media/videos/{rel.as_posix()}"
+            src_type = "external"
         doc = {
             "id": new_id(),
             "cartoon_id": cartoon_id,
@@ -1520,7 +1537,7 @@ async def admin_import_folder(payload: dict, user=Depends(require_admin)):
             "description": "",
             "duration_seconds": 0,
             "video_url": url,
-            "source_type": "upload",
+            "source_type": src_type,
             "thumbnail_url": "",
             "created_at": now_utc().isoformat(),
         }
