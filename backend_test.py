@@ -6,7 +6,7 @@ import requests
 from typing import Optional
 
 # Backend URL
-BASE_URL = "https://cartoonix-chat.preview.emergentagent.com/api"
+BASE_URL = "https://platform-refresh-pro.preview.emergentagent.com/api"
 
 # Test credentials
 CREDENTIALS = {
