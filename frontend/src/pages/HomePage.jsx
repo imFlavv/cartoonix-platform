@@ -10,10 +10,10 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faTv, faBoltLightning, faComments, faHeart } from "@fortawesome/free-solid-svg-icons";
 
 const WHY_FEATURES = [
-  { icon: faTv, title: "Tezaur curat", text: "Clasice restaurate, organizate pe trei canale legendare." },
-  { icon: faBoltLightning, title: "Fără reclame", text: "Cu PLUS, maratonul tău curge neîntrerupt, în Full HD." },
-  { icon: faComments, title: "Chat live", text: "Retrăiește nostalgia alături de o comunitate de superfani." },
-  { icon: faHeart, title: "Favorite & playlist-uri", text: "Salvează, organizează și reia de unde ai rămas." },
+  { icon: faTv, title: "", text: "Desenele copilăriei tale, organizate într-un singur loc." },
+  { icon: faBoltLightning, title: "Fără reclame", text: "Vizionare fără întreruperi și acces la calitate premium." },
+  { icon: faComments, title: "Chat live", text: "Discută live cu alți oameni care au crescut cu aceleași desene." },
+  { icon: faHeart, title: "Favorite & playlist-uri", text: "Păstrează episoadele preferate și continuă oricând." },
 ];
 
 /**
@@ -135,9 +135,9 @@ export default function HomePage() {
                 transition={{ duration: 0.5, delay: 0.05 }}
                 className="font-display text-5xl sm:text-6xl lg:text-7xl leading-[0.95] tracking-[0.01em] mt-6 text-white"
               >
-                Streamează clasicele.
+                Desenele copilăriei tale.
                 <br />
-                <span className="text-[hsl(var(--accent))]">Retrăiește epoca de aur.</span>
+                <span className="text-[hsl(var(--accent))]">În sfârșit acasă.</span>
               </motion.h1>
 
               <motion.p
@@ -146,8 +146,8 @@ export default function HomePage() {
                 transition={{ duration: 0.5, delay: 0.1 }}
                 className="mt-6 max-w-xl text-base sm:text-lg leading-relaxed text-white/55"
               >
-                Cartoonix este casa ta caldă și premium pentru desenele care au definit diminețile de
-                sâmbătă. Trei canale. Un singur tezaur nostalgic.
+                Jetix, Cartoon Network și Minimax — toate într-un singur loc. Desenele cu care ai
+                crescut, organizate și gata de redat oricând.
               </motion.p>
 
               <motion.div
@@ -172,12 +172,12 @@ export default function HomePage() {
                     data-testid="hero-channels-button"
                     className="h-12 rounded-xl border-white/15 bg-transparent px-6 text-base text-white hover:bg-white/[0.06]"
                   >
-                    Explorează canalele
+                    Vezi canalele
                   </Button>
                 </Link>
                 <div className="ml-1 flex items-center gap-1.5 text-sm text-white/45">
                   <ShieldCheck className="h-4 w-4 text-[hsl(var(--accent))]" />
-                  <span>Curat de superfani</span>
+                  <span>Creat de fani</span>
                 </div>
               </motion.div>
             </div>
@@ -228,7 +228,9 @@ export default function HomePage() {
               <span className="grid h-11 w-11 place-items-center rounded-xl bg-[hsl(var(--accent))]/10 text-[hsl(var(--accent))] ring-1 ring-[hsl(var(--accent))]/20 transition-transform group-hover:scale-105">
                 <FontAwesomeIcon icon={f.icon} className="h-5 w-5" />
               </span>
-              <h3 className="mt-4 font-display text-lg tracking-wider text-white">{f.title}</h3>
+              {f.title && (
+                <h3 className="mt-4 font-display text-lg tracking-wider text-white">{f.title}</h3>
+              )}
               <p className="mt-1 text-sm leading-relaxed text-white/45">{f.text}</p>
             </motion.div>
           ))}
@@ -240,7 +242,7 @@ export default function HomePage() {
         <div className="mb-9">
           <div className="text-[11px] uppercase tracking-[0.3em] text-[hsl(var(--accent))]/80">Canale</div>
           <h2 className="mt-2 font-display text-3xl sm:text-4xl tracking-wider text-white">Trei canale legendare</h2>
-          <p className="text-white/45 mt-1">Alege un tezaur și pătrunde înăuntru.</p>
+          <p className="text-white/45 mt-1">Alege canalul cu care ai crescut.</p>
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {categories.map((c, i) => (
@@ -254,8 +256,8 @@ export default function HomePage() {
         <section data-testid="home-featured-section" className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
           <div className="mb-7">
             <div className="text-[11px] uppercase tracking-[0.3em] text-[hsl(var(--accent))]/80">Tezaur</div>
-            <h2 className="mt-2 font-display text-2xl sm:text-3xl tracking-wider text-white">Proaspete din tezaur</h2>
-            <p className="text-white/45 text-sm mt-1">Clasice adăugate recent.</p>
+            <h2 className="mt-2 font-display text-2xl sm:text-3xl tracking-wider text-white">Adăugate recent</h2>
+            <p className="text-white/45 text-sm mt-1">Noi episoade adăugate în Cartoonix.</p>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
             {featured.slice(0, 8).map((c) => (
