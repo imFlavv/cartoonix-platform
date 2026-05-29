@@ -1501,9 +1501,14 @@ async def admin_list_users(
 
 @api_router.patch("/admin/users/{user_id}")
 async def admin_update_user(user_id: str, payload: dict, user=Depends(require_admin)):
-    allowed = {k: v for k, v in payload.items() if k in {"role", "subscription", "email_verified"}}
+    allowed = {k: v for k, v in payload.items() if k in {"role", "subscription", "email_verified", "level"}}
     if not allowed:
         raise HTTPException(400, "No valid fields")
+    if "level" in allowed:
+        try:
+            allowed["level"] = max(1, min(10, int(allowed["level"])))
+        except (TypeError, ValueError):
+            raise HTTPException(400, "Invalid level")
     await db.users.update_one({"id": user_id}, {"$set": allowed})
     u = await db.users.find_one({"id": user_id}, {"_id": 0, "password_hash": 0})
     return u

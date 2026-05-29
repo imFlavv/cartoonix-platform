@@ -20,7 +20,7 @@ export default function VerifyPage() {
   const [resendCooldown, setResendCooldown] = useState(0);
 
   useEffect(() => {
-    if (user?.email_verified) navigate(user.role === "admin" ? "/admin" : "/dashboard");
+    if (user?.email_verified) navigate(user.role === "admin" ? "/admin" : "/profile");
   }, [user, navigate]);
 
   useEffect(() => {
@@ -35,7 +35,7 @@ export default function VerifyPage() {
     try {
       await verifyEmail(email, code);
       toast.success("Email verificat!");
-      navigate(user?.role === "admin" ? "/admin" : "/dashboard");
+      navigate(user?.role === "admin" ? "/admin" : "/profile");
     } catch (err) {
       toast.error(getErrorMessage(err, "Cod invalid"));
     } finally {

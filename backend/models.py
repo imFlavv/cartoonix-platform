@@ -22,6 +22,7 @@ class UserPublic(BaseModel):
     avatar_url: str
     role: Literal["user", "admin"] = "user"
     subscription: Literal["free", "plus"] = "free"
+    level: int = 1  # gamification level 1-10 (badge)
     email_verified: bool = False
     created_at: datetime
 

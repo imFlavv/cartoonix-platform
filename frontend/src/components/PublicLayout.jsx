@@ -2,8 +2,7 @@ import React from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { useTheme } from "@/contexts/ThemeContext";
-import { Moon, Sun, LogOut, LayoutDashboard, Shield, Search } from "lucide-react";
+import { LogOut, User as UserIcon, Shield } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,61 +14,68 @@ import {
 import { mediaUrl } from "@/lib/api";
 import { BrandLogo } from "@/components/BrandLogo";
 import { useSettings } from "@/contexts/SettingsContext";
+import UserBadges from "@/components/UserBadges";
 
 export function TopNav() {
   const { user, logout } = useAuth();
-  const { theme, toggleTheme } = useTheme();
   const { settings } = useSettings() || {};
   const navigate = useNavigate();
   const presentationOn = !!settings?.presentation_mode;
   const restrictedView = presentationOn && user?.role !== "admin";
+  const isPlus = user?.subscription === "plus";
+
+  const NAV_ITEMS = [
+    { to: "/category/jetix-foxkids", label: "JETIX & Fox Kids" },
+    { to: "/category/cartoon-network", label: "Cartoon Network" },
+    { to: "/category/minimax", label: "Minimax" },
+    { to: "/plans", label: "Abonamente" },
+    { to: "/concursuri", label: "Concursuri" },
+  ];
 
   return (
     <header
       data-testid="top-nav"
-      className="sticky top-0 z-40 w-full border-b border-border/60 bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/60"
+      className="sticky top-0 z-40 w-full border-b border-white/[0.06] bg-[#0b0c10]/80 backdrop-blur-xl supports-[backdrop-filter]:bg-[#0b0c10]/70"
     >
-      <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 sm:px-6 lg:px-8">
-        <Link to="/" data-testid="nav-logo" className="flex items-center group">
+      {/* hairline gold accent */}
+      <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[hsl(var(--accent))]/30 to-transparent" />
+      <div className="mx-auto flex h-[68px] max-w-7xl items-center gap-3 px-4 sm:px-6 lg:px-8">
+        <Link to="/" data-testid="nav-logo" className="flex items-center group shrink-0">
           <BrandLogo variant="horizontal" size="md" />
         </Link>
-        <nav className="hidden md:flex items-center gap-1 ml-4">
+
+        <nav className="hidden md:flex items-center gap-0.5 ml-3">
           {restrictedView
             ? null
-            : [
-                { to: "/category/jetix-foxkids", label: "JETIX & Fox Kids" },
-                { to: "/category/cartoon-network", label: "Cartoon Network" },
-                { to: "/category/minimax", label: "Minimax" },
-                { to: "/plans", label: "Abonamente" },
-                { to: "/concursuri", label: "Concursuri" },
-              ].map((it) => (
+            : NAV_ITEMS.map((it) => (
                 <NavLink
                   key={it.to}
                   to={it.to}
                   data-testid={`nav-${it.to.replace(/\//g, "-")}`}
                   className={({ isActive }) =>
-                    `px-3 py-2 rounded-lg text-sm transition-colors ${
+                    `relative px-3.5 py-2 rounded-lg text-[13px] font-medium tracking-wide transition-all duration-200 ${
                       isActive
-                        ? "text-foreground bg-secondary"
-                        : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+                        ? "text-white"
+                        : "text-white/55 hover:text-white/90"
                     }`
                   }
                 >
-                  {it.label}
+                  {({ isActive }) => (
+                    <>
+                      {it.label}
+                      <span
+                        className={`pointer-events-none absolute left-3.5 right-3.5 -bottom-[2px] h-[2px] rounded-full bg-[hsl(var(--accent))] transition-all duration-300 ${
+                          isActive ? "opacity-100 scale-x-100" : "opacity-0 scale-x-0"
+                        }`}
+                      />
+                    </>
+                  )}
                 </NavLink>
               ))}
         </nav>
+
         <div className="flex-1" />
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="Toggle theme"
-          data-testid="theme-toggle-button"
-          onClick={toggleTheme}
-          className="rounded-xl"
-        >
-          {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-        </Button>
+
         {!user ? (
           <div className="flex items-center gap-2">
             <Button
@@ -77,7 +83,7 @@ export function TopNav() {
               size="sm"
               data-testid="nav-login-button"
               onClick={() => navigate("/login")}
-              className="rounded-xl"
+              className="rounded-xl text-white/70 hover:text-white hover:bg-white/[0.06]"
             >
               Autentificare
             </Button>
@@ -85,7 +91,7 @@ export function TopNav() {
               size="sm"
               data-testid="nav-register-button"
               onClick={() => navigate("/register")}
-              className="rounded-xl"
+              className="rounded-xl bg-[hsl(var(--accent))] text-black hover:bg-[hsl(var(--accent))]/90 font-semibold"
             >
               Alătură-te
             </Button>
@@ -95,33 +101,59 @@ export function TopNav() {
             <DropdownMenuTrigger asChild>
               <button
                 data-testid="nav-user-menu"
-                className="flex items-center gap-2 rounded-xl border border-border bg-card/60 px-2 py-1.5 hover:bg-card transition-colors"
+                className="group flex items-center gap-2.5 rounded-full border border-white/[0.08] bg-white/[0.03] py-1.5 pl-1.5 pr-3 hover:border-white/[0.16] hover:bg-white/[0.06] transition-all duration-200"
               >
-                <img
-                  src={mediaUrl(user.avatar_url)}
-                  alt={user.nickname}
-                  className="h-7 w-7 rounded-lg object-cover"
-                />
-                <span className="text-sm font-medium hidden sm:inline">{user.nickname}</span>
+                <span className="relative">
+                  <img
+                    src={mediaUrl(user.avatar_url)}
+                    alt={user.nickname}
+                    className="h-8 w-8 rounded-full object-cover ring-1 ring-white/10"
+                  />
+                  {isPlus && (
+                    <span className="absolute -inset-0.5 rounded-full ring-1 ring-[hsl(var(--accent))]/50" />
+                  )}
+                </span>
+                <span className="hidden sm:flex items-center gap-2 min-w-0">
+                  <span className="text-[13px] font-semibold text-white/90 truncate max-w-[120px]">
+                    {user.nickname}
+                  </span>
+                  <UserBadges level={user.level} isPlus={isPlus} size={18} gap={3} />
+                </span>
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuContent
+              align="end"
+              className="w-64 border-white/[0.08] bg-[#101117]/95 backdrop-blur-xl"
+            >
               <DropdownMenuLabel>
-                <div className="flex flex-col">
-                  <span className="text-sm font-medium">{user.nickname}</span>
-                  <span className="text-xs text-muted-foreground truncate">{user.email}</span>
+                <div className="flex items-center gap-3 py-1">
+                  <img
+                    src={mediaUrl(user.avatar_url)}
+                    alt=""
+                    className="h-10 w-10 rounded-xl object-cover ring-1 ring-white/10"
+                  />
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-sm font-semibold truncate">{user.nickname}</span>
+                    <span className="text-xs text-muted-foreground truncate">{user.email}</span>
+                  </div>
+                </div>
+                <div className="mt-2 flex items-center justify-between rounded-lg bg-white/[0.04] px-2.5 py-2">
+                  <span className="text-[11px] uppercase tracking-[0.2em] text-white/50">
+                    Badge-urile tale
+                  </span>
+                  <UserBadges level={user.level} isPlus={isPlus} size={22} gap={4} />
                 </div>
               </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => navigate("/dashboard")} data-testid="nav-dashboard-link">
-                <LayoutDashboard className="mr-2 h-4 w-4" /> Contul meu
+              <DropdownMenuSeparator className="bg-white/[0.06]" />
+              <DropdownMenuItem onClick={() => navigate("/profile")} data-testid="nav-dashboard-link">
+                <UserIcon className="mr-2 h-4 w-4" /> Profilul meu
               </DropdownMenuItem>
               {user.role === "admin" && (
                 <DropdownMenuItem onClick={() => navigate("/admin")} data-testid="nav-admin-link">
                   <Shield className="mr-2 h-4 w-4" /> Panou Admin
                 </DropdownMenuItem>
               )}
-              <DropdownMenuSeparator />
+              <DropdownMenuSeparator className="bg-white/[0.06]" />
               <DropdownMenuItem onClick={logout} data-testid="nav-logout-button">
                 <LogOut className="mr-2 h-4 w-4" /> Deconectare
               </DropdownMenuItem>
@@ -135,7 +167,7 @@ export function TopNav() {
 
 export function Footer() {
   return (
-    <footer data-testid="footer" className="border-t border-border/60 mt-16">
+    <footer data-testid="footer" className="border-t border-white/[0.06] mt-16">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 grid gap-6 sm:grid-cols-3">
         <div>
           <div className="mb-3">
@@ -148,21 +180,21 @@ export function Footer() {
         <div className="text-sm">
           <h4 className="font-display tracking-wider text-base mb-3">Explorează</h4>
           <ul className="space-y-1.5 text-muted-foreground">
-            <li><Link className="hover:text-foreground" to="/category/jetix-foxkids">JETIX & Fox Kids</Link></li>
-            <li><Link className="hover:text-foreground" to="/category/cartoon-network">Cartoon Network</Link></li>
-            <li><Link className="hover:text-foreground" to="/category/minimax">Minimax</Link></li>
+            <li><Link className="hover:text-foreground transition-colors" to="/category/jetix-foxkids">JETIX & Fox Kids</Link></li>
+            <li><Link className="hover:text-foreground transition-colors" to="/category/cartoon-network">Cartoon Network</Link></li>
+            <li><Link className="hover:text-foreground transition-colors" to="/category/minimax">Minimax</Link></li>
           </ul>
         </div>
         <div className="text-sm">
           <h4 className="font-display tracking-wider text-base mb-3">Cartoonix</h4>
           <ul className="space-y-1.5 text-muted-foreground">
-            <li><Link className="hover:text-foreground" to="/plans">Abonamente</Link></li>
-            <li><Link className="hover:text-foreground" to="/concursuri">Concursuri</Link></li>
-            <li><Link className="hover:text-foreground" to="/terms-and-conditions">Termeni și Condiții</Link></li>
+            <li><Link className="hover:text-foreground transition-colors" to="/plans">Abonamente</Link></li>
+            <li><Link className="hover:text-foreground transition-colors" to="/concursuri">Concursuri</Link></li>
+            <li><Link className="hover:text-foreground transition-colors" to="/terms-and-conditions">Termeni și Condiții</Link></li>
           </ul>
         </div>
       </div>
-      <div className="border-t border-border/60 py-4 text-center text-xs text-muted-foreground">
+      <div className="border-t border-white/[0.06] py-4 text-center text-xs text-muted-foreground">
         © 2026 Cartoonix. Toate drepturile rezervate.
       </div>
     </footer>

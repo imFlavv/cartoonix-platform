@@ -2,7 +2,6 @@ import React from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { useTheme } from "@/contexts/ThemeContext";
 import {
   LayoutDashboard,
   Film,
@@ -10,8 +9,6 @@ import {
   Users,
   CreditCard,
   Settings as SettingsIcon,
-  Sun,
-  Moon,
   LogOut,
   ExternalLink,
   Menu,
@@ -68,7 +65,6 @@ function SidebarContent({ onItemClick }) {
 
 export default function AdminLayout() {
   const { user, logout } = useAuth();
-  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
   return (
@@ -104,9 +100,6 @@ export default function AdminLayout() {
           <div className="flex-1" />
           <Button variant="ghost" size="sm" onClick={() => navigate("/")} className="hidden sm:inline-flex" data-testid="admin-back-to-site">
             <ExternalLink className="h-4 w-4 mr-2" /> Vizitează site-ul
-          </Button>
-          <Button variant="ghost" size="icon" onClick={toggleTheme} data-testid="admin-theme-toggle">
-            {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           </Button>
           <div className="flex items-center gap-2 pl-2">
             {user?.avatar_url && (

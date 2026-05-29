@@ -108,6 +108,20 @@ user_problem_statement: |
   - Add a "Maintenance Mode" toggle in Admin Settings (below Presentation Mode). When enabled, it overrides Presentation Mode and shows only an elegant maintenance message ("PLATFORMA IN MENTENANTA! REVENIM CURAND") with on-brand background. Only /login and /admin remain accessible so admins can disable it.
 
 backend:
+  - task: "User badge level field (level 1-10) on UserPublic + chat messages + admin update"
+    implemented: true
+    working: true
+    file: "backend/models.py, backend/chat.py, backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Added `level: int = 1` to UserPublic model (defaults to 1 for existing users without the field). Chat message docs now include `level` (send_message + _format_message_doc default 1). Admin PATCH /api/admin/users/{id} now accepts `level` (clamped 1-10). Need to verify: /api/auth/me returns level=1 for seeded users; chat send + list returns level; admin can set level and it persists; invalid level rejected."
+      - working: true
+        agent: "testing"
+        comment: "Comprehensive backend testing completed with 9 test cases for user level field. ALL TESTS PASSED (9/9): ✅ GET /api/auth/me returns level field (default 1), ✅ POST /api/chat/send message includes level field (=1), ✅ GET /api/chat/messages returns messages with level field, ✅ Admin PATCH /api/admin/users/{id} with level=5 succeeds and persists (verified via re-login), ✅ Level clamping works correctly (99→10, 0→1), ✅ Invalid level (string 'abc') returns HTTP 400, ✅ Cleanup: reset test_free level back to 1. Implementation verified: UserPublic.level defaults to 1 for existing users, chat messages include level from user doc, admin endpoint accepts and clamps level 1-10, invalid types rejected with 400."
   - task: "Public + Admin chat endpoints (rooms, send, presence, moderation)"
     implemented: true
     working: true
@@ -284,8 +298,7 @@ metadata:
   run_ui: false
 
 test_plan:
-  current_focus:
-    - "Public + Admin chat endpoints (rooms, send, presence, moderation)"
+  current_focus: []
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -298,6 +311,9 @@ agent_communication:
     message: "Implemented official logo update, elegant toast redesign, Admin Settings (Presentation Mode toggle), Romanian Presentation Page and routing gate. Admin credentials in /app/memory/test_credentials.md. Backend endpoints verified via curl. Frontend visually verified through screenshots. Ready for backend test of the new /api/settings and /api/admin/settings endpoints if needed."
   - agent: "main"
     message: "CRITICAL BUG FIX for Early Access registration: Users reported losing their session when switching apps on mobile (to approve banking payment or check email), resulting in PAID but NO ACCOUNT created. Root cause: sessionStorage clears when app closes on mobile. Implemented comprehensive fix: 1) localStorage persistence (survives app close), 2) Backend can now find pending registration with ONLY Stripe session_id (extracts client_reference_id), 3) Extended expiration 45min→120min, 4) Auto-recovery in frontend. Changes: backend/server.py (EarlyAccessConfirmPayment.token→Optional, confirm-payment endpoint recovery logic), frontend EarlyAccessPage.jsx (localStorage storage, recovery flow). Full docs in /app/EARLY_ACCESS_PAYMENT_FIX.md. Needs testing on real mobile device with actual Stripe payment."
+
+  - agent: "testing"
+    message: "BACKEND TESTING COMPLETE for User Level Field feature. Comprehensive test suite executed with 9 test cases covering all aspects of the level field implementation. RESULTS: 9/9 tests PASSED (100% success rate). All functionality working correctly: ✅ GET /api/auth/me returns level field (defaults to 1 for existing users), ✅ Chat messages include level field in both send and list operations, ✅ Admin PATCH /api/admin/users/{id} accepts level field and updates successfully, ✅ Level persistence verified via re-login, ✅ Clamping works correctly (values <1 become 1, >10 become 10), ✅ Invalid level (non-integer) returns HTTP 400 as expected. Test credentials from /app/memory/test_credentials.md working correctly. Feature is production-ready."
 
   - agent: "testing"
     message: "BACKEND TESTING COMPLETE for Cartoonix Chat. Comprehensive test suite executed with 28 test cases covering all chat endpoints. RESULTS: 27/28 tests PASSED (96.4% success rate). CRITICAL BUG FOUND: Timezone-aware/naive datetime mismatch in /app/backend/chat.py line 394 causes 500 error when muted user tries to send message. The 'until' datetime from DB is naive but _now() returns aware datetime. All other functionality working correctly: state endpoints, message sending with cooldown/restrictions, profanity censoring, spam detection, link blocking, room gating, heartbeat/presence, admin moderation (except mute error message), message deletion, pinning, sanctions list, user history. Authorization checks all passing. Test credentials from /app/memory/test_credentials.md working correctly."

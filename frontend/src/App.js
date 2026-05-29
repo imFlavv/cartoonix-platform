@@ -15,7 +15,7 @@ import RegisterPage from "@/pages/RegisterPage";
 import VerifyPage from "@/pages/VerifyPage";
 import PlansPage from "@/pages/PlansPage";
 import TermsPage from "@/pages/TermsPage";
-import DashboardPage from "@/pages/DashboardPage";
+import ProfilePage from "@/pages/ProfilePage";
 import PresentationPage from "@/pages/PresentationPage";
 import MaintenancePage from "@/pages/MaintenancePage";
 import EarlyAccessPage from "@/pages/EarlyAccessPage";
@@ -249,13 +249,14 @@ function App() {
                   }
                 />
                 <Route
-                  path="/dashboard"
+                  path="/profile"
                   element={
                     <RequireAuth>
-                      <PublicRoute element={<DashboardPage />} />
+                      <PublicRoute element={<ProfilePage />} />
                     </RequireAuth>
                   }
                 />
+                <Route path="/dashboard" element={<Navigate to="/profile" replace />} />
                 <Route path="/admin" element={<RequireAdmin><AdminLayout /></RequireAdmin>}>
                   <Route index element={<AdminOverview />} />
                   <Route path="cartoons" element={<AdminCartoons />} />

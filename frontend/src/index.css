@@ -89,6 +89,34 @@ code {
   }
 }
 
+/* ===== Auth / rebrand utilities (scoped, dark-only) ===== */
+.auth-grid {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 30px 30px;
+}
+.gold-glow {
+  background:
+    radial-gradient(700px circle at 30% 20%, hsla(46, 92%, 55%, 0.16), transparent 55%),
+    radial-gradient(600px circle at 80% 90%, hsla(46, 92%, 55%, 0.08), transparent 60%);
+}
+.brand-panel {
+  background:
+    radial-gradient(600px circle at 25% 15%, hsla(46, 92%, 55%, 0.20), transparent 60%),
+    linear-gradient(160deg, #14110a 0%, #0c0d12 55%, #0a0b0f 100%);
+}
+.input-icon-wrap { position: relative; }
+.input-icon-wrap > svg.fa-leading {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: hsl(var(--muted-foreground));
+  pointer-events: none;
+}
+
+
 /* Hero gradient background overlay */
 .hero-bg {
   background-image:

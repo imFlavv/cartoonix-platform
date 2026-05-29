@@ -21,6 +21,7 @@ import { useSettings } from "@/contexts/SettingsContext";
 import PremiumAvatarFrame from "@/components/chat/PremiumAvatarFrame";
 import EmoticonPicker from "@/components/chat/EmoticonPicker";
 import { parseEmoticons } from "@/components/chat/emoticons";
+import { levelBadgeUrl, PLUS_BADGE_URL, clampLevel } from "@/lib/badges";
 
 const MESSAGE_POLL_MS = 3000;
 const PRESENCE_POLL_MS = 30000;
@@ -42,21 +43,30 @@ async function loadAnimatedAvatars() {
   }
 }
 
-function PlusBadge() {
+function LevelBadge({ level, size = 16 }) {
+  const lvl = clampLevel(level);
   return (
-    <span
-      className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-[1px] text-[9px] font-bold uppercase tracking-wider"
-      style={{
-        background:
-          "linear-gradient(135deg,#ff3b3b 0%,#ff7a1a 50%,#facc15 100%)",
-        color: "#0a0a0a",
-        boxShadow: "0 0 12px -2px rgba(250,204,21,0.45)",
-      }}
+    <img
+      src={levelBadgeUrl(lvl)}
+      alt={`Nivel ${lvl}`}
+      title={`Nivel ${lvl}`}
+      draggable={false}
+      className="inline-block align-middle select-none"
+      style={{ height: size, width: "auto", filter: "drop-shadow(0 1px 1.5px rgba(0,0,0,0.6))" }}
+    />
+  );
+}
+
+function PlusBadge({ size = 16 }) {
+  return (
+    <img
+      src={PLUS_BADGE_URL}
+      alt="Membru Cartoonix PLUS"
       title="Membru Cartoonix PLUS"
-    >
-      <Crown className="h-2.5 w-2.5" strokeWidth={2.5} />
-      Plus
-    </span>
+      draggable={false}
+      className="inline-block align-middle select-none"
+      style={{ height: size, width: "auto" }}
+    />
   );
 }
 
@@ -174,9 +184,9 @@ function MessageRow({ msg, isMine, animatedAvatars }) {
         )}
       </div>
       <div className="flex-1 min-w-0">
-        <div className="flex items-baseline gap-1.5 flex-wrap leading-tight">
+        <div className="flex items-center gap-1.5 flex-wrap leading-none">
           <span
-            className={`text-[12px] font-semibold ${
+            className={`text-[12px] font-semibold leading-none ${
               isBot
                 ? "text-cyan-300"
                 : msg.role === "admin"
@@ -188,13 +198,9 @@ function MessageRow({ msg, isMine, animatedAvatars }) {
           >
             {msg.nickname}
           </span>
-          {isBot ? (
-            <BotBadge />
-          ) : msg.role === "admin" ? (
-            <AdminBadge />
-          ) : msg.plan === "plus" ? (
-            <PlusBadge />
-          ) : null}
+          {!isBot && <LevelBadge level={msg.level} size={17} />}
+          {!isBot && msg.plan === "plus" && <PlusBadge size={17} />}
+          {isBot ? <BotBadge /> : msg.role === "admin" ? <AdminBadge /> : null}
           <span className="text-[10px] text-muted-foreground/70 ml-auto pl-2">
             {formatTime(msg.created_at)}
           </span>

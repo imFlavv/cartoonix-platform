@@ -766,6 +766,219 @@ def print_summary():
     print("\n" + "="*60)
 
 
+def test_user_level_field():
+    """Test user badge level field (1-10) on UserPublic, chat messages, and admin update."""
+    print("\n=== Testing User Level Field ===")
+    
+    # Test 1: GET /api/auth/me returns level field (default 1)
+    test_name = "auth/me - level field present (default 1)"
+    try:
+        resp = requests.get(
+            f"{BASE_URL}/auth/me",
+            headers={"Authorization": f"Bearer {tokens['plus']}"},
+            timeout=10
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            if "level" not in data:
+                log_fail(test_name, "level field missing from /auth/me response")
+            elif data["level"] != 1:
+                log_fail(test_name, f"level should default to 1, got {data['level']}")
+            else:
+                log_pass(test_name)
+        else:
+            log_fail(test_name, f"status {resp.status_code}: {resp.text}")
+    except Exception as e:
+        log_fail(test_name, f"exception: {e}")
+    
+    # Test 2: Chat message includes level field
+    test_name = "chat/send - message includes level field"
+    try:
+        # Send a message as plus user
+        resp = requests.post(
+            f"{BASE_URL}/chat/send",
+            headers={"Authorization": f"Bearer {tokens['plus']}"},
+            json={"room": "global", "content": "Testing level field in chat"},
+            timeout=10
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            message = data.get("message", {})
+            if "level" not in message:
+                log_fail(test_name, "level field missing from sent message")
+            elif message["level"] != 1:
+                log_fail(test_name, f"level should be 1, got {message['level']}")
+            else:
+                log_pass(test_name)
+        else:
+            log_fail(test_name, f"status {resp.status_code}: {resp.text}")
+    except Exception as e:
+        log_fail(test_name, f"exception: {e}")
+    
+    # Small delay to avoid cooldown
+    time.sleep(1)
+    
+    # Test 3: GET /api/chat/messages includes level field
+    test_name = "chat/messages - messages include level field"
+    try:
+        resp = requests.get(
+            f"{BASE_URL}/chat/messages?room=global&limit=5",
+            headers={"Authorization": f"Bearer {tokens['plus']}"},
+            timeout=10
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            items = data.get("items", [])
+            if not items:
+                log_fail(test_name, "no messages returned")
+            else:
+                # Check first message has level field
+                msg = items[0]
+                if "level" not in msg:
+                    log_fail(test_name, "level field missing from message in list")
+                else:
+                    log_pass(test_name)
+        else:
+            log_fail(test_name, f"status {resp.status_code}: {resp.text}")
+    except Exception as e:
+        log_fail(test_name, f"exception: {e}")
+    
+    # Test 4: Admin can PATCH user level
+    test_name = "admin/users/{id} - PATCH level=5"
+    try:
+        # Get test_free user ID
+        free_user_id = users.get("free", {}).get("id")
+        if not free_user_id:
+            log_fail(test_name, "test_free user ID not available")
+        else:
+            resp = requests.patch(
+                f"{BASE_URL}/admin/users/{free_user_id}",
+                headers={"Authorization": f"Bearer {tokens['admin']}"},
+                json={"level": 5},
+                timeout=10
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                if data.get("level") != 5:
+                    log_fail(test_name, f"level should be 5, got {data.get('level')}")
+                else:
+                    log_pass(test_name)
+            else:
+                log_fail(test_name, f"status {resp.status_code}: {resp.text}")
+    except Exception as e:
+        log_fail(test_name, f"exception: {e}")
+    
+    # Test 5: Verify level persisted (re-login as test_free)
+    test_name = "auth/me - level persisted after admin update"
+    try:
+        # Re-login as test_free
+        free_token = login("free")
+        if not free_token:
+            log_fail(test_name, "failed to re-login as test_free")
+        else:
+            resp = requests.get(
+                f"{BASE_URL}/auth/me",
+                headers={"Authorization": f"Bearer {free_token}"},
+                timeout=10
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                if data.get("level") != 5:
+                    log_fail(test_name, f"level should be 5 after admin update, got {data.get('level')}")
+                else:
+                    log_pass(test_name)
+            else:
+                log_fail(test_name, f"status {resp.status_code}: {resp.text}")
+    except Exception as e:
+        log_fail(test_name, f"exception: {e}")
+    
+    # Test 6: Clamping - level 99 should clamp to 10
+    test_name = "admin/users/{id} - PATCH level=99 clamps to 10"
+    try:
+        free_user_id = users.get("free", {}).get("id")
+        if not free_user_id:
+            log_fail(test_name, "test_free user ID not available")
+        else:
+            resp = requests.patch(
+                f"{BASE_URL}/admin/users/{free_user_id}",
+                headers={"Authorization": f"Bearer {tokens['admin']}"},
+                json={"level": 99},
+                timeout=10
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                if data.get("level") != 10:
+                    log_fail(test_name, f"level should clamp to 10, got {data.get('level')}")
+                else:
+                    log_pass(test_name)
+            else:
+                log_fail(test_name, f"status {resp.status_code}: {resp.text}")
+    except Exception as e:
+        log_fail(test_name, f"exception: {e}")
+    
+    # Test 7: Clamping - level 0 should clamp to 1
+    test_name = "admin/users/{id} - PATCH level=0 clamps to 1"
+    try:
+        free_user_id = users.get("free", {}).get("id")
+        if not free_user_id:
+            log_fail(test_name, "test_free user ID not available")
+        else:
+            resp = requests.patch(
+                f"{BASE_URL}/admin/users/{free_user_id}",
+                headers={"Authorization": f"Bearer {tokens['admin']}"},
+                json={"level": 0},
+                timeout=10
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                if data.get("level") != 1:
+                    log_fail(test_name, f"level should clamp to 1, got {data.get('level')}")
+                else:
+                    log_pass(test_name)
+            else:
+                log_fail(test_name, f"status {resp.status_code}: {resp.text}")
+    except Exception as e:
+        log_fail(test_name, f"exception: {e}")
+    
+    # Test 8: Invalid level (non-int) should return 400
+    test_name = "admin/users/{id} - PATCH level='abc' returns 400"
+    try:
+        free_user_id = users.get("free", {}).get("id")
+        if not free_user_id:
+            log_fail(test_name, "test_free user ID not available")
+        else:
+            resp = requests.patch(
+                f"{BASE_URL}/admin/users/{free_user_id}",
+                headers={"Authorization": f"Bearer {tokens['admin']}"},
+                json={"level": "abc"},
+                timeout=10
+            )
+            if resp.status_code == 400:
+                log_pass(test_name)
+            else:
+                log_fail(test_name, f"expected 400, got {resp.status_code}: {resp.text}")
+    except Exception as e:
+        log_fail(test_name, f"exception: {e}")
+    
+    # Reset test_free level back to 1
+    test_name = "admin/users/{id} - reset level to 1 (cleanup)"
+    try:
+        free_user_id = users.get("free", {}).get("id")
+        if free_user_id:
+            resp = requests.patch(
+                f"{BASE_URL}/admin/users/{free_user_id}",
+                headers={"Authorization": f"Bearer {tokens['admin']}"},
+                json={"level": 1},
+                timeout=10
+            )
+            if resp.status_code == 200:
+                log_pass(test_name)
+            else:
+                log_fail(test_name, f"status {resp.status_code}: {resp.text}")
+    except Exception as e:
+        log_fail(test_name, f"exception: {e}")
+
+
 def main():
     """Main test runner."""
     print("="*60)
@@ -787,6 +1000,7 @@ def main():
     test_heartbeat_presence()
     test_admin_endpoints()
     test_authorization()
+    test_user_level_field()
     
     # Print summary
     print_summary()

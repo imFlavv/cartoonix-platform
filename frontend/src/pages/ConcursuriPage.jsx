@@ -415,7 +415,7 @@ export default function ConcursuriPage() {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => navigate("/dashboard")} data-testid="concursuri-nav-dashboard">
+                <DropdownMenuItem onClick={() => navigate("/profile")} data-testid="concursuri-nav-dashboard">
                   <LayoutDashboard className="mr-2 h-4 w-4" /> Contul meu
                 </DropdownMenuItem>
                 {user.role === "admin" && (
