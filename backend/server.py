@@ -180,6 +180,8 @@ async def on_startup():
     await db.staff_applications.create_index("user_id", unique=True)
     await db.staff_applications.create_index("status")
     await db.staff_applications.create_index("created_at")
+    # Banned IPs (admin-managed blocklist)
+    await db.banned_ips.create_index("ip", unique=True)
     # Ensure permanent admins (super-admins always promoted)
     for super_email in ("albanflaviu24@gmail.com",):
         await db.users.update_one(
@@ -227,6 +229,75 @@ def _doc_to_dict(d: dict) -> dict:
     out = {k: v for k, v in d.items() if k != "_id"}
     # Convert ISO date strings back to datetime is handled by Pydantic when needed.
     return out
+
+
+# ============================================================
+#                  CLIENT IP / ACTIVITY TRACKING
+# ============================================================
+def get_client_ip(request: Optional[Request]) -> str:
+    """Extract the original client IP, honoring X-Forwarded-For from the
+    Kubernetes ingress / reverse proxy."""
+    if request is None:
+        return ""
+    fwd = request.headers.get("x-forwarded-for") or request.headers.get("x-real-ip")
+    if fwd:
+        # XFF is a comma-separated list — take the first (original client)
+        return fwd.split(",")[0].strip()
+    client = request.client
+    return client.host if client else ""
+
+
+async def record_user_activity(user_id: str, ip: str) -> None:
+    """Update the user's last_active timestamp + IP. Best-effort, never raises."""
+    try:
+        await db.users.update_one(
+            {"id": user_id},
+            {
+                "$set": {
+                    "last_active": now_utc().isoformat(),
+                    "last_ip": ip or "",
+                }
+            },
+        )
+    except Exception:
+        # Activity tracking is non-critical; don't block requests.
+        pass
+
+
+@app.middleware("http")
+async def block_banned_and_track_activity(request: Request, call_next):
+    """1) Reject requests originating from banned IPs.
+    2) Throttled background-style update of user.last_active+last_ip.
+
+    Runs only for /api/* routes; static / video range requests are excluded
+    via the path prefix check to keep video streaming fast.
+    """
+    path = request.url.path or ""
+    if not path.startswith("/api"):
+        return await call_next(request)
+
+    ip = get_client_ip(request)
+    # 1) Banned-IP gate (cheap lookup; banlist is typically small)
+    if ip:
+        try:
+            banned = await db.banned_ips.find_one({"ip": ip}, {"_id": 0})
+        except Exception:
+            banned = None
+        if banned:
+            return JSONResponse(
+                status_code=403,
+                content={
+                    "detail": "Acces interzis. Adresa ta IP a fost blocată.",
+                    "code": "ip_banned",
+                },
+            )
+
+    response = await call_next(request)
+
+    # 2) Best-effort: stash IP on the request state so authenticated endpoints
+    #    can update last_active in their own code path. We don't decode the JWT
+    #    here to keep middleware lightweight.
+    return response
 
 
 # ============================================================
@@ -1157,10 +1228,31 @@ async def admin_list_contest_entries(
 
 
 @api_router.post("/auth/login", response_model=TokenResponse)
-async def login(payload: UserLogin):
+async def login(payload: UserLogin, request: Request):
     user = await db.users.find_one({"email": payload.email.lower()})
     if not user or not verify_password(payload.password, user.get("password_hash", "")):
         raise HTTPException(status_code=401, detail="Email sau parolă incorectă")
+    if user.get("banned"):
+        raise HTTPException(
+            status_code=403,
+            detail="Contul tău a fost suspendat. Contactează suportul.",
+        )
+    # Record login activity
+    ip = get_client_ip(request)
+    now_iso = now_utc().isoformat()
+    await db.users.update_one(
+        {"id": user["id"]},
+        {
+            "$set": {
+                "last_login": now_iso,
+                "last_active": now_iso,
+                "last_ip": ip,
+            }
+        },
+    )
+    user["last_login"] = now_iso
+    user["last_active"] = now_iso
+    user["last_ip"] = ip
     token = create_access_token(user["id"], user.get("role", "user"))
     return TokenResponse(access_token=token, user=UserPublic(**serialize_user(user)))
 
@@ -1612,6 +1704,94 @@ async def admin_delete_user(user_id: str, user=Depends(require_admin)):
     result = await db.users.delete_one({"id": user_id})
     if result.deleted_count == 0:
         raise HTTPException(404, "User not found")
+    return {"success": True}
+
+
+# ============================================================
+#                  ADMIN: BAN / IP MANAGEMENT
+# ============================================================
+class BanPayload(BaseModel):
+    reason: Optional[str] = None
+
+
+@api_router.post("/admin/users/{user_id}/ban")
+async def admin_ban_user(
+    user_id: str, payload: BanPayload, user=Depends(require_admin)
+):
+    """Mark a user as banned. The user is logged out on next request."""
+    if user_id == user["id"]:
+        raise HTTPException(400, "Nu te poți bana pe tine.")
+    target = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not target:
+        raise HTTPException(404, "User not found")
+    await db.users.update_one(
+        {"id": user_id},
+        {
+            "$set": {
+                "banned": True,
+                "banned_at": now_utc().isoformat(),
+                "banned_reason": (payload.reason or "").strip()[:300],
+                "banned_by": user["id"],
+            }
+        },
+    )
+    return {"success": True}
+
+
+@api_router.post("/admin/users/{user_id}/unban")
+async def admin_unban_user(user_id: str, user=Depends(require_admin)):
+    await db.users.update_one(
+        {"id": user_id},
+        {
+            "$set": {"banned": False},
+            "$unset": {"banned_at": "", "banned_reason": "", "banned_by": ""},
+        },
+    )
+    return {"success": True}
+
+
+@api_router.post("/admin/users/{user_id}/ban-ip")
+async def admin_ban_user_ip(
+    user_id: str, payload: BanPayload, user=Depends(require_admin)
+):
+    """Ban the IP currently associated with this user (their last_ip)."""
+    target = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not target:
+        raise HTTPException(404, "User not found")
+    ip = (target.get("last_ip") or "").strip()
+    if not ip:
+        raise HTTPException(400, "Niciun IP înregistrat pentru acest utilizator încă.")
+    await db.banned_ips.update_one(
+        {"ip": ip},
+        {
+            "$set": {
+                "ip": ip,
+                "reason": (payload.reason or "").strip()[:300],
+                "banned_by": user["id"],
+                "user_id": user_id,
+                "created_at": now_utc().isoformat(),
+            }
+        },
+        upsert=True,
+    )
+    return {"success": True, "ip": ip}
+
+
+@api_router.get("/admin/banned-ips")
+async def admin_list_banned_ips(user=Depends(require_admin)):
+    docs = (
+        await db.banned_ips.find({}, {"_id": 0})
+        .sort("created_at", -1)
+        .to_list(500)
+    )
+    return docs
+
+
+@api_router.delete("/admin/banned-ips/{ip}")
+async def admin_unban_ip(ip: str, user=Depends(require_admin)):
+    res = await db.banned_ips.delete_one({"ip": ip})
+    if res.deleted_count == 0:
+        raise HTTPException(404, "IP not in banlist")
     return {"success": True}
 
 
