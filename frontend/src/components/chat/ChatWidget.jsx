@@ -56,12 +56,16 @@ function PlusBadge({ size = 13 }) {
   );
 }
 
-function AdminBadge() {
+function AdminBadge({ size = 18 }) {
   return (
-    <span className="inline-flex items-center gap-0.5 rounded-md bg-red-500/20 px-1.5 py-[1px] text-[9px] font-bold uppercase tracking-wider text-red-300 ring-1 ring-red-500/40">
-      <ShieldAlert className="h-2.5 w-2.5" strokeWidth={2.5} />
-      Admin
-    </span>
+    <img
+      src="/badges/admin.png"
+      alt="Admin"
+      title="Administrator Cartoonix"
+      draggable={false}
+      className="inline-block align-middle select-none"
+      style={{ height: size, width: "auto" }}
+    />
   );
 }
 
