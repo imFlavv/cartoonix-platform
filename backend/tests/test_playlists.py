@@ -3,7 +3,7 @@ import os
 import pytest
 import requests
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://nostalgia-hub-52.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://admin-user-tracker.preview.emergentagent.com").rstrip("/")
 PLUS_EMAIL = "plus@test.com"
 PLUS_PASSWORD = "Test1234!"
 TEST_CARTOON_ID = "7c52204d-ce33-4eb4-9b05-c9524f519a93"
