@@ -4,7 +4,7 @@ import PublicLayout from "@/components/PublicLayout";
 import { api, mediaUrl } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Heart, Play, Tv, Calendar, ListPlus, Plus } from "lucide-react";
+import { Heart, Play, Tv, Calendar, ListPlus, Plus, Clock3 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -119,7 +119,12 @@ export default function CartoonDetailPage() {
               <h1 data-testid="cartoon-detail-title" className="font-display text-3xl sm:text-4xl tracking-wider">{data.title}</h1>
               <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-muted-foreground">
                 <span className="inline-flex items-center gap-1"><Calendar className="h-3.5 w-3.5" /> {data.year || "—"}</span>
-                <span className="inline-flex items-center gap-1"><Tv className="h-3.5 w-3.5" /> {data.episode_count} episoade</span>
+                <span className="inline-flex items-center gap-1">
+                  <Tv className="h-3.5 w-3.5" />
+                  {data.episode_count > 0
+                    ? `${data.episode_count} episoade`
+                    : "Disponibil în curând"}
+                </span>
                 {data.genres?.map((g) => <Badge key={g} variant="secondary" className="rounded-md">{g}</Badge>)}
               </div>
               <p className="mt-4 text-muted-foreground">{data.description || "Un desen animat clasic din epoca de aur."}</p>
@@ -171,8 +176,32 @@ export default function CartoonDetailPage() {
                   </div>
                 </div>
               ) : (
-                <div className="rounded-2xl border border-dashed border-border p-10 text-center text-muted-foreground">
-                  Niciun episod disponibil încă.
+                <div
+                  data-testid="cartoon-detail-coming-soon"
+                  className="relative rounded-2xl border border-[hsl(var(--accent))]/30 bg-gradient-to-br from-[hsl(var(--accent))]/[0.08] via-white/[0.02] to-transparent p-10 text-center overflow-hidden"
+                >
+                  <div
+                    aria-hidden
+                    className="pointer-events-none absolute -top-16 -right-16 h-48 w-48 rounded-full"
+                    style={{
+                      background:
+                        "radial-gradient(closest-side, hsla(var(--accent) / 0.35), transparent 70%)",
+                    }}
+                  />
+                  <div className="relative">
+                    <div className="mx-auto h-12 w-12 rounded-2xl bg-[hsl(var(--accent))]/15 ring-1 ring-[hsl(var(--accent))]/30 grid place-items-center text-[hsl(var(--accent))]">
+                      <Clock3 className="h-6 w-6" strokeWidth={2} />
+                    </div>
+                    <div className="mt-4 text-[11px] uppercase tracking-[0.3em] text-[hsl(var(--accent))]">
+                      În curând
+                    </div>
+                    <h3 className="mt-2 font-display text-2xl sm:text-3xl tracking-wider text-white">
+                      Episoadele sunt pe drum
+                    </h3>
+                    <p className="mt-2 max-w-md mx-auto text-sm text-white/55">
+                      Acest desen va fi disponibil în curând. Echipa noastră urmează să adauge episoadele — revino în câteva zile.
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
