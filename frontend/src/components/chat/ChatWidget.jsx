@@ -21,7 +21,7 @@ import { useSettings } from "@/contexts/SettingsContext";
 import PremiumAvatarFrame from "@/components/chat/PremiumAvatarFrame";
 import EmoticonPicker from "@/components/chat/EmoticonPicker";
 import { parseEmoticons } from "@/components/chat/emoticons";
-import { levelBadgeUrl, PLUS_BADGE_URL, clampLevel } from "@/lib/badges";
+import { PLUS_BADGE_URL } from "@/lib/badges";
 
 const MESSAGE_POLL_MS = 3000;
 const PRESENCE_POLL_MS = 30000;
@@ -43,21 +43,7 @@ async function loadAnimatedAvatars() {
   }
 }
 
-function LevelBadge({ level, size = 16 }) {
-  const lvl = clampLevel(level);
-  return (
-    <img
-      src={levelBadgeUrl(lvl)}
-      alt={`Nivel ${lvl}`}
-      title={`Nivel ${lvl}`}
-      draggable={false}
-      className="inline-block align-middle select-none"
-      style={{ height: size, width: "auto", filter: "drop-shadow(0 1px 1.5px rgba(0,0,0,0.6))" }}
-    />
-  );
-}
-
-function PlusBadge({ size = 16 }) {
+function PlusBadge({ size = 13 }) {
   return (
     <img
       src={PLUS_BADGE_URL}
@@ -198,12 +184,7 @@ function MessageRow({ msg, isMine, animatedAvatars }) {
           >
             {msg.nickname}
           </span>
-          {!isBot && (
-            <span className="inline-flex items-center gap-[2px] leading-none">
-              <LevelBadge level={msg.level} size={17} />
-              {msg.plan === "plus" && <PlusBadge size={17} />}
-            </span>
-          )}
+          {!isBot && msg.plan === "plus" && <PlusBadge size={13} />}
           {isBot ? <BotBadge /> : msg.role === "admin" ? <AdminBadge /> : null}
           <span className="text-[10px] text-muted-foreground/70 ml-auto pl-2">
             {formatTime(msg.created_at)}

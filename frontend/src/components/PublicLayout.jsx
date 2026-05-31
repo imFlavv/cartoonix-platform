@@ -213,7 +213,7 @@ export function TopNav() {
                     <span className="text-[13px] font-semibold text-white/90 truncate max-w-[120px]">
                       {user.nickname}
                     </span>
-                    <UserBadges level={user.level} isPlus={isPlus} size={18} gap={3} />
+                    <UserBadges isPlus={isPlus} size={18} />
                   </span>
                 </button>
               </DropdownMenuTrigger>
@@ -233,12 +233,14 @@ export function TopNav() {
                       <span className="text-xs text-muted-foreground truncate">{user.email}</span>
                     </div>
                   </div>
-                  <div className="mt-2 flex items-center justify-between rounded-lg bg-white/[0.04] px-2.5 py-2">
-                    <span className="text-[11px] uppercase tracking-[0.2em] text-white/50">
-                      Badge-urile tale
-                    </span>
-                    <UserBadges level={user.level} isPlus={isPlus} size={22} gap={4} />
-                  </div>
+                  {isPlus && (
+                    <div className="mt-2 flex items-center justify-between rounded-lg bg-white/[0.04] px-2.5 py-2">
+                      <span className="text-[11px] uppercase tracking-[0.2em] text-white/50">
+                        Cont
+                      </span>
+                      <UserBadges isPlus size={22} />
+                    </div>
+                  )}
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator className="bg-white/[0.06]" />
                 <DropdownMenuItem onClick={() => navigate("/profile")} data-testid="nav-dashboard-link">

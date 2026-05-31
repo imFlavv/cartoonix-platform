@@ -12,7 +12,6 @@ import {
   Settings as SettingsIcon,
   Lock,
   ChevronRight,
-  Sparkles,
   Play,
   Trash2,
 } from "lucide-react";
@@ -21,7 +20,6 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import UserBadges from "@/components/UserBadges";
-import { clampLevel, MAX_LEVEL, levelBadgeUrl } from "@/lib/badges";
 
 function Stat({ label, value }) {
   return (
@@ -64,7 +62,6 @@ export default function ProfilePage() {
   if (!user) return null;
 
   const isPlus = user.subscription === "plus";
-  const level = clampLevel(user.level);
 
   const createPlaylist = async () => {
     if (!newPlaylist.trim()) return;
@@ -129,7 +126,7 @@ export default function ProfilePage() {
                 <h1 className="font-display text-3xl sm:text-4xl tracking-wider text-white">
                   {user.nickname}
                 </h1>
-                <UserBadges level={user.level} isPlus={isPlus} size={30} gap={6} />
+                <UserBadges isPlus={isPlus} size={30} />
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <span
@@ -141,9 +138,6 @@ export default function ProfilePage() {
                 >
                   {isPlus ? "Membru PLUS" : "Cont Free"}
                 </span>
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.06] px-3 py-1 text-xs font-medium text-white/70 ring-1 ring-white/10">
-                  Nivel {level} / {MAX_LEVEL}
-                </span>
                 {!user.email_verified && (
                   <Link to="/verify">
                     <span className="inline-flex items-center rounded-full bg-red-500/15 px-3 py-1 text-xs font-semibold text-red-300 ring-1 ring-red-500/30">
@@ -152,24 +146,6 @@ export default function ProfilePage() {
                   </Link>
                 )}
               </div>
-            </div>
-          </div>
-
-          {/* Level progress strip */}
-          <div className="relative mt-6">
-            <div className="flex items-center justify-between text-[11px] text-white/40 mb-1.5">
-              <span className="inline-flex items-center gap-1.5">
-                <img src={levelBadgeUrl(level)} alt="" className="h-4 w-auto" /> Nivel {level}
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <Sparkles className="h-3 w-3 text-[hsl(var(--accent))]" /> Continuă să vizionezi pentru a urca
-              </span>
-            </div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-white/[0.06]">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-[hsl(var(--accent))]/60 to-[hsl(var(--accent))]"
-                style={{ width: `${(level / MAX_LEVEL) * 100}%` }}
-              />
             </div>
           </div>
         </motion.div>
