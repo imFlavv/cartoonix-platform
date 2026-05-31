@@ -56,7 +56,7 @@ function PlusBadge({ size = 13 }) {
   );
 }
 
-function AdminBadge({ size = 26 }) {
+function AdminBadge({ size = 28 }) {
   return (
     <img
       src="/badges/admin.png"
