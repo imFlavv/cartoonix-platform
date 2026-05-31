@@ -25,7 +25,30 @@ import {
   faTv,
   faBolt,
 } from "@fortawesome/free-solid-svg-icons";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { PLUS_BADGE_URL } from "@/lib/badges";
+
+const FREE_BENEFITS = [
+  "Streaming SD",
+  "Reclame între episoade",
+  "Istoric limitat",
+  "Profil basic",
+];
+
+const PLUS_BENEFITS = [
+  "Streaming Full HD",
+  "Funcția de favorite & playlist",
+  "Badge PLUS în platformă și pe chat",
+  "Acces pe chat la camera PLUS",
+  "Prioritate la server / video loading",
+  "Acces anticipat la funcții noi",
+  "Suport prioritar",
+  "Profil personalizabil",
+  "Concursuri exclusive",
+  "Descărcare episoade",
+];
+
+const PLUS_PREVIEW_COUNT = 5;
 
 const STEPS = [
   { label: "Profil", icon: faUser },
@@ -202,7 +225,18 @@ function Step1Profile({ form, setForm, avatars, onNext }) {
   );
 }
 
-function PlanCard({ name, price, features, selected, onSelect, badge, accent, icon, testId }) {
+function PlanCard({
+  name,
+  price,
+  features,
+  selected,
+  onSelect,
+  badge,
+  accent,
+  icon,
+  testId,
+  footer,
+}) {
   return (
     <button
       type="button"
@@ -214,31 +248,43 @@ function PlanCard({ name, price, features, selected, onSelect, badge, accent, ic
           : "border-white/10 hover:border-white/25 bg-white/[0.02]"
       }`}
     >
-      <div className="flex items-start justify-between">
+      {badge && (
+        <span
+          className="absolute -top-2.5 right-3 rounded-full bg-[hsl(var(--accent))] px-2 py-[2px] text-[9px] font-bold uppercase tracking-[0.12em] text-black shadow-[0_2px_6px_rgba(0,0,0,0.4)]"
+          data-testid={`${testId}-badge`}
+        >
+          {badge}
+        </span>
+      )}
+      <div className="flex items-start justify-between pr-2">
         <div className="flex items-center gap-2.5">
-          <span className="grid h-9 w-9 place-items-center rounded-xl bg-white/[0.05] ring-1 ring-white/10" style={{ color: accent }}>
+          <span
+            className="grid h-9 w-9 place-items-center rounded-xl bg-white/[0.05] ring-1 ring-white/10"
+            style={{ color: accent }}
+          >
             <FontAwesomeIcon icon={icon} className="h-4 w-4" />
           </span>
           <div>
             <div className="text-[10px] uppercase tracking-[0.25em] text-white/40">Cartoonix</div>
-            <div className="font-display text-2xl tracking-wider" style={{ color: accent }}>{name}</div>
+            <div className="font-display text-2xl tracking-wider" style={{ color: accent }}>
+              {name}
+            </div>
           </div>
         </div>
-        {badge && (
-          <span className="rounded-full bg-[hsl(var(--accent))] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-black">
-            {badge}
-          </span>
-        )}
       </div>
       <div className="mt-3 text-2xl font-bold text-white">{price}</div>
       <ul className="mt-4 space-y-1.5 text-sm">
         {features.map((f, i) => (
           <li key={i} className="flex items-start gap-2">
-            <FontAwesomeIcon icon={faCheck} className="h-3.5 w-3.5 mt-1 text-[hsl(var(--accent))] shrink-0" />
+            <FontAwesomeIcon
+              icon={faCheck}
+              className="h-3.5 w-3.5 mt-1 text-[hsl(var(--accent))] shrink-0"
+            />
             <span className="text-white/55">{f}</span>
           </li>
         ))}
       </ul>
+      {footer}
       {selected && (
         <div className="absolute top-3 right-3 h-6 w-6 rounded-full bg-[hsl(var(--accent))] text-black grid place-items-center">
           <FontAwesomeIcon icon={faCheck} className="h-3 w-3" />
@@ -248,33 +294,83 @@ function PlanCard({ name, price, features, selected, onSelect, badge, accent, ic
   );
 }
 
+function PlusBenefitsDialog({ children }) {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogContent className="max-w-md" data-testid="plus-benefits-dialog">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 font-display tracking-wider">
+            <img src={PLUS_BADGE_URL} alt="" className="h-7 w-auto" />
+            Toate beneficiile PLUS
+          </DialogTitle>
+          <DialogDescription>
+            Tot ce primești cu Cartoonix PLUS, într-o singură listă.
+          </DialogDescription>
+        </DialogHeader>
+        <ul className="space-y-2.5 mt-1">
+          {PLUS_BENEFITS.map((b, i) => (
+            <li
+              key={i}
+              className="flex items-start gap-3 rounded-xl bg-white/[0.03] ring-1 ring-white/[0.05] px-3 py-2.5"
+              data-testid={`plus-benefit-row-${i}`}
+            >
+              <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-[hsl(var(--accent))]/15 text-[hsl(var(--accent))]">
+                <FontAwesomeIcon icon={faCheck} className="h-3 w-3" />
+              </span>
+              <span className="text-sm text-white/85">{b}</span>
+            </li>
+          ))}
+        </ul>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function Step2Plan({ form, setForm, onNext, onBack, submitting }) {
   return (
     <div>
       <div className="grid sm:grid-cols-2 gap-4">
         <PlanCard
-          name="FREE" price="0 $ / lună" accent="hsl(var(--muted-foreground))" icon={faTv}
+          name="FREE"
+          price="0 $ / lună"
+          accent="hsl(var(--muted-foreground))"
+          icon={faTv}
           testId="plan-select-free"
-          selected={form.subscription === "free"} onSelect={() => setForm({ ...form, subscription: "free" })}
-          features={[
-            "Streaming Standard Definition (SD)",
-            "Reclame între episoade",
-            "Profil de bază & favorite",
-            "Până la 3 ore de streaming zilnic",
-          ]}
+          selected={form.subscription === "free"}
+          onSelect={() => setForm({ ...form, subscription: "free" })}
+          features={FREE_BENEFITS}
         />
         <PlanCard
-          name="PLUS" price="5,99 $ / lună" accent="hsl(var(--accent))" icon={faBolt}
-          badge="Recomandat" testId="plan-select-plus"
-          selected={form.subscription === "plus"} onSelect={() => setForm({ ...form, subscription: "plus" })}
-          features={[
-            "Experiență fără reclame",
-            "Streaming Full HD (1080p)",
-            "Playlist-uri & favorite",
-            "Streaming nelimitat",
-            "Badge PLUS în chat",
-            "Suport prioritar",
-          ]}
+          name="PLUS"
+          price="5,99 $ / lună"
+          accent="hsl(var(--accent))"
+          icon={faBolt}
+          badge="Recomandat"
+          testId="plan-select-plus"
+          selected={form.subscription === "plus"}
+          onSelect={() => setForm({ ...form, subscription: "plus" })}
+          features={PLUS_BENEFITS.slice(0, PLUS_PREVIEW_COUNT)}
+          footer={
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="mt-3 pt-3 border-t border-white/[0.06]"
+            >
+              <PlusBenefitsDialog>
+                <button
+                  type="button"
+                  data-testid="see-all-plus-benefits-button"
+                  className="group inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--accent))] hover:text-white transition-colors"
+                >
+                  Vezi toate beneficiile
+                  <FontAwesomeIcon
+                    icon={faChevronRight}
+                    className="h-2.5 w-2.5 transition-transform group-hover:translate-x-0.5"
+                  />
+                </button>
+              </PlusBenefitsDialog>
+            </div>
+          }
         />
       </div>
       <p className="text-xs text-white/40 mt-4 inline-flex items-center gap-2">

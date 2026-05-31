@@ -20,6 +20,7 @@ import PresentationPage from "@/pages/PresentationPage";
 import MaintenancePage from "@/pages/MaintenancePage";
 import EarlyAccessPage from "@/pages/EarlyAccessPage";
 import EarlyAccessSuccessPage from "@/pages/EarlyAccessSuccessPage";
+import GuestGatePage from "@/pages/GuestGatePage";
 import CartoonixContestsPage from "@/pages/CartoonixContestsPage";
 import AdminLayout from "@/components/AdminLayout";
 import AdminOverview from "@/pages/admin/AdminOverview";
@@ -172,6 +173,8 @@ function RootRoute() {
   }
 
   if (settings?.presentation_mode) return <PresentationPage />;
+  // Platform is exclusive to registered users. Guests get a beautiful welcome.
+  if (!user) return <GuestGatePage />;
   return <HomePage />;
 }
 
@@ -228,8 +231,8 @@ function App() {
                 <Routes>
                 <Route path="/" element={<RootRoute />} />
                 <Route path="/early-access" element={<EarlyAccessRoute />} />
-                <Route path="/category/:slug" element={<PublicRoute element={<CategoryPage />} />} />
-                <Route path="/cartoon/:id" element={<PublicRoute element={<CartoonDetailPage />} />} />
+                <Route path="/category/:slug" element={<RequireAuth redirectTo="/"><PublicRoute element={<CategoryPage />} /></RequireAuth>} />
+                <Route path="/cartoon/:id" element={<RequireAuth redirectTo="/"><PublicRoute element={<CartoonDetailPage />} /></RequireAuth>} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                 <Route path="/reset-password" element={<ResetPasswordPage />} />
