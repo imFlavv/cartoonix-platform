@@ -122,7 +122,8 @@ from auth import (create_access_token, get_current_user,  # noqa: E402
 from email_service import send_verification_email, send_simple_contest_confirmation, send_password_reset_email  # noqa: E402
 from models import (AvatarOption, Cartoon, CartoonCreate, CartoonUpdate,  # noqa: E402
                     Category, Episode, EpisodeCreate, EpisodeUpdate,
-                    FavoriteToggle, Playlist, PlaylistAddItem, PlaylistCreate,
+                    FavoriteToggle, Playlist, PlaylistAddEpisode,
+                    PlaylistAddItem, PlaylistCreate, PlaylistReorder,
                     RecordWatch, ResendCodeRequest, TokenResponse,
                     UpdateUserRequest, UserCreate, UserLogin, UserPublic,
                     VerifyEmailRequest, new_id, now_utc)
@@ -1715,7 +1716,52 @@ def _require_plus(user):
 async def list_playlists(user=Depends(get_current_user)):
     if user.get("subscription") != "plus":
         return []
-    return await db.playlists.find({"user_id": user["id"]}, {"_id": 0}).to_list(100)
+    items = await db.playlists.find({"user_id": user["id"]}, {"_id": 0}).to_list(100)
+    # Ensure items field exists for older docs
+    for p in items:
+        p.setdefault("items", [])
+    return items
+
+
+@api_router.get("/me/playlists/{playlist_id}")
+async def get_playlist(playlist_id: str, user=Depends(get_current_user)):
+    """Get a single playlist with full cartoon + episode objects resolved (for the player page)."""
+    _require_plus(user)
+    pl = await db.playlists.find_one({"id": playlist_id, "user_id": user["id"]}, {"_id": 0})
+    if not pl:
+        raise HTTPException(404, "Playlist not found")
+    pl.setdefault("items", [])
+
+    # Resolve episodes + cartoons in batch
+    ep_ids = [it["episode_id"] for it in pl["items"]]
+    cart_ids = list({it["cartoon_id"] for it in pl["items"]})
+
+    episodes_by_id: dict = {}
+    cartoons_by_id: dict = {}
+    if ep_ids:
+        async for e in db.episodes.find({"id": {"$in": ep_ids}}, {"_id": 0}):
+            episodes_by_id[e["id"]] = e
+    if cart_ids:
+        async for c in db.cartoons.find({"id": {"$in": cart_ids}}, {"_id": 0}):
+            cartoons_by_id[c["id"]] = c
+
+    # Preserve user-defined order; drop items whose episode no longer exists
+    resolved = []
+    for it in pl["items"]:
+        ep = episodes_by_id.get(it["episode_id"])
+        if not ep:
+            continue
+        resolved.append({
+            "cartoon_id": it["cartoon_id"],
+            "episode_id": it["episode_id"],
+            "episode": ep,
+            "cartoon": cartoons_by_id.get(it["cartoon_id"]),
+        })
+
+    return {
+        **pl,
+        "resolved_items": resolved,
+    }
 
 
 @api_router.post("/me/playlists")
@@ -1727,6 +1773,7 @@ async def create_playlist(payload: PlaylistCreate, user=Depends(get_current_user
         "name": payload.name,
         "description": payload.description,
         "cartoon_ids": [],
+        "items": [],
         "created_at": now_utc().isoformat(),
     }
     await db.playlists.insert_one(doc)
@@ -1735,13 +1782,119 @@ async def create_playlist(payload: PlaylistCreate, user=Depends(get_current_user
 
 @api_router.post("/me/playlists/{playlist_id}/items")
 async def add_to_playlist(playlist_id: str, payload: PlaylistAddItem, user=Depends(get_current_user)):
+    """Legacy endpoint — adds an entire cartoon's episodes to the playlist."""
     _require_plus(user)
     pl = await db.playlists.find_one({"id": playlist_id, "user_id": user["id"]})
     if not pl:
         raise HTTPException(404, "Playlist not found")
+
+    # Add cartoon_id for backward compat
     if payload.cartoon_id not in pl.get("cartoon_ids", []):
-        await db.playlists.update_one({"id": playlist_id}, {"$addToSet": {"cartoon_ids": payload.cartoon_id}})
+        await db.playlists.update_one(
+            {"id": playlist_id},
+            {"$addToSet": {"cartoon_ids": payload.cartoon_id}},
+        )
+
+    # Add all episodes (in order) as items, skipping ones already present
+    existing_ep_ids = {it["episode_id"] for it in pl.get("items", [])}
+    episodes = (
+        await db.episodes.find({"cartoon_id": payload.cartoon_id}, {"_id": 0})
+        .sort([("season", 1), ("episode_number", 1)])
+        .to_list(500)
+    )
+    to_add = [
+        {"cartoon_id": payload.cartoon_id, "episode_id": ep["id"]}
+        for ep in episodes
+        if ep["id"] not in existing_ep_ids
+    ]
+    if to_add:
+        await db.playlists.update_one(
+            {"id": playlist_id},
+            {"$push": {"items": {"$each": to_add}}},
+        )
+
     return await db.playlists.find_one({"id": playlist_id}, {"_id": 0})
+
+
+@api_router.post("/me/playlists/{playlist_id}/episodes")
+async def add_episode_to_playlist(
+    playlist_id: str,
+    payload: PlaylistAddEpisode,
+    user=Depends(get_current_user),
+):
+    """Add a single episode to a playlist."""
+    _require_plus(user)
+    pl = await db.playlists.find_one({"id": playlist_id, "user_id": user["id"]})
+    if not pl:
+        raise HTTPException(404, "Playlist not found")
+
+    # Validate episode exists and belongs to the given cartoon
+    ep = await db.episodes.find_one(
+        {"id": payload.episode_id, "cartoon_id": payload.cartoon_id},
+        {"_id": 0},
+    )
+    if not ep:
+        raise HTTPException(404, "Episode not found")
+
+    existing = [it for it in pl.get("items", []) if it["episode_id"] == payload.episode_id]
+    if existing:
+        return {"success": True, "already_added": True}
+
+    await db.playlists.update_one(
+        {"id": playlist_id},
+        {
+            "$push": {
+                "items": {
+                    "cartoon_id": payload.cartoon_id,
+                    "episode_id": payload.episode_id,
+                }
+            },
+            "$addToSet": {"cartoon_ids": payload.cartoon_id},
+        },
+    )
+    return {"success": True, "already_added": False}
+
+
+@api_router.delete("/me/playlists/{playlist_id}/episodes/{episode_id}")
+async def remove_episode_from_playlist(
+    playlist_id: str, episode_id: str, user=Depends(get_current_user)
+):
+    """Remove a single episode from a playlist."""
+    _require_plus(user)
+    pl = await db.playlists.find_one({"id": playlist_id, "user_id": user["id"]})
+    if not pl:
+        raise HTTPException(404, "Playlist not found")
+    await db.playlists.update_one(
+        {"id": playlist_id},
+        {"$pull": {"items": {"episode_id": episode_id}}},
+    )
+    return {"success": True}
+
+
+@api_router.post("/me/playlists/{playlist_id}/reorder")
+async def reorder_playlist(
+    playlist_id: str, payload: PlaylistReorder, user=Depends(get_current_user)
+):
+    """Reorder playlist items. Body: {episode_ids: [ordered list of episode ids]}."""
+    _require_plus(user)
+    pl = await db.playlists.find_one({"id": playlist_id, "user_id": user["id"]})
+    if not pl:
+        raise HTTPException(404, "Playlist not found")
+
+    current_items = pl.get("items", [])
+    by_ep = {it["episode_id"]: it for it in current_items}
+    new_items = [by_ep[eid] for eid in payload.episode_ids if eid in by_ep]
+    # Append any items not in the supplied order (defensive)
+    seen = set(payload.episode_ids)
+    for it in current_items:
+        if it["episode_id"] not in seen:
+            new_items.append(it)
+
+    await db.playlists.update_one(
+        {"id": playlist_id},
+        {"$set": {"items": new_items}},
+    )
+    return {"success": True}
 
 
 @api_router.delete("/me/playlists/{playlist_id}")

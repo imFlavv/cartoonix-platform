@@ -585,3 +585,27 @@ textarea,
 [contenteditable="true"] {
   cursor: text;
 }
+
+
+/* ==========================================================================
+   Episode list scrollbar (CartoonDetailPage + PlaylistPlayerPage)
+   ========================================================================== */
+.ep-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: hsla(var(--accent) / 0.45) transparent;
+}
+.ep-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.ep-scroll::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+}
+.ep-scroll::-webkit-scrollbar-thumb {
+  background: hsla(var(--accent) / 0.45);
+  border-radius: 8px;
+}
+.ep-scroll::-webkit-scrollbar-thumb:hover {
+  background: hsla(var(--accent) / 0.75);
+}
+

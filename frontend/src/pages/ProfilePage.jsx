@@ -13,6 +13,8 @@ import {
   Lock,
   ChevronRight,
   Sparkles,
+  Play,
+  Trash2,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
@@ -73,6 +75,17 @@ export default function ProfilePage() {
       load();
     } catch (e) {
       toast.error(getErrorMessage(e, "Nu am putut crea playlist-ul"));
+    }
+  };
+
+  const deletePlaylist = async (playlistId) => {
+    if (!window.confirm("Sigur ștergi acest playlist?")) return;
+    try {
+      await api.delete(`/me/playlists/${playlistId}`);
+      toast.success("Playlist șters");
+      load();
+    } catch (e) {
+      toast.error(getErrorMessage(e, "Nu am putut șterge playlist-ul"));
     }
   };
 
@@ -232,12 +245,45 @@ export default function ProfilePage() {
                   <div className="rounded-2xl border border-dashed border-white/10 p-10 text-center text-muted-foreground">Niciun playlist încă.</div>
                 ) : (
                   <div className="grid sm:grid-cols-2 gap-3">
-                    {playlists.map((p) => (
-                      <div key={p.id} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4" data-testid="playlist-item">
-                        <div className="font-medium">{p.name}</div>
-                        <div className="text-xs text-muted-foreground">{p.cartoon_ids?.length || 0} desene</div>
-                      </div>
-                    ))}
+                    {playlists.map((p) => {
+                      const epCount = (p.items || []).length;
+                      return (
+                        <div
+                          key={p.id}
+                          className="group rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 flex items-center gap-3"
+                          data-testid="playlist-item"
+                        >
+                          <div className="h-11 w-11 rounded-xl bg-[hsl(var(--accent))]/15 ring-1 ring-[hsl(var(--accent))]/30 grid place-items-center text-[hsl(var(--accent))] shrink-0">
+                            <ListMusic className="h-5 w-5" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium truncate">{p.name}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {epCount} {epCount === 1 ? "episod" : "episoade"}
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            disabled={epCount === 0}
+                            onClick={() => navigate(`/playlist/${p.id}`)}
+                            className="rounded-lg"
+                            data-testid={`playlist-play-${p.id}`}
+                            title={epCount === 0 ? "Playlist gol" : "Redă"}
+                          >
+                            <Play className="h-4 w-4 mr-1" /> Redă
+                          </Button>
+                          <button
+                            onClick={() => deletePlaylist(p.id)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 rounded-md grid place-items-center text-white/60 hover:text-red-300 hover:bg-red-500/10"
+                            data-testid={`playlist-delete-${p.id}`}
+                            title="Șterge playlist"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>

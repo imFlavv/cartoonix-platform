@@ -15,6 +15,7 @@ import RegisterPage from "@/pages/RegisterPage";
 import VerifyPage from "@/pages/VerifyPage";
 import TermsPage from "@/pages/TermsPage";
 import ProfilePage from "@/pages/ProfilePage";
+import PlaylistPlayerPage from "@/pages/PlaylistPlayerPage";
 import PresentationPage from "@/pages/PresentationPage";
 import MaintenancePage from "@/pages/MaintenancePage";
 import EarlyAccessPage from "@/pages/EarlyAccessPage";
@@ -251,6 +252,14 @@ function App() {
                   element={
                     <RequireAuth>
                       <PublicRoute element={<ProfilePage />} />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/playlist/:id"
+                  element={
+                    <RequireAuth>
+                      <PublicRoute element={<PlaylistPlayerPage />} />
                     </RequireAuth>
                   }
                 />

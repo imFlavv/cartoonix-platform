@@ -152,18 +152,34 @@ class PlaylistCreate(BaseModel):
     description: str = ""
 
 
+class PlaylistItem(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    cartoon_id: str
+    episode_id: str
+
+
 class Playlist(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str
     user_id: str
     name: str
     description: str = ""
-    cartoon_ids: List[str] = []
+    cartoon_ids: List[str] = []  # legacy — kept for backwards compat
+    items: List[PlaylistItem] = []  # ordered list of episodes
     created_at: datetime
 
 
 class PlaylistAddItem(BaseModel):
     cartoon_id: str
+
+
+class PlaylistAddEpisode(BaseModel):
+    cartoon_id: str
+    episode_id: str
+
+
+class PlaylistReorder(BaseModel):
+    episode_ids: List[str]
 
 
 # ============ WATCH HISTORY ============
