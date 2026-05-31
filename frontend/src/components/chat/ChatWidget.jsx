@@ -198,8 +198,12 @@ function MessageRow({ msg, isMine, animatedAvatars }) {
           >
             {msg.nickname}
           </span>
-          {!isBot && <LevelBadge level={msg.level} size={17} />}
-          {!isBot && msg.plan === "plus" && <PlusBadge size={17} />}
+          {!isBot && (
+            <span className="inline-flex items-center gap-[2px] leading-none">
+              <LevelBadge level={msg.level} size={17} />
+              {msg.plan === "plus" && <PlusBadge size={17} />}
+            </span>
+          )}
           {isBot ? <BotBadge /> : msg.role === "admin" ? <AdminBadge /> : null}
           <span className="text-[10px] text-muted-foreground/70 ml-auto pl-2">
             {formatTime(msg.created_at)}
