@@ -111,7 +111,7 @@ export default function GuestGatePage() {
               <span className="text-[hsl(var(--accent))]">în sfârșit acasă.</span>
             </h1>
             <p className="mt-5 max-w-xl text-base sm:text-lg text-white/65 leading-relaxed">
-              Cartoonix este un tezaur nostalgic închis comunității noastre. Pentru a viziona, salva favorite, crea playlist-uri și a discuta cu ceilalți fani — ai nevoie de un cont gratuit.
+              Cartoonix este locul unde nostalgia prinde viață. Creează-ți un cont gratuit pentru a urmări desenele preferate, salva favorite, crea playlist-uri și interacționa cu comunitatea pasionată de animații.
             </p>
 
             <div className="mt-7 flex flex-wrap items-center gap-3">
@@ -130,10 +130,6 @@ export default function GuestGatePage() {
                 </Button>
               </Link>
             </div>
-
-            <p className="mt-4 text-xs text-white/40">
-              Înregistrarea durează mai puțin de un minut. Nu cerem card de credit.
-            </p>
           </div>
 
           {/* PLUS spotlight card */}
@@ -192,7 +188,7 @@ export default function GuestGatePage() {
         <div className="mt-16 sm:mt-24">
           <div className="text-center max-w-2xl mx-auto">
             <span className="inline-block text-[11px] uppercase tracking-[0.28em] text-white/40">
-              Ce te așteaptă înăuntru
+              Ce te așteaptă
             </span>
             <h2 className="mt-2 font-display text-3xl sm:text-4xl tracking-wider text-white">
               O comunitate construită în jurul nostalgiei
@@ -231,7 +227,7 @@ export default function GuestGatePage() {
               Gata să te întorci în copilărie?
             </h3>
             <p className="mt-2 text-sm text-white/55 max-w-lg">
-              Câteva click-uri și ești înăuntru — fără card, fără spam, doar desenele care contează.
+              Câteva click-uri și ești înăuntru — doar desenele care contează.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
