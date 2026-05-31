@@ -19,7 +19,26 @@ Cartoonix este o platformă premium de streaming pentru desene animate retro (Ca
 - Concursuri publice (3 contests, 2 free + 1 paid via Stripe)
 
 ## Implemented (CHANGELOG)
-### 2026-02 (latest — Staff Applications + Chat live limit 200)
+### 2026-05 (latest — Playlist with episode-level items + auto-advance player)
+- **CartoonDetailPage scroll fix**: lista de episoade are acum `max-h-[70vh] overflow-y-auto` cu scrollbar custom (`.ep-scroll` în index.css). Lista de 10+ episoade este complet accesibilă.
+- **Playlist-uri cu items la nivel de episod** (`models.Playlist.items: List[PlaylistItem]`, fiecare `{cartoon_id, episode_id}`):
+  - `POST /api/me/playlists/{id}/episodes` body `{cartoon_id, episode_id}` — adaugă un singur episod
+  - `POST /api/me/playlists/{id}/items` body `{cartoon_id}` (legacy) — adaugă toate episoadele unui desen
+  - `GET /api/me/playlists/{id}` — returnează `resolved_items[]` cu episode + cartoon rezolvate (pentru player)
+  - `POST /api/me/playlists/{id}/reorder` body `{episode_ids: [...]}` — reordonare
+  - `DELETE /api/me/playlists/{id}/episodes/{episode_id}` — elimină un episod
+- **UI nou pe CartoonDetailPage** (PLUS only):
+  - Buton „Adaugă în playlist" lângă favorite — deschide `AddToPlaylistDialog` în mod `cartoon`
+  - Buton „+" pe fiecare rând de episod (apare la hover) — deschide dialog în mod `episode`
+- **Component nou `AddToPlaylistDialog`**: listă playlist-uri existente cu număr de episoade, indicator „Adăugat" pe playlist-urile care conțin deja episodul, + creare inline cu un singur click
+- **Pagină nouă `/playlist/:id` (`PlaylistPlayerPage`)**:
+  - Layout split: video player + sidebar queue „În coadă"
+  - **Auto-advance**: `<video onEnded={goNext}>` — la final, trece automat la următorul episod
+  - Buton Anterior/Următor + buton Loop (repetă playlist-ul la final)
+  - Buton X pe hover pentru a elimina un episod din coadă
+  - Auto-play la schimbarea episodului activ
+- **ProfilePage**: card-uri playlist cu buton „Redă" (navighează la /playlist/:id) + buton ștergere pe hover
+- **Tests**: `/app/backend/tests/test_playlists.py` (13/13 passing)
 - **Pagina `/staff`** — formular pentru a aplica la staff Cartoonix:
   - Accesibilă și în Presentation Mode + Early Access Mode (adăugată în ambele allow-list)
   - 6 secțiuni: Informații de bază (vârstă, vechime, frecvență), Motivație, Experiență (moderare + gestionare conflict), 3 scenarii practice (spam/toxic-joke/prieten încalcă reguli), Disponibilitate (ore + intervale), Extra (sugestii)
