@@ -1,0 +1,33 @@
+{
+  "summary": "Frontend E2E tested /admin/users new features: last activity (relative + absolute), IP display, online indicator, BAN user, UNBAN, BAN IP, search filter, and admin self-row safety. All 8 review scenarios passed. DB left clean (IP 203.0.113.55 unbanned via DELETE /api/admin/banned-ips).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "AdminUsers.jsx (612 lines) is acceptable but approaches the 700-line module-split threshold; ban dialog + helpers could be extracted in a future refactor.",
+    "Polling interval load() every 30s re-fires the same request even if the tab is hidden — consider using document.visibilityState or SWR to avoid unnecessary admin API load.",
+    "isOnline() relies on local clock (Date.now() - last_active < 90s). If server and client clocks differ significantly, status may be misleading. Backend already returns ISO timestamps so this is acceptable for now."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend only)", "frontend": "100%"},
+  "test_credentials": "admin@test.com / Admin123! ; alpha@test.com / User123! ; beta@test.com / User123!",
+  "seed_data_creation": "No new seed data created. Banned & unbanned alpha user during test (final state: not banned). Banned IP 203.0.113.55 then removed via DELETE /api/admin/banned-ips/203.0.113.55 (status 200). DB left clean.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Token is stored in localStorage under key 'cartoonix_token'. Admin id=93784d8f-210d-408b-9be4-a0a1a076c369, AlphaUser id=ba815bfc-30c4-4cdd-acfa-2a04d3fb8dc6 (IP 192.168.1.42), BetaUser id=597c3585-427d-43ad-87cc-e10f99a65075 (IP 203.0.113.55). Dialog uses single confirm test-id 'admin-user-ban-confirm' for ban/unban/ban_ip — selector reused. Headers verified: Utilizator, Email, Rol, Abonament, Ultimă activitate, Verificat, Acțiuni.",
+  "test_results_detail": {
+    "table_columns": "PASS - 'Ultimă activitate' shows relative ('Online' / 'acum 6 min' / 'acum 3 h'), absolute (e.g. '31.05.2026, 20:40'), and IP (192.168.1.42, 203.0.113.55, 34.16.56.64)",
+    "online_indicator": "PASS - AdminTest shows green pulsing dot and 'Online' text",
+    "alpha_dropdown_items": "PASS - Contains 'Banează utilizator', 'Banează IP (192.168.1.42)', 'Șterge utilizator'",
+    "ban_alpha": "PASS - Dialog title 'Banează utilizator' opens, reason textarea accepts 'spam test', confirm closes dialog, toast 'Utilizator banat' shown, AlphaUser row gets red 'BANAT' badge",
+    "unban_alpha": "PASS - Reopened dropdown showed 'Deblochează utilizator' (admin-user-unban-{id}), 'Banează utilizator' hidden. Confirm without reason, BANAT badge removed.",
+    "ban_ip_beta": "PASS - Menu item label = 'Banează IP (203.0.113.55)', dialog accepts reason 'abuse', success toast 'IP 203.0.113.55 blocat'",
+    "search": "PASS - typing 'alpha' filters to 1 row showing only AlphaUser",
+    "admin_self_row_disabled": "PASS - admin's own ban and delete menu items have aria-disabled='true' and data-disabled attribute"
+  }
+}
