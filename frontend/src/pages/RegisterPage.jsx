@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import PublicLayout from "@/components/PublicLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,6 +49,35 @@ const PLUS_BENEFITS = [
 ];
 
 const PLUS_PREVIEW_COUNT = 5;
+
+// Stripe redirect session persistence (mirrors EarlyAccessPage flow).
+const REG_SESSION_KEY = "cartoonix_register_session";
+function loadRegSession() {
+  try {
+    let raw = sessionStorage.getItem(REG_SESSION_KEY);
+    if (!raw) raw = localStorage.getItem(REG_SESSION_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+function saveRegSession(data) {
+  try {
+    const json = JSON.stringify(data);
+    sessionStorage.setItem(REG_SESSION_KEY, json);
+    localStorage.setItem(REG_SESSION_KEY, json);
+  } catch {
+    /* ignore */
+  }
+}
+function clearRegSession() {
+  try {
+    sessionStorage.removeItem(REG_SESSION_KEY);
+    localStorage.removeItem(REG_SESSION_KEY);
+  } catch {
+    /* ignore */
+  }
+}
 
 const STEPS = [
   { label: "Profil", icon: faUser },
@@ -228,6 +257,7 @@ function Step1Profile({ form, setForm, avatars, onNext }) {
 function PlanCard({
   name,
   price,
+  pricePeriod,
   features,
   selected,
   onSelect,
@@ -242,7 +272,7 @@ function PlanCard({
       type="button"
       onClick={onSelect}
       data-testid={testId}
-      className={`relative w-full text-left rounded-2xl border-2 p-5 transition-all ${
+      className={`relative w-full h-full text-left rounded-2xl border-2 p-5 transition-all flex flex-col ${
         selected
           ? "border-[hsl(var(--accent))] ring-2 ring-[hsl(var(--accent))]/30 bg-[hsl(var(--accent))]/[0.04]"
           : "border-white/10 hover:border-white/25 bg-white/[0.02]"
@@ -256,31 +286,35 @@ function PlanCard({
           {badge}
         </span>
       )}
-      <div className="flex items-start justify-between pr-2">
-        <div className="flex items-center gap-2.5">
-          <span
-            className="grid h-9 w-9 place-items-center rounded-xl bg-white/[0.05] ring-1 ring-white/10"
-            style={{ color: accent }}
-          >
-            <FontAwesomeIcon icon={icon} className="h-4 w-4" />
-          </span>
-          <div>
-            <div className="text-[10px] uppercase tracking-[0.25em] text-white/40">Cartoonix</div>
-            <div className="font-display text-2xl tracking-wider" style={{ color: accent }}>
-              {name}
-            </div>
+      {/* Header — uniform alignment across both cards */}
+      <div className="flex items-center gap-2.5 pr-2">
+        <span
+          className="grid h-9 w-9 place-items-center rounded-xl bg-white/[0.05] ring-1 ring-white/10 shrink-0"
+          style={{ color: accent }}
+        >
+          <FontAwesomeIcon icon={icon} className="h-4 w-4" />
+        </span>
+        <div className="min-w-0">
+          <div className="text-[10px] uppercase tracking-[0.25em] text-white/40">Cartoonix</div>
+          <div className="font-display text-2xl tracking-wider" style={{ color: accent }}>
+            {name}
           </div>
         </div>
       </div>
-      <div className="mt-3 text-2xl font-bold text-white">{price}</div>
-      <ul className="mt-4 space-y-1.5 text-sm">
+      {/* Price */}
+      <div className="mt-4 flex items-baseline gap-2">
+        <span className="text-3xl font-bold text-white">{price}</span>
+        <span className="text-xs text-white/45">{pricePeriod}</span>
+      </div>
+      {/* Features */}
+      <ul className="mt-4 space-y-1.5 text-sm flex-1">
         {features.map((f, i) => (
-          <li key={i} className="flex items-start gap-2">
+          <li key={i} className="flex items-center gap-2">
             <FontAwesomeIcon
               icon={faCheck}
-              className="h-3.5 w-3.5 mt-1 text-[hsl(var(--accent))] shrink-0"
+              className="h-3.5 w-3.5 text-[hsl(var(--accent))] shrink-0"
             />
-            <span className="text-white/55">{f}</span>
+            <span className="text-white/65 whitespace-nowrap">{f}</span>
           </li>
         ))}
       </ul>
@@ -330,10 +364,11 @@ function PlusBenefitsDialog({ children }) {
 function Step2Plan({ form, setForm, onNext, onBack, submitting }) {
   return (
     <div>
-      <div className="grid sm:grid-cols-2 gap-4">
+      <div className="grid sm:grid-cols-2 gap-4 items-stretch">
         <PlanCard
           name="FREE"
-          price="0 $ / lună"
+          price="0 RON"
+          pricePeriod="o singură dată"
           accent="hsl(var(--muted-foreground))"
           icon={faTv}
           testId="plan-select-free"
@@ -343,7 +378,8 @@ function Step2Plan({ form, setForm, onNext, onBack, submitting }) {
         />
         <PlanCard
           name="PLUS"
-          price="5,99 $ / lună"
+          price="50 RON"
+          pricePeriod="o singură dată"
           accent="hsl(var(--accent))"
           icon={faBolt}
           badge="Recomandat"
@@ -374,22 +410,33 @@ function Step2Plan({ form, setForm, onNext, onBack, submitting }) {
         />
       </div>
       <p className="text-xs text-white/40 mt-4 inline-flex items-center gap-2">
-        <img src={PLUS_BADGE_URL} alt="" className="h-4 w-auto" /> Plățile vor fi disponibile în curând — abonamentul tău este gratuit pe perioada preview-ului.
+        <img src={PLUS_BADGE_URL} alt="" className="h-4 w-auto" />
+        {form.subscription === "plus"
+          ? "Vei fi redirecționat către pagina securizată Stripe pentru finalizarea plății."
+          : "Plată unică per cont — fără reînnoiri automate, fără card pentru planul Free."}
       </p>
       <div className="flex justify-between mt-6">
         <Button variant="ghost" onClick={onBack} className="rounded-xl h-12 text-white/70 hover:text-white hover:bg-white/[0.06]" data-testid="register-back-button">
           <FontAwesomeIcon icon={faChevronLeft} className="mr-2 h-3.5 w-3.5" /> Înapoi
         </Button>
-        <Button onClick={onNext} disabled={submitting} className="rounded-xl h-12 px-6 font-semibold bg-[hsl(var(--accent))] text-black hover:bg-[hsl(var(--accent))]/90" data-testid="register-finalize-button">
-          {submitting ? "Se creează contul..." : (<>Finalizează <FontAwesomeIcon icon={faChevronRight} className="ml-2 h-3.5 w-3.5" /></>)}
+        <Button
+          onClick={onNext}
+          disabled={submitting}
+          className="rounded-xl h-12 px-6 font-semibold bg-[hsl(var(--accent))] text-black hover:bg-[hsl(var(--accent))]/90"
+          data-testid="register-finalize-button"
+        >
+          {submitting
+            ? "Se procesează..."
+            : form.subscription === "plus"
+              ? (<>Continuă la plată <FontAwesomeIcon icon={faChevronRight} className="ml-2 h-3.5 w-3.5" /></>)
+              : (<>Finalizează <FontAwesomeIcon icon={faChevronRight} className="ml-2 h-3.5 w-3.5" /></>)}
         </Button>
       </div>
     </div>
   );
 }
 
-function Step3Verify({ email, onSuccess }) {
-  const { verifyEmail, resendCode } = useAuth();
+function Step3Verify({ email, token, onSuccess }) {
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
@@ -404,9 +451,13 @@ function Step3Verify({ email, onSuccess }) {
     e.preventDefault();
     setLoading(true);
     try {
-      await verifyEmail(email, code);
+      const { data } = await api.post("/early-access/verify", { token, code });
+      // Persist token + user (matches AuthContext shape)
+      if (data?.access_token) {
+        localStorage.setItem("cartoonix_token", data.access_token);
+      }
       toast.success("Cont creat cu succes!");
-      onSuccess();
+      onSuccess(data);
     } catch (err) {
       toast.error(getErrorMessage(err, "Cod invalid"));
     } finally {
@@ -416,7 +467,7 @@ function Step3Verify({ email, onSuccess }) {
 
   const resend = async () => {
     try {
-      await resendCode(email);
+      await api.post("/early-access/resend", { token });
       toast.success("Un cod nou a fost trimis pe email");
       setResendCooldown(30);
     } catch (err) {
@@ -464,12 +515,15 @@ function Step3Verify({ email, onSuccess }) {
 }
 
 export default function RegisterPage() {
-  const { register, user } = useAuth();
+  const { user, fetchMe } = useAuth();
   const { settings } = useSettings() || {};
   const navigate = useNavigate();
+  const [search, setSearch] = useSearchParams();
   const [step, setStep] = useState(0);
   const [avatars, setAvatars] = useState([]);
   const [submitting, setSubmitting] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [token, setToken] = useState("");
   const [form, setForm] = useState({
     avatar_url: "",
     nickname: "",
@@ -495,23 +549,117 @@ export default function RegisterPage() {
     // eslint-disable-next-line
   }, []);
 
-  const doRegister = async () => {
+  // ---- Restore session on mount (Stripe redirect lands back here) ----
+  useEffect(() => {
+    const stored = loadRegSession();
+    if (!stored) return;
+    setForm((f) => ({
+      ...f,
+      nickname: stored.nickname || "",
+      email: stored.email || "",
+      avatar_url: stored.avatar_url || f.avatar_url,
+      accepted_terms: !!stored.accepted_terms,
+      subscription: stored.plan || "free",
+    }));
+    if (stored.token) setToken(stored.token);
+    if (typeof stored.step === "number") setStep(stored.step);
+    // eslint-disable-next-line
+  }, []);
+
+  // ---- Handle Stripe return: ?session_id=... ----
+  useEffect(() => {
+    const sessionId = search.get("session_id");
+    if (!sessionId) return;
+    const stored = loadRegSession();
+    const localToken = stored?.token;
+
+    const stripParam = () => {
+      const next = new URLSearchParams(search);
+      next.delete("session_id");
+      setSearch(next, { replace: true });
+    };
+
+    (async () => {
+      setConfirming(true);
+      try {
+        const { data } = await api.post("/early-access/confirm-payment", {
+          token: localToken || undefined,
+          session_id: sessionId,
+        });
+        const recoveredToken = data.token || localToken;
+        const updated = {
+          ...(stored || {}),
+          token: recoveredToken,
+          email: data.email || stored?.email || "",
+          payment_confirmed: true,
+          step: 2,
+        };
+        saveRegSession(updated);
+        setToken(recoveredToken);
+        if (data.email) setForm((f) => ({ ...f, email: data.email }));
+        setStep(2);
+        toast.success("Plata confirmată!", {
+          description: "Verifică-ți emailul pentru codul de confirmare.",
+        });
+      } catch (err) {
+        toast.error(
+          getErrorMessage(err, "Nu am putut confirma plata. Contactează suportul.")
+        );
+      } finally {
+        setConfirming(false);
+        stripParam();
+      }
+    })();
+    // eslint-disable-next-line
+  }, [search]);
+
+  const handleStep2Choose = async () => {
     setSubmitting(true);
     try {
-      await register({
-        avatar_url: form.avatar_url,
+      const { data } = await api.post("/early-access/register", {
         nickname: form.nickname.trim(),
         email: form.email.trim().toLowerCase(),
         password: form.password,
-        subscription: form.subscription,
+        plan: form.subscription,
         accepted_terms: form.accepted_terms,
+        avatar_url: form.avatar_url,
       });
-      toast.success("Cod trimis! Verifică emailul pentru codul de confirmare.");
-      setStep(2);
+      setToken(data.token);
+      const baseSession = {
+        nickname: form.nickname.trim(),
+        email: form.email.trim().toLowerCase(),
+        plan: form.subscription,
+        accepted_terms: form.accepted_terms,
+        avatar_url: form.avatar_url,
+        token: data.token,
+      };
+      if (data.next === "payment") {
+        saveRegSession({ ...baseSession, step: 1, payment_confirmed: false });
+        toast.message("Redirecționare către Stripe...", { duration: 1800 });
+        setTimeout(() => {
+          window.location.href = data.stripe_url;
+        }, 400);
+      } else {
+        saveRegSession({ ...baseSession, step: 2, payment_confirmed: true });
+        setStep(2);
+        toast.success("Cod trimis! Verifică emailul pentru codul de confirmare.");
+      }
     } catch (err) {
       toast.error(getErrorMessage(err, "Înregistrarea a eșuat"));
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleVerified = async () => {
+    clearRegSession();
+    if (fetchMe) await fetchMe();
+    const u = user;
+    if (settings?.presentation_mode && u?.role !== "admin") {
+      toast.info("Cont creat! Accesul la platformă va fi disponibil în curând.");
+      navigate("/");
+    } else {
+      navigate(u?.role === "admin" ? "/admin" : "/profile");
     }
   };
 
@@ -525,7 +673,7 @@ export default function RegisterPage() {
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="relative w-full max-w-5xl overflow-hidden rounded-[28px] border border-white/[0.08] bg-[#0c0d12]/80 backdrop-blur-xl shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8)]"
+          className="relative w-full max-w-6xl overflow-hidden rounded-[28px] border border-white/[0.08] bg-[#0c0d12]/80 backdrop-blur-xl shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8)]"
         >
           <div className="grid lg:grid-cols-[0.85fr_1.15fr]">
             <BrandPanel step={step} nickname={step > 0 ? form.nickname : ""} />
@@ -542,6 +690,12 @@ export default function RegisterPage() {
                 </h1>
               </div>
 
+              {confirming && (
+                <div className="mb-4 rounded-xl border border-[hsl(var(--accent))]/40 bg-[hsl(var(--accent))]/[0.06] px-4 py-3 text-sm text-[hsl(var(--accent))]">
+                  Se confirmă plata...
+                </div>
+              )}
+
               <AnimatePresence mode="wait">
                 <motion.div
                   key={step}
@@ -554,18 +708,20 @@ export default function RegisterPage() {
                     <Step1Profile form={form} setForm={setForm} avatars={avatars} onNext={() => setStep(1)} />
                   )}
                   {step === 1 && (
-                    <Step2Plan form={form} setForm={setForm} onNext={doRegister} onBack={() => setStep(0)} submitting={submitting} />
+                    <Step2Plan
+                      form={form}
+                      setForm={setForm}
+                      onNext={handleStep2Choose}
+                      onBack={() => setStep(0)}
+                      submitting={submitting}
+                    />
                   )}
                   {step === 2 && (
-                    <Step3Verify email={form.email} onSuccess={() => {
-                      const u = user;
-                      if (settings?.presentation_mode && u?.role !== "admin") {
-                        toast.info("Cont creat! Accesul la platformă va fi disponibil în curând.");
-                        navigate("/");
-                      } else {
-                        navigate(u?.role === "admin" ? "/admin" : "/profile");
-                      }
-                    }} />
+                    <Step3Verify
+                      email={form.email}
+                      token={token}
+                      onSuccess={handleVerified}
+                    />
                   )}
                 </motion.div>
               </AnimatePresence>
