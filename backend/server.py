@@ -264,10 +264,42 @@ async def record_user_activity(user_id: str, ip: str) -> None:
         pass
 
 
+# In-process cache of the banned-IP set, so the middleware doesn't hit Mongo
+# on every /api/* request. TTL is short enough that newly banned IPs take
+# effect within ~30 seconds.
+_BANNED_IPS_CACHE: set[str] = set()
+_BANNED_IPS_CACHE_TS: float = 0.0
+_BANNED_IPS_TTL_SECONDS: float = 30.0
+
+
+async def _is_ip_banned(ip: str) -> bool:
+    """Cached lookup against the banned_ips collection."""
+    if not ip:
+        return False
+    global _BANNED_IPS_CACHE, _BANNED_IPS_CACHE_TS
+    import time as _time
+    now = _time.monotonic()
+    if now - _BANNED_IPS_CACHE_TS > _BANNED_IPS_TTL_SECONDS:
+        try:
+            docs = await db.banned_ips.find({}, {"_id": 0, "ip": 1}).to_list(5000)
+            _BANNED_IPS_CACHE = {d.get("ip", "") for d in docs if d.get("ip")}
+            _BANNED_IPS_CACHE_TS = now
+        except Exception:
+            # On failure, do not crash requests — keep stale cache.
+            _BANNED_IPS_CACHE_TS = now
+    return ip in _BANNED_IPS_CACHE
+
+
+def _invalidate_banned_ips_cache() -> None:
+    global _BANNED_IPS_CACHE_TS
+    _BANNED_IPS_CACHE_TS = 0.0
+
+
 @app.middleware("http")
 async def block_banned_and_track_activity(request: Request, call_next):
-    """1) Reject requests originating from banned IPs.
-    2) Throttled background-style update of user.last_active+last_ip.
+    """1) Reject requests originating from banned IPs (cached, ~30s freshness).
+    2) Throttled background-style update of user.last_active+last_ip happens in
+       the auth dependency, not here, to keep this middleware lightweight.
 
     Runs only for /api/* routes; static / video range requests are excluded
     via the path prefix check to keep video streaming fast.
@@ -277,27 +309,16 @@ async def block_banned_and_track_activity(request: Request, call_next):
         return await call_next(request)
 
     ip = get_client_ip(request)
-    # 1) Banned-IP gate (cheap lookup; banlist is typically small)
-    if ip:
-        try:
-            banned = await db.banned_ips.find_one({"ip": ip}, {"_id": 0})
-        except Exception:
-            banned = None
-        if banned:
-            return JSONResponse(
-                status_code=403,
-                content={
-                    "detail": "Acces interzis. Adresa ta IP a fost blocată.",
-                    "code": "ip_banned",
-                },
-            )
+    if ip and await _is_ip_banned(ip):
+        return JSONResponse(
+            status_code=403,
+            content={
+                "detail": "Acces interzis. Adresa ta IP a fost blocată.",
+                "code": "ip_banned",
+            },
+        )
 
-    response = await call_next(request)
-
-    # 2) Best-effort: stash IP on the request state so authenticated endpoints
-    #    can update last_active in their own code path. We don't decode the JWT
-    #    here to keep middleware lightweight.
-    return response
+    return await call_next(request)
 
 
 # ============================================================
@@ -1774,6 +1795,7 @@ async def admin_ban_user_ip(
         },
         upsert=True,
     )
+    _invalidate_banned_ips_cache()
     return {"success": True, "ip": ip}
 
 
@@ -1792,6 +1814,7 @@ async def admin_unban_ip(ip: str, user=Depends(require_admin)):
     res = await db.banned_ips.delete_one({"ip": ip})
     if res.deleted_count == 0:
         raise HTTPException(404, "IP not in banlist")
+    _invalidate_banned_ips_cache()
     return {"success": True}
 
 

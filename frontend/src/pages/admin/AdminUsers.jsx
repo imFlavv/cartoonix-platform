@@ -85,6 +85,32 @@ function isOnline(iso) {
   return Date.now() - d.getTime() < 90 * 1000; // within 90s
 }
 
+function initialsOf(nick = "", email = "") {
+  const src = (nick || email || "?").trim();
+  if (!src) return "?";
+  const parts = src.split(/[\s._-]+/).filter(Boolean);
+  const a = parts[0]?.[0] || src[0];
+  const b = parts[1]?.[0] || "";
+  return (a + b).toUpperCase().slice(0, 2);
+}
+
+// Stable color per user (so it doesn't shift between renders)
+const AVATAR_PALETTE = [
+  "bg-amber-500/80",
+  "bg-rose-500/80",
+  "bg-emerald-500/80",
+  "bg-sky-500/80",
+  "bg-violet-500/80",
+  "bg-orange-500/80",
+  "bg-teal-500/80",
+  "bg-pink-500/80",
+];
+function colorFor(key = "") {
+  let h = 0;
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) | 0;
+  return AVATAR_PALETTE[Math.abs(h) % AVATAR_PALETTE.length];
+}
+
 export default function AdminUsers() {
   const [users, setUsers] = useState([]);
   const [total, setTotal] = useState(0);
@@ -138,9 +164,12 @@ export default function AdminUsers() {
 
   useEffect(() => { load(); }, [load]);
 
-  // Light auto-refresh every 30s so "ultima activitate" stays fresh.
+  // Light auto-refresh every 60s so "ultima activitate" stays fresh (skip when tab hidden).
   useEffect(() => {
-    const t = setInterval(() => load(), 30000);
+    const t = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      load();
+    }, 60000);
     return () => clearInterval(t);
   }, [load]);
 
@@ -286,11 +315,25 @@ export default function AdminUsers() {
                     <td className="p-3">
                       <div className="flex items-center gap-3">
                         <div className="relative shrink-0">
-                          <img
-                            src={mediaUrl(u.avatar_url)}
-                            alt=""
-                            className="h-9 w-9 rounded-md object-cover bg-secondary"
-                          />
+                          {u.avatar_url ? (
+                            <img
+                              src={mediaUrl(u.avatar_url)}
+                              alt=""
+                              loading="lazy"
+                              decoding="async"
+                              className="h-9 w-9 rounded-md object-cover bg-secondary"
+                            />
+                          ) : (
+                            <div
+                              className={
+                                "h-9 w-9 rounded-md flex items-center justify-center text-xs font-bold text-white/95 ring-1 ring-white/10 " +
+                                colorFor(u.id || u.email || u.nickname)
+                              }
+                              aria-hidden
+                            >
+                              {initialsOf(u.nickname, u.email)}
+                            </div>
+                          )}
                           {online && (
                             <span
                               className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-card"
