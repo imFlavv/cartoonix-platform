@@ -19,6 +19,24 @@ Cartoonix este o platformă premium de streaming pentru desene animate retro (Ca
 - Concursuri publice (3 contests, 2 free + 1 paid via Stripe)
 
 ## Implemented (CHANGELOG)
+### 2026-05-31 — Admin Users: last activity, IP & ban controls
+- `/admin/users` tabel acum afișează coloana **Ultimă activitate** cu:
+  - timpul relativ (Online / acum X min / acum X h / dată absolută pentru >7z)
+  - timestamp absolut (format `dd.mm.yyyy, HH:MM`)
+  - IP-ul ultimei activități (`last_ip`)
+  - indicator verde pulsativ "Online" dacă activitatea e ≤90 s
+- Dropdown de acțiuni pe fiecare utilizator (`MoreHorizontal` button):
+  - **Banează utilizator** → modal cu motiv opțional → `POST /api/admin/users/{id}/ban`
+  - **Deblochează utilizator** (apare doar când e banat) → `POST /api/admin/users/{id}/unban`
+  - **Banează IP (xxx.xxx.xxx.xxx)** → modal cu motiv → `POST /api/admin/users/{id}/ban-ip` (folosește `last_ip`)
+  - **Șterge utilizator** (existent)
+- Badge `BANAT` (roșu) afișat în rândul utilizatorilor suspendați.
+- Auto-refresh la 30 s pentru a păstra "ultima activitate" actualizată.
+- Acțiunile pe rândul admin-ului propriu sunt dezactivate.
+- Backend tracking deja existent: middleware actualizează `last_active` + `last_ip` la fiecare cerere autentificată; cererile de la IP-uri din colecția `banned_ips` sunt respinse.
+- Testat E2E (testing_agent_v3_fork iteration_4) — 100% pass pe 8 scenarii: afișare, ban, unban, ban IP, search, self-row disabled.
+
+
 ### 2026-05 (latest — Playlist with episode-level items + auto-advance player)
 - **CartoonDetailPage scroll fix**: lista de episoade are acum `max-h-[70vh] overflow-y-auto` cu scrollbar custom (`.ep-scroll` în index.css). Lista de 10+ episoade este complet accesibilă.
 - **Playlist-uri cu items la nivel de episod** (`models.Playlist.items: List[PlaylistItem]`, fiecare `{cartoon_id, episode_id}`):
