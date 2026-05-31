@@ -1500,7 +1500,7 @@ async def get_cartoon(cartoon_id: str):
     c = await db.cartoons.find_one({"id": cartoon_id}, {"_id": 0})
     if not c:
         raise HTTPException(404, "Cartoon not found")
-    episodes = await db.episodes.find({"cartoon_id": cartoon_id}, {"_id": 0}).sort([("season", 1), ("episode_number", 1)]).to_list(500)
+    episodes = await db.episodes.find({"cartoon_id": cartoon_id}, {"_id": 0}).sort([("sort_index", 1), ("season", 1), ("episode_number", 1)]).to_list(500)
     c["episodes"] = episodes
     c["episode_count"] = len(episodes)
     return c
@@ -1573,6 +1573,43 @@ async def admin_delete_episode(episode_id: str, user=Depends(require_admin)):
     if result.deleted_count == 0:
         raise HTTPException(404, "Episode not found")
     return {"success": True}
+
+
+class EpisodeReorderPayload(BaseModel):
+    episode_ids: List[str]
+
+
+@api_router.post("/admin/cartoons/{cartoon_id}/episodes/reorder")
+async def admin_reorder_episodes(
+    cartoon_id: str,
+    payload: EpisodeReorderPayload,
+    user=Depends(require_admin),
+):
+    """Persist a manual display order for a cartoon's episodes.
+
+    The list `episode_ids` is the desired order top→bottom. We write a
+    `sort_index` on each matching episode; the public detail endpoint sorts by
+    `(sort_index, season, episode_number)`. Episodes not present in the payload
+    keep their previous sort_index (effectively going to the bottom).
+    """
+    if not await db.cartoons.find_one({"id": cartoon_id}, {"_id": 0, "id": 1}):
+        raise HTTPException(404, "Cartoon not found")
+    if not payload.episode_ids:
+        raise HTTPException(400, "episode_ids must not be empty")
+
+    # Build a bulk update so it's a single round-trip
+    from pymongo import UpdateOne
+    ops = []
+    for idx, ep_id in enumerate(payload.episode_ids):
+        ops.append(
+            UpdateOne(
+                {"id": ep_id, "cartoon_id": cartoon_id},
+                {"$set": {"sort_index": idx}},
+            )
+        )
+    if ops:
+        await db.episodes.bulk_write(ops, ordered=False)
+    return {"success": True, "count": len(ops)}
 
 
 # ============================================================

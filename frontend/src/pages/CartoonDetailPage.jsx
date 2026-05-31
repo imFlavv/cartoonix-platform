@@ -4,7 +4,7 @@ import PublicLayout from "@/components/PublicLayout";
 import { api, mediaUrl } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Heart, Play, Tv, Calendar, ListPlus, Plus, Clock3 } from "lucide-react";
+import { Heart, Play, Tv, Calendar, ListPlus, Plus, Clock3, GripVertical } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -49,6 +49,35 @@ export default function CartoonDetailPage() {
     episodeTitle: "",
   });
   const isPlus = user?.subscription === "plus";
+  const isAdmin = user?.role === "admin";
+
+  // Local drag-and-drop state (admin-only)
+  const [dragId, setDragId] = useState(null);
+  const [dragOverId, setDragOverId] = useState(null);
+  const [reorderSaving, setReorderSaving] = useState(false);
+
+  const reorderEpisodes = async (sourceId, targetId) => {
+    if (!data?.episodes || sourceId === targetId) return;
+    const current = data.episodes;
+    const srcIdx = current.findIndex((e) => e.id === sourceId);
+    const tgtIdx = current.findIndex((e) => e.id === targetId);
+    if (srcIdx < 0 || tgtIdx < 0) return;
+    const next = [...current];
+    const [moved] = next.splice(srcIdx, 1);
+    next.splice(tgtIdx, 0, moved);
+    setData({ ...data, episodes: next }); // optimistic
+    setReorderSaving(true);
+    try {
+      await api.post(`/admin/cartoons/${id}/episodes/reorder`, {
+        episode_ids: next.map((e) => e.id),
+      });
+    } catch (e) {
+      toast.error("Nu am putut salva ordinea — reîncarc.");
+      load();
+    } finally {
+      setReorderSaving(false);
+    }
+  };
 
   const load = async () => {
     setLoading(true);
@@ -208,19 +237,73 @@ export default function CartoonDetailPage() {
           </div>
 
           <aside className="lg:col-span-1">
-            <h3 className="font-display text-xl tracking-wider mb-3">Episoade</h3>
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="font-display text-xl tracking-wider">Episoade</h3>
+              {isAdmin && data.episodes?.length > 1 && (
+                <span
+                  className="text-[10px] uppercase tracking-[0.18em] text-[hsl(var(--accent))]/80 inline-flex items-center gap-1"
+                  data-testid="episodes-admin-reorder-hint"
+                >
+                  <GripVertical className="h-3 w-3" />
+                  {reorderSaving ? "Se salvează…" : "Trage pentru a reordona"}
+                </span>
+              )}
+            </div>
             <div className="rounded-2xl border border-border bg-card/60 overflow-hidden">
               <div className="ep-scroll max-h-[70vh] overflow-y-auto p-2 space-y-1.5">
                 {data.episodes?.length === 0 && (
                   <div className="p-6 text-sm text-muted-foreground">Niciun episod încă.</div>
                 )}
-                {data.episodes?.map((ep) => (
+                {data.episodes?.map((ep) => {
+                  const isDragOver = isAdmin && dragOverId === ep.id && dragId && dragId !== ep.id;
+                  const isDragging = isAdmin && dragId === ep.id;
+                  return (
                   <div
                     key={ep.id}
-                    className={`group w-full rounded-xl px-3 py-2.5 flex items-center gap-3 transition-colors ${
+                    draggable={isAdmin}
+                    onDragStart={(e) => {
+                      if (!isAdmin) return;
+                      setDragId(ep.id);
+                      e.dataTransfer.effectAllowed = "move";
+                      try { e.dataTransfer.setData("text/plain", ep.id); } catch { /* noop */ }
+                    }}
+                    onDragOver={(e) => {
+                      if (!isAdmin || !dragId) return;
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = "move";
+                      if (dragOverId !== ep.id) setDragOverId(ep.id);
+                    }}
+                    onDragLeave={() => {
+                      if (dragOverId === ep.id) setDragOverId(null);
+                    }}
+                    onDrop={(e) => {
+                      if (!isAdmin) return;
+                      e.preventDefault();
+                      const src = dragId;
+                      setDragId(null);
+                      setDragOverId(null);
+                      if (src && src !== ep.id) reorderEpisodes(src, ep.id);
+                    }}
+                    onDragEnd={() => {
+                      setDragId(null);
+                      setDragOverId(null);
+                    }}
+                    data-testid={`episode-card-${ep.id}`}
+                    className={`group w-full rounded-xl px-3 py-2.5 flex items-center gap-3 transition-all ${
                       activeEp?.id === ep.id ? "bg-secondary" : "hover:bg-secondary/60"
+                    } ${isDragging ? "opacity-40 scale-[0.98]" : ""} ${
+                      isDragOver ? "ring-2 ring-[hsl(var(--accent))] ring-offset-2 ring-offset-background" : ""
                     }`}
                   >
+                    {isAdmin && (
+                      <div
+                        className="text-white/30 group-hover:text-white/60 cursor-grab active:cursor-grabbing shrink-0"
+                        title="Trage pentru reordonare"
+                        data-testid={`episode-drag-handle-${ep.id}`}
+                      >
+                        <GripVertical className="h-4 w-4" />
+                      </div>
+                    )}
                     <button
                       data-testid={`episode-row-${ep.id}`}
                       onClick={() => setActiveEp(ep)}
@@ -253,7 +336,8 @@ export default function CartoonDetailPage() {
                       </button>
                     )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </aside>

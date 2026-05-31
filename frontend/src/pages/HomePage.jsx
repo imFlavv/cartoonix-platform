@@ -126,7 +126,7 @@ export default function HomePage() {
                 transition={{ duration: 0.4 }}
                 className="inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-3.5 py-1.5 text-[11px] font-medium uppercase tracking-[0.2em] text-white/60"
               >
-                <Sparkles className="h-3.5 w-3.5 text-[hsl(var(--accent))]" /> Tezaurul este deschis
+                <Sparkles className="h-3.5 w-3.5 text-[hsl(var(--accent))]" /> Bine ai venit în platformă!
               </motion.div>
 
               <motion.h1
@@ -255,7 +255,7 @@ export default function HomePage() {
       {featured.length > 0 && (
         <section data-testid="home-featured-section" className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
           <div className="mb-7">
-            <div className="text-[11px] uppercase tracking-[0.3em] text-[hsl(var(--accent))]/80">Tezaur</div>
+            <div className="text-[11px] uppercase tracking-[0.3em] text-[hsl(var(--accent))]/80">Colecție</div>
             <h2 className="mt-2 font-display text-2xl sm:text-3xl tracking-wider text-white">Adăugate recent</h2>
             <p className="text-white/45 text-sm mt-1">Noi episoade adăugate în Cartoonix.</p>
           </div>

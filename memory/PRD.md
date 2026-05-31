@@ -19,6 +19,13 @@ Cartoonix este o platformă premium de streaming pentru desene animate retro (Ca
 - Concursuri publice (3 contests, 2 free + 1 paid via Stripe)
 
 ## Implemented (CHANGELOG)
+### 2026-05-31 — Cartoon page: admin DnD episode reorder + copy tweaks
+- New backend endpoint `POST /api/admin/cartoons/{cartoon_id}/episodes/reorder` body `{episode_ids:[...]}` — writes `sort_index` on episodes via bulk_write.
+- Detail query now sorts by `(sort_index, season, episode_number)` so the order is persisted for every viewer.
+- `CartoonDetailPage.jsx`: when `user.role === "admin"`, episode cards become HTML5-draggable with a `GripVertical` handle, a "Trage pentru a reordona" hint, ring highlight on drag-over, optimistic UI, and toast rollback on failure.
+- Non-admin users see the same custom order but no drag affordances.
+- Homepage copy: "Tezaurul este deschis" → "Bine ai venit în platformă!"; section eyebrow "Tezaur" → "Colecție".
+
 ### 2026-05-31 — Admin Users: last activity, IP & ban controls
 - `/admin/users` tabel acum afișează coloana **Ultimă activitate** cu:
   - timpul relativ (Online / acum X min / acum X h / dată absolută pentru >7z)
