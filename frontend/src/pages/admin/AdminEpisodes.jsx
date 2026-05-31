@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { api, mediaUrl, getErrorMessage } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,8 +7,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Edit, Trash2, Upload, Link as LinkIcon, FolderInput } from "lucide-react";
+import { Plus, Edit, Trash2, Upload, Link as LinkIcon, FolderInput, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
+
+const PAGE_SIZE = 25;
 
 function EpisodeForm({ episode, cartoons, onSaved, onClose }) {
   const [form, setForm] = useState(episode || {
@@ -181,6 +183,7 @@ export default function AdminEpisodes() {
   const [editing, setEditing] = useState(null);
   const [open, setOpen] = useState(false);
   const [filterCartoon, setFilterCartoon] = useState("");
+  const [page, setPage] = useState(1);
 
   const load = async () => {
     const [{ data: cs }] = await Promise.all([api.get("/cartoons")]);
@@ -206,7 +209,28 @@ export default function AdminEpisodes() {
     }
   };
 
-  const filtered = episodes.filter((e) => !filterCartoon || filterCartoon === "__all__" || e.cartoon_id === filterCartoon);
+  const filtered = useMemo(
+    () =>
+      episodes.filter(
+        (e) =>
+          !filterCartoon ||
+          filterCartoon === "__all__" ||
+          e.cartoon_id === filterCartoon
+      ),
+    [episodes, filterCartoon]
+  );
+
+  // Reset to page 1 whenever filter changes or list size shrinks below current page
+  useEffect(() => {
+    setPage(1);
+  }, [filterCartoon]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const startIdx = (safePage - 1) * PAGE_SIZE;
+  const pageItems = filtered.slice(startIdx, startIdx + PAGE_SIZE);
+  const showingFrom = filtered.length === 0 ? 0 : startIdx + 1;
+  const showingTo = Math.min(filtered.length, startIdx + pageItems.length);
 
   return (
     <div>
@@ -244,7 +268,7 @@ export default function AdminEpisodes() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((e) => (
+            {pageItems.map((e) => (
               <tr key={e.id} className="border-t border-border">
                 <td className="p-3">
                   <div>
@@ -264,6 +288,54 @@ export default function AdminEpisodes() {
           </tbody>
         </table>
       </div>
+
+      {filtered.length > 0 && (
+        <div
+          className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+          data-testid="admin-episodes-pagination"
+        >
+          <div className="text-xs text-muted-foreground" data-testid="admin-episodes-pagination-info">
+            Se afișează <span className="text-foreground font-medium">{showingFrom}</span>
+            {showingFrom !== showingTo && (
+              <>
+                {" – "}
+                <span className="text-foreground font-medium">{showingTo}</span>
+              </>
+            )}
+            {" din "}
+            <span className="text-foreground font-medium">{filtered.length}</span>
+            {" episoade"}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-lg h-9"
+              disabled={safePage <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              data-testid="admin-episodes-prev-page"
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" /> Anterior
+            </Button>
+            <span
+              className="text-xs text-muted-foreground tabular-nums px-1"
+              data-testid="admin-episodes-page-indicator"
+            >
+              Pagina <span className="text-foreground font-medium">{safePage}</span> / {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-lg h-9"
+              disabled={safePage >= totalPages}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              data-testid="admin-episodes-next-page"
+            >
+              Următor <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

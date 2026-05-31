@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { LogOut, User as UserIcon, Shield, Mail } from "lucide-react";
+import { LogOut, User as UserIcon, Shield, Mail, Crown, ArrowRight } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,11 +12,53 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { mediaUrl, api } from "@/lib/api";
+import { mediaUrl, api, getErrorMessage } from "@/lib/api";
 import { BrandLogo } from "@/components/BrandLogo";
 import { useSettings } from "@/contexts/SettingsContext";
 import UserBadges from "@/components/UserBadges";
 import InboxPanel from "@/components/InboxPanel";
+import { toast } from "sonner";
+
+function UpgradeToPlusButton() {
+  const [loading, setLoading] = useState(false);
+
+  const onClick = async () => {
+    if (loading) return;
+    setLoading(true);
+    try {
+      const { data } = await api.post("/users/me/upgrade-checkout");
+      if (!data?.stripe_url) {
+        throw new Error("Stripe URL missing");
+      }
+      try {
+        localStorage.setItem("cartoonix_upgrade_pending", "1");
+      } catch { /* ignore */ }
+      toast.message("Redirecționare către Stripe...", { duration: 1800 });
+      setTimeout(() => {
+        window.location.href = data.stripe_url;
+      }, 250);
+    } catch (err) {
+      toast.error(
+        getErrorMessage(err, "Nu am putut deschide pagina de plată. Încearcă din nou.")
+      );
+      setLoading(false);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={loading}
+      data-testid="nav-upgrade-to-plus-button"
+      className="group hidden sm:inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-400 px-4 h-10 text-[12.5px] font-bold uppercase tracking-[0.14em] text-black shadow-[0_0_0_1px_rgba(245,194,66,0.5),0_8px_22px_-8px_rgba(245,194,66,0.55)] hover:brightness-110 hover:shadow-[0_0_0_1px_rgba(245,194,66,0.65),0_10px_26px_-8px_rgba(245,194,66,0.7)] active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-wait"
+    >
+      <Crown className="h-4 w-4" />
+      <span>{loading ? "Se deschide..." : "Upgrade la PLUS"}</span>
+      <ArrowRight className="h-3.5 w-3.5 -mr-0.5 transition-transform group-hover:translate-x-0.5" />
+    </button>
+  );
+}
 
 function NotificationsBell() {
   const [open, setOpen] = useState(false);
@@ -214,6 +256,7 @@ export function TopNav() {
               </DropdownMenuContent>
             </DropdownMenu>
             <NotificationsBell />
+            {!isPlus && <UpgradeToPlusButton />}
           </div>
         )}
       </div>
