@@ -75,8 +75,20 @@ function NotificationsBell() {
 
   useEffect(() => {
     refreshUnread();
-    const id = setInterval(refreshUnread, 60000);
-    return () => clearInterval(id);
+    const id = setInterval(() => {
+      // Skip the request when the tab is hidden — saves bandwidth and DB load
+      // when users have many tabs open.
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      refreshUnread();
+    }, 120000); // every 2 min instead of 1
+    const onVis = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") refreshUnread();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVis);
+    };
   }, [refreshUnread]);
 
   const badge = unread > 9 ? "9+" : String(unread);

@@ -536,8 +536,10 @@ export default function AdminChat() {
 
   useEffect(() => {
     refreshMessages();
-    const t = setInterval(refreshMessages, 3000);
-    const t2 = setInterval(refreshAll, 8000);
+    const visible = () =>
+      typeof document === "undefined" || document.visibilityState !== "hidden";
+    const t = setInterval(() => { if (visible()) refreshMessages(); }, 5000);
+    const t2 = setInterval(() => { if (visible()) refreshAll(); }, 20000);
     return () => {
       clearInterval(t);
       clearInterval(t2);

@@ -19,6 +19,13 @@ Cartoonix este o platformă premium de streaming pentru desene animate retro (Ca
 - Concursuri publice (3 contests, 2 free + 1 paid via Stripe)
 
 ## Implemented (CHANGELOG)
+### 2026-06-01 — Optimizare performanță pentru 100+ useri concurenți
+- **ChatWidget**: polling delta cu parametrul `since` în loc de a re-cere tot istoricul; intervalul mesajelor 3s→5s, state 5s→15s, presence/heartbeat 30s→45s, payload mesaje 200→max 50 per delta (load inițial 80).
+- **Tab ascuns**: toate polling-urile (chat messages/state/presence/heartbeat + notificări) sunt **oprite** când `document.visibilityState === "hidden"` și se reîncarcă o singură dată la revenire.
+- **Notificări**: poll 60s → 120s.
+- **Admin chat**: poll 3s→5s, full refresh 8s→20s.
+- **Impact măsurat**: pentru un user idle pe `/`, cererile către `/api/*` au scăzut de la ~25 req/30s la ~8 req/30s (~70% reducere); payload-ul `/chat/messages` aproape zero (delta gol vs 200 mesaje full). Proiectat la 100 useri concurenți: ~27 req/s în loc de ~70 req/s.
+
 ### 2026-06-01 — Centrul de Support (utilizator & admin)
 - **Backend** (server.py): nouă colecție `support_tickets` + endpoint-uri:
   - `POST /api/support/tickets` (auth) — creează ticket (title, message, attachment_url opțional)

@@ -23,8 +23,15 @@ import EmoticonPicker from "@/components/chat/EmoticonPicker";
 import { parseEmoticons } from "@/components/chat/emoticons";
 import { PLUS_BADGE_URL } from "@/lib/badges";
 
-const MESSAGE_POLL_MS = 3000;
-const PRESENCE_POLL_MS = 30000;
+const MESSAGE_POLL_MS = 5000; // delta-only poll, see refreshMessages
+const PRESENCE_POLL_MS = 45000; // presence + heartbeat
+const STATE_POLL_MS = 15000; // chat state (rarely changes)
+const INITIAL_MESSAGE_LIMIT = 80;
+const DELTA_MESSAGE_LIMIT = 50;
+
+function _isTabVisible() {
+  return typeof document === "undefined" || document.visibilityState !== "hidden";
+}
 
 // Cache the set of animated avatar URLs across the app (loaded once).
 let _animatedAvatarsCache = null;
@@ -280,6 +287,7 @@ export default function ChatWidget() {
 
   // ---- Polling helpers ----
   const refreshState = useCallback(async () => {
+    if (!_isTabVisible()) return;
     try {
       const { data } = await api.get("/chat/state");
       setState(data);
@@ -289,12 +297,38 @@ export default function ChatWidget() {
     }
   }, []);
 
+  // Track the most recent message timestamp so we can do delta-only polling.
+  const lastMessageAtRef = useRef(null);
+
   const refreshMessages = useCallback(async () => {
+    if (!_isTabVisible()) return;
     try {
-      const { data } = await api.get(`/chat/messages?room=${room}&limit=200`);
+      const since = lastMessageAtRef.current;
+      const params = new URLSearchParams({ room });
+      if (since) {
+        params.set("since", since);
+        params.set("limit", String(DELTA_MESSAGE_LIMIT));
+      } else {
+        params.set("limit", String(INITIAL_MESSAGE_LIMIT));
+      }
+      const { data } = await api.get(`/chat/messages?${params.toString()}`);
+      const incoming = data?.items || [];
+      if (incoming.length === 0 && since) return; // nothing new, save a render
+
       setMessages((prev) => {
-        const next = (data?.items || []).slice(-200);
-        // Mark unread if last message changed and chat is collapsed
+        // First load (no `since`): replace; otherwise append + dedupe by id, keep tail 200.
+        let next;
+        if (!since) {
+          next = incoming.slice(-200);
+        } else {
+          const known = new Set(prev.map((m) => m.id));
+          const merged = prev.concat(incoming.filter((m) => !known.has(m.id)));
+          next = merged.slice(-200);
+        }
+        // Update lastMessageAtRef
+        if (next.length > 0) {
+          lastMessageAtRef.current = next[next.length - 1].created_at;
+        }
         if (
           next.length > 0 &&
           lastSeenIdRef.current &&
@@ -311,6 +345,7 @@ export default function ChatWidget() {
   }, [room, open]);
 
   const refreshPresence = useCallback(async () => {
+    if (!_isTabVisible()) return;
     try {
       const { data } = await api.get("/chat/presence");
       setPresence(data || { online_total: 0, online_plus: 0 });
@@ -320,6 +355,7 @@ export default function ChatWidget() {
   }, []);
 
   const sendHeartbeat = useCallback(async () => {
+    if (!_isTabVisible()) return;
     try {
       await api.post("/chat/heartbeat");
     } catch (e) {
@@ -330,6 +366,9 @@ export default function ChatWidget() {
   // ---- Initial load + polling ----
   useEffect(() => {
     if (!user) return;
+    // Reset delta cursor whenever room (or user) changes so the first poll
+    // for the new room fetches a full snapshot.
+    lastMessageAtRef.current = null;
     refreshState();
     refreshPresence();
     sendHeartbeat();
@@ -339,11 +378,21 @@ export default function ChatWidget() {
       refreshPresence();
       sendHeartbeat();
     }, PRESENCE_POLL_MS);
-    const t3 = setInterval(refreshState, 5000);
+    const t3 = setInterval(refreshState, STATE_POLL_MS);
+    // Pause polling when the tab is hidden; resume + refresh when it comes back.
+    const onVis = () => {
+      if (_isTabVisible()) {
+        refreshState();
+        refreshPresence();
+        refreshMessages();
+      }
+    };
+    document.addEventListener("visibilitychange", onVis);
     return () => {
       clearInterval(t1);
       clearInterval(t2);
       clearInterval(t3);
+      document.removeEventListener("visibilitychange", onVis);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, room]);
