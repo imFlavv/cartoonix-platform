@@ -108,6 +108,7 @@ export default function AdminLive() {
         video_path: config.video_path,
         duration_seconds: Number(config.duration_seconds || 0),
         start_iso: config.start_iso,
+        program: (config.program || []).filter((s) => String(s).trim() !== ""),
       };
       const { data } = await api.patch("/admin/live/maraton", payload);
       setConfig(data.config);
@@ -287,6 +288,28 @@ export default function AdminLive() {
               placeholder="https://... sau /api/uploads/..."
             />
           </Field>
+
+          <div className="sm:col-span-2">
+            <Field
+              label="Programul maratonului"
+              hint="Câte un desen pe linie. Se afișează pe /live ca listă numerotată."
+              testId="admin-live-field-program"
+            >
+              <textarea
+                rows={10}
+                value={(config.program || []).join("\n")}
+                onChange={(e) =>
+                  setConfig({
+                    ...config,
+                    program: e.target.value.split("\n"),
+                  })
+                }
+                data-testid="admin-live-input-program"
+                className="w-full rounded-xl border border-white/10 bg-black/30 px-3.5 py-3 text-sm text-white focus:outline-none focus:border-[hsl(var(--accent))]/60 font-mono leading-relaxed"
+                placeholder={"Noua Școală a Împăratului\nEd, Edd și Eddy\nA.T.O.M\n..."}
+              />
+            </Field>
+          </div>
         </div>
 
         <div className="flex items-center justify-between gap-3 pt-2">

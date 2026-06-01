@@ -14,6 +14,7 @@ import {
   Minimize2,
   CalendarClock,
   Sparkles,
+  ListOrdered,
 } from "lucide-react";
 
 const fmtCountdown = (totalSeconds) => {
@@ -603,6 +604,53 @@ function LivePageInner() {
               >
                 Înapoi la platformă
               </Link>
+            </motion.div>
+          )}
+
+          {/* Program — visible in scheduled, live, ended */}
+          {computed && computed.state !== "disabled" && Array.isArray(computed.program) && computed.program.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              data-testid="live-program"
+              className="mt-10 sm:mt-12"
+            >
+              <div className="flex items-center gap-3 mb-5">
+                <span className="grid h-10 w-10 place-items-center rounded-xl bg-[hsl(var(--accent))]/10 text-[hsl(var(--accent))] ring-1 ring-[hsl(var(--accent))]/25">
+                  <ListOrdered className="h-5 w-5" />
+                </span>
+                <div>
+                  <div className="text-[11px] uppercase tracking-[0.3em] text-[hsl(var(--accent))]/80">
+                    Programul maratonului
+                  </div>
+                  <h2 className="font-display text-2xl sm:text-3xl tracking-wider text-white">
+                    Ce vei vedea
+                  </h2>
+                </div>
+              </div>
+
+              <ol className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
+                {computed.program.map((title, idx) => (
+                  <li
+                    key={`${idx}-${title}`}
+                    data-testid={`live-program-item-${idx}`}
+                    className="group relative flex items-center gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] px-3.5 py-3 sm:px-4 sm:py-3.5 transition-colors hover:border-[hsl(var(--accent))]/35 hover:bg-white/[0.04]"
+                  >
+                    <span className="grid h-8 w-8 sm:h-9 sm:w-9 place-items-center rounded-lg bg-black/40 ring-1 ring-white/10 text-[hsl(var(--accent))] font-display text-sm sm:text-base tabular-nums">
+                      {String(idx + 1).padStart(2, "0")}
+                    </span>
+                    <span className="text-sm sm:text-[15px] text-white/85 truncate">
+                      {title}
+                    </span>
+                    <span className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[hsl(var(--accent))]/0 to-transparent group-hover:via-[hsl(var(--accent))]/40 transition-colors" />
+                  </li>
+                ))}
+              </ol>
+
+              <p className="mt-4 text-[11px] uppercase tracking-[0.22em] text-white/35">
+                Ordinea poate suferi mici ajustări pe durata maratonului
+              </p>
             </motion.div>
           )}
         </div>

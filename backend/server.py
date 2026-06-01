@@ -358,6 +358,18 @@ LIVE_CONFIG_DEFAULTS = {
     "video_path": LIVE_DEFAULT_VIDEO,
     "poster_url": "",
     "subtitle": "",
+    "program": [
+        "Noua Școală a Împăratului",
+        "Ed, Edd și Eddy",
+        "A.T.O.M",
+        "Laboratorul lui Dexter",
+        "Clanul Nebunaticilor De Alături",
+        "Tinerii Titani",
+        "Johnny Bravo",
+        "Sonic X",
+        "Sumbrele Aventuri Ale Lui Billy Și Mandy",
+        "Vaca și Puiul",
+    ],
 }
 
 
@@ -413,6 +425,7 @@ def _live_compute_state(cfg: dict) -> dict:
         "seconds_until_end": max(0.0, (end_dt - now).total_seconds()),
         "video_url": f"/api/media/videos/{video_path}",
         "video_path": video_path,
+        "program": list(cfg.get("program") or []),
     }
 
 
@@ -459,6 +472,14 @@ async def admin_live_update(payload: dict, user=Depends(require_admin)):
             cfg["start_iso"] = raw
         except Exception:
             raise HTTPException(400, "start_iso must be ISO8601")
+    if "program" in payload:
+        raw = payload["program"]
+        if isinstance(raw, list):
+            cfg["program"] = [str(x).strip() for x in raw if str(x).strip()]
+        elif isinstance(raw, str):
+            cfg["program"] = [s.strip() for s in raw.split("\n") if s.strip()]
+        else:
+            raise HTTPException(400, "program must be a list or string")
 
     await db.settings.update_one(
         {"_id": "live_event"},
