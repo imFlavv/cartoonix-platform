@@ -49,22 +49,31 @@ function LiveNavButton() {
     };
   }, []);
 
-  if (state !== "live") return null;
+  if (state !== "live" && state !== "scheduled") return null;
+
+  const isLive = state === "live";
 
   return (
     <button
       type="button"
       onClick={() => navigate("/live")}
       data-testid="nav-live-button"
-      aria-label="Urmărește transmisiunea live"
-      className="relative inline-flex items-center gap-2 rounded-full border border-red-500/40 bg-red-500/15 px-3 sm:px-3.5 h-10 text-[12px] font-bold uppercase tracking-[0.18em] text-red-200 hover:text-white hover:bg-red-500/25 hover:border-red-500/60 transition-colors"
+      aria-label={isLive ? "Urmărește transmisiunea live" : "Vezi maratonul programat"}
+      className={`relative inline-flex items-center gap-1.5 sm:gap-2 rounded-full border px-2.5 sm:px-3.5 h-9 sm:h-10 text-[10.5px] sm:text-[12px] font-bold uppercase tracking-[0.16em] sm:tracking-[0.18em] transition-colors ${
+        isLive
+          ? "border-red-500/40 bg-red-500/15 text-red-200 hover:text-white hover:bg-red-500/25 hover:border-red-500/60"
+          : "border-white/15 bg-white/[0.04] text-white/70 hover:text-white hover:bg-white/[0.08] hover:border-white/25"
+      }`}
     >
-      <span className="relative flex h-2 w-2">
-        <span className="absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75 animate-ping" />
-        <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
-      </span>
-      <Radio className="h-3.5 w-3.5 sm:hidden" />
-      <span className="hidden sm:inline">Live</span>
+      {isLive ? (
+        <span className="relative flex h-2 w-2">
+          <span className="absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75 animate-ping" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
+        </span>
+      ) : (
+        <Radio className="h-3.5 w-3.5 text-white/60" />
+      )}
+      <span>{isLive ? "Live" : <><span className="hidden sm:inline">În curând</span><span className="sm:hidden">Soon</span></>}</span>
     </button>
   );
 }
@@ -101,11 +110,12 @@ function UpgradeToPlusButton() {
       onClick={onClick}
       disabled={loading}
       data-testid="nav-upgrade-to-plus-button"
-      className="group hidden sm:inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-400 px-4 h-10 text-[12.5px] font-bold uppercase tracking-[0.14em] text-black shadow-[0_0_0_1px_rgba(245,194,66,0.5),0_8px_22px_-8px_rgba(245,194,66,0.55)] hover:brightness-110 hover:shadow-[0_0_0_1px_rgba(245,194,66,0.65),0_10px_26px_-8px_rgba(245,194,66,0.7)] active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-wait"
+      className="group inline-flex items-center gap-1.5 sm:gap-2 rounded-full bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-400 px-2.5 sm:px-4 h-9 sm:h-10 text-[11px] sm:text-[12.5px] font-bold uppercase tracking-[0.12em] sm:tracking-[0.14em] text-black shadow-[0_0_0_1px_rgba(245,194,66,0.5),0_8px_22px_-8px_rgba(245,194,66,0.55)] hover:brightness-110 hover:shadow-[0_0_0_1px_rgba(245,194,66,0.65),0_10px_26px_-8px_rgba(245,194,66,0.7)] active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-wait"
     >
-      <Crown className="h-4 w-4" />
-      <span>{loading ? "Se deschide..." : "Upgrade la PLUS"}</span>
-      <ArrowRight className="h-3.5 w-3.5 -mr-0.5 transition-transform group-hover:translate-x-0.5" />
+      <Crown className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+      <span className="hidden sm:inline">{loading ? "Se deschide..." : "Upgrade la PLUS"}</span>
+      <span className="sm:hidden">{loading ? "..." : "PLUS"}</span>
+      <ArrowRight className="hidden sm:inline-block h-3.5 w-3.5 -mr-0.5 transition-transform group-hover:translate-x-0.5" />
     </button>
   );
 }
