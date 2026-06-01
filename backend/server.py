@@ -330,6 +330,78 @@ async def root():
 
 
 # ============================================================
+#               LIVE EVENT (single-event marathon)
+# ============================================================
+# Server-authoritative status for the one-time live marathon stream. The video
+# is served as a regular range-enabled file (see /api/media/videos/...), but
+# the frontend constrains the player so that seeking is disabled and the
+# playhead always reflects the elapsed time since LIVE_START.
+#
+# Defaults below are tuned for the launch (today 16:00 Bucharest, 8h video at
+# /media/videos/Maraton/0601.mp4). Anything can be overridden via env.
+LIVE_START_ISO_DEFAULT = "2026-06-01T13:00:00+00:00"  # 16:00 Europe/Bucharest
+LIVE_START_ISO = os.environ.get("LIVE_START_ISO", LIVE_START_ISO_DEFAULT)
+LIVE_DURATION_SECONDS = int(os.environ.get("LIVE_DURATION_SECONDS", "28800"))  # 8h
+LIVE_VIDEO_PATH = os.environ.get("LIVE_VIDEO_PATH", "Maraton/0601.mp4")
+LIVE_TITLE = os.environ.get("LIVE_TITLE", "Maraton Cartoonix")
+LIVE_ENABLED = os.environ.get("LIVE_ENABLED", "1").strip() not in ("0", "false", "False", "")
+
+
+def _live_start_dt() -> datetime:
+    try:
+        dt = datetime.fromisoformat(LIVE_START_ISO.replace("Z", "+00:00"))
+    except Exception:
+        dt = datetime.fromisoformat(LIVE_START_ISO_DEFAULT)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+@api_router.get("/live/status")
+async def live_status():
+    """Public status payload for the one-time marathon live stream.
+
+    Returns:
+        state: "disabled" | "scheduled" | "live" | "ended"
+        start_iso / end_iso / now_iso: ISO8601 UTC timestamps (server-authoritative).
+        elapsed_seconds: seconds since start, clamped to [0, duration].
+        seconds_until_start / seconds_until_end: convenience counters.
+        duration_seconds: total length of the stream.
+        video_url: relative URL to fetch the video bytes (range-enabled).
+        title: human-readable name for the event.
+    """
+    now = datetime.now(timezone.utc)
+    if not LIVE_ENABLED:
+        return {
+            "state": "disabled",
+            "title": LIVE_TITLE,
+            "now_iso": now.isoformat(),
+        }
+    start_dt = _live_start_dt()
+    end_dt = start_dt + timedelta(seconds=LIVE_DURATION_SECONDS)
+    elapsed = (now - start_dt).total_seconds()
+    if now < start_dt:
+        state = "scheduled"
+    elif now >= end_dt:
+        state = "ended"
+    else:
+        state = "live"
+    return {
+        "state": state,
+        "title": LIVE_TITLE,
+        "start_iso": start_dt.isoformat(),
+        "end_iso": end_dt.isoformat(),
+        "now_iso": now.isoformat(),
+        "duration_seconds": LIVE_DURATION_SECONDS,
+        "elapsed_seconds": max(0.0, min(float(LIVE_DURATION_SECONDS), elapsed)),
+        "seconds_until_start": max(0.0, (start_dt - now).total_seconds()),
+        "seconds_until_end": max(0.0, (end_dt - now).total_seconds()),
+        "video_url": f"/api/media/videos/{LIVE_VIDEO_PATH}",
+        "video_path": LIVE_VIDEO_PATH,
+    }
+
+
+# ============================================================
 #                        PUBLIC SETTINGS
 # ============================================================
 DEFAULT_SETTINGS = {
