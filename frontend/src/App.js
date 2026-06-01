@@ -20,6 +20,7 @@ import PresentationPage from "@/pages/PresentationPage";
 import MaintenancePage from "@/pages/MaintenancePage";
 import EarlyAccessPage from "@/pages/EarlyAccessPage";
 import EarlyAccessSuccessPage from "@/pages/EarlyAccessSuccessPage";
+import UpgradeReturnPage from "@/pages/UpgradeReturnPage";
 import GuestGatePage from "@/pages/GuestGatePage";
 import CartoonixContestsPage from "@/pages/CartoonixContestsPage";
 import AdminLayout from "@/components/AdminLayout";
@@ -183,7 +184,23 @@ function RootRoute() {
 function EarlyAccessRoute() {
   const { settings, loading: settingsLoading } = useSettings() || {};
   const { user, loading: authLoading } = useAuth() || {};
+  const location = useLocation();
   if (settingsLoading || authLoading) return null;
+
+  // If the user is returning from Stripe with a `session_id` query, we must
+  // handle the FREE -> PLUS upgrade confirmation BEFORE doing any redirect,
+  // otherwise the `session_id` is lost when early-access mode is OFF.
+  const params = new URLSearchParams(location.search);
+  const hasSessionId = !!params.get("session_id");
+  if (hasSessionId && user && user.role !== "admin") {
+    // When early-access mode is OFF the EarlyAccessSuccessPage would not be a
+    // good fit (it shows a launch countdown / contests / etc.), so we use a
+    // dedicated lightweight handler that confirms the upgrade and redirects.
+    if (!settings?.early_access_mode) return <UpgradeReturnPage />;
+    // In early-access mode the success page already handles `session_id`.
+    return <EarlyAccessSuccessPage />;
+  }
+
   // When the feature is OFF, /early-access redirects to home.
   if (!settings?.early_access_mode) return <Navigate to="/" replace />;
   // Logged-in non-admin users get the countdown.

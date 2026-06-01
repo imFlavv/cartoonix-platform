@@ -19,7 +19,7 @@
   "seed_data_creation": "No new seed data created. Banned & unbanned alpha user during test (final state: not banned). Banned IP 203.0.113.55 then removed via DELETE /api/admin/banned-ips/203.0.113.55 (status 200). DB left clean.",
   "retest_needed": false,
   "main_agent_can_self_test": true,
-  "context_for_next_testing_agent": "Token is stored in localStorage under key 'cartoonix_token'. Admin id=93784d8f-210d-408b-9be4-a0a1a076c369, AlphaUser id=ba815bfc-30c4-4cdd-acfa-2a04d3fb8dc6 (IP 192.168.1.42), BetaUser id=597c3585-427d-43ad-87cc-e10f99a65075 (IP 203.0.113.55). Dialog uses single confirm test-id 'admin-user-ban-confirm' for ban/unban/ban_ip — selector reused. Headers verified: Utilizator, Email, Rol, Abonament, Ultimă activitate, Verificat, Acțiuni.",
+  "context_for_next_testing_agent": "Token is stored in localStorage under key 'cartoonix_token'. Admin id=payment-sync-issue-1, AlphaUser id=payment-sync-issue-1 (IP 192.168.1.42), BetaUser id=payment-sync-issue-1 (IP 203.0.113.55). Dialog uses single confirm test-id 'admin-user-ban-confirm' for ban/unban/ban_ip — selector reused. Headers verified: Utilizator, Email, Rol, Abonament, Ultimă activitate, Verificat, Acțiuni.",
   "test_results_detail": {
     "table_columns": "PASS - 'Ultimă activitate' shows relative ('Online' / 'acum 6 min' / 'acum 3 h'), absolute (e.g. '31.05.2026, 20:40'), and IP (192.168.1.42, 203.0.113.55, 34.16.56.64)",
     "online_indicator": "PASS - AdminTest shows green pulsing dot and 'Online' text",
