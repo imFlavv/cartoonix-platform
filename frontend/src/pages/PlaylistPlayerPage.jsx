@@ -73,6 +73,39 @@ export default function PlaylistPlayerPage() {
 
   const items = useMemo(() => playlist?.resolved_items || [], [playlist]);
   const active = items[activeIdx] || null;
+  const wasFullscreenRef = useRef(false);
+
+  // Helpers for cross-browser fullscreen.
+  const getFullscreenEl = () =>
+    (typeof document !== "undefined" &&
+      (document.fullscreenElement ||
+        document.webkitFullscreenElement ||
+        document.mozFullScreenElement ||
+        document.msFullscreenElement)) ||
+    null;
+
+  const isVideoFullscreen = (v) => {
+    if (!v) return false;
+    if (v.webkitDisplayingFullscreen) return true; // iOS Safari native
+    const el = getFullscreenEl();
+    return !!el && (el === v || el.contains?.(v));
+  };
+
+  const requestVideoFullscreen = (v) => {
+    if (!v) return;
+    try {
+      if (v.webkitEnterFullscreen) {
+        v.webkitEnterFullscreen();
+        return;
+      }
+      const fn =
+        v.requestFullscreen ||
+        v.webkitRequestFullscreen ||
+        v.mozRequestFullScreen ||
+        v.msRequestFullscreen;
+      fn?.call(v)?.catch?.(() => {});
+    } catch { /* noop */ }
+  };
 
   const goNext = () => {
     if (!items.length) return;
@@ -115,14 +148,34 @@ export default function PlaylistPlayerPage() {
     }
   };
 
-  // Auto-play when active episode changes
+  // Auto-play when active episode changes. We DON'T use `key` on the <video>
+  // element so it stays mounted across episode switches — that's what keeps
+  // the browser's fullscreen mode active. We update the src imperatively here
+  // and, on iOS Safari (which exits fullscreen on src swap), re-enter it on
+  // `loadeddata` if it was active just before.
   useEffect(() => {
     const v = videoRef.current;
     if (!v || !active) return;
-    v.load();
-    const tryPlay = () => v.play().catch(() => {});
-    if (v.readyState >= 2) tryPlay();
-    else v.addEventListener("loadeddata", tryPlay, { once: true });
+    wasFullscreenRef.current = isVideoFullscreen(v);
+
+    const newSrc = resolveVideoUrl(active.episode.video_url);
+    // Only touch the src if it actually changed (avoid useless reloads).
+    const currentSrc = v.currentSrc || v.src || "";
+    if (!currentSrc.endsWith(newSrc) && currentSrc !== newSrc) {
+      v.src = newSrc;
+      v.load();
+    }
+
+    const onLoaded = () => {
+      v.play().catch(() => {});
+      if (wasFullscreenRef.current && !isVideoFullscreen(v)) {
+        // Browser dropped fullscreen (typical on iOS); restore it.
+        requestVideoFullscreen(v);
+      }
+      wasFullscreenRef.current = false;
+    };
+    v.addEventListener("loadeddata", onLoaded, { once: true });
+    return () => v.removeEventListener("loadeddata", onLoaded);
   }, [active?.episode_id]);
 
   if (loading) {
@@ -134,8 +187,6 @@ export default function PlaylistPlayerPage() {
   }
 
   if (!playlist) return null;
-
-  const videoSrc = active ? resolveVideoUrl(active.episode.video_url) : "";
 
   return (
     <PublicLayout>
@@ -187,8 +238,6 @@ export default function PlaylistPlayerPage() {
                   <div className="aspect-video rounded-xl bg-black overflow-hidden">
                     <video
                       ref={videoRef}
-                      key={active.episode_id}
-                      src={videoSrc}
                       controls
                       autoPlay
                       playsInline

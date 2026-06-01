@@ -19,6 +19,11 @@ Cartoonix este o platformă premium de streaming pentru desene animate retro (Ca
 - Concursuri publice (3 contests, 2 free + 1 paid via Stripe)
 
 ## Implemented (CHANGELOG)
+### 2026-06-01 — Playlist player: păstrează fullscreen la auto-advance
+- `PlaylistPlayerPage.jsx`: eliminat `key={active.episode_id}` de pe `<video>` (forțarea unmount/remount era cauza ieșirii din fullscreen). Acum păstrăm același element DOM între episoade și schimbăm `src` imperativ (`v.src = ...; v.load(); v.play()`).
+- Pentru iOS Safari, care iese nativ din fullscreen la swap-ul de `src`, am adăugat detectare cu `webkitDisplayingFullscreen` + re-intrare automată în fullscreen pe `loadeddata` dacă era activ înainte de tranziție.
+- Testat în Playwright: același element (`data-tag` persistat) după Next și după `onEnded` auto-advance pe toate cele 3 episoade.
+
 ### 2026-05-31 — Cartoon page: admin DnD episode reorder + copy tweaks
 - New backend endpoint `POST /api/admin/cartoons/{cartoon_id}/episodes/reorder` body `{episode_ids:[...]}` — writes `sort_index` on episodes via bulk_write.
 - Detail query now sorts by `(sort_index, season, episode_number)` so the order is persisted for every viewer.
