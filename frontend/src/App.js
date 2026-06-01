@@ -188,17 +188,36 @@ function EarlyAccessRoute() {
   if (settingsLoading || authLoading) return null;
 
   // If the user is returning from Stripe with a `session_id` query, we must
-  // handle the FREE -> PLUS upgrade confirmation BEFORE doing any redirect,
+  // handle the upgrade/registration confirmation BEFORE doing any redirect,
   // otherwise the `session_id` is lost when early-access mode is OFF.
   const params = new URLSearchParams(location.search);
-  const hasSessionId = !!params.get("session_id");
-  if (hasSessionId && user && user.role !== "admin") {
-    // When early-access mode is OFF the EarlyAccessSuccessPage would not be a
-    // good fit (it shows a launch countdown / contests / etc.), so we use a
-    // dedicated lightweight handler that confirms the upgrade and redirects.
-    if (!settings?.early_access_mode) return <UpgradeReturnPage />;
-    // In early-access mode the success page already handles `session_id`.
-    return <EarlyAccessSuccessPage />;
+  const sessionId = params.get("session_id");
+  const hasSessionId = !!sessionId;
+  if (hasSessionId) {
+    // Case 1: Logged-in user returning from a FREE -> PLUS upgrade.
+    if (user && user.role !== "admin") {
+      // When early-access mode is OFF use the dedicated lightweight handler;
+      // otherwise the success page already handles `session_id`.
+      if (!settings?.early_access_mode) return <UpgradeReturnPage />;
+      return <EarlyAccessSuccessPage />;
+    }
+
+    // Case 2: Guest returning from a PLUS registration payment.
+    // Forward to /register (or to /early-access registration page when the
+    // feature is ON), preserving `session_id` so the registration page can
+    // call `/api/early-access/confirm-payment`.
+    if (!user) {
+      if (!settings?.early_access_mode) {
+        return (
+          <Navigate
+            to={`/register?session_id=${encodeURIComponent(sessionId)}`}
+            replace
+          />
+        );
+      }
+      // In early-access mode the EarlyAccessPage itself handles `session_id`.
+      return <EarlyAccessPage />;
+    }
   }
 
   // When the feature is OFF, /early-access redirects to home.
