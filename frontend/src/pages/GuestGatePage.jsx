@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { BrandLogo } from "@/components/BrandLogo";
+import { AnpcBadges } from "@/components/PublicLayout";
 import { PLUS_BADGE_URL } from "@/lib/badges";
 import {
   Tv,
@@ -246,6 +247,20 @@ export default function GuestGatePage() {
             </Link>
           </div>
         </motion.div>
+
+        {/* Bottom legal footer with ANPC badges */}
+        <div className="mt-12 pt-8 border-t border-white/[0.06] flex flex-col sm:flex-row items-center justify-between gap-5 text-[11px] tracking-[0.22em] uppercase text-white/45">
+          <div>© {new Date().getFullYear()} Cartoonix. Toate drepturile rezervate.</div>
+          <div className="flex flex-wrap items-center gap-5">
+            <Link to="/terms-and-conditions" className="hover:text-white transition-colors">
+              Termeni
+            </Link>
+            <Link to="/gdpr" className="hover:text-white transition-colors">
+              GDPR
+            </Link>
+            <AnpcBadges />
+          </div>
+        </div>
       </main>
     </div>
   );

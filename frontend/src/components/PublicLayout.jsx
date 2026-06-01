@@ -340,6 +340,46 @@ export function TopNav() {
   );
 }
 
+export function AnpcBadges({ className = "" }) {
+  return (
+    <div
+      data-testid="anpc-badges"
+      className={`flex flex-col gap-2 ${className}`}
+    >
+      <a
+        href="https://reclamatiisal.anpc.ro/"
+        target="_blank"
+        rel="noopener noreferrer nofollow"
+        aria-label="ANPC — Soluționarea Alternativă a Litigiilor"
+        data-testid="footer-anpc-sal"
+        className="block rounded-md bg-white p-0.5 ring-1 ring-white/15 hover:ring-white/30 transition-all hover:-translate-y-0.5"
+      >
+        <img
+          src="/badges/anpc-sal.png"
+          alt="ANPC — Soluționarea Alternativă a Litigiilor"
+          className="h-7 w-auto block"
+          loading="lazy"
+        />
+      </a>
+      <a
+        href="https://consumer-redress.ec.europa.eu/site-relocation_en?event=main.home2.show&lng=EN"
+        target="_blank"
+        rel="noopener noreferrer nofollow"
+        aria-label="Soluționarea Online a Litigiilor — Comisia Europeană"
+        data-testid="footer-anpc-sol"
+        className="block rounded-md bg-white p-0.5 ring-1 ring-white/15 hover:ring-white/30 transition-all hover:-translate-y-0.5"
+      >
+        <img
+          src="/badges/anpc-sol.png"
+          alt="Soluționarea Online a Litigiilor — Comisia Europeană"
+          className="h-7 w-auto block"
+          loading="lazy"
+        />
+      </a>
+    </div>
+  );
+}
+
 export function Footer() {
   return (
     <footer data-testid="footer" className="border-t border-white/[0.06] mt-16">
@@ -361,45 +401,16 @@ export function Footer() {
           </ul>
         </div>
         <div className="text-sm">
-          <h4 className="font-display tracking-wider text-base mb-3">Cartoonix</h4>
-          <ul className="space-y-1.5 text-muted-foreground">
-            <li><Link className="hover:text-foreground transition-colors" to="/terms-and-conditions">Termeni și Condiții</Link></li>
-            <li><Link className="hover:text-foreground transition-colors" to="/gdpr">Politică de Confidențialitate (GDPR)</Link></li>
-          </ul>
-        </div>
-      </div>
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-8 pt-2">
-        <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3">
-          <a
-            href="https://reclamatiisal.anpc.ro/"
-            target="_blank"
-            rel="noopener noreferrer nofollow"
-            aria-label="ANPC — Soluționarea Alternativă a Litigiilor"
-            data-testid="footer-anpc-sal"
-            className="block rounded-md bg-white p-1 ring-1 ring-white/15 hover:ring-white/30 transition-all hover:-translate-y-0.5"
-          >
-            <img
-              src="/badges/anpc-sal.png"
-              alt="ANPC — Soluționarea Alternativă a Litigiilor"
-              className="h-10 sm:h-11 w-auto block"
-              loading="lazy"
-            />
-          </a>
-          <a
-            href="https://consumer-redress.ec.europa.eu/site-relocation_en?event=main.home2.show&lng=EN"
-            target="_blank"
-            rel="noopener noreferrer nofollow"
-            aria-label="Soluționarea Online a Litigiilor — Comisia Europeană"
-            data-testid="footer-anpc-sol"
-            className="block rounded-md bg-white p-1 ring-1 ring-white/15 hover:ring-white/30 transition-all hover:-translate-y-0.5"
-          >
-            <img
-              src="/badges/anpc-sol.png"
-              alt="Soluționarea Online a Litigiilor — Comisia Europeană"
-              className="h-10 sm:h-11 w-auto block"
-              loading="lazy"
-            />
-          </a>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h4 className="font-display tracking-wider text-base mb-3">Cartoonix</h4>
+              <ul className="space-y-1.5 text-muted-foreground">
+                <li><Link className="hover:text-foreground transition-colors" to="/terms-and-conditions">Termeni și Condiții</Link></li>
+                <li><Link className="hover:text-foreground transition-colors" to="/gdpr">Politică de Confidențialitate (GDPR)</Link></li>
+              </ul>
+            </div>
+            <AnpcBadges className="shrink-0" />
+          </div>
         </div>
       </div>
       <div className="border-t border-white/[0.06] py-4 text-center text-xs text-muted-foreground">

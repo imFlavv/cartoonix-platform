@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BrandLogo } from "@/components/BrandLogo";
+import { AnpcBadges } from "@/components/PublicLayout";
 import DisneylandPopup from "@/components/DisneylandPopup";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -580,16 +581,22 @@ export default function PresentationPage() {
           <div className="text-xs text-white/45 tracking-wider">
             © {new Date().getFullYear()} Cartoonix. Toate drepturile rezervate.
           </div>
-          <div className="flex items-center gap-6 text-[11px] tracking-[0.22em] uppercase text-white/55">
-            <Link to="/terms-and-conditions" className="hover:text-[#d6a648] transition-colors">
-              Termeni
-            </Link>
-            <a href="#despre" className="hover:text-[#d6a648] transition-colors">
-              Despre
-            </a>
-            <a href="#functii" className="hover:text-[#d6a648] transition-colors">
-              Funcționalități
-            </a>
+          <div className="flex flex-col md:flex-row items-center gap-5 md:gap-6">
+            <div className="flex items-center gap-6 text-[11px] tracking-[0.22em] uppercase text-white/55">
+              <Link to="/terms-and-conditions" className="hover:text-[#d6a648] transition-colors">
+                Termeni
+              </Link>
+              <Link to="/gdpr" className="hover:text-[#d6a648] transition-colors">
+                GDPR
+              </Link>
+              <a href="#despre" className="hover:text-[#d6a648] transition-colors">
+                Despre
+              </a>
+              <a href="#functii" className="hover:text-[#d6a648] transition-colors">
+                Funcționalități
+              </a>
+            </div>
+            <AnpcBadges />
           </div>
         </div>
       </footer>
