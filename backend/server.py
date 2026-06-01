@@ -429,6 +429,50 @@ def _live_compute_state(cfg: dict) -> dict:
     }
 
 
+@api_router.get("/admin/live/probe")
+async def admin_live_probe(user=Depends(require_admin)):
+    """Server-side probe: report whether the configured video file exists, is
+    readable by the backend process, and the expected video URL. Helps debug
+    the „Stream-ul nu poate fi încărcat" error in production."""
+    import stat as _stat
+    cfg = await _live_config()
+    video_path = str(cfg.get("video_path") or LIVE_DEFAULT_VIDEO).lstrip("/")
+    base = os.path.realpath(VIDEO_DIR)
+    target = os.path.realpath(os.path.join(base, video_path))
+    info = {
+        "video_dir": VIDEO_DIR,
+        "video_dir_exists": os.path.isdir(base),
+        "video_path": video_path,
+        "resolved_target": target,
+        "target_inside_base": target == base or target.startswith(base + os.sep),
+        "exists": os.path.isfile(target),
+        "readable": False,
+        "size_bytes": None,
+        "permissions": None,
+        "owner_uid": None,
+        "process_uid": os.geteuid() if hasattr(os, "geteuid") else None,
+        "video_url": f"/api/media/videos/{video_path}",
+        "samples_in_dir": [],
+    }
+    if info["exists"]:
+        try:
+            st = os.stat(target)
+            info["size_bytes"] = st.st_size
+            info["permissions"] = oct(st.st_mode & 0o777)
+            info["owner_uid"] = st.st_uid
+            info["readable"] = os.access(target, os.R_OK)
+        except Exception as e:
+            info["error"] = f"stat failed: {e!r}"
+    # List first 8 files inside the parent folder for context
+    parent = os.path.dirname(target)
+    if os.path.isdir(parent):
+        try:
+            info["samples_in_dir"] = sorted(os.listdir(parent))[:8]
+        except Exception:
+            info["samples_in_dir"] = ["<unable to list>"]
+    return info
+
+
 @api_router.get("/live/status")
 async def live_status():
     """Public status payload for the marathon live stream."""
