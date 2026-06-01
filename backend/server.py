@@ -378,7 +378,21 @@ async def _live_config() -> dict:
     doc = await db.settings.find_one({"_id": "live_event"})
     if not doc:
         return dict(LIVE_CONFIG_DEFAULTS)
-    return {k: doc.get(k, v) for k, v in LIVE_CONFIG_DEFAULTS.items()}
+    cfg = {k: doc.get(k, v) for k, v in LIVE_CONFIG_DEFAULTS.items()}
+    # Auto-heal: if a previous admin saved a path with a redundant prefix,
+    # normalize and persist it so the URL is always correct.
+    raw = str(cfg.get("video_path") or "")
+    normalized = _live_normalize_video_path(raw)
+    if normalized and normalized != raw.lstrip("/"):
+        cfg["video_path"] = normalized
+        try:
+            await db.settings.update_one(
+                {"_id": "live_event"},
+                {"$set": {"video_path": normalized}},
+            )
+        except Exception:
+            pass
+    return cfg
 
 
 def _live_parse_start(start_iso: str) -> datetime:
@@ -389,6 +403,33 @@ def _live_parse_start(start_iso: str) -> datetime:
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
     return dt.astimezone(timezone.utc)
+
+
+def _live_normalize_video_path(raw: str) -> str:
+    """Strip common prefixes the admin might leave in the field, so the URL
+    is always built as `/api/media/videos/<relative>` regardless of input.
+    Accepts variants like:
+      - "Maraton/0601.mp4"
+      - "/media/videos/Maraton/0601.mp4"
+      - "media/videos/Maraton/0601.mp4"
+      - "/api/media/videos/Maraton/0601.mp4"
+      - "https://host/api/media/videos/Maraton/0601.mp4"
+    """
+    s = str(raw or "").strip()
+    if not s:
+        return ""
+    # Strip http(s)://host
+    if s.startswith("http://") or s.startswith("https://"):
+        try:
+            from urllib.parse import urlparse
+            s = urlparse(s).path or s
+        except Exception:
+            pass
+    s = s.lstrip("/")
+    for prefix in ("api/media/videos/", "media/videos/"):
+        if s.startswith(prefix):
+            s = s[len(prefix):]
+    return s.lstrip("/")
 
 
 def _live_compute_state(cfg: dict) -> dict:
@@ -410,7 +451,7 @@ def _live_compute_state(cfg: dict) -> dict:
         state = "ended"
     else:
         state = "live"
-    video_path = str(cfg.get("video_path") or LIVE_DEFAULT_VIDEO).lstrip("/")
+    video_path = _live_normalize_video_path(cfg.get("video_path") or LIVE_DEFAULT_VIDEO)
     return {
         "state": state,
         "title": cfg.get("title") or LIVE_DEFAULT_TITLE,
@@ -436,7 +477,7 @@ async def admin_live_probe(user=Depends(require_admin)):
     the „Stream-ul nu poate fi încărcat" error in production."""
     import stat as _stat
     cfg = await _live_config()
-    video_path = str(cfg.get("video_path") or LIVE_DEFAULT_VIDEO).lstrip("/")
+    video_path = _live_normalize_video_path(cfg.get("video_path") or LIVE_DEFAULT_VIDEO)
     base = os.path.realpath(VIDEO_DIR)
     target = os.path.realpath(os.path.join(base, video_path))
     info = {
@@ -500,7 +541,7 @@ async def admin_live_update(payload: dict, user=Depends(require_admin)):
     if "poster_url" in payload:
         cfg["poster_url"] = str(payload["poster_url"] or "").strip()
     if "video_path" in payload:
-        vp = str(payload["video_path"] or "").strip().lstrip("/")
+        vp = _live_normalize_video_path(payload["video_path"])
         if vp:
             cfg["video_path"] = vp
     if "duration_seconds" in payload:
