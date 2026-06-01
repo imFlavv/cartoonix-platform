@@ -13,6 +13,7 @@ import {
   Sparkles,
   Crown,
   ArrowLeft,
+  Clock,
 } from "lucide-react";
 
 const ICON_MAP = {
@@ -139,12 +140,6 @@ function ContestCard({ contest }) {
                   Câștigător
                 </div>
               </div>
-              <span
-                className={`hidden sm:inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.22em] ${accent.pill}`}
-              >
-                <Sparkles className="h-3 w-3" />
-                Premiu
-              </span>
             </li>
           ))}
         </ul>
@@ -230,6 +225,35 @@ function WinnersPageInner() {
                 {total} câștigători
               </div>
             )}
+
+            {/* 72-hour claim notice */}
+            <div
+              data-testid="winners-claim-notice"
+              className="mt-8 mx-auto max-w-2xl text-left rounded-2xl border border-amber-400/25 bg-gradient-to-br from-amber-400/[0.08] to-amber-500/[0.03] p-5 sm:p-6 ring-1 ring-amber-400/15"
+            >
+              <div className="flex items-start gap-3">
+                <span className="grid h-9 w-9 sm:h-10 sm:w-10 shrink-0 place-items-center rounded-xl bg-amber-400/15 text-amber-200 ring-1 ring-amber-400/35">
+                  <Clock className="h-4 w-4 sm:h-5 sm:w-5" strokeWidth={2.2} />
+                </span>
+                <div className="text-sm text-amber-50/90 leading-relaxed space-y-2">
+                  <p>
+                    <span className="font-semibold text-white">
+                      Important — termen de revendicare.
+                    </span>{" "}
+                    Câștigătorii concursurilor trebuie să contacteze echipa
+                    Cartoonix în termen de maximum{" "}
+                    <span className="font-semibold text-amber-200">72 de ore</span>{" "}
+                    de la anunțarea oficială a rezultatelor pentru revendicarea
+                    premiului.
+                  </p>
+                  <p className="text-white/55">
+                    În cazul în care un câștigător nu răspunde în intervalul
+                    menționat, organizatorul își rezervă dreptul de a selecta
+                    un alt câștigător.
+                  </p>
+                </div>
+              </div>
+            </div>
           </motion.header>
 
           {error && (

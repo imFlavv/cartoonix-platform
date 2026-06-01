@@ -355,9 +355,8 @@ export default function CartoonixContestsPage() {
           </h1>
 
           <p className="mt-6 text-base sm:text-lg text-white/75 max-w-2xl mx-auto leading-relaxed">
-            Pregătim <span className="font-semibold text-white">4 concursuri speciale</span> pentru
-            comunitate. Două sunt deschise tuturor, iar celelalte două sunt rezervate exclusiv
-            membrilor <span className="font-semibold text-amber-300">Cartoonix PLUS</span>.
+            Concursuri și giveaway-uri speciale pentru comunitatea Cartoonix —
+            verifică pagina pentru actualizări.
           </p>
         </div>
 
@@ -367,74 +366,57 @@ export default function CartoonixContestsPage() {
           </div>
         ) : (
           <>
-            {/* FREE section */}
-            <section className="mb-14">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="h-px flex-1 bg-gradient-to-r from-transparent to-white/15" />
-                <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/[0.06] border border-white/10 text-[11px] font-semibold tracking-[0.24em] uppercase text-white/80">
-                  <Sparkles className="h-3.5 w-3.5 text-fuchsia-300" />
-                  Concursuri gratuite
+            {/* No active contest state (override) */}
+            <div
+              data-testid="contests-empty-state"
+              className="relative mx-auto max-w-2xl text-center rounded-3xl border border-white/10 bg-white/[0.02] p-10 sm:p-14 overflow-hidden"
+            >
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-0"
+                style={{
+                  background:
+                    "radial-gradient(600px circle at 50% 0%, hsla(46,92%,55%,0.10), transparent 60%)",
+                }}
+              />
+              <div className="relative">
+                <span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-white/[0.04] ring-1 ring-white/10">
+                  <Sparkles className="h-7 w-7 text-[hsl(var(--accent))]" />
                 </span>
-                <div className="h-px flex-1 bg-gradient-to-l from-transparent to-white/15" />
-              </div>
+                <h2 className="mt-6 font-display text-3xl sm:text-4xl tracking-wider text-white">
+                  Niciun concurs activ momentan
+                </h2>
+                <p className="mt-3 text-sm sm:text-base text-white/55 leading-relaxed max-w-md mx-auto">
+                  Pregătim concursuri noi pentru comunitatea Cartoonix.
+                  Revino curând sau urmărește anunțurile din platformă.
+                </p>
+                <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/30 px-3.5 py-1.5 text-[11px] uppercase tracking-[0.22em] text-white/45">
+                  În pregătire
+                </div>
 
-              <div className="grid sm:grid-cols-2 gap-5 sm:gap-6">
-                {freeContests.map((c) => (
-                  <ContestCard
-                    key={c.id}
-                    contest={c}
-                    onEnter={enter}
-                    busy={busyId === c.id}
-                  />
-                ))}
-              </div>
-            </section>
-
-            {/* PLUS section */}
-            <section>
-              <div className="flex items-center gap-3 mb-6">
-                <div className="h-px flex-1 bg-gradient-to-r from-transparent to-amber-400/30" />
-                <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-amber-500/15 to-orange-500/15 border border-amber-400/30 text-[11px] font-bold tracking-[0.24em] uppercase text-amber-200">
-                  <Crown className="h-3.5 w-3.5" />
-                  Exclusiv Cartoonix Plus
-                </span>
-                <div className="h-px flex-1 bg-gradient-to-l from-transparent to-amber-400/30" />
-              </div>
-
-              {userPlan !== "plus" && (
-                <div className="mb-6 rounded-2xl border border-amber-400/25 bg-amber-500/[0.06] p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm">
-                  <div className="flex items-center gap-3 text-amber-100">
-                    <Lock className="h-4 w-4 shrink-0" />
-                    <span>
-                      Concursurile de mai jos sunt rezervate membrilor{" "}
-                      <span className="font-semibold">Cartoonix PLUS</span>. Fă upgrade pentru a participa.
-                    </span>
-                  </div>
+                <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+                  <Button
+                    onClick={() => navigate("/castigatori")}
+                    data-testid="contests-see-winners"
+                    className="rounded-full px-5 h-10 text-xs font-bold tracking-[0.2em] uppercase text-black bg-gradient-to-r from-amber-300 via-yellow-400 to-orange-400 hover:from-amber-200 hover:via-yellow-300 hover:to-orange-300 shadow-[0_10px_28px_-8px_rgba(251,191,36,0.5)]"
+                  >
+                    Vezi câștigătorii anteriori
+                  </Button>
                   <Button
                     onClick={() => navigate("/")}
-                    className="rounded-full px-5 h-10 text-xs font-bold tracking-[0.2em] uppercase text-black bg-gradient-to-r from-amber-300 via-yellow-400 to-orange-400 hover:from-amber-200 hover:via-yellow-300 hover:to-orange-300 shadow-[0_10px_28px_-8px_rgba(251,191,36,0.5)]"
-                    data-testid="contests-upgrade-cta"
+                    variant="outline"
+                    data-testid="contests-back-home"
+                    className="rounded-full px-5 h-10 text-xs font-bold tracking-[0.2em] uppercase border-white/15 bg-transparent text-white/80 hover:bg-white/[0.06] hover:text-white"
                   >
-                    Vezi opțiunea de upgrade
+                    Înapoi la platformă
                   </Button>
                 </div>
-              )}
-
-              <div className="grid sm:grid-cols-2 gap-5 sm:gap-6">
-                {plusContests.map((c) => (
-                  <ContestCard
-                    key={c.id}
-                    contest={c}
-                    onEnter={enter}
-                    busy={busyId === c.id}
-                  />
-                ))}
               </div>
-            </section>
+            </div>
 
             {/* Footer note */}
             <p className="mt-14 text-center text-xs text-white/35 max-w-xl mx-auto leading-relaxed">
-              Câștigătorii vor fi contactați pe adresa de email cu care sunt înregistrați. Mult succes,{" "}
+              Când vor exista concursuri noi, le vei vedea aici. Mult succes,{" "}
               <span className="text-white/55 font-medium">{user?.nickname || "Cartoonix Fan"}</span>!
             </p>
           </>
