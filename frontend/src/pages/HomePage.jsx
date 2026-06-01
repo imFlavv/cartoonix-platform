@@ -2,10 +2,10 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { api } from "@/lib/api";
+import { api, mediaUrl } from "@/lib/api";
 import PublicLayout from "@/components/PublicLayout";
 import { CartoonCard } from "@/components/CartoonCard";
-import { Play, Sparkles, ArrowRight, ShieldCheck, Clapperboard } from "lucide-react";
+import { Play, Sparkles, ArrowRight, ShieldCheck, Clapperboard, Radio } from "lucide-react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faTv, faBoltLightning, faComments, faHeart } from "@fortawesome/free-solid-svg-icons";
 
@@ -22,6 +22,102 @@ const WHY_FEATURES = [
  * and a single warm gold accent (hsl(var(--accent))). Per-channel hues are used
  * only as discreet thin markers — not as loud fills.
  */
+function LiveBanner() {
+  const [data, setData] = useState(null);
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        const { data: status } = await api.get("/live/status");
+        if (mounted) setData(status);
+      } catch {
+        /* silent */
+      }
+    };
+    load();
+    const id = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      load();
+    }, 60000);
+    return () => {
+      mounted = false;
+      clearInterval(id);
+    };
+  }, []);
+
+  if (!data || data.state !== "live") return null;
+
+  return (
+    <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-4">
+      <Link to="/live" data-testid="home-live-banner" className="block group">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45 }}
+          className="relative overflow-hidden rounded-2xl border border-red-500/30 bg-gradient-to-r from-red-500/[0.12] via-red-500/[0.05] to-transparent p-5 sm:p-7 hover:border-red-500/55 transition-colors"
+        >
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-red-500/60 to-transparent" />
+          {data.poster_url && (
+            <img
+              src={mediaUrl(data.poster_url)}
+              alt=""
+              className="absolute inset-0 w-full h-full object-cover opacity-15"
+              loading="lazy"
+            />
+          )}
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background:
+                "radial-gradient(700px circle at 100% 50%, rgba(239,68,68,0.15), transparent 60%)",
+            }}
+          />
+          <div className="relative flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
+            <div className="flex items-center gap-3">
+              <span className="grid h-12 w-12 sm:h-14 sm:w-14 place-items-center rounded-2xl bg-red-500/15 text-red-300 ring-1 ring-red-500/40">
+                <Radio className="h-6 w-6 sm:h-7 sm:w-7" />
+              </span>
+              <span className="sm:hidden inline-flex items-center gap-1.5 rounded-full bg-red-500/15 border border-red-500/40 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-red-300">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75 animate-ping" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
+                </span>
+                Live acum
+              </span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-red-500/15 border border-red-500/40 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-red-300">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75 animate-ping" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
+                </span>
+                Live acum
+              </div>
+              <h3 className="mt-2 font-display text-2xl sm:text-3xl lg:text-4xl tracking-wider text-white truncate">
+                {data.title || "Maraton Cartoonix"}
+              </h3>
+              {data.subtitle ? (
+                <p className="mt-1 text-sm text-white/55 line-clamp-2">{data.subtitle}</p>
+              ) : (
+                <p className="mt-1 text-sm text-white/55">
+                  Transmisiune în direct — alătură-te acum.
+                </p>
+              )}
+            </div>
+            <div className="shrink-0">
+              <span className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--accent))] text-black px-5 h-11 text-sm font-semibold shadow-[0_8px_22px_-8px_rgba(245,194,66,0.55)] group-hover:brightness-110 transition-all">
+                <Play className="h-4 w-4 fill-black" />
+                Urmărește
+              </span>
+            </div>
+          </div>
+        </motion.div>
+      </Link>
+    </section>
+  );
+}
+
 const CHANNEL_ACCENTS = {
   "jetix-foxkids": "hsl(18 88% 55%)",
   "cartoon-network": "hsl(46 92% 55%)",
@@ -231,6 +327,9 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* LIVE BANNER (only when live) */}
+      <LiveBanner />
 
       {/* WHY / FEATURES STRIP */}
       <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-4">

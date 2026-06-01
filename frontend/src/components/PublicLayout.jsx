@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { LogOut, User as UserIcon, Shield, Mail, Crown, ArrowRight } from "lucide-react";
+import { LogOut, User as UserIcon, Shield, Mail, Crown, ArrowRight, Radio } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,6 +18,56 @@ import { useSettings } from "@/contexts/SettingsContext";
 import UserBadges from "@/components/UserBadges";
 import InboxPanel from "@/components/InboxPanel";
 import { toast } from "sonner";
+
+function LiveNavButton() {
+  const navigate = useNavigate();
+  const [state, setState] = useState(null);
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        const { data } = await api.get("/live/status");
+        if (mounted) setState(data?.state || null);
+      } catch {
+        /* silent */
+      }
+    };
+    load();
+    const id = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      load();
+    }, 60000);
+    const onVis = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") load();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      mounted = false;
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, []);
+
+  if (state !== "live") return null;
+
+  return (
+    <button
+      type="button"
+      onClick={() => navigate("/live")}
+      data-testid="nav-live-button"
+      aria-label="Urmărește transmisiunea live"
+      className="relative inline-flex items-center gap-2 rounded-full border border-red-500/40 bg-red-500/15 px-3 sm:px-3.5 h-10 text-[12px] font-bold uppercase tracking-[0.18em] text-red-200 hover:text-white hover:bg-red-500/25 hover:border-red-500/60 transition-colors"
+    >
+      <span className="relative flex h-2 w-2">
+        <span className="absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75 animate-ping" />
+        <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
+      </span>
+      <Radio className="h-3.5 w-3.5 sm:hidden" />
+      <span className="hidden sm:inline">Live</span>
+    </button>
+  );
+}
 
 function UpgradeToPlusButton() {
   const [loading, setLoading] = useState(false);
@@ -271,6 +321,7 @@ export function TopNav() {
               </DropdownMenuContent>
             </DropdownMenu>
             <NotificationsBell />
+            <LiveNavButton />
             {!isPlus && <UpgradeToPlusButton />}
           </div>
         )}

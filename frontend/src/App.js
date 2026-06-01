@@ -21,6 +21,7 @@ import MaintenancePage from "@/pages/MaintenancePage";
 import EarlyAccessPage from "@/pages/EarlyAccessPage";
 import EarlyAccessSuccessPage from "@/pages/EarlyAccessSuccessPage";
 import UpgradeReturnPage from "@/pages/UpgradeReturnPage";
+import LivePage from "@/pages/LivePage";
 import GuestGatePage from "@/pages/GuestGatePage";
 import CartoonixContestsPage from "@/pages/CartoonixContestsPage";
 import AdminLayout from "@/components/AdminLayout";
@@ -34,6 +35,7 @@ import AdminSettings from "@/pages/admin/AdminSettings";
 import AdminChat from "@/pages/admin/AdminChat";
 import AdminStaff from "@/pages/admin/AdminStaff";
 import AdminSupport from "@/pages/admin/AdminSupport";
+import AdminLive from "@/pages/admin/AdminLive";
 import SupportPage from "@/pages/SupportPage";
 import StaffPage from "@/pages/StaffPage";
 import { RequireAdmin, RequireAuth } from "@/components/RouteGuards";
@@ -110,6 +112,7 @@ const EARLY_ACCESS_ALLOWED_PREFIXES = [
   "/reset-password",
   "/verify",
   "/staff",
+  "/live",
 ];
 
 function EarlyAccessGate({ children }) {
@@ -281,6 +284,14 @@ function App() {
                 <Route path="/concursuri" element={<Navigate to="/" replace />} />
                 <Route path="/staff" element={<StaffPage />} />
                 <Route
+                  path="/live"
+                  element={
+                    <RequireAuth>
+                      <LivePage />
+                    </RequireAuth>
+                  }
+                />
+                <Route
                   path="/concursuri-cartoonix"
                   element={
                     <RequireAuth>
@@ -324,6 +335,7 @@ function App() {
                   <Route path="chat" element={<AdminChat />} />
                   <Route path="staff" element={<AdminStaff />} />
                   <Route path="support" element={<AdminSupport />} />
+                  <Route path="live" element={<AdminLive />} />
                 </Route>
               </Routes>
               </EarlyAccessGate>

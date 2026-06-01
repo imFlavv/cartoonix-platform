@@ -332,53 +332,65 @@ async def root():
 # ============================================================
 #               LIVE EVENT (single-event marathon)
 # ============================================================
-# Server-authoritative status for the one-time live marathon stream. The video
-# is served as a regular range-enabled file (see /api/media/videos/...), but
-# the frontend constrains the player so that seeking is disabled and the
-# playhead always reflects the elapsed time since LIVE_START.
+# Server-authoritative status for the live marathon stream. The video is
+# served as a regular range-enabled file (see /api/media/videos/...), but the
+# frontend constrains the player so that seeking is disabled and the playhead
+# always reflects the elapsed time since the configured start.
 #
-# Defaults below are tuned for the launch (today 16:00 Bucharest, 8h video at
-# /media/videos/Maraton/0601.mp4). Anything can be overridden via env.
-LIVE_START_ISO_DEFAULT = "2026-06-01T13:00:00+00:00"  # 16:00 Europe/Bucharest
-LIVE_START_ISO = os.environ.get("LIVE_START_ISO", LIVE_START_ISO_DEFAULT)
-LIVE_DURATION_SECONDS = int(os.environ.get("LIVE_DURATION_SECONDS", "28800"))  # 8h
-LIVE_VIDEO_PATH = os.environ.get("LIVE_VIDEO_PATH", "Maraton/0601.mp4")
-LIVE_TITLE = os.environ.get("LIVE_TITLE", "Maraton Cartoonix")
-LIVE_ENABLED = os.environ.get("LIVE_ENABLED", "1").strip() not in ("0", "false", "False", "")
+# Config is persisted in db.settings under _id="live_event" and editable by
+# admins via /api/admin/live/maraton. Env vars below are only used to seed the
+# initial document on first read.
+LIVE_DEFAULT_START_ISO = os.environ.get(
+    "LIVE_START_ISO", "2026-06-01T13:00:00+00:00"  # 16:00 Europe/Bucharest
+)
+LIVE_DEFAULT_DURATION = int(os.environ.get("LIVE_DURATION_SECONDS", "28800"))  # 8h
+LIVE_DEFAULT_VIDEO = os.environ.get("LIVE_VIDEO_PATH", "Maraton/0601.mp4")
+LIVE_DEFAULT_TITLE = os.environ.get("LIVE_TITLE", "Maraton Cartoonix")
+LIVE_DEFAULT_ENABLED = os.environ.get("LIVE_ENABLED", "1").strip() not in (
+    "0", "false", "False", "",
+)
+
+LIVE_CONFIG_DEFAULTS = {
+    "enabled": LIVE_DEFAULT_ENABLED,
+    "title": LIVE_DEFAULT_TITLE,
+    "start_iso": LIVE_DEFAULT_START_ISO,
+    "duration_seconds": LIVE_DEFAULT_DURATION,
+    "video_path": LIVE_DEFAULT_VIDEO,
+    "poster_url": "",
+    "subtitle": "",
+}
 
 
-def _live_start_dt() -> datetime:
+async def _live_config() -> dict:
+    """Return the current live config, seeding defaults on first read."""
+    doc = await db.settings.find_one({"_id": "live_event"})
+    if not doc:
+        return dict(LIVE_CONFIG_DEFAULTS)
+    return {k: doc.get(k, v) for k, v in LIVE_CONFIG_DEFAULTS.items()}
+
+
+def _live_parse_start(start_iso: str) -> datetime:
     try:
-        dt = datetime.fromisoformat(LIVE_START_ISO.replace("Z", "+00:00"))
+        dt = datetime.fromisoformat(start_iso.replace("Z", "+00:00"))
     except Exception:
-        dt = datetime.fromisoformat(LIVE_START_ISO_DEFAULT)
+        dt = datetime.fromisoformat(LIVE_DEFAULT_START_ISO.replace("Z", "+00:00"))
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
     return dt.astimezone(timezone.utc)
 
 
-@api_router.get("/live/status")
-async def live_status():
-    """Public status payload for the one-time marathon live stream.
-
-    Returns:
-        state: "disabled" | "scheduled" | "live" | "ended"
-        start_iso / end_iso / now_iso: ISO8601 UTC timestamps (server-authoritative).
-        elapsed_seconds: seconds since start, clamped to [0, duration].
-        seconds_until_start / seconds_until_end: convenience counters.
-        duration_seconds: total length of the stream.
-        video_url: relative URL to fetch the video bytes (range-enabled).
-        title: human-readable name for the event.
-    """
+def _live_compute_state(cfg: dict) -> dict:
+    """Compute public status payload from a config dict."""
     now = datetime.now(timezone.utc)
-    if not LIVE_ENABLED:
+    if not cfg.get("enabled", True):
         return {
             "state": "disabled",
-            "title": LIVE_TITLE,
+            "title": cfg.get("title") or LIVE_DEFAULT_TITLE,
             "now_iso": now.isoformat(),
         }
-    start_dt = _live_start_dt()
-    end_dt = start_dt + timedelta(seconds=LIVE_DURATION_SECONDS)
+    duration = int(cfg.get("duration_seconds") or LIVE_DEFAULT_DURATION)
+    start_dt = _live_parse_start(str(cfg.get("start_iso") or LIVE_DEFAULT_START_ISO))
+    end_dt = start_dt + timedelta(seconds=duration)
     elapsed = (now - start_dt).total_seconds()
     if now < start_dt:
         state = "scheduled"
@@ -386,19 +398,74 @@ async def live_status():
         state = "ended"
     else:
         state = "live"
+    video_path = str(cfg.get("video_path") or LIVE_DEFAULT_VIDEO).lstrip("/")
     return {
         "state": state,
-        "title": LIVE_TITLE,
+        "title": cfg.get("title") or LIVE_DEFAULT_TITLE,
+        "subtitle": cfg.get("subtitle") or "",
+        "poster_url": cfg.get("poster_url") or "",
         "start_iso": start_dt.isoformat(),
         "end_iso": end_dt.isoformat(),
         "now_iso": now.isoformat(),
-        "duration_seconds": LIVE_DURATION_SECONDS,
-        "elapsed_seconds": max(0.0, min(float(LIVE_DURATION_SECONDS), elapsed)),
+        "duration_seconds": duration,
+        "elapsed_seconds": max(0.0, min(float(duration), elapsed)),
         "seconds_until_start": max(0.0, (start_dt - now).total_seconds()),
         "seconds_until_end": max(0.0, (end_dt - now).total_seconds()),
-        "video_url": f"/api/media/videos/{LIVE_VIDEO_PATH}",
-        "video_path": LIVE_VIDEO_PATH,
+        "video_url": f"/api/media/videos/{video_path}",
+        "video_path": video_path,
     }
+
+
+@api_router.get("/live/status")
+async def live_status():
+    """Public status payload for the marathon live stream."""
+    cfg = await _live_config()
+    return _live_compute_state(cfg)
+
+
+@api_router.get("/admin/live/maraton")
+async def admin_live_get(user=Depends(require_admin)):
+    cfg = await _live_config()
+    return {"config": cfg, "status": _live_compute_state(cfg)}
+
+
+@api_router.patch("/admin/live/maraton")
+async def admin_live_update(payload: dict, user=Depends(require_admin)):
+    """Admin update of the marathon live config. Accepts partial updates."""
+    cfg = await _live_config()
+
+    if "enabled" in payload:
+        cfg["enabled"] = bool(payload["enabled"])
+    if "title" in payload:
+        cfg["title"] = str(payload["title"] or "").strip() or LIVE_DEFAULT_TITLE
+    if "subtitle" in payload:
+        cfg["subtitle"] = str(payload["subtitle"] or "").strip()
+    if "poster_url" in payload:
+        cfg["poster_url"] = str(payload["poster_url"] or "").strip()
+    if "video_path" in payload:
+        vp = str(payload["video_path"] or "").strip().lstrip("/")
+        if vp:
+            cfg["video_path"] = vp
+    if "duration_seconds" in payload:
+        try:
+            cfg["duration_seconds"] = max(1, int(payload["duration_seconds"]))
+        except Exception:
+            raise HTTPException(400, "duration_seconds must be an integer")
+    if "start_iso" in payload:
+        raw = str(payload["start_iso"] or "").strip()
+        try:
+            # Validate by parsing
+            datetime.fromisoformat(raw.replace("Z", "+00:00"))
+            cfg["start_iso"] = raw
+        except Exception:
+            raise HTTPException(400, "start_iso must be ISO8601")
+
+    await db.settings.update_one(
+        {"_id": "live_event"},
+        {"$set": cfg},
+        upsert=True,
+    )
+    return {"config": cfg, "status": _live_compute_state(cfg)}
 
 
 # ============================================================

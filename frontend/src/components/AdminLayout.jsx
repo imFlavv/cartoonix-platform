@@ -17,6 +17,7 @@ import {
   MessageSquare,
   LifeBuoy,
   Shield,
+  Radio,
 } from "lucide-react";
 import {
   Sheet,
@@ -34,6 +35,7 @@ const NAV_ITEMS = [
   { to: "/admin/contests", label: "Concursuri", icon: Trophy, testId: "admin-nav-contests" },
   { to: "/admin/notifications", label: "Notificări", icon: Bell, testId: "admin-nav-notifications" },
   { to: "/admin/chat", label: "Chat", icon: MessageSquare, testId: "admin-nav-chat" },
+  { to: "/admin/live", label: "Maraton Live", icon: Radio, testId: "admin-nav-live" },
   { to: "/admin/staff", label: "Staff Applications", icon: Shield, testId: "admin-nav-staff" },
   { to: "/admin/support", label: "Support", icon: LifeBuoy, testId: "admin-nav-support" },
   { to: "/admin/settings", label: "Setări", icon: SettingsIcon, testId: "admin-nav-settings" },

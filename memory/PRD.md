@@ -19,6 +19,23 @@ Cartoonix este o platformă premium de streaming pentru desene animate retro (Ca
 - Concursuri publice (3 contests, 2 free + 1 paid via Stripe)
 
 ## Implemented (CHANGELOG)
+### 2026-06-01 — Maraton Live (pseudo-live streaming + admin panel)
+- **Backend** (`server.py`): refactored `LIVE_*` env config into a DB-backed document `settings._id="live_event"`. New admin endpoints:
+  - `GET /api/live/status` (public): returns `state` ∈ `disabled|scheduled|live|ended` + `start_iso`, `end_iso`, `elapsed_seconds`, `video_url`, etc. Server-authoritative.
+  - `GET /api/admin/live/maraton` (admin): full config + computed status.
+  - `PATCH /api/admin/live/maraton` (admin): partial update of `enabled`, `title`, `subtitle`, `poster_url`, `video_path`, `duration_seconds`, `start_iso`.
+- **Frontend**:
+  - `/live` (`LivePage.jsx`): RequireAuth. Three states with elegant UI:
+    - `scheduled`: poster + countdown digits (ZILE/ORE/MIN/SEC) + start datetime (localized RO).
+    - `live`: custom no-seek HTML5 player (play/pause + mute/volume + fullscreen, NO progress bar). Seeking blocked via `onSeeking` snap-back + keyboard arrow keys captured. Periodic drift guard (>4s) re-snaps to server elapsed. Polls `/api/live/status` every 30s + 1s local ticker.
+    - `ended`: „Maratonul s-a terminat" message.
+  - Header LIVE button (`PublicLayout.jsx`): red pulsating indicator shown only when `state === "live"`. Mobile shows icon, desktop shows "Live" text.
+  - Homepage big banner (`HomePage.jsx`): „Live acum / MARATON CARTOONIX" with CTA „Urmărește", visible only when live, fully responsive.
+  - Admin panel `/admin/live` (`AdminLive.jsx`): toggle activare, fields for titlu/subtitlu/start (datetime-local)/durată/cale video/poster, „Start now" shortcut, save, refresh, real-time status panel (state badge + server clock + elapsed + countdown). Sidebar link „Maraton Live" with Radio icon.
+- **Routes**: `/live` (auth-only) + `/admin/live` added in `App.js`. `/live` whitelisted in early-access mode.
+- **Test data**: dev admin/regular accounts in `test_credentials.md` (preview-only).
+- **Verificat E2E**: backend GET/PATCH + admin UI (screenshot „ÎN DIRECT" badge cu durată calculată), /live arată countdown perfect aliniat (desktop 1920×800 + mobile 390×844), header LIVE button + homepage live banner se afișează când state="live". Stream video va funcționa în producție când `/media/videos/Maraton/0601.mp4` este disponibil pe VPS.
+
 ### 2026-06-01 — Fix: desenele nu apăreau în /category/* + optimizare query
 - **Cauză**: cartoon-ul de test pe care l-am creat anterior pentru DnD avea `category` (slug string) dar nu `category_id` (id-ul canonical). Endpoint-ul `/api/cartoons?category=...` filtra strict după `category_id`, deci returna `[]` și pagina rămânea pe skelete/empty state.
 - **Backend** (`server.py`): filtrul `/api/cartoons` acceptă acum AMBELE — `category_id` sau legacy `category` (slug) — via `$or`, deci orice document mai vechi sau import legacy mai funcționează.
