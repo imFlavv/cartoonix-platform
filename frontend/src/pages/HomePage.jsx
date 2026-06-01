@@ -28,8 +28,16 @@ const CHANNEL_ACCENTS = {
   minimax: "hsl(330 70% 60%)",
 };
 
+// Each channel renders its actual logo instead of plain text.
+const CHANNEL_LOGOS = {
+  "jetix-foxkids": "/channel-logos/jetix.png",
+  "cartoon-network": "/channel-logos/cartoon-network.png",
+  minimax: "/channel-logos/minimax.svg",
+};
+
 function ChannelCard({ category, index }) {
   const accent = CHANNEL_ACCENTS[category.slug] || "hsl(var(--accent))";
+  const logoSrc = CHANNEL_LOGOS[category.slug];
   return (
     <motion.div
       initial={{ opacity: 0, y: 18 }}
@@ -60,13 +68,24 @@ function ChannelCard({ category, index }) {
           <Clapperboard className="h-4 w-4 text-white/25" />
         </div>
 
-        <div className="mt-10 mb-8 text-center">
-          <span
-            className="font-display text-4xl sm:text-5xl tracking-[0.14em]"
-            style={{ color: accent }}
-          >
-            {category.logo_text}
-          </span>
+        <div className="mt-8 mb-7 flex items-center justify-center h-24 sm:h-28">
+          {logoSrc ? (
+            <img
+              src={logoSrc}
+              alt={`${category.name} logo`}
+              loading="lazy"
+              decoding="async"
+              data-testid={`channel-logo-${category.slug}`}
+              className="max-h-full max-w-[70%] object-contain drop-shadow-[0_4px_18px_rgba(0,0,0,0.45)]"
+            />
+          ) : (
+            <span
+              className="font-display text-4xl sm:text-5xl tracking-[0.14em]"
+              style={{ color: accent }}
+            >
+              {category.logo_text}
+            </span>
+          )}
         </div>
 
         <h3 className="font-display text-xl tracking-wider text-white">{category.name}</h3>
