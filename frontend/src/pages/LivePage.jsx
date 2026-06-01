@@ -75,18 +75,19 @@ function LiveBadge() {
 /**
  * Live "no-seek" video player. Wraps a native <video> with custom controls
  * (play/pause + volume + fullscreen). Seeking is disabled — any attempt to
- * scrub is forced back to the server-authoritative elapsed time.
+ * scrub is forced back to the server-authoritative elapsed time, which is
+ * computed from `startMs` (a wall-clock anchor) so it advances naturally
+ * second-by-second together with playback.
  *
  * Props:
  *  - src: video URL
- *  - elapsedSeconds: number — seconds since live start, from server status
+ *  - startMs: epoch ms when the marathon started (server-authoritative anchor)
+ *  - durationSeconds: total length in seconds (clamps expected position)
  *  - poster: optional poster URL
  */
-function LivePlayer({ src, elapsedSeconds, poster }) {
+function LivePlayer({ src, startMs, durationSeconds, poster }) {
   const videoRef = useRef(null);
   const containerRef = useRef(null);
-  const allowedRef = useRef(elapsedSeconds || 0);
-  const lastSyncRef = useRef(0);
 
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(true); // start muted for autoplay
@@ -94,35 +95,26 @@ function LivePlayer({ src, elapsedSeconds, poster }) {
   const [isFs, setIsFs] = useState(false);
   const [hasError, setHasError] = useState(false);
 
-  // Keep the "allowed" position in sync with the server every render.
-  useEffect(() => {
-    allowedRef.current = elapsedSeconds || 0;
-    const v = videoRef.current;
-    if (!v) return;
-    const drift = Math.abs((v.currentTime || 0) - allowedRef.current);
-    // Resync the playhead only if drift exceeds 3s (network jitter, pauses).
-    if (drift > 3 && Number.isFinite(allowedRef.current)) {
-      try {
-        v.currentTime = allowedRef.current;
-      } catch {
-        /* ignore */
-      }
-    }
-  }, [elapsedSeconds]);
+  const expectedPosition = useCallback(() => {
+    if (!startMs) return 0;
+    const elapsed = (Date.now() - startMs) / 1000;
+    const max = Number.isFinite(durationSeconds) ? durationSeconds : Infinity;
+    return Math.max(0, Math.min(max, elapsed));
+  }, [startMs, durationSeconds]);
 
   // Seek-block: if the user (or the browser) seeks, snap back to allowed.
   const handleSeeking = useCallback(() => {
     const v = videoRef.current;
     if (!v) return;
-    const allowed = allowedRef.current || 0;
-    if (Math.abs(v.currentTime - allowed) > 0.75) {
+    const allowed = expectedPosition();
+    if (Math.abs(v.currentTime - allowed) > 1.5) {
       try {
         v.currentTime = allowed;
       } catch {
         /* ignore */
       }
     }
-  }, []);
+  }, [expectedPosition]);
 
   // Block keyboard arrows / media keys for seeking while focused inside player
   const handleKeyDown = useCallback((e) => {
@@ -210,25 +202,27 @@ function LivePlayer({ src, elapsedSeconds, poster }) {
     }
   };
 
-  // Periodic drift guard — re-snap on stalls/pauses-resume
+  // Periodic drift guard — only re-snap on LARGE drifts (network stalls,
+  // user paused & resumed much later, etc.). 10s threshold avoids fighting
+  // the natural ~1s/sec advance of both video and clock.
   useEffect(() => {
     const id = setInterval(() => {
       const v = videoRef.current;
-      if (!v) return;
-      const now = Date.now();
-      if (now - lastSyncRef.current < 800) return;
-      lastSyncRef.current = now;
-      const drift = Math.abs((v.currentTime || 0) - (allowedRef.current || 0));
-      if (drift > 4) {
+      if (!v || v.paused) return;
+      const allowed = expectedPosition();
+      const drift = (v.currentTime || 0) - allowed;
+      // Only correct large drifts to keep stream tightly synced without
+      // causing visible jumps from sub-second jitter.
+      if (drift > 10 || drift < -10) {
         try {
-          v.currentTime = allowedRef.current || 0;
+          v.currentTime = allowed;
         } catch {
           /* ignore */
         }
       }
-    }, 1000);
+    }, 5000);
     return () => clearInterval(id);
-  }, []);
+  }, [expectedPosition]);
 
   return (
     <div
@@ -255,7 +249,7 @@ function LivePlayer({ src, elapsedSeconds, poster }) {
           const v = videoRef.current;
           if (!v) return;
           try {
-            v.currentTime = allowedRef.current || 0;
+            v.currentTime = expectedPosition();
           } catch {
             /* ignore */
           }
@@ -553,7 +547,8 @@ function LivePageInner() {
             >
               <LivePlayer
                 src={computed.video_url}
-                elapsedSeconds={computed.elapsed_seconds}
+                startMs={computed.start_iso ? new Date(computed.start_iso).getTime() : 0}
+                durationSeconds={computed.duration_seconds}
                 poster={computed.poster_url}
               />
               <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-white/55">
