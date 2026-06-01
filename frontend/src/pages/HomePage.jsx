@@ -175,7 +175,7 @@ export default function HomePage() {
                 transition={{ duration: 0.5, delay: 0.15 }}
                 className="mt-9 flex flex-wrap items-center gap-3"
               >
-                <Link to="/register">
+                <Link to="/category/cartoon-network">
                   <Button
                     size="lg"
                     data-testid="primary-cta-button"
