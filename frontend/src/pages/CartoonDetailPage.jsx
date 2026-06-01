@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import PublicLayout from "@/components/PublicLayout";
-import { api, mediaUrl } from "@/lib/api";
+import { api, mediaUrl, getErrorMessage } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Heart, Play, Tv, Calendar, ListPlus, Plus, Clock3, GripVertical } from "lucide-react";
+import { Heart, Play, Tv, Calendar, ListPlus, Plus, Clock3, GripVertical, Download } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -76,6 +76,34 @@ export default function CartoonDetailPage() {
       load();
     } finally {
       setReorderSaving(false);
+    }
+  };
+
+  // Per-episode download lock (avoid double-clicks generating multiple links).
+  const [downloadingEpId, setDownloadingEpId] = useState(null);
+
+  const handleDownload = async (ep) => {
+    if (!ep || downloadingEpId) return;
+    setDownloadingEpId(ep.id);
+    try {
+      const { data: linkInfo } = await api.post(
+        `/me/episodes/${ep.id}/download-link`
+      );
+      // The signed URL carries its own short-lived token, so a plain anchor
+      // download works without an auth header (and avoids loading the whole
+      // file into memory). `linkInfo.url` already starts with `/api/...`.
+      const a = document.createElement("a");
+      a.href = linkInfo.url;
+      a.download = linkInfo.filename || "episod.mp4";
+      a.rel = "noopener";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      toast.success(`Se descarcă: ${linkInfo.filename}`);
+    } catch (e) {
+      toast.error(getErrorMessage(e, "Descărcarea nu a putut fi pornită."));
+    } finally {
+      setDownloadingEpId(null);
     }
   };
 
@@ -317,6 +345,20 @@ export default function CartoonDetailPage() {
                         <div className="text-xs text-muted-foreground">S{ep.season} · E{ep.episode_number}</div>
                       </div>
                     </button>
+                    {isPlus && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDownload(ep);
+                        }}
+                        disabled={downloadingEpId === ep.id}
+                        className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity h-7 w-7 rounded-md grid place-items-center text-white/60 hover:text-[hsl(var(--accent))] hover:bg-[hsl(var(--accent))]/10 shrink-0 disabled:opacity-50"
+                        data-testid={`episode-download-${ep.id}`}
+                        title={downloadingEpId === ep.id ? "Se pregătește..." : "Descarcă episodul"}
+                      >
+                        <Download className={`h-4 w-4 ${downloadingEpId === ep.id ? "animate-pulse" : ""}`} />
+                      </button>
+                    )}
                     {isPlus && (
                       <button
                         onClick={(e) => {

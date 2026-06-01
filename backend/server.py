@@ -1579,6 +1579,128 @@ class EpisodeReorderPayload(BaseModel):
     episode_ids: List[str]
 
 
+def _resolve_episode_file_path(video_url: str) -> Optional[Path]:
+    """Map an episode.video_url to an absolute file under VIDEO_DIR or UPLOAD_DIR.
+    Returns None if the URL is external (http/https) or can't be resolved.
+    """
+    if not video_url:
+        return None
+    s = str(video_url).strip().replace("\\", "/")
+    # Anything pointing off-site can't be downloaded by us
+    if re.match(r"^https?://", s, re.IGNORECASE):
+        return None
+
+    # Normalize /api/media/videos/... or /media/videos/... → relative
+    for marker in ("/api/media/videos/", "/media/videos/", "media/videos/"):
+        idx = s.find(marker)
+        if idx >= 0:
+            rel = s[idx + len(marker):].lstrip("/")
+            base = Path(VIDEO_DIR).resolve()
+            target = (base / rel).resolve()
+            if str(target) == str(base) or str(target).startswith(str(base) + os.sep):
+                return target if target.is_file() else None
+            return None
+
+    # /api/uploads/videos/... or /uploads/videos/... → UPLOAD_DIR
+    for marker in ("/api/uploads/", "/uploads/"):
+        idx = s.find(marker)
+        if idx >= 0:
+            rel = s[idx + len(marker):].lstrip("/")
+            base = UPLOAD_DIR.resolve()
+            target = (base / rel).resolve()
+            if str(target) == str(base) or str(target).startswith(str(base) + os.sep):
+                return target if target.is_file() else None
+            return None
+    return None
+
+
+def _safe_attachment_name(title: str, ext: str = "mp4") -> str:
+    base = re.sub(r"[\\/:*?\"<>|\r\n\t]+", "_", (title or "episod").strip())[:80] or "episod"
+    return f"{base}.{ext.lstrip('.')}"
+
+
+@api_router.post("/me/episodes/{episode_id}/download-link")
+async def create_episode_download_link(episode_id: str, user=Depends(get_current_user)):
+    """PLUS-only. Returns a short-lived signed URL the browser can use directly
+    via <a download> — auth header isn't required on that GET because the URL
+    itself carries a 5-minute JWT bound to (user, episode, scope=download)."""
+    if user.get("subscription") != "plus":
+        raise HTTPException(403, "Funcție disponibilă doar pentru membri Cartoonix PLUS")
+    ep = await db.episodes.find_one({"id": episode_id}, {"_id": 0})
+    if not ep:
+        raise HTTPException(404, "Episode not found")
+    file_path = _resolve_episode_file_path(ep.get("video_url", ""))
+    if not file_path:
+        raise HTTPException(400, "Acest episod nu poate fi descărcat (sursă externă sau lipsește fișierul).")
+
+    import jwt as _jwt
+    from auth import JWT_SECRET, JWT_ALGORITHM
+    payload = {
+        "sub": user["id"],
+        "ep": episode_id,
+        "scope": "download",
+        "iat": now_utc(),
+        "exp": now_utc() + timedelta(minutes=5),
+    }
+    token = _jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+    ext = file_path.suffix.lstrip(".") or "mp4"
+    return {
+        "url": f"/api/episodes/download?dt={token}",
+        "filename": _safe_attachment_name(ep.get("title", "Episod"), ext),
+        "expires_in": 300,
+    }
+
+
+@api_router.get("/episodes/download")
+async def download_episode_file(dt: str):
+    """Stream the episode file as an attachment. Auth comes from the `dt` token."""
+    import jwt as _jwt
+    from auth import JWT_SECRET, JWT_ALGORITHM
+    try:
+        claims = _jwt.decode(dt, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+    except _jwt.ExpiredSignatureError:
+        raise HTTPException(401, "Link expirat. Generează un link nou.")
+    except _jwt.InvalidTokenError:
+        raise HTTPException(401, "Token invalid.")
+    if claims.get("scope") != "download":
+        raise HTTPException(403, "Scope invalid")
+    user_id = claims.get("sub")
+    episode_id = claims.get("ep")
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "subscription": 1, "banned": 1})
+    if not user or user.get("banned"):
+        raise HTTPException(403, "Acces interzis")
+    if user.get("subscription") != "plus":
+        raise HTTPException(403, "Abonamentul PLUS nu mai este activ.")
+
+    ep = await db.episodes.find_one({"id": episode_id}, {"_id": 0})
+    if not ep:
+        raise HTTPException(404, "Episod inexistent")
+    file_path = _resolve_episode_file_path(ep.get("video_url", ""))
+    if not file_path:
+        raise HTTPException(404, "Fișierul video nu mai există pe server.")
+
+    file_size = file_path.stat().st_size
+    ext = file_path.suffix.lower().lstrip(".") or "mp4"
+    content_type = VIDEO_EXT_MIME.get(ext, "application/octet-stream")
+    filename = _safe_attachment_name(ep.get("title", "Episod"), ext)
+
+    def _iter(chunk: int = 1024 * 1024):
+        with open(file_path, "rb") as f:
+            while True:
+                data = f.read(chunk)
+                if not data:
+                    break
+                yield data
+
+    headers = {
+        "Content-Length": str(file_size),
+        "Content-Disposition": f'attachment; filename="{filename}"',
+        "Cache-Control": "private, no-store",
+        "X-Content-Type-Options": "nosniff",
+    }
+    return StreamingResponse(_iter(), status_code=200, headers=headers, media_type=content_type)
+
+
 @api_router.post("/admin/cartoons/{cartoon_id}/episodes/reorder")
 async def admin_reorder_episodes(
     cartoon_id: str,

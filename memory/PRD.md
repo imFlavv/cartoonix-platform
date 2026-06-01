@@ -19,6 +19,12 @@ Cartoonix este o platformă premium de streaming pentru desene animate retro (Ca
 - Concursuri publice (3 contests, 2 free + 1 paid via Stripe)
 
 ## Implemented (CHANGELOG)
+### 2026-06-01 — Download episoade (PLUS only)
+- Backend nou: `POST /api/me/episodes/{id}/download-link` (auth + PLUS) returnează un URL semnat `/api/episodes/download?dt=<JWT 5min>` + `filename`.
+- Backend nou: `GET /api/episodes/download?dt=...` validează JWT (scope=download), reverificăm PLUS-ul, rezolvăm `video_url` la calea reală sub `VIDEO_DIR`/`UPLOAD_DIR` (protecție path-traversal), streamăm fișierul cu `Content-Disposition: attachment` + `Cache-Control: private, no-store`.
+- Frontend (`CartoonDetailPage.jsx`): pe rândul fiecărui episod, pentru utilizatorii PLUS apare iconița **Download** (lângă „+ playlist"). Click → cere link semnat → declanșează `<a download>` cu `filename` (ex. `Episodul 1.mp4`). Buton blocat în timpul cererii ca să nu se genereze 2 link-uri.
+- Testat E2E: 5 butoane în DOM pentru PLUS, descărcare confirmată cu Playwright `download` event (`Episodul 1.mp4`, 51200 bytes), 0 butoane pentru free, 403 pe API pentru free, 401 pentru token invalid/expirat.
+
 ### 2026-06-01 — Playlist player: păstrează fullscreen la auto-advance
 - `PlaylistPlayerPage.jsx`: eliminat `key={active.episode_id}` de pe `<video>` (forțarea unmount/remount era cauza ieșirii din fullscreen). Acum păstrăm același element DOM între episoade și schimbăm `src` imperativ (`v.src = ...; v.load(); v.play()`).
 - Pentru iOS Safari, care iese nativ din fullscreen la swap-ul de `src`, am adăugat detectare cu `webkitDisplayingFullscreen` + re-intrare automată în fullscreen pe `loadeddata` dacă era activ înainte de tranziție.
