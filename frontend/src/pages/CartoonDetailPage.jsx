@@ -4,7 +4,7 @@ import PublicLayout from "@/components/PublicLayout";
 import { api, mediaUrl, getErrorMessage } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Heart, Play, Tv, Calendar, ListPlus, Plus, Clock3, GripVertical, Download } from "lucide-react";
+import { Heart, Play, Tv, Calendar, ListPlus, Plus, Clock3, GripVertical, Download, CheckCircle2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -50,6 +50,11 @@ export default function CartoonDetailPage() {
   });
   const isPlus = user?.subscription === "plus";
   const isAdmin = user?.role === "admin";
+
+  // Set of episode ids the current user has already watched (for "Vizionat" badge).
+  const [watchedIds, setWatchedIds] = useState(() => new Set());
+  // Ref to the <video> so autoplay-next can survive fullscreen and other state.
+  const videoRef = React.useRef(null);
 
   // Local drag-and-drop state (admin-only)
   const [dragId, setDragId] = useState(null);
@@ -114,8 +119,16 @@ export default function CartoonDetailPage() {
       setData(c);
       setActiveEp(c.episodes?.[0] || null);
       if (user) {
-        const { data: fav } = await api.get(`/me/favorites/check/${id}`);
-        setFavorited(!!fav.favorited);
+        const [favRes, watchedRes] = await Promise.all([
+          api.get(`/me/favorites/check/${id}`).catch(() => ({ data: { favorited: false } })),
+          api
+            .get(`/me/cartoons/${id}/watched-episodes`)
+            .catch(() => ({ data: { episode_ids: [] } })),
+        ]);
+        setFavorited(!!favRes.data.favorited);
+        setWatchedIds(new Set(watchedRes.data.episode_ids || []));
+      } else {
+        setWatchedIds(new Set());
       }
     } catch (e) {
       toast.error("Desenul nu a fost găsit");
@@ -126,6 +139,25 @@ export default function CartoonDetailPage() {
   };
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [id, user]);
+
+  // Update <video> src in-place when activeEp changes, so fullscreen is
+  // preserved across episode transitions (auto-next during fullscreen).
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v || !activeEp) return;
+    const src = resolveVideoUrl(activeEp.video_url);
+    if (!src) return;
+    if (v.src !== src && v.currentSrc !== src && !v.src.endsWith(src)) {
+      v.src = src;
+      try {
+        v.load();
+      } catch {
+        /* ignore */
+      }
+      const p = v.play?.();
+      if (p && typeof p.catch === "function") p.catch(() => {});
+    }
+  }, [activeEp]);
 
   const toggleFav = async () => {
     if (!user) {
@@ -154,7 +186,60 @@ export default function CartoonDetailPage() {
           progress_seconds: t,
         });
       } catch {}
+      // Mark as "watched" in UI on first progress save so the user sees the
+      // badge appear naturally without waiting for a full reload.
+      if (!watchedIds.has(activeEp.id)) {
+        setWatchedIds((prev) => {
+          const next = new Set(prev);
+          next.add(activeEp.id);
+          return next;
+        });
+      }
     }
+  };
+
+  /**
+   * Auto-play the next episode when the current one finishes.
+   * Works in fullscreen too — we just swap `src` on the same <video>
+   * element (preserving its fullscreen state) and call play().
+   */
+  const handleEpisodeEnded = () => {
+    // Persist watched state immediately for the just-finished episode.
+    if (user && activeEp && data?.id) {
+      api.post("/me/history", {
+        cartoon_id: data.id,
+        episode_id: activeEp.id,
+        progress_seconds: 0,
+      }).catch(() => {});
+      setWatchedIds((prev) => {
+        const next = new Set(prev);
+        next.add(activeEp.id);
+        return next;
+      });
+    }
+
+    const list = data?.episodes || [];
+    if (!activeEp || list.length === 0) return;
+    const idx = list.findIndex((e) => e.id === activeEp.id);
+    if (idx < 0 || idx >= list.length - 1) {
+      toast.message("Ai terminat toate episoadele!", {
+        description: "Felicitări — ai vizionat ultimul episod din această colecție.",
+      });
+      return;
+    }
+    const next = list[idx + 1];
+    setActiveEp(next);
+    // After React re-renders the <video> with the new key+src, autoplay it
+    // and try to resume the fullscreen state if it was active. We do this on
+    // the next animation frame so the new <video> exists in the DOM.
+    requestAnimationFrame(() => {
+      const v = videoRef.current;
+      if (!v) return;
+      // Most browsers retain fullscreen on src change for the same element.
+      // If we re-keyed and lost the element, just try to play.
+      const p = v.play?.();
+      if (p && typeof p.catch === "function") p.catch(() => {});
+    });
   };
 
   if (loading || !data) {
@@ -216,21 +301,28 @@ export default function CartoonDetailPage() {
                 <div data-testid="watch-player" className="tv-bezel scanlines relative overflow-hidden">
                   <div className="aspect-video rounded-xl bg-black overflow-hidden">
                     <video
-                      key={activeEp.id}
-                      src={videoSrc}
+                      ref={videoRef}
                       controls
                       playsInline
+                      autoPlay
                       preload="metadata"
                       controlsList="nodownload"
                       className="h-full w-full bg-black object-contain"
                       onTimeUpdate={onProgress}
+                      onEnded={handleEpisodeEnded}
                       data-testid="watch-video-element"
                     />
                   </div>
-                  <div className="mt-2 px-1 text-sm">
-                    <div className="font-medium truncate">{activeEp.title}</div>
-                    <div className="text-xs text-muted-foreground">S{activeEp.season} · E{activeEp.episode_number}</div>
+                  <div className="mt-2 px-1 text-sm flex items-center gap-2">
+                    <div className="font-medium truncate flex-1">{activeEp.title}</div>
+                    {watchedIds.has(activeEp.id) && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-[hsl(var(--accent))]/15 border border-[hsl(var(--accent))]/30 px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-[hsl(var(--accent))]">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Vizionat
+                      </span>
+                    )}
                   </div>
+                  <div className="text-xs text-muted-foreground px-1">S{activeEp.season} · E{activeEp.episode_number}</div>
                 </div>
               ) : (
                 <div
@@ -285,6 +377,8 @@ export default function CartoonDetailPage() {
                 {data.episodes?.map((ep) => {
                   const isDragOver = isAdmin && dragOverId === ep.id && dragId && dragId !== ep.id;
                   const isDragging = isAdmin && dragId === ep.id;
+                  const isWatched = watchedIds.has(ep.id);
+                  const isActive = activeEp?.id === ep.id;
                   return (
                   <div
                     key={ep.id}
@@ -337,12 +431,34 @@ export default function CartoonDetailPage() {
                       onClick={() => setActiveEp(ep)}
                       className="flex items-center gap-3 flex-1 min-w-0 text-left"
                     >
-                      <div className="h-8 w-8 rounded-lg bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] grid place-items-center shrink-0">
-                        <Play className="h-3.5 w-3.5 ml-0.5" />
+                      <div
+                        className={`h-8 w-8 rounded-lg grid place-items-center shrink-0 transition-colors ${
+                          isWatched && !isActive
+                            ? "bg-[hsl(var(--accent))]/15 text-[hsl(var(--accent))] ring-1 ring-[hsl(var(--accent))]/40"
+                            : "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]"
+                        }`}
+                      >
+                        {isWatched && !isActive ? (
+                          <CheckCircle2 className="h-4 w-4" strokeWidth={2.4} />
+                        ) : (
+                          <Play className="h-3.5 w-3.5 ml-0.5" />
+                        )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="text-sm font-medium truncate">{ep.title}</div>
-                        <div className="text-xs text-muted-foreground">S{ep.season} · E{ep.episode_number}</div>
+                        <div className={`text-sm font-medium truncate ${isWatched && !isActive ? "text-white/55" : ""}`}>
+                          {ep.title}
+                        </div>
+                        <div className="text-xs text-muted-foreground flex items-center gap-2">
+                          <span>S{ep.season} · E{ep.episode_number}</span>
+                          {isWatched && (
+                            <span
+                              data-testid={`episode-watched-${ep.id}`}
+                              className="inline-flex items-center gap-1 rounded-full bg-[hsl(var(--accent))]/12 px-1.5 py-0.5 text-[9px] uppercase tracking-[0.18em] text-[hsl(var(--accent))]/90"
+                            >
+                              Vizionat
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </button>
                     {isPlus && (

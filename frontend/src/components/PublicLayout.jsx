@@ -398,6 +398,7 @@ export function Footer() {
             <li><Link className="hover:text-foreground transition-colors" to="/category/jetix-foxkids">JETIX & Fox Kids</Link></li>
             <li><Link className="hover:text-foreground transition-colors" to="/category/cartoon-network">Cartoon Network</Link></li>
             <li><Link className="hover:text-foreground transition-colors" to="/category/minimax">Minimax</Link></li>
+            <li><Link className="hover:text-foreground transition-colors" to="/castigatori">Câștigători</Link></li>
           </ul>
         </div>
         <div className="text-sm">

@@ -546,6 +546,115 @@ async def admin_live_probe(user=Depends(require_admin)):
     return info
 
 
+# ============================================================
+#               WINNERS (concursuri)
+# ============================================================
+# Curated list of contest winners shown on /castigatori. We resolve each
+# nickname to a real user (for avatar) and fall back to a deterministic
+# placeholder avatar when the user doesn't exist (e.g. external winners).
+
+WINNERS_CONTESTS = [
+    {
+        "id": "cinema",
+        "title": "Bilete Cinema",
+        "subtitle": "Câștigători bilete la cinema",
+        "icon": "ticket",
+        "winners": ["IceFlower15", "euRadu", "Alina9021"],
+    },
+    {
+        "id": "lego",
+        "title": "Seturi LEGO",
+        "subtitle": "Câștigători seturi LEGO",
+        "icon": "blocks",
+        "winners": ["Bibiinx", "Andrewnix", "Dunbi"],
+    },
+    {
+        "id": "emag",
+        "title": "Voucher eMAG",
+        "subtitle": "Câștigător voucher eMAG",
+        "icon": "shopping-bag",
+        "winners": ["MrSeriouX"],
+    },
+    {
+        "id": "xiaomi",
+        "title": "Media Player Xiaomi",
+        "subtitle": "Câștigător media player Xiaomi",
+        "icon": "tv",
+        "winners": ["D3xter"],
+    },
+]
+
+
+def _placeholder_avatar(nickname: str) -> str:
+    """Deterministic, friendly avatar for users not present in our DB."""
+    seed = (nickname or "guest").strip()
+    # DiceBear "thumbs" — colorful, neutral, no PII; works without API key.
+    return f"https://api.dicebear.com/9.x/thumbs/svg?seed={seed}&radius=50"
+
+
+@api_router.get("/winners")
+async def get_winners():
+    """Public list of contest winners.
+
+    For each curated nickname we look up the real user (case-insensitive)
+    to attach their actual avatar. Missing users get a deterministic
+    DiceBear placeholder so the page always renders cleanly.
+    """
+    # Collect all unique nicknames in one query.
+    all_nicks = []
+    seen = set()
+    for c in WINNERS_CONTESTS:
+        for n in c["winners"]:
+            k = n.lower()
+            if k not in seen:
+                seen.add(k)
+                all_nicks.append(n)
+
+    # Lookup users by nickname (case-insensitive). We build a regex with
+    # alternations to avoid issuing 1 query per nickname.
+    lookup: dict = {}
+    if all_nicks:
+        try:
+            # MongoDB regex with case-insensitive flag, anchored full match
+            pattern = "^(" + "|".join(re.escape(n) for n in all_nicks) + ")$"
+            cursor = db.users.find(
+                {"nickname": {"$regex": pattern, "$options": "i"}},
+                {"_id": 0, "nickname": 1, "avatar_url": 1},
+            )
+            async for row in cursor:
+                nk = (row.get("nickname") or "").lower()
+                if nk:
+                    lookup[nk] = row
+        except Exception:
+            lookup = {}
+
+    out_contests = []
+    for c in WINNERS_CONTESTS:
+        winners = []
+        for nick in c["winners"]:
+            row = lookup.get(nick.lower())
+            if row:
+                winners.append({
+                    "nickname": row.get("nickname") or nick,
+                    "avatar_url": row.get("avatar_url") or _placeholder_avatar(nick),
+                    "found": True,
+                })
+            else:
+                winners.append({
+                    "nickname": nick,
+                    "avatar_url": _placeholder_avatar(nick),
+                    "found": False,
+                })
+        out_contests.append({
+            "id": c["id"],
+            "title": c["title"],
+            "subtitle": c["subtitle"],
+            "icon": c["icon"],
+            "winners": winners,
+        })
+    return {"contests": out_contests}
+
+
 @api_router.get("/live/status")
 async def live_status():
     """Public status payload for the marathon live stream."""
@@ -1789,6 +1898,22 @@ async def list_cartoons(category: Optional[str] = None, q: Optional[str] = None,
     for it in items:
         it["episode_count"] = counts.get(it["id"], 0)
     return items
+
+
+@api_router.get("/me/cartoons/{cartoon_id}/watched-episodes")
+async def watched_episodes_for_cartoon(cartoon_id: str, user=Depends(get_current_user)):
+    """Return the set of episode ids the current user has watched for a cartoon.
+    "Watched" means we have any history row for that user+episode. Used by the
+    detail page to mark previously-seen episodes."""
+    cursor = db.watch_history.find(
+        {"user_id": user["id"], "cartoon_id": cartoon_id},
+        {"_id": 0, "episode_id": 1, "progress_seconds": 1, "watched_at": 1},
+    )
+    rows = await cursor.to_list(2000)
+    return {
+        "episode_ids": [r["episode_id"] for r in rows if r.get("episode_id")],
+        "items": rows,
+    }
 
 
 @api_router.get("/cartoons/{cartoon_id}")

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { api, mediaUrl } from "@/lib/api";
 import PublicLayout from "@/components/PublicLayout";
 import { CartoonCard } from "@/components/CartoonCard";
+import { CartoonCarousel } from "@/components/CartoonCarousel";
 import { Play, Sparkles, ArrowRight, ShieldCheck, Clapperboard, Radio } from "lucide-react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faTv, faBoltLightning, faComments, faHeart } from "@fortawesome/free-solid-svg-icons";
@@ -276,104 +277,12 @@ export default function HomePage() {
           className="absolute inset-0"
           style={{
             background:
-              "radial-gradient(900px circle at 78% 12%, hsla(46,92%,55%,0.12), transparent 55%), radial-gradient(700px circle at 12% 90%, rgba(255,255,255,0.04), transparent 60%)",
+              "radial-gradient(900px circle at 78% 12%, hsla(46,92%,55%,0.10), transparent 55%), radial-gradient(700px circle at 12% 90%, rgba(255,255,255,0.03), transparent 60%)",
           }}
         />
         <div className="absolute inset-0 noise-overlay opacity-60" />
-
-        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20 sm:py-28">
-          <div className="grid lg:grid-cols-[1.05fr_0.95fr] gap-12 items-center">
-            <div>
-              <motion.div
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4 }}
-                className="inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-3.5 py-1.5 text-[11px] font-medium uppercase tracking-[0.2em] text-white/60"
-              >
-                <Sparkles className="h-3.5 w-3.5 text-[hsl(var(--accent))]" /> Bine ai venit în platformă!
-              </motion.div>
-
-              <motion.h1
-                initial={{ opacity: 0, y: 18 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.05 }}
-                className="font-display text-5xl sm:text-6xl lg:text-7xl leading-[0.95] tracking-[0.01em] mt-6 text-white"
-              >
-                Desenele copilăriei tale.
-                <br />
-                <span className="text-[hsl(var(--accent))]">În sfârșit acasă.</span>
-              </motion.h1>
-
-              <motion.p
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.1 }}
-                className="mt-6 max-w-xl text-base sm:text-lg leading-relaxed text-white/55"
-              >
-                Jetix, Cartoon Network și Minimax — toate într-un singur loc. Desenele cu care ai
-                crescut, organizate și gata de redat oricând.
-              </motion.p>
-
-              <motion.div
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.15 }}
-                className="mt-9 flex flex-wrap items-center gap-3"
-              >
-                <Link to="/category/cartoon-network">
-                  <Button
-                    size="lg"
-                    data-testid="primary-cta-button"
-                    className="h-12 rounded-xl bg-[hsl(var(--accent))] px-6 text-base font-semibold text-black hover:bg-[hsl(var(--accent))]/90"
-                  >
-                    Începe să vizionezi <Play className="ml-2 h-4 w-4 fill-black" />
-                  </Button>
-                </Link>
-                <Link to="/category/jetix-foxkids">
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    data-testid="hero-channels-button"
-                    className="h-12 rounded-xl border-white/15 bg-transparent px-6 text-base text-white hover:bg-white/[0.06]"
-                  >
-                    Vezi canalele
-                  </Button>
-                </Link>
-                <div className="ml-1 flex items-center gap-1.5 text-sm text-white/45">
-                  <ShieldCheck className="h-4 w-4 text-[hsl(var(--accent))]" />
-                  <span>Creat de fani</span>
-                </div>
-              </motion.div>
-            </div>
-
-            {/* TV preview */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.55, delay: 0.1 }}
-              className="relative hidden lg:block"
-            >
-              <div className="tv-bezel relative scanlines overflow-hidden">
-                <div className="aspect-[4/5] rounded-xl bg-[#0a0b0f] grid place-items-center relative overflow-hidden">
-                  <div
-                    className="absolute inset-0"
-                    style={{
-                      background:
-                        "radial-gradient(600px circle at 50% 40%, hsla(46,92%,55%,0.10), transparent 60%)",
-                    }}
-                  />
-                  <div className="relative text-center">
-                    <div className="font-display text-6xl tracking-[0.1em] text-[hsl(var(--accent))]">
-                      CARTOONIX
-                    </div>
-                    <div className="mt-3 inline-flex items-center gap-2 text-xs uppercase tracking-[0.4em] text-white/40">
-                      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" /> Live
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </div>
+        <div className="relative">
+          <CartoonCarousel />
         </div>
       </section>
 

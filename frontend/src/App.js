@@ -23,6 +23,7 @@ import EarlyAccessPage from "@/pages/EarlyAccessPage";
 import EarlyAccessSuccessPage from "@/pages/EarlyAccessSuccessPage";
 import UpgradeReturnPage from "@/pages/UpgradeReturnPage";
 import LivePage from "@/pages/LivePage";
+import WinnersPage from "@/pages/WinnersPage";
 import GuestGatePage from "@/pages/GuestGatePage";
 import CartoonixContestsPage from "@/pages/CartoonixContestsPage";
 import AdminLayout from "@/components/AdminLayout";
@@ -115,6 +116,7 @@ const EARLY_ACCESS_ALLOWED_PREFIXES = [
   "/verify",
   "/staff",
   "/live",
+  "/castigatori",
 ];
 
 function EarlyAccessGate({ children }) {
@@ -256,6 +258,7 @@ function ChatMount() {
     "/forgot-password",
     "/terms-and-conditions",
     "/gdpr",
+    "/castigatori",
   ];
   if (HIDDEN_PREFIXES.some((p) => path === p || path.startsWith(p + "/"))) {
     return null;
@@ -292,6 +295,14 @@ function App() {
                   element={
                     <RequireAuth>
                       <LivePage />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/castigatori"
+                  element={
+                    <RequireAuth>
+                      <WinnersPage />
                     </RequireAuth>
                   }
                 />
