@@ -422,6 +422,40 @@ function LivePlayer({ src, startMs, durationSeconds, poster }) {
   );
 }
 
+function YouTubeLivePlayer({ videoId }) {
+  // YouTube embed parameters chosen for the live-marathon feel:
+  // - autoplay: start immediately
+  // - rel=0: do not show related videos
+  // - modestbranding=1: minimal YouTube branding
+  // - iv_load_policy=3: hide video annotations
+  // - playsinline=1: keep inline on mobile
+  // - cc_load_policy=1: show CC if available
+  // - color=white: progress bar color
+  const src = `https://www.youtube.com/embed/${encodeURIComponent(
+    videoId
+  )}?autoplay=1&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&color=white`;
+  return (
+    <div
+      data-testid="live-youtube-player"
+      className="relative w-full aspect-video bg-black rounded-2xl overflow-hidden ring-1 ring-white/10"
+    >
+      <iframe
+        src={src}
+        title="Maraton Cartoonix"
+        loading="eager"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
+        allowFullScreen
+        referrerPolicy="strict-origin-when-cross-origin"
+        className="absolute inset-0 w-full h-full border-0"
+      />
+      {/* Live pill overlay (purely cosmetic, doesn't interact with player) */}
+      <div className="pointer-events-none absolute top-3 left-3 z-10">
+        <LiveBadge />
+      </div>
+    </div>
+  );
+}
+
 function LivePageInner() {
   const [status, setStatus] = useState(null);
   const [, setTick] = useState(0);
@@ -611,12 +645,16 @@ function LivePageInner() {
               transition={{ duration: 0.4 }}
               data-testid="live-active"
             >
-              <LivePlayer
-                src={computed.video_url}
-                startMs={computed.start_iso ? new Date(computed.start_iso).getTime() : 0}
-                durationSeconds={computed.duration_seconds}
-                poster={computed.poster_url}
-              />
+              {computed.youtube_id ? (
+                <YouTubeLivePlayer videoId={computed.youtube_id} />
+              ) : (
+                <LivePlayer
+                  src={computed.video_url}
+                  startMs={computed.start_iso ? new Date(computed.start_iso).getTime() : 0}
+                  durationSeconds={computed.duration_seconds}
+                  poster={computed.poster_url}
+                />
+              )}
               <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-white/55">
                 <span className="inline-flex items-center gap-2">
                   <span className="inline-flex h-2 w-2 rounded-full bg-red-500 animate-pulse" />

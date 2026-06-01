@@ -356,6 +356,7 @@ LIVE_CONFIG_DEFAULTS = {
     "start_iso": LIVE_DEFAULT_START_ISO,
     "duration_seconds": LIVE_DEFAULT_DURATION,
     "video_path": LIVE_DEFAULT_VIDEO,
+    "youtube_url": "https://youtu.be/dOwPqt0c9bo",
     "poster_url": "",
     "subtitle": "",
     "program": [
@@ -371,6 +372,31 @@ LIVE_CONFIG_DEFAULTS = {
         "Vaca și Puiul",
     ],
 }
+
+
+def _extract_youtube_id(raw: str) -> str:
+    """Accepts any common YouTube URL form and returns the 11-char video id.
+    Returns empty string if input cannot be parsed."""
+    import re
+    s = str(raw or "").strip()
+    if not s:
+        return ""
+    # Already an ID?
+    if re.fullmatch(r"[A-Za-z0-9_-]{11}", s):
+        return s
+    # youtu.be/<id>
+    m = re.search(r"youtu\.be/([A-Za-z0-9_-]{11})", s)
+    if m:
+        return m.group(1)
+    # youtube.com/watch?v=<id>
+    m = re.search(r"[?&]v=([A-Za-z0-9_-]{11})", s)
+    if m:
+        return m.group(1)
+    # youtube.com/embed/<id> or /live/<id> or /shorts/<id>
+    m = re.search(r"youtube\.com/(?:embed|live|shorts)/([A-Za-z0-9_-]{11})", s)
+    if m:
+        return m.group(1)
+    return ""
 
 
 async def _live_config() -> dict:
@@ -466,6 +492,8 @@ def _live_compute_state(cfg: dict) -> dict:
         "seconds_until_end": max(0.0, (end_dt - now).total_seconds()),
         "video_url": f"/api/media/videos/{video_path}",
         "video_path": video_path,
+        "youtube_url": cfg.get("youtube_url") or "",
+        "youtube_id": _extract_youtube_id(cfg.get("youtube_url") or ""),
         "program": list(cfg.get("program") or []),
     }
 
@@ -544,6 +572,8 @@ async def admin_live_update(payload: dict, user=Depends(require_admin)):
         vp = _live_normalize_video_path(payload["video_path"])
         if vp:
             cfg["video_path"] = vp
+    if "youtube_url" in payload:
+        cfg["youtube_url"] = str(payload["youtube_url"] or "").strip()
     if "duration_seconds" in payload:
         try:
             cfg["duration_seconds"] = max(1, int(payload["duration_seconds"]))

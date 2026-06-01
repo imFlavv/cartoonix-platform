@@ -106,6 +106,7 @@ export default function AdminLive() {
         subtitle: config.subtitle,
         poster_url: config.poster_url,
         video_path: config.video_path,
+        youtube_url: config.youtube_url,
         duration_seconds: Number(config.duration_seconds || 0),
         start_iso: config.start_iso,
         program: (config.program || []).filter((s) => String(s).trim() !== ""),
@@ -260,8 +261,8 @@ export default function AdminLive() {
           </Field>
 
           <Field
-            label="Cale video"
-            hint={`Relativ la VIDEO_DIR (ex: Maraton/0601.mp4). URL: ${status?.video_url || ""}`}
+            label="Cale video (fallback local)"
+            hint={`Folosit doar dacă „URL YouTube" e gol. Relativ la VIDEO_DIR (ex: Maraton/0601.mp4). URL: ${status?.video_url || ""}`}
             testId="admin-live-field-path"
           >
             <input
@@ -271,6 +272,21 @@ export default function AdminLive() {
               data-testid="admin-live-input-path"
               className="w-full rounded-xl border border-white/10 bg-black/30 px-3.5 h-11 text-sm text-white focus:outline-none focus:border-[hsl(var(--accent))]/60"
               placeholder="Maraton/0601.mp4"
+            />
+          </Field>
+
+          <Field
+            label="URL YouTube (recomandat)"
+            hint={`Folosit pentru sute/mii de spectatori concurenți (CDN gratuit). Acceptă youtu.be/..., youtube.com/watch?v=...${status?.youtube_id ? ` — ID detectat: ${status.youtube_id}` : ""}`}
+            testId="admin-live-field-youtube"
+          >
+            <input
+              type="text"
+              value={config.youtube_url || ""}
+              onChange={(e) => setConfig({ ...config, youtube_url: e.target.value })}
+              data-testid="admin-live-input-youtube"
+              className="w-full rounded-xl border border-white/10 bg-black/30 px-3.5 h-11 text-sm text-white focus:outline-none focus:border-[hsl(var(--accent))]/60"
+              placeholder="https://youtu.be/..."
             />
           </Field>
 
