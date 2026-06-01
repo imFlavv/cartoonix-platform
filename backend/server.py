@@ -356,7 +356,9 @@ LIVE_CONFIG_DEFAULTS = {
     "start_iso": LIVE_DEFAULT_START_ISO,
     "duration_seconds": LIVE_DEFAULT_DURATION,
     "video_path": LIVE_DEFAULT_VIDEO,
-    "youtube_url": "https://youtu.be/dOwPqt0c9bo",
+    "youtube_url": "",
+    "iframe_url": "https://player.mediadelivery.net/embed/674146/abb7021f-66bb-4671-938d-3ff089910d9d?autoplay=true&loop=false&muted=true&preload=true&responsive=true",
+    "iframe_no_seek": True,
     "poster_url": "",
     "subtitle": "",
     "program": [
@@ -494,6 +496,8 @@ def _live_compute_state(cfg: dict) -> dict:
         "video_path": video_path,
         "youtube_url": cfg.get("youtube_url") or "",
         "youtube_id": _extract_youtube_id(cfg.get("youtube_url") or ""),
+        "iframe_url": cfg.get("iframe_url") or "",
+        "iframe_no_seek": bool(cfg.get("iframe_no_seek", True)),
         "program": list(cfg.get("program") or []),
     }
 
@@ -574,6 +578,10 @@ async def admin_live_update(payload: dict, user=Depends(require_admin)):
             cfg["video_path"] = vp
     if "youtube_url" in payload:
         cfg["youtube_url"] = str(payload["youtube_url"] or "").strip()
+    if "iframe_url" in payload:
+        cfg["iframe_url"] = str(payload["iframe_url"] or "").strip()
+    if "iframe_no_seek" in payload:
+        cfg["iframe_no_seek"] = bool(payload["iframe_no_seek"])
     if "duration_seconds" in payload:
         try:
             cfg["duration_seconds"] = max(1, int(payload["duration_seconds"]))

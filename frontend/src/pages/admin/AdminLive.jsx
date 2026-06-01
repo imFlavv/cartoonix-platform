@@ -107,6 +107,8 @@ export default function AdminLive() {
         poster_url: config.poster_url,
         video_path: config.video_path,
         youtube_url: config.youtube_url,
+        iframe_url: config.iframe_url,
+        iframe_no_seek: config.iframe_no_seek !== false,
         duration_seconds: Number(config.duration_seconds || 0),
         start_iso: config.start_iso,
         program: (config.program || []).filter((s) => String(s).trim() !== ""),
@@ -276,7 +278,53 @@ export default function AdminLive() {
           </Field>
 
           <Field
-            label="URL YouTube (recomandat)"
+            label="URL iframe embed (Bunny.net / Vimeo / etc.) — prioritate maximă"
+            hint="Folosit primul dacă e setat. Acceptă orice URL iframe-based player (ex: Bunny.net). Recomandat pentru sute/mii de spectatori (CDN dedicat)."
+            testId="admin-live-field-iframe"
+          >
+            <input
+              type="text"
+              value={config.iframe_url || ""}
+              onChange={(e) => setConfig({ ...config, iframe_url: e.target.value })}
+              data-testid="admin-live-input-iframe"
+              className="w-full rounded-xl border border-white/10 bg-black/30 px-3.5 h-11 text-sm text-white focus:outline-none focus:border-[hsl(var(--accent))]/60"
+              placeholder="https://player.mediadelivery.net/embed/..."
+            />
+          </Field>
+
+          <div className="flex items-center justify-between rounded-xl border border-white/[0.07] bg-black/20 px-4 py-3.5">
+            <div>
+              <div className="text-[12px] uppercase tracking-[0.22em] text-white/55">
+                Blochează derularea
+              </div>
+              <p className="mt-0.5 text-[11px] text-white/40">
+                Acoperă bara de progres din iframe ca să nu se poată sări înainte/înapoi.
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={config.iframe_no_seek !== false}
+              onClick={() =>
+                setConfig({ ...config, iframe_no_seek: config.iframe_no_seek === false })
+              }
+              data-testid="admin-live-toggle-noseek"
+              className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+                config.iframe_no_seek !== false
+                  ? "bg-gradient-to-r from-[#ff3b3b] to-[#facc15]"
+                  : "bg-white/15"
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-lg transition ${
+                  config.iframe_no_seek !== false ? "translate-x-5" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+
+          <Field
+            label="URL YouTube (fallback)"
             hint={`Folosit pentru sute/mii de spectatori concurenți (CDN gratuit). Acceptă youtu.be/..., youtube.com/watch?v=...${status?.youtube_id ? ` — ID detectat: ${status.youtube_id}` : ""}`}
             testId="admin-live-field-youtube"
           >

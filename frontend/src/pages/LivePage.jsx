@@ -422,6 +422,74 @@ function LivePlayer({ src, startMs, durationSeconds, poster }) {
   );
 }
 
+function IframeLivePlayer({ url, noSeek = true }) {
+  // Bunny.net (player.mediadelivery.net) and other iframe-based players cannot
+  // be controlled cross-origin, but we can render an invisible overlay that
+  // blocks pointer events ONLY on the bottom strip where the seek bar lives.
+  // The video continues to autoplay and the user cannot scrub.
+  //
+  // Layout (typical Bunny.net player):
+  //   [▶ time   ━━━━━seek━━━━━   🔊 ⛶]
+  //
+  // We block roughly the bottom 14% of the iframe — that covers the seek bar
+  // height (~36-44px on 720p) but lets the user double-tap the video to
+  // fullscreen on most players.
+  return (
+    <div
+      data-testid="live-iframe-player"
+      className="relative w-full aspect-video bg-black rounded-2xl overflow-hidden ring-1 ring-white/10"
+    >
+      <iframe
+        src={url}
+        title="Maraton Cartoonix"
+        loading="eager"
+        allow="accelerometer; autoplay; gyroscope; encrypted-media; picture-in-picture; fullscreen"
+        allowFullScreen
+        referrerPolicy="strict-origin-when-cross-origin"
+        className="absolute inset-0 w-full h-full border-0"
+      />
+
+      {/* Seek-bar blocker: positioned with percentages so it scales with the
+          iframe at any aspect ratio. Bunny.net's progress bar sits ~7% from
+          the bottom (just above the controls row). We cover roughly that
+          horizontal strip, leaving play/volume/fullscreen buttons accessible. */}
+      {noSeek && (
+        <div
+          data-testid="live-iframe-noseek"
+          aria-hidden="true"
+          className="absolute z-10"
+          style={{
+            left: "3rem",
+            right: "3rem",
+            bottom: "5.5%",
+            height: "5%",
+            pointerEvents: "auto",
+            background: "transparent",
+            cursor: "not-allowed",
+          }}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          onTouchStart={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+        />
+      )}
+
+      {/* Live pill overlay */}
+      <div className="pointer-events-none absolute top-3 left-3 z-20">
+        <LiveBadge />
+      </div>
+    </div>
+  );
+}
+
 function YouTubeLivePlayer({ videoId }) {
   // YouTube embed parameters chosen for the live-marathon feel:
   // - autoplay: start immediately
@@ -645,7 +713,12 @@ function LivePageInner() {
               transition={{ duration: 0.4 }}
               data-testid="live-active"
             >
-              {computed.youtube_id ? (
+              {computed.iframe_url ? (
+                <IframeLivePlayer
+                  url={computed.iframe_url}
+                  noSeek={computed.iframe_no_seek !== false}
+                />
+              ) : computed.youtube_id ? (
                 <YouTubeLivePlayer videoId={computed.youtube_id} />
               ) : (
                 <LivePlayer
