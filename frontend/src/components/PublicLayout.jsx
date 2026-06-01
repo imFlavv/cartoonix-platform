@@ -364,6 +364,7 @@ export function Footer() {
           <h4 className="font-display tracking-wider text-base mb-3">Cartoonix</h4>
           <ul className="space-y-1.5 text-muted-foreground">
             <li><Link className="hover:text-foreground transition-colors" to="/terms-and-conditions">Termeni și Condiții</Link></li>
+            <li><Link className="hover:text-foreground transition-colors" to="/gdpr">Politică de Confidențialitate (GDPR)</Link></li>
           </ul>
         </div>
       </div>

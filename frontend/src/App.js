@@ -14,6 +14,7 @@ import ResetPasswordPage from "@/pages/ResetPasswordPage";
 import RegisterPage from "@/pages/RegisterPage";
 import VerifyPage from "@/pages/VerifyPage";
 import TermsPage from "@/pages/TermsPage";
+import GdprPage from "@/pages/GdprPage";
 import ProfilePage from "@/pages/ProfilePage";
 import PlaylistPlayerPage from "@/pages/PlaylistPlayerPage";
 import PresentationPage from "@/pages/PresentationPage";
@@ -54,6 +55,7 @@ const PRESENTATION_ALLOWED_PREFIXES = [
   "/register",
   "/verify",
   "/terms-and-conditions",
+  "/gdpr",
   "/login",
   "/admin",
   "/concursuri",
@@ -253,6 +255,7 @@ function ChatMount() {
     "/reset-password",
     "/forgot-password",
     "/terms-and-conditions",
+    "/gdpr",
   ];
   if (HIDDEN_PREFIXES.some((p) => path === p || path.startsWith(p + "/"))) {
     return null;
@@ -281,6 +284,7 @@ function App() {
                 <Route path="/verify" element={<VerifyPage />} />
                 <Route path="/plans" element={<Navigate to="/" replace />} />
                 <Route path="/terms-and-conditions" element={<TermsPage />} />
+                <Route path="/gdpr" element={<GdprPage />} />
                 <Route path="/concursuri" element={<Navigate to="/" replace />} />
                 <Route path="/staff" element={<StaffPage />} />
                 <Route
