@@ -19,6 +19,21 @@ Cartoonix este o platformă premium de streaming pentru desene animate retro (Ca
 - Concursuri publice (3 contests, 2 free + 1 paid via Stripe)
 
 ## Implemented (CHANGELOG)
+### 2026-06-01 — Centrul de Support (utilizator & admin)
+- **Backend** (server.py): nouă colecție `support_tickets` + endpoint-uri:
+  - `POST /api/support/tickets` (auth) — creează ticket (title, message, attachment_url opțional)
+  - `GET /api/support/tickets` — listează ticketele utilizatorului
+  - `GET /api/support/tickets/{id}` — detalii (owner sau admin)
+  - `POST /api/support/tickets/{id}/reply` — adaugă răspuns (user sau admin); când admin răspunde pe ticket `open` → trece automat în `in_progress`
+  - `POST /api/support/upload` — upload atașament (max 8 MB, MIME whitelist: imagini, PDF, txt, log, csv, json, mp4/mov/webm, zip)
+  - `GET /api/admin/support/tickets` (admin) — listă cu filtre `status_filter` + `q` (caută în titlu/mesaj/email/nickname)
+  - `PATCH /api/admin/support/tickets/{id}` (admin) — actualizează status: open/in_progress/resolved/closed
+- **Frontend**:
+  - `/support` (`SupportPage.jsx`): pagină elegantă cu listă tickete, dialog "Solicitare nouă" (titlu + mesaj + atașament cu drag-area buton), dialog conversațional cu bule de mesaj (admin badge auriu cu Shield), reply în thread, lock când ticketul e închis.
+  - `/admin/support` (`AdminSupport.jsx`): tabel cu toate ticketele, filtru de status + search, dialog detaliu cu butoane pentru schimbarea statusului + reply.
+  - Link **Support** în header (vizibil doar la utilizatori autentificați) + în sidebar-ul admin (icon LifeBuoy).
+- **Testat E2E**: create ticket (curl + UI), admin listează 2 tichete, admin răspunde → status devine in_progress automat, admin marchează rezolvat → toast & badge actualizate, alt user primește 403 la /tickets/{id}, neautentificat → 401. DB curățat la final.
+
 ### 2026-06-01 — Download episoade (PLUS only)
 - Backend nou: `POST /api/me/episodes/{id}/download-link` (auth + PLUS) returnează un URL semnat `/api/episodes/download?dt=<JWT 5min>` + `filename`.
 - Backend nou: `GET /api/episodes/download?dt=...` validează JWT (scope=download), reverificăm PLUS-ul, rezolvăm `video_url` la calea reală sub `VIDEO_DIR`/`UPLOAD_DIR` (protecție path-traversal), streamăm fișierul cu `Content-Disposition: attachment` + `Cache-Control: private, no-store`.

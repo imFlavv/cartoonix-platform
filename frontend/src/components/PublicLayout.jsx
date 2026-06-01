@@ -128,6 +128,7 @@ export function TopNav() {
     { to: "/category/jetix-foxkids", label: "JETIX & Fox Kids" },
     { to: "/category/cartoon-network", label: "Cartoon Network" },
     { to: "/category/minimax", label: "Minimax" },
+    ...(user ? [{ to: "/support", label: "Support" }] : []),
   ];
 
   return (

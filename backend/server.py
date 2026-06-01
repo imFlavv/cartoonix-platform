@@ -2605,6 +2605,235 @@ async def admin_list_notifications(
 
 
 # ============================================================
+# Support tickets
+# ============================================================
+(UPLOAD_DIR / "support").mkdir(parents=True, exist_ok=True)
+
+SUPPORT_ALLOWED_EXT = {
+    "png", "jpg", "jpeg", "gif", "webp",
+    "pdf", "txt", "log", "csv", "json",
+    "mp4", "mov", "webm",
+    "zip",
+}
+SUPPORT_MAX_UPLOAD_BYTES = 8 * 1024 * 1024  # 8 MB
+SUPPORT_STATUSES = ("open", "in_progress", "resolved", "closed")
+
+
+class SupportTicketCreate(BaseModel):
+    title: str = Field(..., min_length=3, max_length=140)
+    message: str = Field(..., min_length=5, max_length=5000)
+    attachment_url: Optional[str] = None
+
+
+class SupportReplyCreate(BaseModel):
+    message: str = Field(..., min_length=1, max_length=5000)
+    attachment_url: Optional[str] = None
+
+
+class SupportStatusUpdate(BaseModel):
+    status: Literal["open", "in_progress", "resolved", "closed"]
+
+
+def _ticket_to_public(t: dict) -> dict:
+    """Strip internal Mongo fields; ensure deterministic shape."""
+    return {
+        "id": t["id"],
+        "user_id": t.get("user_id"),
+        "user_email": t.get("user_email"),
+        "user_nickname": t.get("user_nickname"),
+        "title": t.get("title", ""),
+        "message": t.get("message", ""),
+        "attachment_url": t.get("attachment_url"),
+        "status": t.get("status", "open"),
+        "created_at": t.get("created_at"),
+        "updated_at": t.get("updated_at"),
+        "replies": t.get("replies", []),
+        "reply_count": len(t.get("replies", [])),
+    }
+
+
+@api_router.post("/support/upload")
+async def support_upload_attachment(
+    file: UploadFile = File(...),
+    user=Depends(get_current_user),
+):
+    """Upload a single attachment for a support ticket or reply."""
+    raw = file.filename or "file"
+    safe_name = re.sub(r"[\\/:*?\"<>|\r\n\t]+", "_", raw)[:120] or "file"
+    ext = (safe_name.rsplit(".", 1)[-1] if "." in safe_name else "").lower()
+    if ext not in SUPPORT_ALLOWED_EXT:
+        raise HTTPException(400, f"Tip de fișier neacceptat: .{ext or '?'}")
+
+    # Stream-write while enforcing the size cap.
+    new_name = f"{user['id']}_{int(now_utc().timestamp()*1000)}_{safe_name}"
+    dest = UPLOAD_DIR / "support" / new_name
+    total = 0
+    try:
+        with open(dest, "wb") as out:
+            while True:
+                chunk = await file.read(64 * 1024)
+                if not chunk:
+                    break
+                total += len(chunk)
+                if total > SUPPORT_MAX_UPLOAD_BYTES:
+                    out.close()
+                    try:
+                        dest.unlink()
+                    except Exception:
+                        pass
+                    raise HTTPException(413, "Fișierul depășește 8 MB.")
+                out.write(chunk)
+    finally:
+        await file.close()
+
+    return {
+        "url": f"/api/uploads/support/{new_name}",
+        "filename": safe_name,
+        "size": total,
+    }
+
+
+@api_router.post("/support/tickets")
+async def create_support_ticket(payload: SupportTicketCreate, user=Depends(get_current_user)):
+    now = now_utc().isoformat()
+    doc = {
+        "id": new_id(),
+        "user_id": user["id"],
+        "user_email": user.get("email", ""),
+        "user_nickname": user.get("nickname", ""),
+        "title": payload.title.strip(),
+        "message": payload.message.strip(),
+        "attachment_url": (payload.attachment_url or "").strip() or None,
+        "status": "open",
+        "created_at": now,
+        "updated_at": now,
+        "replies": [],
+    }
+    await db.support_tickets.insert_one(doc)
+    return _ticket_to_public(doc)
+
+
+@api_router.get("/support/tickets")
+async def list_my_support_tickets(user=Depends(get_current_user)):
+    rows = (
+        await db.support_tickets.find({"user_id": user["id"]}, {"_id": 0})
+        .sort("updated_at", -1)
+        .to_list(200)
+    )
+    return [_ticket_to_public(t) for t in rows]
+
+
+@api_router.get("/support/tickets/{ticket_id}")
+async def get_support_ticket(ticket_id: str, user=Depends(get_current_user)):
+    t = await db.support_tickets.find_one({"id": ticket_id}, {"_id": 0})
+    if not t:
+        raise HTTPException(404, "Ticket inexistent")
+    is_admin = user.get("role") == "admin"
+    if not is_admin and t.get("user_id") != user["id"]:
+        raise HTTPException(403, "Nu ai acces la acest ticket")
+    return _ticket_to_public(t)
+
+
+@api_router.post("/support/tickets/{ticket_id}/reply")
+async def reply_support_ticket(
+    ticket_id: str,
+    payload: SupportReplyCreate,
+    user=Depends(get_current_user),
+):
+    t = await db.support_tickets.find_one({"id": ticket_id}, {"_id": 0})
+    if not t:
+        raise HTTPException(404, "Ticket inexistent")
+    is_admin = user.get("role") == "admin"
+    if not is_admin and t.get("user_id") != user["id"]:
+        raise HTTPException(403, "Nu ai acces la acest ticket")
+    if t.get("status") == "closed" and not is_admin:
+        raise HTTPException(400, "Ticket-ul este închis. Deschide unul nou.")
+
+    reply = {
+        "id": new_id(),
+        "author_id": user["id"],
+        "author_nickname": user.get("nickname", ""),
+        "author_role": user.get("role", "user"),
+        "message": payload.message.strip(),
+        "attachment_url": (payload.attachment_url or "").strip() or None,
+        "created_at": now_utc().isoformat(),
+    }
+    # When a user replies on an unresolved ticket, keep status as-is.
+    # When admin replies on "open", move to "in_progress" automatically.
+    new_status = t.get("status", "open")
+    if is_admin and new_status == "open":
+        new_status = "in_progress"
+
+    await db.support_tickets.update_one(
+        {"id": ticket_id},
+        {
+            "$push": {"replies": reply},
+            "$set": {"status": new_status, "updated_at": now_utc().isoformat()},
+        },
+    )
+    updated = await db.support_tickets.find_one({"id": ticket_id}, {"_id": 0})
+    return _ticket_to_public(updated)
+
+
+# ----- Admin -----
+@api_router.get("/admin/support/tickets")
+async def admin_list_support_tickets(
+    status_filter: Optional[str] = None,
+    q: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 50,
+    user=Depends(require_admin),
+):
+    page = max(1, page)
+    page_size = max(1, min(page_size, 200))
+    flt: dict = {}
+    if status_filter and status_filter in SUPPORT_STATUSES:
+        flt["status"] = status_filter
+    if q:
+        rx = {"$regex": re.escape(q.strip()), "$options": "i"}
+        flt["$or"] = [
+            {"title": rx},
+            {"message": rx},
+            {"user_email": rx},
+            {"user_nickname": rx},
+        ]
+    total = await db.support_tickets.count_documents(flt)
+    rows = (
+        await db.support_tickets.find(flt, {"_id": 0})
+        .sort("updated_at", -1)
+        .skip((page - 1) * page_size)
+        .limit(page_size)
+        .to_list(page_size)
+    )
+    # Open count helps the admin sidebar badge later if you want.
+    open_count = await db.support_tickets.count_documents({"status": {"$in": ["open", "in_progress"]}})
+    return {
+        "items": [_ticket_to_public(t) for t in rows],
+        "total": total,
+        "open_count": open_count,
+        "page": page,
+        "page_size": page_size,
+    }
+
+
+@api_router.patch("/admin/support/tickets/{ticket_id}")
+async def admin_update_ticket_status(
+    ticket_id: str,
+    payload: SupportStatusUpdate,
+    user=Depends(require_admin),
+):
+    t = await db.support_tickets.find_one({"id": ticket_id}, {"_id": 0, "id": 1})
+    if not t:
+        raise HTTPException(404, "Ticket inexistent")
+    await db.support_tickets.update_one(
+        {"id": ticket_id},
+        {"$set": {"status": payload.status, "updated_at": now_utc().isoformat()}},
+    )
+    updated = await db.support_tickets.find_one({"id": ticket_id}, {"_id": 0})
+    return _ticket_to_public(updated)
+
+
+# ============================================================
 # Mount router & middleware
 # ============================================================
 # Attach chat module handlers (resolves auth deps without circular import).

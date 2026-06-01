@@ -15,6 +15,7 @@ import {
   Trophy,
   Bell,
   MessageSquare,
+  LifeBuoy,
   Shield,
 } from "lucide-react";
 import {
@@ -34,6 +35,7 @@ const NAV_ITEMS = [
   { to: "/admin/notifications", label: "Notificări", icon: Bell, testId: "admin-nav-notifications" },
   { to: "/admin/chat", label: "Chat", icon: MessageSquare, testId: "admin-nav-chat" },
   { to: "/admin/staff", label: "Staff Applications", icon: Shield, testId: "admin-nav-staff" },
+  { to: "/admin/support", label: "Support", icon: LifeBuoy, testId: "admin-nav-support" },
   { to: "/admin/settings", label: "Setări", icon: SettingsIcon, testId: "admin-nav-settings" },
 ];
 

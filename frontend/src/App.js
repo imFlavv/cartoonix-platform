@@ -32,6 +32,8 @@ import AdminNotifications from "@/pages/admin/AdminNotifications";
 import AdminSettings from "@/pages/admin/AdminSettings";
 import AdminChat from "@/pages/admin/AdminChat";
 import AdminStaff from "@/pages/admin/AdminStaff";
+import AdminSupport from "@/pages/admin/AdminSupport";
+import SupportPage from "@/pages/SupportPage";
 import StaffPage from "@/pages/StaffPage";
 import { RequireAdmin, RequireAuth } from "@/components/RouteGuards";
 import ChatWidget from "@/components/chat/ChatWidget";
@@ -267,6 +269,14 @@ function App() {
                   }
                 />
                 <Route path="/dashboard" element={<Navigate to="/profile" replace />} />
+                <Route
+                  path="/support"
+                  element={
+                    <RequireAuth>
+                      <PublicRoute element={<SupportPage />} />
+                    </RequireAuth>
+                  }
+                />
                 <Route path="/admin" element={<RequireAdmin><AdminLayout /></RequireAdmin>}>
                   <Route index element={<AdminOverview />} />
                   <Route path="cartoons" element={<AdminCartoons />} />
@@ -277,6 +287,7 @@ function App() {
                   <Route path="settings" element={<AdminSettings />} />
                   <Route path="chat" element={<AdminChat />} />
                   <Route path="staff" element={<AdminStaff />} />
+                  <Route path="support" element={<AdminSupport />} />
                 </Route>
               </Routes>
               </EarlyAccessGate>
