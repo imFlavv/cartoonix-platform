@@ -88,12 +88,16 @@ function LiveBadge() {
 function LivePlayer({ src, startMs, durationSeconds, poster }) {
   const videoRef = useRef(null);
   const containerRef = useRef(null);
+  const initialSyncDoneRef = useRef(false);
+  const retryRef = useRef(0);
+  const retryTimerRef = useRef(null);
 
   const [playing, setPlaying] = useState(false);
-  const [muted, setMuted] = useState(true); // start muted for autoplay
+  const [muted, setMuted] = useState(true);
   const [volume, setVolume] = useState(0.8);
   const [isFs, setIsFs] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [behindLive, setBehindLive] = useState(false);
 
   const expectedPosition = useCallback(() => {
     if (!startMs) return 0;
@@ -102,12 +106,20 @@ function LivePlayer({ src, startMs, durationSeconds, poster }) {
     return Math.max(0, Math.min(max, elapsed));
   }, [startMs, durationSeconds]);
 
-  // Seek-block: if the user (or the browser) seeks, snap back to allowed.
+  // Block user seeks ONLY when they differ meaningfully from natural playback.
+  // We allow tiny snaps to expected position when the user attempts to scrub
+  // via keyboard / programmatic API. The periodic drift guard is intentionally
+  // gone — it was causing constant rebuffering on slow networks because each
+  // forward-snap throws away the buffer that was being filled.
   const handleSeeking = useCallback(() => {
     const v = videoRef.current;
     if (!v) return;
+    // Only block if the seek target is AHEAD of current expected (user trying
+    // to skip forward) or WAY behind (>60s — likely a scrub). Natural seeks
+    // from buffering should remain untouched.
     const allowed = expectedPosition();
-    if (Math.abs(v.currentTime - allowed) > 1.5) {
+    const diff = v.currentTime - allowed;
+    if (diff > 2 || diff < -60) {
       try {
         v.currentTime = allowed;
       } catch {
@@ -116,7 +128,6 @@ function LivePlayer({ src, startMs, durationSeconds, poster }) {
     }
   }, [expectedPosition]);
 
-  // Block keyboard arrows / media keys for seeking while focused inside player
   const handleKeyDown = useCallback((e) => {
     const blocked = [
       "ArrowLeft",
@@ -132,7 +143,6 @@ function LivePlayer({ src, startMs, durationSeconds, poster }) {
     }
   }, []);
 
-  // Fullscreen helpers
   useEffect(() => {
     const onFs = () => {
       setIsFs(!!document.fullscreenElement);
@@ -141,20 +151,33 @@ function LivePlayer({ src, startMs, durationSeconds, poster }) {
     return () => document.removeEventListener("fullscreenchange", onFs);
   }, []);
 
-  // Attempt autoplay on mount
+  // Try to play once src is ready. Browser may block — show big play overlay.
   useEffect(() => {
     const v = videoRef.current;
     if (!v) return;
     v.muted = true;
     v.volume = volume;
-    const playPromise = v.play();
-    if (playPromise && typeof playPromise.catch === "function") {
-      playPromise.catch(() => {
-        // Autoplay blocked — user has to click play.
+    const p = v.play();
+    if (p && typeof p.catch === "function") {
+      p.catch(() => {
+        /* user must click */
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [src]);
+
+  // Background watchdog: only update the "behind live" indicator. We never
+  // forcibly snap forward — that caused 5-10s loops on slow connections.
+  useEffect(() => {
+    const id = setInterval(() => {
+      const v = videoRef.current;
+      if (!v) return;
+      const allowed = expectedPosition();
+      const diff = allowed - (v.currentTime || 0);
+      setBehindLive(diff > 30);
+    }, 4000);
+    return () => clearInterval(id);
+  }, [expectedPosition]);
 
   const togglePlay = () => {
     const v = videoRef.current;
@@ -202,27 +225,38 @@ function LivePlayer({ src, startMs, durationSeconds, poster }) {
     }
   };
 
-  // Periodic drift guard — only re-snap on LARGE drifts (network stalls,
-  // user paused & resumed much later, etc.). 10s threshold avoids fighting
-  // the natural ~1s/sec advance of both video and clock.
-  useEffect(() => {
-    const id = setInterval(() => {
-      const v = videoRef.current;
-      if (!v || v.paused) return;
-      const allowed = expectedPosition();
-      const drift = (v.currentTime || 0) - allowed;
-      // Only correct large drifts to keep stream tightly synced without
-      // causing visible jumps from sub-second jitter.
-      if (drift > 10 || drift < -10) {
+  // Manual "skip to live" — explicit user action; reseta indicatorul.
+  const skipToLive = () => {
+    const v = videoRef.current;
+    if (!v) return;
+    try {
+      v.currentTime = expectedPosition();
+      setBehindLive(false);
+      if (v.paused) v.play().catch(() => {});
+    } catch {
+      /* ignore */
+    }
+  };
+
+  // Resilient error handling: try v.load() a few times before giving up.
+  const handleError = () => {
+    const v = videoRef.current;
+    if (!v) return;
+    if (retryRef.current < 4) {
+      retryRef.current += 1;
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = setTimeout(() => {
         try {
-          v.currentTime = allowed;
+          v.load();
+          v.play().catch(() => {});
         } catch {
           /* ignore */
         }
-      }
-    }, 5000);
-    return () => clearInterval(id);
-  }, [expectedPosition]);
+      }, 1500 * retryRef.current);
+    } else {
+      setHasError(true);
+    }
+  };
 
   return (
     <div
@@ -242,19 +276,23 @@ function LivePlayer({ src, startMs, durationSeconds, poster }) {
         preload="auto"
         autoPlay
         muted
-        onPlay={() => setPlaying(true)}
+        onPlay={() => {
+          setPlaying(true);
+          retryRef.current = 0;
+        }}
         onPause={() => setPlaying(false)}
         onSeeking={handleSeeking}
         onLoadedMetadata={() => {
           const v = videoRef.current;
-          if (!v) return;
+          if (!v || initialSyncDoneRef.current) return;
+          initialSyncDoneRef.current = true;
           try {
             v.currentTime = expectedPosition();
           } catch {
             /* ignore */
           }
         }}
-        onError={() => setHasError(true)}
+        onError={handleError}
         onContextMenu={(e) => e.preventDefault()}
         controls={false}
         controlsList="nodownload noremoteplayback noplaybackrate"
@@ -264,6 +302,19 @@ function LivePlayer({ src, startMs, durationSeconds, poster }) {
       <div className="absolute top-3 left-3 z-10">
         <LiveBadge />
       </div>
+
+      {/* Behind-live indicator */}
+      {behindLive && playing && !hasError && (
+        <button
+          type="button"
+          onClick={skipToLive}
+          data-testid="live-skip-to-live"
+          className="absolute top-3 right-3 z-10 inline-flex items-center gap-2 rounded-full border border-red-500/40 bg-red-500/20 backdrop-blur-md px-3 h-9 text-[11px] font-bold uppercase tracking-[0.2em] text-red-100 hover:bg-red-500/30 transition-colors"
+        >
+          <Radio className="h-3.5 w-3.5" />
+          Du-mă la live
+        </button>
+      )}
 
       {/* Error overlay */}
       {hasError && (
@@ -276,6 +327,21 @@ function LivePlayer({ src, startMs, durationSeconds, poster }) {
               Verifică conexiunea la internet. Dacă problema persistă, contactează
               un administrator — fișierul video poate să nu fie disponibil.
             </p>
+            <button
+              type="button"
+              onClick={() => {
+                retryRef.current = 0;
+                setHasError(false);
+                const v = videoRef.current;
+                if (v) {
+                  v.load();
+                  v.play().catch(() => {});
+                }
+              }}
+              className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--accent))] text-black px-4 h-10 text-sm font-semibold hover:brightness-110 transition-all"
+            >
+              Reîncearcă
+            </button>
           </div>
         </div>
       )}
@@ -295,7 +361,7 @@ function LivePlayer({ src, startMs, durationSeconds, poster }) {
         </button>
       )}
 
-      {/* Bottom controls bar (no progress bar). Always visible on touch, hover on desktop. */}
+      {/* Bottom controls bar (no progress bar). */}
       <div
         className="absolute inset-x-0 bottom-0 z-10 px-3 sm:px-4 py-2.5 bg-gradient-to-t from-black/85 via-black/40 to-transparent flex items-center gap-2 sm:gap-3 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100 transition-opacity"
       >
