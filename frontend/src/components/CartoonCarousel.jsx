@@ -156,7 +156,7 @@ export function CartoonCarousel() {
         </div>
       )}
 
-      {/* Track — horizontal scroll, 3 cards visible on desktop */}
+      {/* Track — horizontal scroll, 3 cards × 2 rows visible on desktop */}
       {items && items.length > 0 && (
         <div className="relative -mx-1 sm:mx-0">
           {/* Gradient fades at edges (desktop only) */}
@@ -165,14 +165,11 @@ export function CartoonCarousel() {
           <div
             ref={trackRef}
             data-testid="carousel-track"
-            className="flex gap-4 sm:gap-6 overflow-x-auto snap-x snap-mandatory pb-4 px-1 sm:px-0 scrollbar-thin scrollbar-thumb-white/10 hover:scrollbar-thumb-white/20"
+            className="grid grid-flow-col grid-rows-2 auto-cols-[78%] sm:auto-cols-[calc((100%-1.5rem)/2)] lg:auto-cols-[calc((100%-3rem)/3)] gap-x-4 gap-y-6 sm:gap-x-6 sm:gap-y-8 overflow-x-auto snap-x snap-mandatory pb-4 px-1 sm:px-0 scrollbar-thin scrollbar-thumb-white/10 hover:scrollbar-thumb-white/20"
             style={{ scrollbarColor: "rgba(255,255,255,0.1) transparent" }}
           >
             {items.map((c) => (
-              <div
-                key={c.id}
-                className="snap-start shrink-0 w-[78%] sm:w-[calc((100%-1.5rem)/2)] lg:w-[calc((100%-3rem)/3)]"
-              >
+              <div key={c.id} className="snap-start">
                 <CartoonCard
                   cartoon={c}
                   categoryId={resolveCategoryId(c)}
