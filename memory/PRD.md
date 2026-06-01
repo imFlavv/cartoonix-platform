@@ -19,6 +19,13 @@ Cartoonix este o platformă premium de streaming pentru desene animate retro (Ca
 - Concursuri publice (3 contests, 2 free + 1 paid via Stripe)
 
 ## Implemented (CHANGELOG)
+### 2026-06-01 — Fix: desenele nu apăreau în /category/* + optimizare query
+- **Cauză**: cartoon-ul de test pe care l-am creat anterior pentru DnD avea `category` (slug string) dar nu `category_id` (id-ul canonical). Endpoint-ul `/api/cartoons?category=...` filtra strict după `category_id`, deci returna `[]` și pagina rămânea pe skelete/empty state.
+- **Backend** (`server.py`): filtrul `/api/cartoons` acceptă acum AMBELE — `category_id` sau legacy `category` (slug) — via `$or`, deci orice document mai vechi sau import legacy mai funcționează.
+- **N+1 eliminat**: episode_count se calcula cu un `count_documents` per cartoon (pentru 20 cartoons = 21 queries). Acum se face un singur `$group` agregat. Pentru 100 desene → 1 query în loc de 101.
+- **Date**: cartoon-ul de test a fost normalizat cu `category_id: cat-cn`; rulat și un loop care normalizează automat orice alt cartoon legacy din DB.
+- **Verificat E2E**: `/category/cartoon-network` afișează cartoon-ul „Curaj, Câinele Cel Fricos" (1.5s); `/category/jetix-foxkids` afișează corect empty state „Niciun desen pe acest canal încă" (în DB nu există cartoons pentru acest canal — adminul îl populează din Panou).
+
 ### 2026-06-01 — Optimizare performanță pentru 100+ useri concurenți
 - **ChatWidget**: polling delta cu parametrul `since` în loc de a re-cere tot istoricul; intervalul mesajelor 3s→5s, state 5s→15s, presence/heartbeat 30s→45s, payload mesaje 200→max 50 per delta (load inițial 80).
 - **Tab ascuns**: toate polling-urile (chat messages/state/presence/heartbeat + notificări) sunt **oprite** când `document.visibilityState === "hidden"` și se reîncarcă o singură dată la revenire.

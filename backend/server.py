@@ -1480,18 +1480,31 @@ async def get_category(slug: str):
 # ============================================================
 @api_router.get("/cartoons")
 async def list_cartoons(category: Optional[str] = None, q: Optional[str] = None, limit: int = 200):
-    query = {}
+    query: dict = {}
     if category:
         cat = await db.categories.find_one({"slug": category}, {"_id": 0})
         if not cat:
             return []
-        query["category_id"] = cat["id"]
+        # Be tolerant: match by category_id (canonical) OR legacy `category` slug.
+        # Some older docs / imports may have stored only the slug.
+        query["$or"] = [
+            {"category_id": cat["id"]},
+            {"category": cat["slug"]},
+        ]
     if q:
-        query["title"] = {"$regex": q, "$options": "i"}
+        query["title"] = {"$regex": re.escape(q), "$options": "i"}
     items = await db.cartoons.find(query, {"_id": 0}).sort("created_at", -1).to_list(limit)
-    # Enrich with episode_count
+    if not items:
+        return []
+    # Single grouped query for episode counts (avoids N+1).
+    cartoon_ids = [it["id"] for it in items]
+    pipeline = [
+        {"$match": {"cartoon_id": {"$in": cartoon_ids}}},
+        {"$group": {"_id": "$cartoon_id", "n": {"$sum": 1}}},
+    ]
+    counts = {row["_id"]: row["n"] async for row in db.episodes.aggregate(pipeline)}
     for it in items:
-        it["episode_count"] = await db.episodes.count_documents({"cartoon_id": it["id"]})
+        it["episode_count"] = counts.get(it["id"], 0)
     return items
 
 
