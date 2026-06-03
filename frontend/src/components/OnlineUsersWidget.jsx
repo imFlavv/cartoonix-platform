@@ -97,9 +97,6 @@ export default function OnlineUsersWidget() {
         >
           {count.toLocaleString("ro-RO")}
         </span>
-        <span className="text-[10px] uppercase tracking-[0.16em] text-white/55 leading-none hidden sm:inline">
-          online
-        </span>
       </div>
     </div>
   );
