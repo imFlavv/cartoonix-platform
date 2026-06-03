@@ -182,32 +182,55 @@ export default function CartoonDetailPage() {
     }
   };
 
-  const onProgress = async (e) => {
-    if (!user || !activeEp) return;
-    const t = Math.floor(e?.target?.currentTime || 0);
-    // Persist watched state once per episode after ~5s of playback, then
-    // refresh the recorded progress every ~30s afterwards. This guarantees
-    // the "Vizionat" badge survives a refresh even for short viewings.
+  /**
+   * Persist watched state for the current episode. Called from `onPlay` (the
+   * moment playback actually starts) so even very short viewings are recorded.
+   * The local "Vizionat" badge is updated only after the backend write
+   * succeeds, so the badge reflects real persisted state — surviving refresh,
+   * logout, and a switch to a different browser.
+   */
+  const persistWatched = async (epId, progress = 0) => {
+    if (!user || !data?.id || !epId) return;
+    try {
+      await api.post("/me/history", {
+        cartoon_id: data.id,
+        episode_id: epId,
+        progress_seconds: progress,
+      });
+      setWatchedIds((prev) => {
+        if (prev.has(epId)) return prev;
+        const next = new Set(prev);
+        next.add(epId);
+        return next;
+      });
+    } catch (err) {
+      // Surface a soft toast so the user knows persistence failed — better
+      // than silently lying with a local-only "Vizionat" badge.
+      toast.error("Nu am putut salva progresul. Verifică conexiunea.");
+    }
+  };
+
+  const onPlay = () => {
+    if (!activeEp) return;
     const epId = activeEp.id;
-    const firstSave = savedEpRef.current !== epId && t >= 5;
-    const refresh = savedEpRef.current === epId && t > 0 && t % 30 === 0;
-    if (firstSave || refresh) {
-      savedEpRef.current = epId;
-      try {
-        await api.post("/me/history", {
+    if (savedEpRef.current === epId) return;
+    savedEpRef.current = epId;
+    persistWatched(epId, 0);
+  };
+
+  const onProgress = (e) => {
+    if (!user || !activeEp || !data?.id) return;
+    const t = Math.floor(e?.target?.currentTime || 0);
+    const epId = activeEp.id;
+    // Refresh the persisted progress every ~30s so users can resume later.
+    if (savedEpRef.current === epId && t > 0 && t % 30 === 0) {
+      api
+        .post("/me/history", {
           cartoon_id: data.id,
           episode_id: epId,
           progress_seconds: t,
-        });
-      } catch {}
-      if (firstSave && !watchedIds.has(epId)) {
-        setWatchedIds((prev) => {
-          if (prev.has(epId)) return prev;
-          const next = new Set(prev);
-          next.add(epId);
-          return next;
-        });
-      }
+        })
+        .catch(() => {});
     }
   };
 
@@ -320,6 +343,7 @@ export default function CartoonDetailPage() {
                       preload="metadata"
                       controlsList="nodownload"
                       className="h-full w-full bg-black object-contain"
+                      onPlay={onPlay}
                       onTimeUpdate={onProgress}
                       onEnded={handleEpisodeEnded}
                       data-testid="watch-video-element"
