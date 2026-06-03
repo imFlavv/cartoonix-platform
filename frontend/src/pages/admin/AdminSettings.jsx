@@ -532,9 +532,11 @@ export default function AdminSettings() {
                   )}
                 </h2>
                 <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                  Afișează un mesaj important imediat sub bara de navigare, pe
-                  toate paginile platformei. Maxim 500 caractere. Bara rămâne
-                  vizibilă până o dezactivezi.
+                  Afișează mesaje importante imediat sub bara de navigare, pe
+                  toate paginile platformei. <strong>Scrie un anunț pe linie</strong>
+                   — dacă sunt mai multe, vor derula tip marquee, separate cu un
+                  romb. Max 2000 caractere total. Bara rămâne vizibilă până o
+                  dezactivezi.
                 </p>
               </div>
               <Toggle
@@ -556,15 +558,22 @@ export default function AdminSettings() {
                 id="announcement-text"
                 data-testid="settings-announcement-text"
                 value={announcementDraft}
-                onChange={(e) => setAnnouncementDraft(e.target.value.slice(0, 500))}
-                placeholder="Ex: Maraton special de Crăciun pe 24 decembrie de la ora 18:00 — nu rata!"
-                rows={2}
+                onChange={(e) => setAnnouncementDraft(e.target.value.slice(0, 2000))}
+                placeholder={"Maraton special de Crăciun pe 24 decembrie de la ora 18:00!\nÎnregistrările pentru concursul lunar sunt deschise până vineri.\nServerul va fi în mentenanță sâmbătă 02:00 – 04:00."}
+                rows={4}
                 disabled={loading}
-                className="resize-none bg-black/30 border-white/10 focus-visible:ring-[hsl(var(--accent))]/40"
+                className="resize-y min-h-[110px] bg-black/30 border-white/10 focus-visible:ring-[hsl(var(--accent))]/40 font-mono text-[13px]"
               />
               <div className="flex items-center justify-between">
                 <span className="text-[11px] text-muted-foreground tabular-nums">
-                  {announcementDraft.length}/500
+                  {announcementDraft.length}/2000
+                  {(() => {
+                    const lines = announcementDraft
+                      .split(/\r?\n/)
+                      .map((s) => s.trim())
+                      .filter(Boolean).length;
+                    return lines > 0 ? ` · ${lines} ${lines === 1 ? "anunț" : "anunțuri"}` : "";
+                  })()}
                 </span>
                 <Button
                   data-testid="settings-announcement-save"
@@ -594,13 +603,25 @@ export default function AdminSettings() {
                   Preview
                 </p>
                 <div
-                  className="rounded-lg border border-white/[0.06] px-3 py-2 text-[13px] text-white/90"
+                  className="rounded-lg border border-white/[0.06] px-3 py-2 text-[13px] text-white/90 flex flex-wrap items-center gap-x-3 gap-y-1"
                   style={{
                     background:
                       "linear-gradient(90deg, rgba(255,59,59,0.12) 0%, rgba(250,204,21,0.10) 50%, rgba(255,59,59,0.12) 100%)",
                   }}
                 >
-                  📣 {local.announcement_text}
+                  <span aria-hidden>📣</span>
+                  {local.announcement_text
+                    .split(/\r?\n/)
+                    .map((s) => s.trim())
+                    .filter(Boolean)
+                    .map((line, i, arr) => (
+                      <React.Fragment key={i}>
+                        <span>{line}</span>
+                        {i < arr.length - 1 && (
+                          <span className="text-[hsl(var(--accent))]/70">◆</span>
+                        )}
+                      </React.Fragment>
+                    ))}
                 </div>
               </div>
             )}

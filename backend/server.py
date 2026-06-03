@@ -816,7 +816,7 @@ async def admin_update_settings(payload: dict, user=Depends(require_admin)):
             else:
                 allowed[k] = [str(x).strip() for x in allowed[k] if str(x).strip()]
         elif isinstance(default_v, str):
-            allowed[k] = str(allowed[k] or "").strip()[:500]
+            allowed[k] = str(allowed[k] or "").strip()[:2000]
 
     # Mutual exclusion between early_access_mode and presentation_mode.
     # Turning one ON automatically turns the other OFF.
