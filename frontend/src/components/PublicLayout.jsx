@@ -17,6 +17,7 @@ import { BrandLogo } from "@/components/BrandLogo";
 import { useSettings } from "@/contexts/SettingsContext";
 import UserBadges from "@/components/UserBadges";
 import InboxPanel from "@/components/InboxPanel";
+import OnlinePresenceBadge from "@/components/OnlinePresenceBadge";
 import { toast } from "sonner";
 
 function LiveNavButton() {
@@ -427,6 +428,7 @@ export default function PublicLayout({ children }) {
       <TopNav />
       <main className="flex-1">{children}</main>
       <Footer />
+      <OnlinePresenceBadge />
     </div>
   );
 }
