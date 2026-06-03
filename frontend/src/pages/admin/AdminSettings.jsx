@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-import { Eye, EyeOff, Globe, Loader2, AlertTriangle, Wrench, Rocket } from "lucide-react";
+import { Eye, EyeOff, Globe, Loader2, AlertTriangle, Wrench, Rocket, LifeBuoy, Megaphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { useSettings } from "@/contexts/SettingsContext";
 
 function Toggle({ checked, onChange, disabled, id }) {
@@ -32,16 +33,28 @@ function Toggle({ checked, onChange, disabled, id }) {
 
 export default function AdminSettings() {
   const { settings, refresh } = useSettings() || {};
-  const [local, setLocal] = useState({ presentation_mode: false, maintenance_mode: false, early_access_mode: false });
+  const [local, setLocal] = useState({
+    presentation_mode: false,
+    maintenance_mode: false,
+    early_access_mode: false,
+    support_enabled: true,
+    announcement_active: false,
+    announcement_text: "",
+  });
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [announcementDraft, setAnnouncementDraft] = useState("");
+  const [savingAnnouncement, setSavingAnnouncement] = useState(false);
 
   useEffect(() => {
     let mounted = true;
     api
       .get("/admin/settings")
       .then(({ data }) => {
-        if (mounted) setLocal(data);
+        if (mounted) {
+          setLocal(data);
+          setAnnouncementDraft(data?.announcement_text || "");
+        }
       })
       .catch(() => {
         if (settings) setLocal(settings);
@@ -148,6 +161,69 @@ export default function AdminSettings() {
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const toggleSupport = async (next) => {
+    if (saving) return;
+    const prev = local.support_enabled;
+    setLocal((s) => ({ ...s, support_enabled: next }));
+    setSaving(true);
+    try {
+      const { data } = await api.patch("/admin/settings", { support_enabled: next });
+      setLocal(data);
+      if (refresh) await refresh();
+      toast.success(next ? "Sistem support activat" : "Sistem support dezactivat", {
+        description: next
+          ? "Linkul Support reapare în navigare și utilizatorii pot deschide tickete."
+          : "Linkul Support a fost ascuns din navigare și nu mai pot fi create tickete noi.",
+      });
+    } catch (err) {
+      setLocal((s) => ({ ...s, support_enabled: prev }));
+      toast.error("Nu am putut salva setarea", {
+        description: err?.response?.data?.detail || "Încearcă din nou.",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggleAnnouncementActive = async (next) => {
+    if (saving) return;
+    const prev = local.announcement_active;
+    setLocal((s) => ({ ...s, announcement_active: next }));
+    setSaving(true);
+    try {
+      const { data } = await api.patch("/admin/settings", { announcement_active: next });
+      setLocal(data);
+      setAnnouncementDraft(data?.announcement_text || "");
+      if (refresh) await refresh();
+      toast.success(next ? "Bara de anunțuri activată" : "Bara de anunțuri dezactivată");
+    } catch (err) {
+      setLocal((s) => ({ ...s, announcement_active: prev }));
+      toast.error("Nu am putut salva setarea", {
+        description: err?.response?.data?.detail || "Încearcă din nou.",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveAnnouncementText = async () => {
+    const text = (announcementDraft || "").trim();
+    setSavingAnnouncement(true);
+    try {
+      const { data } = await api.patch("/admin/settings", { announcement_text: text });
+      setLocal(data);
+      setAnnouncementDraft(data?.announcement_text || "");
+      if (refresh) await refresh();
+      toast.success("Anunț salvat");
+    } catch (err) {
+      toast.error("Nu am putut salva anunțul", {
+        description: err?.response?.data?.detail || "Încearcă din nou.",
+      });
+    } finally {
+      setSavingAnnouncement(false);
     }
   };
 
@@ -381,6 +457,159 @@ export default function AdminSettings() {
               Previzualizează →
             </a>
           </Button>
+        </div>
+      </div>
+
+      {/* SUPPORT TOGGLE CARD */}
+      <div className="rounded-2xl border border-border bg-card/70 overflow-hidden">
+        <div className="p-6 flex items-start gap-5">
+          <div className="shrink-0 h-12 w-12 rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 grid place-items-center text-white">
+            <LifeBuoy className="h-6 w-6" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="font-display text-xl tracking-wide flex items-center gap-2">
+                  Sistem de Support
+                  {loading ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  ) : local.support_enabled ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 uppercase tracking-widest">
+                      <Eye className="h-3 w-3" /> Activ
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-white/10 text-muted-foreground uppercase tracking-widest">
+                      <EyeOff className="h-3 w-3" /> Inactiv
+                    </span>
+                  )}
+                </h2>
+                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+                  Controlează disponibilitatea ticketelor de support. Când e
+                  <strong> dezactivat</strong>, linkul „Support" dispare din
+                  navigare, pagina <code>/support</code> redirecționează acasă, iar
+                  utilizatorii nu pot crea sau răspunde la tickete. Adminii păstrează
+                  acces complet la <code>/admin/support</code> pentru ticketele
+                  existente.
+                </p>
+              </div>
+              <Toggle
+                id="settings-support-toggle"
+                checked={!!local.support_enabled}
+                onChange={toggleSupport}
+                disabled={saving || loading}
+              />
+            </div>
+          </div>
+        </div>
+        <div className="px-6 py-3 bg-black/20 border-t border-border/60 flex items-center">
+          <span className="text-xs text-muted-foreground">
+            Schimbarea e instantanee pentru toți utilizatorii.
+          </span>
+        </div>
+      </div>
+
+      {/* ANNOUNCEMENT BAR CARD */}
+      <div className="rounded-2xl border border-border bg-card/70 overflow-hidden">
+        <div className="p-6 flex items-start gap-5">
+          <div className="shrink-0 h-12 w-12 rounded-xl bg-gradient-to-br from-[#ff3b3b] to-[#facc15] grid place-items-center text-black">
+            <Megaphone className="h-6 w-6" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="font-display text-xl tracking-wide flex items-center gap-2">
+                  Bară de anunțuri
+                  {loading ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  ) : local.announcement_active ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 uppercase tracking-widest">
+                      <Eye className="h-3 w-3" /> Activ
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-white/10 text-muted-foreground uppercase tracking-widest">
+                      <EyeOff className="h-3 w-3" /> Inactiv
+                    </span>
+                  )}
+                </h2>
+                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+                  Afișează un mesaj important imediat sub bara de navigare, pe
+                  toate paginile platformei. Maxim 500 caractere. Bara rămâne
+                  vizibilă până o dezactivezi.
+                </p>
+              </div>
+              <Toggle
+                id="settings-announcement-toggle"
+                checked={!!local.announcement_active}
+                onChange={toggleAnnouncementActive}
+                disabled={saving || loading}
+              />
+            </div>
+
+            <div className="mt-5 space-y-2">
+              <label
+                htmlFor="announcement-text"
+                className="text-xs font-semibold uppercase tracking-widest text-muted-foreground"
+              >
+                Text anunț
+              </label>
+              <Textarea
+                id="announcement-text"
+                data-testid="settings-announcement-text"
+                value={announcementDraft}
+                onChange={(e) => setAnnouncementDraft(e.target.value.slice(0, 500))}
+                placeholder="Ex: Maraton special de Crăciun pe 24 decembrie de la ora 18:00 — nu rata!"
+                rows={2}
+                disabled={loading}
+                className="resize-none bg-black/30 border-white/10 focus-visible:ring-[hsl(var(--accent))]/40"
+              />
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-muted-foreground tabular-nums">
+                  {announcementDraft.length}/500
+                </span>
+                <Button
+                  data-testid="settings-announcement-save"
+                  size="sm"
+                  onClick={saveAnnouncementText}
+                  disabled={
+                    savingAnnouncement ||
+                    loading ||
+                    (announcementDraft || "").trim() === (local.announcement_text || "").trim()
+                  }
+                  className="h-8 text-xs bg-gradient-to-r from-[#ff3b3b] to-[#facc15] text-black hover:opacity-95"
+                >
+                  {savingAnnouncement ? (
+                    <>
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Se salvează…
+                    </>
+                  ) : (
+                    "Salvează anunțul"
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            {local.announcement_active && local.announcement_text && (
+              <div className="mt-4 rounded-xl border border-white/10 bg-black/30 p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1">
+                  Preview
+                </p>
+                <div
+                  className="rounded-lg border border-white/[0.06] px-3 py-2 text-[13px] text-white/90"
+                  style={{
+                    background:
+                      "linear-gradient(90deg, rgba(255,59,59,0.12) 0%, rgba(250,204,21,0.10) 50%, rgba(255,59,59,0.12) 100%)",
+                  }}
+                >
+                  📣 {local.announcement_text}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="px-6 py-3 bg-black/20 border-t border-border/60 flex items-center">
+          <span className="text-xs text-muted-foreground">
+            Bara apare doar pe paginile publice (dashboard, categorii, profil).
+          </span>
         </div>
       </div>
     </div>

@@ -744,6 +744,11 @@ DEFAULT_SETTINGS = {
     "presentation_mode": False,
     "maintenance_mode": False,
     "early_access_mode": False,
+    # Support tickets feature toggle (controls /support page + nav link)
+    "support_enabled": True,
+    # Dashboard announcement bar (shown under top nav when active)
+    "announcement_active": False,
+    "announcement_text": "",
     # Chat settings
     "chat_enabled": True,
     "chat_messages_enabled": True,
@@ -772,6 +777,9 @@ async def public_settings():
         "presentation_mode",
         "maintenance_mode",
         "early_access_mode",
+        "support_enabled",
+        "announcement_active",
+        "announcement_text",
         "chat_enabled",
         "chat_messages_enabled",
         "chat_slow_mode_seconds",
@@ -807,6 +815,8 @@ async def admin_update_settings(payload: dict, user=Depends(require_admin)):
                 del allowed[k]
             else:
                 allowed[k] = [str(x).strip() for x in allowed[k] if str(x).strip()]
+        elif isinstance(default_v, str):
+            allowed[k] = str(allowed[k] or "").strip()[:500]
 
     # Mutual exclusion between early_access_mode and presentation_mode.
     # Turning one ON automatically turns the other OFF.
@@ -3089,12 +3099,20 @@ def _ticket_to_public(t: dict) -> dict:
     }
 
 
+async def _require_support_enabled():
+    """Reject end-user support actions when the feature is disabled in admin."""
+    s = await get_settings_doc()
+    if not s.get("support_enabled", True):
+        raise HTTPException(403, "Sistemul de suport este momentan dezactivat.")
+
+
 @api_router.post("/support/upload")
 async def support_upload_attachment(
     file: UploadFile = File(...),
     user=Depends(get_current_user),
 ):
     """Upload a single attachment for a support ticket or reply."""
+    await _require_support_enabled()
     raw = file.filename or "file"
     safe_name = re.sub(r"[\\/:*?\"<>|\r\n\t]+", "_", raw)[:120] or "file"
     ext = (safe_name.rsplit(".", 1)[-1] if "." in safe_name else "").lower()
@@ -3132,6 +3150,7 @@ async def support_upload_attachment(
 
 @api_router.post("/support/tickets")
 async def create_support_ticket(payload: SupportTicketCreate, user=Depends(get_current_user)):
+    await _require_support_enabled()
     now = now_utc().isoformat()
     doc = {
         "id": new_id(),
@@ -3177,10 +3196,12 @@ async def reply_support_ticket(
     payload: SupportReplyCreate,
     user=Depends(get_current_user),
 ):
+    is_admin = user.get("role") == "admin"
+    if not is_admin:
+        await _require_support_enabled()
     t = await db.support_tickets.find_one({"id": ticket_id}, {"_id": 0})
     if not t:
         raise HTTPException(404, "Ticket inexistent")
-    is_admin = user.get("role") == "admin"
     if not is_admin and t.get("user_id") != user["id"]:
         raise HTTPException(403, "Nu ai acces la acest ticket")
     if t.get("status") == "closed" and not is_admin:

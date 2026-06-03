@@ -17,6 +17,7 @@ import { BrandLogo } from "@/components/BrandLogo";
 import { useSettings } from "@/contexts/SettingsContext";
 import UserBadges from "@/components/UserBadges";
 import InboxPanel from "@/components/InboxPanel";
+import AnnouncementBar from "@/components/AnnouncementBar";
 import { toast } from "sonner";
 
 function LiveNavButton() {
@@ -200,7 +201,9 @@ export function TopNav() {
     { to: "/category/jetix-foxkids", label: "JETIX & Fox Kids" },
     { to: "/category/cartoon-network", label: "Cartoon Network" },
     { to: "/category/minimax", label: "Minimax" },
-    ...(user ? [{ to: "/support", label: "Support" }] : []),
+    ...(user && settings?.support_enabled !== false
+      ? [{ to: "/support", label: "Support" }]
+      : []),
   ];
 
   return (
@@ -425,6 +428,7 @@ export default function PublicLayout({ children }) {
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
       <TopNav />
+      <AnnouncementBar />
       <main className="flex-1">{children}</main>
       <Footer />
     </div>

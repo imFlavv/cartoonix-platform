@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import PublicLayout from "@/components/PublicLayout";
 import { api, getErrorMessage } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSettings } from "@/contexts/SettingsContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -67,6 +68,8 @@ function formatDate(iso) {
 
 export default function SupportPage() {
   const { user } = useAuth();
+  const { settings } = useSettings() || {};
+  const supportEnabled = settings?.support_enabled !== false;
   const navigate = useNavigate();
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -90,8 +93,12 @@ export default function SupportPage() {
   useEffect(() => {
     if (!user) {
       navigate("/login");
+      return;
     }
-  }, [user, navigate]);
+    if (!supportEnabled) {
+      navigate("/", { replace: true });
+    }
+  }, [user, supportEnabled, navigate]);
 
   const load = useCallback(async () => {
     setLoading(true);
