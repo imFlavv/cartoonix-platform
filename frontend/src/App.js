@@ -42,6 +42,7 @@ import SupportPage from "@/pages/SupportPage";
 import StaffPage from "@/pages/StaffPage";
 import { RequireAdmin, RequireAuth } from "@/components/RouteGuards";
 import ChatWidget from "@/components/chat/ChatWidget";
+import OnlineUsersWidget from "@/components/OnlineUsersWidget";
 
 /**
  * Routes that remain available even when presentation_mode is ON:
@@ -266,6 +267,33 @@ function ChatMount() {
   return <ChatWidget />;
 }
 
+/**
+ * Mount the small "online users" badge in the bottom-left corner on public
+ * pages. Hidden inside /admin and on auth/verification flows to stay out of
+ * the way of dense admin tooling. Public for everyone (no login required).
+ */
+function OnlineUsersMount() {
+  const { settings, loading: settingsLoading } = useSettings() || {};
+  const { user, loading: authLoading } = useAuth() || {};
+  const location = useLocation();
+  if (authLoading || settingsLoading) return null;
+  if (settings?.maintenance_mode && user?.role !== "admin") return null;
+  const path = location.pathname;
+  const HIDDEN_PREFIXES = [
+    "/admin",
+    "/login",
+    "/register",
+    "/verify",
+    "/reset-password",
+    "/forgot-password",
+    "/early-access",
+  ];
+  if (HIDDEN_PREFIXES.some((p) => path === p || path.startsWith(p + "/"))) {
+    return null;
+  }
+  return <OnlineUsersWidget />;
+}
+
 function App() {
   return (
     <div className="App">
@@ -356,6 +384,7 @@ function App() {
               </EarlyAccessGate>
               </MaintenanceGate>
               <ChatMount />
+              <OnlineUsersMount />
               <Toaster position="top-right" />
             </SettingsProvider>
           </AuthProvider>

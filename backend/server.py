@@ -662,6 +662,22 @@ async def live_status():
     return _live_compute_state(cfg)
 
 
+@api_router.get("/presence/online")
+async def presence_online():
+    """Public, lightweight count of users currently considered "online".
+
+    Uses the existing `chat_online` collection which is touched by the
+    authenticated heartbeat. Anonymous visitors are not counted.
+    """
+    try:
+        from datetime import timedelta as _td
+        threshold = datetime.now(timezone.utc) - _td(seconds=90)
+        count = await db.chat_online.count_documents({"last_seen": {"$gte": threshold}})
+        return {"online_total": int(count)}
+    except Exception:
+        return {"online_total": 0}
+
+
 @api_router.get("/admin/live/maraton")
 async def admin_live_get(user=Depends(require_admin)):
     cfg = await _live_config()

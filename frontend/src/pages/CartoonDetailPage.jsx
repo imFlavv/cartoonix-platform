@@ -55,6 +55,15 @@ export default function CartoonDetailPage() {
   const [watchedIds, setWatchedIds] = useState(() => new Set());
   // Ref to the <video> so autoplay-next can survive fullscreen and other state.
   const videoRef = React.useRef(null);
+  // Track which episode id we already persisted history for, to avoid spamming
+  // POST /me/history on every timeupdate tick.
+  const savedEpRef = React.useRef(null);
+
+  // Computed playable URL for the currently active episode. We pass this to
+  // the <video src> declaratively so the first episode loads correctly on
+  // first mount (the previous purely-imperative approach left the element
+  // without a source until the user clicked another episode).
+  const videoSrc = activeEp ? resolveVideoUrl(activeEp.video_url) : "";
 
   // Local drag-and-drop state (admin-only)
   const [dragId, setDragId] = useState(null);
@@ -140,24 +149,23 @@ export default function CartoonDetailPage() {
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [id, user]);
 
-  // Update <video> src in-place when activeEp changes, so fullscreen is
-  // preserved across episode transitions (auto-next during fullscreen).
+  // Ensure playback starts when the active episode changes. The <video src>
+  // is set declaratively in JSX, so React updates the same element in place
+  // (preserving fullscreen). We just trigger load()+play() to overcome the
+  // browser autoplay heuristics on src changes after the initial mount.
   useEffect(() => {
     const v = videoRef.current;
     if (!v || !activeEp) return;
-    const src = resolveVideoUrl(activeEp.video_url);
-    if (!src) return;
-    if (v.src !== src && v.currentSrc !== src && !v.src.endsWith(src)) {
-      v.src = src;
-      try {
-        v.load();
-      } catch {
-        /* ignore */
-      }
-      const p = v.play?.();
-      if (p && typeof p.catch === "function") p.catch(() => {});
+    // Reset the per-episode "history saved" flag so a new episode can record.
+    savedEpRef.current = null;
+    try {
+      v.load();
+    } catch {
+      /* ignore */
     }
-  }, [activeEp]);
+    const p = v.play?.();
+    if (p && typeof p.catch === "function") p.catch(() => {});
+  }, [activeEp?.id]);
 
   const toggleFav = async () => {
     if (!user) {
@@ -177,21 +185,26 @@ export default function CartoonDetailPage() {
   const onProgress = async (e) => {
     if (!user || !activeEp) return;
     const t = Math.floor(e?.target?.currentTime || 0);
-    // Throttle: record roughly every ~10s
-    if (t > 0 && t % 10 === 0) {
+    // Persist watched state once per episode after ~5s of playback, then
+    // refresh the recorded progress every ~30s afterwards. This guarantees
+    // the "Vizionat" badge survives a refresh even for short viewings.
+    const epId = activeEp.id;
+    const firstSave = savedEpRef.current !== epId && t >= 5;
+    const refresh = savedEpRef.current === epId && t > 0 && t % 30 === 0;
+    if (firstSave || refresh) {
+      savedEpRef.current = epId;
       try {
         await api.post("/me/history", {
           cartoon_id: data.id,
-          episode_id: activeEp.id,
+          episode_id: epId,
           progress_seconds: t,
         });
       } catch {}
-      // Mark as "watched" in UI on first progress save so the user sees the
-      // badge appear naturally without waiting for a full reload.
-      if (!watchedIds.has(activeEp.id)) {
+      if (firstSave && !watchedIds.has(epId)) {
         setWatchedIds((prev) => {
+          if (prev.has(epId)) return prev;
           const next = new Set(prev);
-          next.add(activeEp.id);
+          next.add(epId);
           return next;
         });
       }
@@ -250,8 +263,6 @@ export default function CartoonDetailPage() {
     );
   }
 
-  const videoSrc = activeEp ? resolveVideoUrl(activeEp.video_url) : "";
-
   return (
     <PublicLayout>
       <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
@@ -302,6 +313,7 @@ export default function CartoonDetailPage() {
                   <div className="aspect-video rounded-xl bg-black overflow-hidden">
                     <video
                       ref={videoRef}
+                      src={videoSrc}
                       controls
                       playsInline
                       autoPlay
