@@ -60,17 +60,17 @@ export default function OnlineUsersWidget() {
       className="fixed bottom-4 left-4 z-40 pointer-events-none select-none"
       data-testid="online-users-widget"
       aria-live="polite"
+      title={`${count.toLocaleString("ro-RO")} ${label}`}
     >
-      <div className="pointer-events-auto group inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/55 px-3 py-1.5 text-[11px] uppercase tracking-[0.18em] text-white/80 shadow-lg backdrop-blur-md transition hover:border-emerald-400/40 hover:text-white">
+      <div className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/55 px-3 py-1.5 shadow-lg backdrop-blur-md transition hover:border-emerald-400/40">
         <span className="relative inline-flex h-2 w-2">
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/60" />
           <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
         </span>
         <Users className="h-3.5 w-3.5 text-emerald-300/90" strokeWidth={2} />
-        <span className="font-medium text-white tabular-nums normal-case tracking-normal">
+        <span className="text-[12px] font-semibold text-white tabular-nums leading-none">
           {count.toLocaleString("ro-RO")}
         </span>
-        <span className="hidden sm:inline">{label}</span>
       </div>
     </div>
   );
