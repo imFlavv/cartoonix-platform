@@ -1,9 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { api, mediaUrl, getErrorMessage } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
-import { Send, Loader2, ChevronUp } from "lucide-react";
+import { Send, Loader2, ChevronUp, MoreHorizontal, Trash2, Clock, Ban, ShieldOff } from "lucide-react";
 import { toast } from "sonner";
 import UserBadges from "@/components/UserBadges";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 /**
  * LobbyChat — slim chat panel for /lobby.
@@ -265,7 +273,13 @@ export default function LobbyChat({ room = "global" }) {
             Niciun mesaj încă. Fii primul.
           </div>
         ) : (
-          grouped.map((m) => <ChatRow key={m.id} m={m} />)
+          grouped.map((m) => (
+            <ChatRow
+              key={m.id}
+              m={m}
+              viewerIsAdmin={user?.role === "admin"}
+            />
+          ))
         )}
       </div>
 
@@ -304,9 +318,11 @@ export default function LobbyChat({ room = "global" }) {
   );
 }
 
-const ChatRow = React.memo(function ChatRow({ m }) {
+const ChatRow = React.memo(function ChatRow({ m, viewerIsAdmin }) {
   const avatar = m.avatar_url ? mediaUrl(m.avatar_url) : "";
   const src = avatar;
+  // Admin can moderate everyone EXCEPT themselves and other admins.
+  const canModerate = viewerIsAdmin && m.role !== "admin";
   return (
     <div className="group flex items-start gap-2.5 rounded-lg px-2 py-1.5 hover:bg-white/[0.025] transition-colors">
       <div className="shrink-0 h-8 w-8 rounded-full overflow-hidden bg-gradient-to-br from-rose-600/60 to-amber-400/40 grid place-items-center text-[11px] font-bold text-white/90">
@@ -334,6 +350,118 @@ const ChatRow = React.memo(function ChatRow({ m }) {
           {m.content}
         </p>
       </div>
+      {canModerate && <ModerationMenu m={m} />}
     </div>
   );
 });
+
+/**
+ * Compact moderation dropdown shown on hover for admin viewers only.
+ * Avoids cluttering the row with always-visible icons — discoverable but
+ * non-intrusive. All actions hit the existing `/chat/admin/*` endpoints,
+ * so backend authorisation stays the single source of truth.
+ */
+function ModerationMenu({ m }) {
+  const [busy, setBusy] = useState(false);
+
+  const run = async (label, doIt) => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await doIt();
+      toast.success(label);
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Acțiunea a eșuat."));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const deleteMessage = () =>
+    run("Mesaj șters", () => api.delete(`/chat/admin/messages/${m.id}`));
+
+  const moderate = (action, label) =>
+    run(label, () =>
+      api.post("/chat/admin/moderate", { user_id: m.user_id, action })
+    );
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          aria-label="Moderare"
+          data-testid={`chat-mod-trigger-${m.id}`}
+          disabled={busy}
+          className="self-start opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity h-6 w-6 grid place-items-center rounded-md text-muted-foreground hover:text-white hover:bg-white/10"
+        >
+          {busy ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <MoreHorizontal className="h-4 w-4" />
+          )}
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="end"
+        className="w-52 bg-[#0e0f14] border-white/10 text-white"
+        data-testid={`chat-mod-menu-${m.id}`}
+      >
+        <DropdownMenuLabel className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
+          Moderare · {m.nickname}
+        </DropdownMenuLabel>
+        <DropdownMenuItem
+          onClick={deleteMessage}
+          data-testid={`chat-mod-delete-${m.id}`}
+          className="text-[13px] focus:bg-red-500/20 focus:text-red-200"
+        >
+          <Trash2 className="mr-2 h-3.5 w-3.5" /> Șterge mesaj
+        </DropdownMenuItem>
+        <DropdownMenuSeparator className="bg-white/[0.06]" />
+        <DropdownMenuItem
+          onClick={() => moderate("mute_5m", "Mute 5 minute aplicat")}
+          className="text-[13px] focus:bg-amber-500/20"
+        >
+          <Clock className="mr-2 h-3.5 w-3.5" /> Mute 5 minute
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => moderate("mute_1h", "Mute 1 oră aplicat")}
+          className="text-[13px] focus:bg-amber-500/20"
+        >
+          <Clock className="mr-2 h-3.5 w-3.5" /> Mute 1 oră
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => moderate("mute_24h", "Mute 24 ore aplicat")}
+          className="text-[13px] focus:bg-amber-500/20"
+        >
+          <Clock className="mr-2 h-3.5 w-3.5" /> Mute 24 ore
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => moderate("mute_perm", "Mute permanent aplicat")}
+          className="text-[13px] focus:bg-amber-500/20"
+        >
+          <Ban className="mr-2 h-3.5 w-3.5" /> Mute permanent
+        </DropdownMenuItem>
+        <DropdownMenuSeparator className="bg-white/[0.06]" />
+        <DropdownMenuItem
+          onClick={() => {
+            if (window.confirm(`Vrei să dai BAN la ${m.nickname}?`)) {
+              moderate("ban", "Ban aplicat");
+            }
+          }}
+          data-testid={`chat-mod-ban-${m.id}`}
+          className="text-[13px] focus:bg-red-500/20 text-red-300"
+        >
+          <Ban className="mr-2 h-3.5 w-3.5" /> Ban definitiv
+        </DropdownMenuItem>
+        <DropdownMenuSeparator className="bg-white/[0.06]" />
+        <DropdownMenuItem
+          onClick={() => moderate("unmute", "Sancțiune anulată")}
+          className="text-[13px] text-emerald-300 focus:bg-emerald-500/15"
+        >
+          <ShieldOff className="mr-2 h-3.5 w-3.5" /> Anulează mute / ban
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
