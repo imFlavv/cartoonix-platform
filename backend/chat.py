@@ -831,16 +831,36 @@ def attach_handlers(get_current_user, require_admin):
     @chat_router.post("/heartbeat")
     async def heartbeat(user=Depends(get_current_user)):
         db = await _get_db()
+        now = _now()
+        # Compute incremental time-on-platform since the last heartbeat (capped
+        # at 90s so a long idle gap doesn't credit time the user wasn't really
+        # active). This drives the "Top timp online" lobby leaderboard.
+        prev = await db.chat_online.find_one({"_id": user["id"]}, {"last_seen": 1})
+        delta_s = 0
+        if prev and prev.get("last_seen"):
+            try:
+                prev_seen = prev["last_seen"]
+                # Mongo strips tz info; treat stored times as UTC for math.
+                if prev_seen.tzinfo is None:
+                    prev_seen = prev_seen.replace(tzinfo=timezone.utc)
+                delta_s = max(0, min(90, int((now - prev_seen).total_seconds())))
+            except Exception:
+                delta_s = 0
         await db.chat_online.update_one(
             {"_id": user["id"]},
             {"$set": {
                 "_id": user["id"],
                 "nickname": user.get("nickname", ""),
                 "plan": user.get("subscription", "free"),
-                "last_seen": _now(),
+                "last_seen": now,
             }},
             upsert=True,
         )
+        if delta_s > 0:
+            await db.users.update_one(
+                {"id": user["id"]},
+                {"$inc": {"presence_seconds": delta_s}},
+            )
         return {"success": True}
 
     @chat_router.get("/presence")

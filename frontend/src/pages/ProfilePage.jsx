@@ -36,6 +36,8 @@ export default function ProfilePage() {
   const navigate = useNavigate();
   const [favs, setFavs] = useState([]);
   const [history, setHistory] = useState([]);
+  const [historyPage, setHistoryPage] = useState(1);
+  const HISTORY_PAGE_SIZE = 10;
   const [playlists, setPlaylists] = useState([]);
   const [newPlaylist, setNewPlaylist] = useState("");
   const [avatars, setAvatars] = useState([]);
@@ -56,7 +58,6 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!user) navigate("/login");
     else load();
-    // eslint-disable-next-line
   }, [user]);
 
   if (!user) return null;
@@ -170,20 +171,62 @@ export default function ProfilePage() {
             {history.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-white/10 p-10 text-center text-muted-foreground">Nu ai istoric încă. Pornește un desen!</div>
             ) : (
-              <div className="space-y-2">
-                {history.map((h) => (
-                  <Link key={h.episode_id} to={`/cartoon/${h.cartoon_id}`} className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 hover:bg-white/[0.05] transition-colors">
-                    <div className="h-12 w-20 rounded-md bg-white/[0.04] overflow-hidden grid place-items-center text-xs">
-                      {h.cartoon?.thumbnail_url ? <img src={mediaUrl(h.cartoon.thumbnail_url)} alt="" className="h-full w-full object-cover" /> : <span className="text-muted-foreground">{h.cartoon?.title?.slice(0,2) || "—"}</span>}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium truncate">{h.cartoon?.title || "Necunoscut"}</div>
-                      <div className="text-xs text-muted-foreground truncate">{h.episode?.title} · S{h.episode?.season} E{h.episode?.episode_number}</div>
-                    </div>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                  </Link>
-                ))}
-              </div>
+              <>
+                {(() => {
+                  const totalPages = Math.max(1, Math.ceil(history.length / HISTORY_PAGE_SIZE));
+                  const safePage = Math.min(historyPage, totalPages);
+                  const start = (safePage - 1) * HISTORY_PAGE_SIZE;
+                  const slice = history.slice(start, start + HISTORY_PAGE_SIZE);
+                  return (
+                    <>
+                      <div className="space-y-2">
+                        {slice.map((h) => (
+                          <Link key={h.episode_id} to={`/cartoon/${h.cartoon_id}`} className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 hover:bg-white/[0.05] transition-colors">
+                            <div className="h-12 w-20 rounded-md bg-white/[0.04] overflow-hidden grid place-items-center text-xs">
+                              {h.cartoon?.thumbnail_url ? <img src={mediaUrl(h.cartoon.thumbnail_url)} alt="" className="h-full w-full object-cover" /> : <span className="text-muted-foreground">{h.cartoon?.title?.slice(0,2) || "—"}</span>}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium truncate">{h.cartoon?.title || "Necunoscut"}</div>
+                              <div className="text-xs text-muted-foreground truncate">{h.episode?.title} · S{h.episode?.season} E{h.episode?.episode_number}</div>
+                            </div>
+                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                          </Link>
+                        ))}
+                      </div>
+                      {totalPages > 1 && (
+                        <div
+                          data-testid="history-pagination"
+                          className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2"
+                        >
+                          <span className="text-[12px] text-muted-foreground tabular-nums">
+                            Pagina {safePage} din {totalPages} · {history.length} total
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              data-testid="history-page-prev"
+                              onClick={() => setHistoryPage((p) => Math.max(1, p - 1))}
+                              disabled={safePage <= 1}
+                              className="px-3 py-1.5 rounded-md border border-white/10 text-[12px] font-medium text-white/80 hover:bg-white/[0.06] disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                              ← Anterior
+                            </button>
+                            <button
+                              type="button"
+                              data-testid="history-page-next"
+                              onClick={() => setHistoryPage((p) => Math.min(totalPages, p + 1))}
+                              disabled={safePage >= totalPages}
+                              className="px-3 py-1.5 rounded-md border border-white/10 text-[12px] font-medium text-white/80 hover:bg-white/[0.06] disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                              Următor →
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+              </>
             )}
           </TabsContent>
 

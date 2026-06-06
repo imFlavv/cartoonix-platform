@@ -135,6 +135,54 @@ function OnlinePanel() {
   );
 }
 
+// ---------- Top time online (cumulative platform time) ----------
+function TopOnlinePanel() {
+  const [items, setItems] = useState([]);
+  useEffect(() => {
+    let alive = true;
+    api
+      .get("/lobby/top-online?limit=5")
+      .then(({ data }) => {
+        if (alive) setItems(data.items || []);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+  if (items.length === 0) return null;
+  const fmt = (s) => {
+    s = Math.max(0, Number(s) || 0);
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    if (h > 0) return `${h}h ${m}m`;
+    if (m > 0) return `${m}m`;
+    return `${s}s`;
+  };
+  return (
+    <SectionCard icon={Clock} title="Top timp online" testId="lobby-toponline-panel" tone="cool">
+      <ol className="space-y-1.5">
+        {items.map((f, i) => (
+          <li key={f.user_id} className="flex items-center gap-2.5">
+            <span className="shrink-0 h-5 w-5 grid place-items-center rounded-full bg-white/5 text-[10px] font-bold tabular-nums">
+              {i + 1}
+            </span>
+            <Avatar src={f.avatar_url} name={f.nickname} plan={f.plan} size={24} />
+            <NickWithBadge
+              nickname={f.nickname}
+              plan={f.plan}
+              role={f.role}
+              size={12}
+              className="flex-1 text-[13px] text-white/90 font-medium"
+            />
+            <span className="text-[11px] tabular-nums text-muted-foreground">{fmt(f.seconds)}</span>
+          </li>
+        ))}
+      </ol>
+    </SectionCard>
+  );
+}
+
 // ---------- Top fans ----------
 function TopFansPanel() {
   const [items, setItems] = useState([]);
@@ -536,6 +584,7 @@ export default function LobbyPage() {
           <aside className="lg:col-span-3 space-y-4 order-2 lg:order-1">
             <OnlinePanel />
             <TopFansPanel />
+            <TopOnlinePanel />
             <WinnersPanel />
           </aside>
 

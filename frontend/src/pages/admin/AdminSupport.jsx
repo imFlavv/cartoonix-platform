@@ -31,6 +31,7 @@ import {
   Clock,
   Inbox,
   Lock,
+  Lightbulb,
 } from "lucide-react";
 
 const STATUS_META = {
@@ -38,6 +39,7 @@ const STATUS_META = {
   in_progress: { label: "În lucru", className: "bg-sky-500/15 text-sky-300 border-sky-500/30", icon: Clock },
   resolved: { label: "Rezolvat", className: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30", icon: CheckCircle2 },
   closed: { label: "Închis", className: "bg-white/10 text-white/60 border-white/20", icon: Lock },
+  suggestion: { label: "Sugestie", className: "bg-fuchsia-500/15 text-fuchsia-300 border-fuchsia-500/30", icon: Lightbulb },
 };
 
 function StatusPill({ status }) {
@@ -188,6 +190,7 @@ export default function AdminSupport() {
               <SelectItem value="in_progress">În lucru</SelectItem>
               <SelectItem value="resolved">Rezolvate</SelectItem>
               <SelectItem value="closed">Închise</SelectItem>
+              <SelectItem value="suggestion">Sugestii din Lobby</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -261,21 +264,29 @@ export default function AdminSupport() {
                 </DialogDescription>
               </DialogHeader>
 
-              {/* Status actions */}
-              <div className="flex flex-wrap gap-2 border-y border-border/60 py-2">
-                {["open", "in_progress", "resolved", "closed"].map((s) => (
-                  <Button
-                    key={s}
-                    size="sm"
-                    variant={selected.status === s ? "default" : "outline"}
-                    onClick={() => setStatus(s)}
-                    disabled={selected.status === s}
-                    data-testid={`admin-ticket-set-${s}`}
-                  >
-                    {STATUS_META[s].label}
-                  </Button>
-                ))}
-              </div>
+              {/* Status actions (hidden for read-only lobby suggestions) */}
+              {selected.status !== "suggestion" && (
+                <div className="flex flex-wrap gap-2 border-y border-border/60 py-2">
+                  {["open", "in_progress", "resolved", "closed"].map((s) => (
+                    <Button
+                      key={s}
+                      size="sm"
+                      variant={selected.status === s ? "default" : "outline"}
+                      onClick={() => setStatus(s)}
+                      disabled={selected.status === s}
+                      data-testid={`admin-ticket-set-${s}`}
+                    >
+                      {STATUS_META[s].label}
+                    </Button>
+                  ))}
+                </div>
+              )}
+              {selected.status === "suggestion" && (
+                <div className="border-y border-border/60 py-2 px-3 text-[12px] text-fuchsia-200/90 bg-fuchsia-500/[0.06] rounded">
+                  <Lightbulb className="inline h-3.5 w-3.5 mr-1.5 mb-0.5" />
+                  Această intrare este o <strong>sugestie din Lobby</strong>, nu un ticket. Nu necesită răspuns — este informativă pentru echipă.
+                </div>
+              )}
 
               {/* Conversation */}
               <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1">

@@ -182,6 +182,7 @@ async def on_startup():
     await db.lobby_suggestions.create_index("user_id")
     await db.lobby_suggestions.create_index("created_at")
     await db.lobby_suggestions.create_index("read")
+    await db.users.create_index("presence_seconds")
     # Staff applications
     await db.staff_applications.create_index("user_id", unique=True)
     await db.staff_applications.create_index("status")
@@ -773,17 +774,65 @@ async def lobby_top_fans(user=Depends(get_current_user), limit: int = 5):
 
 @api_router.get("/lobby/recommendation")
 async def lobby_recommendation(user=Depends(get_current_user)):
-    """A single random cartoon — pure client-side cache buster on user demand."""
+    """Daily-cached cartoon recommendation.
+
+    Picks ONE cartoon per UTC calendar day for everyone (deterministic
+    seed = today's date hash). This way:
+      - users see the same recommendation on a given day, encouraging
+        watch-party / chat conversation;
+      - the panel doesn't change on every page refresh (which was the
+        previous behaviour and felt unstable);
+      - no extra collection — we compute on the fly from indexed cartoons.
+    """
     try:
-        sample = await db.cartoons.aggregate([
-            {"$sample": {"size": 1}},
-            {"$project": {"_id": 0, "id": 1, "title": 1, "thumbnail_url": 1, "category": 1, "year": 1, "description": 1}},
-        ]).to_list(1)
-        if not sample:
+        import hashlib
+        today_key = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        total = await db.cartoons.count_documents({})
+        if total == 0:
             return {"cartoon": None}
-        return {"cartoon": sample[0]}
+        seed = int(hashlib.md5(today_key.encode()).hexdigest(), 16)
+        skip = seed % total
+        doc = await db.cartoons.find(
+            {},
+            {"_id": 0, "id": 1, "title": 1, "thumbnail_url": 1, "category": 1, "year": 1, "description": 1},
+        ).sort("id", 1).skip(skip).limit(1).to_list(1)
+        if not doc:
+            return {"cartoon": None}
+        return {"cartoon": doc[0], "rotates_at": (datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).isoformat())}
     except Exception:
         return {"cartoon": None}
+
+
+@api_router.get("/lobby/top-online")
+async def lobby_top_online(user=Depends(get_current_user), limit: int = 5):
+    """Top users by cumulative on-platform time.
+
+    Time is accumulated by the same heartbeat (`POST /chat/heartbeat`) that
+    powers the online indicator: each heartbeat adds (now - last_seen) up
+    to a 90s cap. Cheap, single-write per beat, no separate analytics
+    pipeline needed. Returns the top {limit} users.
+    """
+    limit = max(1, min(20, int(limit or 5)))
+    cursor = (
+        db.users
+        .find(
+            {"presence_seconds": {"$gt": 0}},
+            {"_id": 0, "id": 1, "nickname": 1, "avatar_url": 1, "subscription": 1, "role": 1, "presence_seconds": 1},
+        )
+        .sort("presence_seconds", -1)
+        .limit(limit)
+    )
+    items = []
+    async for u in cursor:
+        items.append({
+            "user_id": u.get("id"),
+            "nickname": u.get("nickname") or "",
+            "avatar_url": u.get("avatar_url") or "",
+            "plan": u.get("subscription") or "free",
+            "role": u.get("role") or "user",
+            "seconds": int(u.get("presence_seconds") or 0),
+        })
+    return {"items": items}
 
 
 @api_router.get("/lobby/winners")
@@ -1107,7 +1156,22 @@ async def admin_update_settings(payload: dict, user=Depends(require_admin)):
 # ============================================================
 @api_router.get("/avatars")
 async def list_avatars():
-    items = await db.avatars.find({}, {"_id": 0}).sort("order", 1).to_list(100)
+    """Return the curated avatar list, deduplicated by slug.
+
+    Production data has historically picked up duplicate seed rows after
+    schema migrations, which caused the register page to render the same
+    avatars 2–4 times. We collapse duplicates here so the API contract is
+    always one entry per slug regardless of DB state.
+    """
+    raw = await db.avatars.find({}, {"_id": 0}).sort("order", 1).to_list(200)
+    seen: set[str] = set()
+    items: list[dict] = []
+    for a in raw:
+        slug = a.get("slug") or a.get("url") or a.get("filename")
+        if not slug or slug in seen:
+            continue
+        seen.add(slug)
+        items.append(a)
     return items
 
 
@@ -3524,20 +3588,71 @@ async def admin_list_support_tickets(
             {"user_email": rx},
             {"user_nickname": rx},
         ]
-    total = await db.support_tickets.count_documents(flt)
-    rows = (
-        await db.support_tickets.find(flt, {"_id": 0})
-        .sort("updated_at", -1)
-        .skip((page - 1) * page_size)
-        .limit(page_size)
-        .to_list(page_size)
-    )
-    # Open count helps the admin sidebar badge later if you want.
+
+    # When admin filters by "suggestion", show ONLY lobby suggestions (no
+    # real tickets). When no filter (or any other status) is set, merge
+    # the lobby suggestions in alongside the tickets so the admin has a
+    # single combined inbox.
+    only_suggestions = status_filter == "suggestion"
+
+    tickets: list = []
+    ticket_total = 0
+    if not only_suggestions:
+        ticket_total = await db.support_tickets.count_documents(flt)
+        rows = (
+            await db.support_tickets.find(flt, {"_id": 0})
+            .sort("updated_at", -1)
+            .skip((page - 1) * page_size)
+            .limit(page_size)
+            .to_list(page_size)
+        )
+        tickets = [_ticket_to_public(t) for t in rows]
+
+    # Inject suggestions when no status filter, or when explicitly asked.
+    suggestion_items: list = []
+    suggestion_total = 0
+    if status_filter in (None, "", "suggestion"):
+        s_flt: dict = {}
+        if q:
+            rx = {"$regex": re.escape(q.strip()), "$options": "i"}
+            s_flt["$or"] = [{"text": rx}, {"nickname": rx}]
+        suggestion_total = await db.lobby_suggestions.count_documents(s_flt)
+        s_rows = (
+            await db.lobby_suggestions.find(s_flt, {"_id": 0})
+            .sort("created_at", -1)
+            .limit(page_size if only_suggestions else 50)
+            .to_list(page_size if only_suggestions else 50)
+        )
+        for s in s_rows:
+            suggestion_items.append({
+                "id": f"sg-{s.get('id')}",
+                "suggestion_id": s.get("id"),
+                "user_id": s.get("user_id"),
+                "user_email": None,
+                "user_nickname": s.get("nickname") or "",
+                "title": "Sugestie din lobby",
+                "message": s.get("text") or "",
+                "attachment_url": None,
+                "status": "suggestion",
+                "created_at": s.get("created_at"),
+                "updated_at": s.get("created_at"),
+                "replies": [],
+                "reply_count": 0,
+                "read": bool(s.get("read")),
+            })
+
+    # Merge sorted by created_at desc when showing both
+    combined = tickets + suggestion_items
+    combined.sort(key=lambda x: x.get("created_at") or "", reverse=True)
+    if only_suggestions:
+        combined = suggestion_items
+
     open_count = await db.support_tickets.count_documents({"status": {"$in": ["open", "in_progress"]}})
     return {
-        "items": [_ticket_to_public(t) for t in rows],
-        "total": total,
+        "items": combined,
+        "total": (suggestion_total if only_suggestions else ticket_total + suggestion_total),
         "open_count": open_count,
+        "suggestion_total": int(suggestion_total),
         "page": page,
         "page_size": page_size,
     }
