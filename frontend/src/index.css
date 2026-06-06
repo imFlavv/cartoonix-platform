@@ -609,3 +609,32 @@ textarea,
   background: hsla(var(--accent) / 0.75);
 }
 
+
+/* ==========================================================================
+   Cartoonix branded scrollbar — applied to chat list, emoji picker,
+   online users list, top fans list, suggestion textarea.
+   ========================================================================== */
+.cartoonix-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 89, 0, 0.55) transparent;
+}
+.cartoonix-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.cartoonix-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.cartoonix-scroll::-webkit-scrollbar-thumb {
+  background-image: linear-gradient(180deg, #ff3b3b 0%, #facc15 100%);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  min-height: 32px;
+}
+.cartoonix-scroll::-webkit-scrollbar-thumb:hover {
+  background-image: linear-gradient(180deg, #ff5252 0%, #fde047 100%);
+}
+.cartoonix-scroll::-webkit-scrollbar-corner {
+  background: transparent;
+}

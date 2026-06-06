@@ -4,6 +4,7 @@ import PublicLayout from "@/components/PublicLayout";
 import LobbyChat from "@/components/lobby/LobbyChat";
 import { api, mediaUrl, getErrorMessage } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSettings } from "@/contexts/SettingsContext";
 import {
   Users,
   Tv,
@@ -112,7 +113,7 @@ function OnlinePanel() {
       {data.items.length === 0 ? (
         <p className="text-xs text-muted-foreground py-2">Nimeni încă. Spune ceva în chat ca să dai startul.</p>
       ) : (
-        <ul className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
+        <ul className="cartoonix-scroll space-y-1.5 max-h-72 overflow-y-auto pr-1">
           {data.items.map((u) => (
             <li
               key={u.id}
@@ -462,16 +463,58 @@ function SuggestionPanel() {
 
 export default function LobbyPage() {
   const { user } = useAuth();
+  const { settings } = useSettings() || {};
   const isPlus = user?.subscription === "plus" || user?.role === "admin";
+  const isAdmin = user?.role === "admin";
+  const lobbyEnabled = settings?.lobby_enabled !== false;
   const [room, setRoom] = useState("global");
   const title = useMemo(
     () => `Lobby${user?.nickname ? ` · Bun venit, ${user.nickname}` : ""}`,
     [user?.nickname]
   );
 
+  // Lobby disabled for non-admins → friendly maintenance card.
+  if (!lobbyEnabled && !isAdmin) {
+    return (
+      <PublicLayout>
+        <div className="mx-auto max-w-2xl px-4 sm:px-6 py-20">
+          <div
+            data-testid="lobby-disabled-card"
+            className="rounded-2xl border border-white/[0.08] bg-gradient-to-b from-[#15161d] to-[#0a0b0f] p-10 text-center space-y-4 shadow-2xl"
+          >
+            <div className="mx-auto h-14 w-14 rounded-full bg-gradient-to-br from-[#ff3b3b] to-[#facc15] grid place-items-center text-black">
+              <Lock className="h-7 w-7" />
+            </div>
+            <h1 className="font-display text-3xl tracking-wide text-white">
+              Lobby-ul este închis temporar
+            </h1>
+            <p className="text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
+              Lucrăm la îmbunătățiri pentru ca experiența să fie cât mai bună la
+              revenire. Reîncearcă în scurt timp — revenim curând!
+            </p>
+            <Link
+              to="/"
+              className="inline-block mt-2 text-[12px] font-semibold uppercase tracking-widest text-[hsl(var(--accent))] hover:underline"
+            >
+              ← Înapoi la dashboard
+            </Link>
+          </div>
+        </div>
+      </PublicLayout>
+    );
+  }
+
   return (
     <PublicLayout>
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
+        {/* Admin-only banner when lobby is "disabled" but they still see it */}
+        {!lobbyEnabled && isAdmin && (
+          <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-[12px] text-amber-200 flex items-center gap-2">
+            <Lock className="h-3.5 w-3.5" />
+            Lobby este dezactivat pentru utilizatori. Doar adminii îl pot vedea acum.
+          </div>
+        )}
+
         {/* Title strip */}
         <div className="mb-5 flex items-end justify-between gap-4">
           <div>

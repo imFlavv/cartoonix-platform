@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { api, mediaUrl, getErrorMessage } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
-import { Send, Loader2, ChevronUp, MoreHorizontal, Trash2, Clock, Ban, ShieldOff } from "lucide-react";
+import { useSettings } from "@/contexts/SettingsContext";
+import { Send, Loader2, ChevronUp, MoreHorizontal, Trash2, Clock, Ban, ShieldOff, Pin, Smile, X, Lock } from "lucide-react";
 import { toast } from "sonner";
 import UserBadges from "@/components/UserBadges";
+import { EMOTICONS, emoticonUrl, tokenizeMessage } from "@/lib/emoticons";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,6 +14,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 /**
  * LobbyChat — slim chat panel for /lobby.
@@ -84,11 +91,21 @@ function timeOnly(iso) {
 
 export default function LobbyChat({ room = "global" }) {
   const { user } = useAuth();
+  const { settings } = useSettings() || {};
   const [state, dispatch] = useReducer(reducer, initialState);
   const [draft, setDraft] = useState("");
+  const [emojiOpen, setEmojiOpen] = useState(false);
   const listRef = useRef(null);
+  const inputRef = useRef(null);
   const wsRef = useRef(null);
   const isMountedRef = useRef(true);
+
+  const chatEnabled = settings?.chat_enabled !== false;
+  const messagesEnabled = settings?.chat_messages_enabled !== false;
+  const maxLength = Math.max(50, Math.min(1000, Number(settings?.chat_max_length) || 300));
+  const pinned = settings?.chat_pinned_message;
+  const isAdmin = user?.role === "admin";
+  const canSend = !!user && chatEnabled && (messagesEnabled || isAdmin);
 
   // ---- Load initial 50 ----
   useEffect(() => {
@@ -218,6 +235,36 @@ export default function LobbyChat({ room = "global" }) {
 
   const grouped = useMemo(() => state.items, [state.items]);
 
+  const insertEmoticon = (name) => {
+    const token = `:${name}:`;
+    setDraft((d) => {
+      // Ensure a space separator if the previous char isn't whitespace already.
+      const sep = d.length === 0 || /\s$/.test(d) ? "" : " ";
+      return (d + sep + token + " ").slice(0, maxLength);
+    });
+    inputRef.current?.focus();
+  };
+
+  // Chat fully off: show a centered message instead of rendering anything.
+  if (!chatEnabled && !isAdmin) {
+    return (
+      <div
+        data-testid="lobby-chat"
+        className="flex h-full min-h-0 flex-col rounded-2xl border border-white/[0.06] bg-gradient-to-b from-[#0e0f14] to-[#0a0b0f] overflow-hidden"
+      >
+        <div className="flex-1 grid place-items-center px-6 text-center">
+          <div className="space-y-2">
+            <Lock className="h-7 w-7 text-muted-foreground mx-auto" />
+            <h3 className="text-sm font-semibold text-white/90">Chat-ul este dezactivat</h3>
+            <p className="text-xs text-muted-foreground max-w-xs">
+              Administratorii au pus chat-ul în pauză temporară. Revenim curând!
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       data-testid="lobby-chat"
@@ -240,11 +287,16 @@ export default function LobbyChat({ room = "global" }) {
         </span>
       </div>
 
+      {/* Pinned message (admin-managed) */}
+      {pinned && pinned.content && (
+        <PinnedBanner pin={pinned} isAdmin={isAdmin} />
+      )}
+
       {/* Messages list */}
       <div
         ref={listRef}
         data-testid="lobby-chat-list"
-        className="flex-1 min-h-0 overflow-y-auto px-3 py-3 space-y-1.5"
+        className="cartoonix-scroll flex-1 min-h-0 overflow-y-auto px-3 py-3 space-y-1.5"
       >
         {state.hasMore && state.items.length > 0 && (
           <div className="flex justify-center pb-2">
@@ -277,43 +329,147 @@ export default function LobbyChat({ room = "global" }) {
             <ChatRow
               key={m.id}
               m={m}
-              viewerIsAdmin={user?.role === "admin"}
+              viewerIsAdmin={isAdmin}
             />
           ))
         )}
       </div>
 
+      {/* Messages-disabled banner for non-admins when admins paused sending */}
+      {!messagesEnabled && !isAdmin && (
+        <div className="border-t border-white/[0.06] px-4 py-2 text-center text-[12px] text-muted-foreground">
+          Admin-ii au pus în pauză trimiterea de mesaje. Vei putea posta din nou în scurt timp.
+        </div>
+      )}
+
       {/* Composer */}
-      <form
-        className="border-t border-white/[0.06] p-2.5 flex gap-2 items-center"
-        onSubmit={(e) => {
-          e.preventDefault();
-          send();
-        }}
-      >
-        <input
-          data-testid="lobby-chat-input"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value.slice(0, 300))}
-          placeholder={user ? "Scrie un mesaj…" : "Loghează-te ca să poți trimite mesaje"}
-          maxLength={300}
-          disabled={!user || state.sending}
-          className="flex-1 bg-black/40 border border-white/10 rounded-full px-4 py-2 text-sm text-white placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--accent))]/40"
-        />
-        <button
-          type="submit"
-          data-testid="lobby-chat-send"
-          disabled={!user || state.sending || !draft.trim()}
-          className="inline-flex items-center justify-center h-9 w-9 rounded-full bg-gradient-to-br from-[#ff3b3b] to-[#facc15] text-black shadow-md hover:opacity-95 disabled:opacity-50"
-          aria-label="Trimite"
+      {(messagesEnabled || isAdmin) && (
+        <form
+          className="border-t border-white/[0.06] p-2.5 flex gap-2 items-center"
+          onSubmit={(e) => {
+            e.preventDefault();
+            send();
+          }}
         >
-          {state.sending ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Send className="h-4 w-4" />
-          )}
-        </button>
-      </form>
+          {/* Emoji picker */}
+          <Popover open={emojiOpen} onOpenChange={setEmojiOpen}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                aria-label="Inserează emoji"
+                data-testid="lobby-chat-emoji-trigger"
+                className="inline-flex items-center justify-center h-9 w-9 rounded-full text-muted-foreground hover:bg-white/10 hover:text-white transition-colors"
+              >
+                <Smile className="h-5 w-5" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent
+              side="top"
+              align="start"
+              className="w-[320px] p-0 bg-[#0e0f14] border-white/10"
+              data-testid="lobby-chat-emoji-panel"
+            >
+              <div className="flex items-center justify-between px-3 py-2 border-b border-white/[0.06]">
+                <span className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
+                  Yahoo Classic · {EMOTICONS.length}
+                </span>
+                <button
+                  onClick={() => setEmojiOpen(false)}
+                  aria-label="Închide"
+                  className="text-muted-foreground hover:text-white"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              <div className="cartoonix-scroll max-h-[260px] overflow-y-auto p-2 grid grid-cols-8 gap-1">
+                {EMOTICONS.map((name) => (
+                  <button
+                    key={name}
+                    type="button"
+                    onClick={() => insertEmoticon(name)}
+                    title={`:${name}:`}
+                    data-testid={`lobby-chat-emoji-${name}`}
+                    className="h-8 w-8 grid place-items-center rounded-md hover:bg-white/10 transition-colors"
+                  >
+                    <img
+                      src={emoticonUrl(name)}
+                      alt={name}
+                      draggable={false}
+                      className="h-5 w-5 object-contain"
+                    />
+                  </button>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          <input
+            ref={inputRef}
+            data-testid="lobby-chat-input"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value.slice(0, maxLength))}
+            placeholder={canSend ? "Scrie un mesaj…" : "Loghează-te ca să poți trimite mesaje"}
+            maxLength={maxLength}
+            disabled={!canSend || state.sending}
+            className="flex-1 bg-black/40 border border-white/10 rounded-full px-4 py-2 text-sm text-white placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--accent))]/40 disabled:opacity-60"
+          />
+          <button
+            type="submit"
+            data-testid="lobby-chat-send"
+            disabled={!canSend || state.sending || !draft.trim()}
+            className="inline-flex items-center justify-center h-9 w-9 rounded-full bg-gradient-to-br from-[#ff3b3b] to-[#facc15] text-black shadow-md hover:opacity-95 disabled:opacity-50"
+            aria-label="Trimite"
+          >
+            {state.sending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
+          </button>
+        </form>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Slim pin banner shown above the message list. Admin viewers get an inline
+ * "unpin" affordance — clicking it clears the global pinned message.
+ */
+function PinnedBanner({ pin, isAdmin }) {
+  const unpin = async () => {
+    try {
+      await api.post("/chat/admin/pin", { message_id: null });
+    } catch {
+      toast.error("Nu am putut elimina mesajul fixat.");
+    }
+  };
+  return (
+    <div
+      data-testid="lobby-chat-pinned"
+      className="relative border-b border-white/[0.06] px-3 py-2 bg-gradient-to-r from-amber-500/[0.12] via-orange-500/[0.08] to-transparent"
+    >
+      <div className="flex items-start gap-2.5">
+        <Pin className="h-3.5 w-3.5 text-amber-400 mt-0.5 shrink-0" />
+        <div className="min-w-0 flex-1">
+          <div className="text-[10px] uppercase tracking-widest font-semibold text-amber-300/90 mb-0.5">
+            Mesaj fixat · {pin.nickname || "Admin"}
+          </div>
+          <p className="text-[13px] text-white/90 break-words">
+            <MessageContent text={pin.content || ""} />
+          </p>
+        </div>
+        {isAdmin && (
+          <button
+            onClick={unpin}
+            aria-label="Elimină mesajul fixat"
+            data-testid="lobby-chat-pin-remove"
+            className="shrink-0 text-muted-foreground hover:text-white"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -347,11 +503,36 @@ const ChatRow = React.memo(function ChatRow({ m, viewerIsAdmin }) {
             m.censored ? "italic text-white/70" : ""
           }`}
         >
-          {m.content}
+          <MessageContent text={m.content || ""} />
         </p>
       </div>
       {canModerate && <ModerationMenu m={m} />}
     </div>
+  );
+});
+
+/**
+ * Render a message body, replacing known `:name:` tokens with the matching
+ * Yahoo-style emoticon GIF. Anything else falls through as plain text so
+ * URLs and ratios containing colons are not corrupted.
+ */
+const MessageContent = React.memo(function MessageContent({ text }) {
+  const parts = useMemo(() => tokenizeMessage(text), [text]);
+  if (parts.length === 0) return text;
+  return parts.map((p, i) =>
+    p.type === "emo" ? (
+      <img
+        key={i}
+        src={emoticonUrl(p.name)}
+        alt={`:${p.name}:`}
+        title={`:${p.name}:`}
+        draggable={false}
+        className="inline-block align-text-bottom mx-0.5"
+        style={{ height: "1.25em", width: "auto" }}
+      />
+    ) : (
+      <React.Fragment key={i}>{p.value}</React.Fragment>
+    )
   );
 });
 
@@ -416,6 +597,17 @@ function ModerationMenu({ m }) {
           className="text-[13px] focus:bg-red-500/20 focus:text-red-200"
         >
           <Trash2 className="mr-2 h-3.5 w-3.5" /> Șterge mesaj
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() =>
+            run("Mesaj fixat în chat", () =>
+              api.post("/chat/admin/pin", { message_id: m.id })
+            )
+          }
+          data-testid={`chat-mod-pin-${m.id}`}
+          className="text-[13px] focus:bg-amber-500/20"
+        >
+          <Pin className="mr-2 h-3.5 w-3.5" /> Fixează în chat
         </DropdownMenuItem>
         <DropdownMenuSeparator className="bg-white/[0.06]" />
         <DropdownMenuItem

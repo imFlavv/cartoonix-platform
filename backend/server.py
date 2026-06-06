@@ -1011,6 +1011,9 @@ DEFAULT_SETTINGS = {
     "early_access_mode": False,
     # Support tickets feature toggle (controls /support page + nav link)
     "support_enabled": True,
+    # Lobby page toggle — when False, only admins can access /lobby; everyone
+    # else sees a friendly maintenance card.
+    "lobby_enabled": True,
     # Dashboard announcement bar (shown under top nav when active)
     "announcement_active": False,
     "announcement_text": "",
@@ -1043,6 +1046,7 @@ async def public_settings():
         "maintenance_mode",
         "early_access_mode",
         "support_enabled",
+        "lobby_enabled",
         "announcement_active",
         "announcement_text",
         "chat_enabled",

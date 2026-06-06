@@ -197,11 +197,13 @@ export function TopNav() {
   const restrictedView = presentationOn && user?.role !== "admin";
   const isPlus = user?.subscription === "plus";
 
+  const isAdmin = user?.role === "admin";
+  const lobbyVisible = user && (settings?.lobby_enabled !== false || isAdmin);
   const NAV_ITEMS = [
     { to: "/category/jetix-foxkids", label: "JETIX & Fox Kids" },
     { to: "/category/cartoon-network", label: "Cartoon Network" },
     { to: "/category/minimax", label: "Minimax" },
-    ...(user ? [{ to: "/lobby", label: "Lobby" }] : []),
+    ...(lobbyVisible ? [{ to: "/lobby", label: "Lobby" }] : []),
     ...(user && settings?.support_enabled !== false
       ? [{ to: "/support", label: "Support" }]
       : []),
