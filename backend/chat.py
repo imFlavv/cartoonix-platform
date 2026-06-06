@@ -19,13 +19,16 @@ Storage:
 """
 from __future__ import annotations
 
+import asyncio
+import json
 import logging
 import re
 import unicodedata
 from datetime import datetime, timedelta, timezone
 from typing import List, Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger("cartoonix.chat")
@@ -292,6 +295,11 @@ async def _post_bot_message(db, content: str, room: str = "global") -> dict:
         "created_at": now.isoformat(),
     }
     await db.chat_messages.insert_one(doc)
+    # Broadcast bot message to live websocket subscribers as well.
+    try:
+        await _broadcast_event(room, {"type": "message", "data": _format_message_doc(doc)})
+    except Exception:
+        logger.exception("bot broadcast failed")
     return doc
 
 
@@ -394,6 +402,110 @@ def stop_bot_scheduler():
     global _bot_task
     if _bot_task and not _bot_task.done():
         _bot_task.cancel()
+
+
+# ============================================================
+# WEBSOCKET BROADCAST MANAGER (in-process pub/sub for live chat)
+# ============================================================
+class _WSManager:
+    """Lightweight per-room pub/sub for WebSocket connections.
+
+    For 400-500 concurrent users this in-process broadcaster is sufficient.
+    If the platform ever scales out to multiple workers we can swap this for
+    a Redis pub/sub backend without changing the public API.
+    """
+
+    def __init__(self) -> None:
+        # room -> set of WebSocket
+        self._conns: dict[str, set[WebSocket]] = {"global": set(), "plus": set()}
+        self._lock = asyncio.Lock()
+
+    async def connect(self, ws: WebSocket, room: str) -> None:
+        async with self._lock:
+            self._conns.setdefault(room, set()).add(ws)
+
+    async def disconnect(self, ws: WebSocket, room: str) -> None:
+        async with self._lock:
+            self._conns.get(room, set()).discard(ws)
+
+    async def broadcast(self, room: str, payload: dict) -> None:
+        # Snapshot connections to avoid holding the lock while sending.
+        async with self._lock:
+            conns = list(self._conns.get(room, ()))
+        if not conns:
+            return
+        dead: list[WebSocket] = []
+        for ws in conns:
+            try:
+                await ws.send_json(payload)
+            except Exception:
+                dead.append(ws)
+        if dead:
+            async with self._lock:
+                for ws in dead:
+                    self._conns.get(room, set()).discard(ws)
+
+
+ws_manager = _WSManager()
+
+
+# ----- SSE (Server-Sent Events) manager — proxy-friendly live channel -----
+class _SSEManager:
+    """Async pub/sub for SSE subscribers, scoped per room.
+
+    SSE is used because the Kubernetes ingress on the preview environment
+    does not negotiate WebSocket upgrades. SSE is a one-way server → client
+    stream over standard HTTP/1.1 chunked transfer — every proxy supports it.
+    For our needs (push new chat messages to clients) it is functionally
+    equivalent to the WebSocket path.
+    """
+
+    def __init__(self) -> None:
+        self._subs: dict[str, set[asyncio.Queue]] = {"global": set(), "plus": set()}
+        self._lock = asyncio.Lock()
+
+    async def subscribe(self, room: str) -> asyncio.Queue:
+        q: asyncio.Queue = asyncio.Queue(maxsize=200)
+        async with self._lock:
+            self._subs.setdefault(room, set()).add(q)
+        return q
+
+    async def unsubscribe(self, room: str, q: asyncio.Queue) -> None:
+        async with self._lock:
+            self._subs.get(room, set()).discard(q)
+
+    async def publish(self, room: str, event: dict) -> None:
+        async with self._lock:
+            subs = list(self._subs.get(room, ()))
+        for q in subs:
+            try:
+                q.put_nowait(event)
+            except asyncio.QueueFull:
+                # Slow consumer — drop them; client will reconnect.
+                try:
+                    async with self._lock:
+                        self._subs.get(room, set()).discard(q)
+                except Exception:
+                    pass
+
+
+sse_manager = _SSEManager()
+
+
+async def _broadcast_event(room: str, event: dict) -> None:
+    """Fan-out a chat event to BOTH the WebSocket and SSE subscribers.
+
+    Either transport can be used by clients; we just publish to both so the
+    posting code does not need to care which is active.
+    """
+    try:
+        await ws_manager.broadcast(room, event)
+    except Exception:
+        logger.exception("ws broadcast failed")
+    try:
+        await sse_manager.publish(room, event)
+    except Exception:
+        logger.exception("sse broadcast failed")
 
 
 # ============================================================
@@ -513,27 +625,46 @@ def attach_handlers(get_current_user, require_admin):
     async def list_messages(
         room: str = Query("global", pattern="^(global|plus)$"),
         since: Optional[str] = None,
+        before: Optional[str] = None,
         limit: int = 50,
         user=Depends(get_current_user),
     ):
+        """List chat messages.
+
+        - `limit` capped at 100 (default 50). Returns newest-first sliced and
+          then reversed to chronological order, so the client appends straight
+          to its window.
+        - `since=<iso>`: only messages strictly newer than `since` (used to
+          fill any gap after a websocket reconnect — kept small).
+        - `before=<iso>`: only messages strictly older than `before` (used by
+          the "Load more" button to fetch older history on demand).
+        """
         db = await _get_db()
         s = await _get_settings_full()
         if not s.get("chat_enabled", True) and user.get("role") != "admin":
-            return {"items": [], "room": room}
+            return {"items": [], "room": room, "has_more": False}
         # PLUS room: gate access
         if room == "plus":
             if user.get("role") != "admin" and user.get("subscription") != "plus":
                 raise HTTPException(403, "Camera PLUS este rezervată membrilor PLUS.")
-        q = {"room": room, "deleted": {"$ne": True}}
-        if since:
-            try:
-                q["created_at"] = {"$gt": since}
-            except Exception:
-                pass
-        limit = max(1, min(200, int(limit or 50)))
-        cursor = db.chat_messages.find(q, {"_id": 0}).sort("created_at", -1).limit(limit)
-        items = list(reversed(await cursor.to_list(limit)))
-        return {"items": [_format_message_doc(m) for m in items], "room": room}
+        q: dict = {"room": room, "deleted": {"$ne": True}}
+        if since and before:
+            q["created_at"] = {"$gt": since, "$lt": before}
+        elif since:
+            q["created_at"] = {"$gt": since}
+        elif before:
+            q["created_at"] = {"$lt": before}
+        limit = max(1, min(100, int(limit or 50)))
+        # Fetch limit+1 to determine if older history exists for "Load more"
+        cursor = db.chat_messages.find(q, {"_id": 0}).sort("created_at", -1).limit(limit + 1)
+        raw = await cursor.to_list(limit + 1)
+        has_more = len(raw) > limit
+        items = list(reversed(raw[:limit]))
+        return {
+            "items": [_format_message_doc(m) for m in items],
+            "room": room,
+            "has_more": has_more,
+        }
 
     @chat_router.post("/send")
     async def send_message(payload: SendMessage, user=Depends(get_current_user)):
@@ -688,7 +819,14 @@ def attach_handlers(get_current_user, require_admin):
             upsert=True,
         )
 
-        return {"success": True, "message": _format_message_doc(doc)}
+        # Broadcast to live subscribers (WebSocket + SSE).
+        formatted = _format_message_doc(doc)
+        try:
+            await _broadcast_event(payload.room, {"type": "message", "data": formatted})
+        except Exception:
+            logger.exception("send broadcast failed")
+
+        return {"success": True, "message": formatted}
 
     @chat_router.post("/heartbeat")
     async def heartbeat(user=Depends(get_current_user)):
@@ -714,6 +852,150 @@ def attach_handlers(get_current_user, require_admin):
             {"last_seen": {"$gte": threshold}, "plan": "plus"}
         )
         return {"online_total": total, "online_plus": plus}
+
+    @chat_router.websocket("/ws")
+    async def chat_websocket(ws: WebSocket, room: str = "global", token: str = ""):
+        """Live chat WebSocket.
+
+        - Auth via `?token=<jwt>` (cannot use the standard Bearer header in WS).
+        - Rooms: `global` (everyone) and `plus` (PLUS gate).
+        - Server pushes `{type: "message", data: <slim message>}` to every
+          connected client in the room when a new message is posted.
+        - Client may send `{"type": "ping"}` keepalive; server replies with
+          `{"type": "pong"}`. No other client → server commands accepted (all
+          message sends still go through the rate-limited REST endpoint).
+        """
+        if room not in ("global", "plus"):
+            await ws.close(code=4400)
+            return
+        # Manual JWT verification (HTTPBearer dependency can't be used here)
+        if not token:
+            await ws.close(code=4401)
+            return
+        try:
+            from auth import decode_token
+            payload = decode_token(token)
+            user_id = payload.get("sub")
+        except Exception:
+            await ws.close(code=4401)
+            return
+        db = await _get_db()
+        user = await db.users.find_one({"id": user_id}, {"_id": 0}) if user_id else None
+        if not user or user.get("banned"):
+            await ws.close(code=4401)
+            return
+        # PLUS room gate (admins always allowed)
+        if room == "plus" and user.get("role") != "admin" and user.get("subscription") != "plus":
+            await ws.close(code=4403)
+            return
+
+        await ws.accept()
+        await ws_manager.connect(ws, room)
+
+        # Touch presence so the connect itself counts
+        try:
+            await db.chat_online.update_one(
+                {"_id": user["id"]},
+                {"$set": {
+                    "_id": user["id"],
+                    "nickname": user.get("nickname", ""),
+                    "plan": user.get("subscription", "free"),
+                    "last_seen": _now(),
+                }},
+                upsert=True,
+            )
+        except Exception:
+            pass
+
+        try:
+            while True:
+                # Wait for keepalive / disconnect; everything else server-pushed
+                data = await ws.receive_json()
+                if isinstance(data, dict) and data.get("type") == "ping":
+                    try:
+                        await ws.send_json({"type": "pong"})
+                    except Exception:
+                        break
+        except WebSocketDisconnect:
+            pass
+        except Exception:
+            logger.exception("chat ws loop error")
+        finally:
+            await ws_manager.disconnect(ws, room)
+
+    @chat_router.get("/stream")
+    async def chat_stream(
+        request: Request,
+        room: str = Query("global", pattern="^(global|plus)$"),
+        token: str = Query(""),
+    ):
+        """Server-Sent Events live channel — fallback used by all clients
+        because the platform's ingress proxy does not negotiate WebSocket
+        upgrades. Authentication is via `?token=<jwt>` query param (same
+        constraint as the WS path — browsers cannot set custom headers on an
+        EventSource connection).
+
+        Each connected client gets its own bounded asyncio.Queue. When a new
+        chat event (message / delete) is published, every queue receives a
+        copy. A heartbeat comment is sent every 25s to keep proxies from
+        idle-killing the connection.
+        """
+        if not token:
+            raise HTTPException(401, "Missing token")
+        try:
+            from auth import decode_token
+            payload = decode_token(token)
+            user_id = payload.get("sub")
+        except Exception:
+            raise HTTPException(401, "Invalid token")
+        db = await _get_db()
+        user = await db.users.find_one({"id": user_id}, {"_id": 0}) if user_id else None
+        if not user or user.get("banned"):
+            raise HTTPException(401, "User not found")
+        if room == "plus" and user.get("role") != "admin" and user.get("subscription") != "plus":
+            raise HTTPException(403, "Camera PLUS este rezervată membrilor PLUS.")
+
+        async def event_gen():
+            q = await sse_manager.subscribe(room)
+            # Touch presence so the connect itself counts toward online
+            try:
+                await db.chat_online.update_one(
+                    {"_id": user["id"]},
+                    {"$set": {
+                        "_id": user["id"],
+                        "nickname": user.get("nickname", ""),
+                        "plan": user.get("subscription", "free"),
+                        "last_seen": _now(),
+                    }},
+                    upsert=True,
+                )
+            except Exception:
+                pass
+            try:
+                # Initial hello so the client immediately knows it is connected.
+                yield "event: hello\ndata: {}\n\n"
+                while True:
+                    if await request.is_disconnected():
+                        break
+                    try:
+                        event = await asyncio.wait_for(q.get(), timeout=25)
+                        yield f"data: {json.dumps(event)}\n\n"
+                    except asyncio.TimeoutError:
+                        # Heartbeat — keeps any intermediary proxy from idle-killing
+                        yield ": ping\n\n"
+            except asyncio.CancelledError:
+                pass
+            except Exception:
+                logger.exception("sse stream error")
+            finally:
+                await sse_manager.unsubscribe(room, q)
+
+        headers = {
+            "Cache-Control": "no-cache, no-transform",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        }
+        return StreamingResponse(event_gen(), media_type="text/event-stream", headers=headers)
 
     # --------- ADMIN ENDPOINTS ---------
     @chat_router.patch("/admin/settings")
@@ -779,6 +1061,8 @@ def attach_handlers(get_current_user, require_admin):
     @chat_router.delete("/admin/messages/{message_id}")
     async def admin_delete_message(message_id: str, user=Depends(require_admin)):
         db = await _get_db()
+        # Fetch first so we know which room to broadcast the deletion to.
+        original = await db.chat_messages.find_one({"id": message_id}, {"_id": 0, "room": 1})
         res = await db.chat_messages.update_one(
             {"id": message_id},
             {"$set": {
@@ -796,6 +1080,14 @@ def attach_handlers(get_current_user, require_admin):
             await db.settings.update_one(
                 {"_id": "global"}, {"$set": {"chat_pinned_message": None}}, upsert=True
             )
+        # Notify connected clients so they can drop the message immediately
+        try:
+            if original and original.get("room"):
+                await _broadcast_event(
+                    original["room"], {"type": "delete", "id": message_id}
+                )
+        except Exception:
+            logger.exception("delete broadcast failed")
         return {"success": True}
 
     @chat_router.post("/admin/pin")

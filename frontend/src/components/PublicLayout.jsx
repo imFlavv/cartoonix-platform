@@ -201,6 +201,7 @@ export function TopNav() {
     { to: "/category/jetix-foxkids", label: "JETIX & Fox Kids" },
     { to: "/category/cartoon-network", label: "Cartoon Network" },
     { to: "/category/minimax", label: "Minimax" },
+    ...(user ? [{ to: "/lobby", label: "Lobby" }] : []),
     ...(user && settings?.support_enabled !== false
       ? [{ to: "/support", label: "Support" }]
       : []),

@@ -176,6 +176,12 @@ async def on_startup():
     await db.chat_messages.create_index("user_id")
     await db.chat_messages.create_index("id", unique=True)
     await db.chat_online.create_index("last_seen", expireAfterSeconds=600)
+    # Lobby
+    await db.lobby_polls.create_index("active")
+    await db.lobby_polls.create_index("id", unique=True)
+    await db.lobby_suggestions.create_index("user_id")
+    await db.lobby_suggestions.create_index("created_at")
+    await db.lobby_suggestions.create_index("read")
     # Staff applications
     await db.staff_applications.create_index("user_id", unique=True)
     await db.staff_applications.create_index("status")
@@ -676,6 +682,253 @@ async def presence_online():
         return {"online_total": int(count)}
     except Exception:
         return {"online_total": 0}
+
+
+# ============================================================
+# LOBBY ENDPOINTS — feed for /lobby community page
+# All require auth. Each endpoint is small and cacheable client-side.
+# ============================================================
+
+
+@api_router.get("/lobby/online")
+async def lobby_online(user=Depends(get_current_user), limit: int = 20):
+    """List of online users for the lobby sidebar — slim payload.
+
+    Sorted by most-recently active first. Capped at 20 to keep the payload
+    tiny even when 500 users are connected.
+    """
+    from datetime import timedelta as _td
+    limit = max(1, min(50, int(limit or 20)))
+    threshold = datetime.now(timezone.utc) - _td(seconds=90)
+    cursor = (
+        db.chat_online
+        .find({"last_seen": {"$gte": threshold}}, {"_id": 1, "nickname": 1, "plan": 1, "last_seen": 1})
+        .sort("last_seen", -1)
+        .limit(limit)
+    )
+    online = []
+    user_ids = []
+    async for row in cursor:
+        user_ids.append(row["_id"])
+        online.append({
+            "id": row["_id"],
+            "nickname": row.get("nickname") or "",
+            "plan": row.get("plan") or "free",
+            "avatar_url": None,
+        })
+    if user_ids:
+        # Single batched lookup for avatars
+        avatars = {}
+        async for u in db.users.find({"id": {"$in": user_ids}}, {"_id": 0, "id": 1, "avatar_url": 1}):
+            avatars[u["id"]] = u.get("avatar_url") or ""
+        for o in online:
+            o["avatar_url"] = avatars.get(o["id"], "")
+    total = await db.chat_online.count_documents({"last_seen": {"$gte": threshold}})
+    return {"items": online, "total": int(total)}
+
+
+@api_router.get("/lobby/next-live")
+async def lobby_next_live(user=Depends(get_current_user)):
+    """Next scheduled Cartoonix TV marathon — reuses /live/status compute."""
+    try:
+        cfg = await _live_config()
+        state = _live_compute_state(cfg)
+        return state
+    except Exception:
+        return {"is_live": False, "next_start_at": None}
+
+
+@api_router.get("/lobby/top-fans")
+async def lobby_top_fans(user=Depends(get_current_user), limit: int = 5):
+    """Most active chatters in the last 24h. Tiny aggregation, indexed scan."""
+    from datetime import timedelta as _td
+    limit = max(1, min(10, int(limit or 5)))
+    cutoff = (datetime.now(timezone.utc) - _td(hours=24)).isoformat()
+    pipeline = [
+        {"$match": {"created_at": {"$gte": cutoff}, "deleted": {"$ne": True}, "user_id": {"$ne": "cartoonixtv-bot"}}},
+        {"$group": {"_id": "$user_id", "count": {"$sum": 1}, "nickname": {"$last": "$nickname"}, "avatar_url": {"$last": "$avatar_url"}, "plan": {"$last": "$plan"}}},
+        {"$sort": {"count": -1}},
+        {"$limit": limit},
+    ]
+    fans = []
+    async for r in db.chat_messages.aggregate(pipeline):
+        fans.append({
+            "user_id": r["_id"],
+            "nickname": r.get("nickname") or "",
+            "avatar_url": r.get("avatar_url") or "",
+            "plan": r.get("plan") or "free",
+            "messages": int(r.get("count", 0)),
+        })
+    return {"items": fans}
+
+
+@api_router.get("/lobby/recommendation")
+async def lobby_recommendation(user=Depends(get_current_user)):
+    """A single random cartoon — pure client-side cache buster on user demand."""
+    try:
+        sample = await db.cartoons.aggregate([
+            {"$sample": {"size": 1}},
+            {"$project": {"_id": 0, "id": 1, "title": 1, "thumbnail_url": 1, "category": 1, "year": 1, "description": 1}},
+        ]).to_list(1)
+        if not sample:
+            return {"cartoon": None}
+        return {"cartoon": sample[0]}
+    except Exception:
+        return {"cartoon": None}
+
+
+@api_router.get("/lobby/winners")
+async def lobby_winners(user=Depends(get_current_user), limit: int = 3):
+    """Recent contest winners snippet for the lobby. Limit kept tiny."""
+    limit = max(1, min(10, int(limit or 3)))
+    items = []
+    try:
+        cursor = db.contest_entries.find(
+            {"is_winner": True},
+            {"_id": 0, "contest_id": 1, "user_id": 1, "nickname": 1, "won_at": 1, "prize": 1},
+        ).sort("won_at", -1).limit(limit)
+        async for w in cursor:
+            items.append({
+                "contest_id": w.get("contest_id"),
+                "nickname": w.get("nickname") or "",
+                "won_at": w.get("won_at"),
+                "prize": w.get("prize"),
+            })
+    except Exception:
+        items = []
+    return {"items": items}
+
+
+@api_router.get("/lobby/poll")
+async def lobby_get_poll(user=Depends(get_current_user)):
+    """Currently-active community poll + this user's vote (if any)."""
+    poll = await db.lobby_polls.find_one({"active": True}, {"_id": 0}) if hasattr(db, "lobby_polls") else None
+    if not poll:
+        return {"poll": None}
+    your_vote = None
+    votes = poll.get("votes") or {}
+    if isinstance(votes, dict):
+        your_vote = votes.get(user["id"])
+    # Compute tally without exposing individual votes
+    counts = {}
+    for v in votes.values():
+        counts[v] = counts.get(v, 0) + 1
+    return {
+        "poll": {
+            "id": poll.get("id"),
+            "question": poll.get("question"),
+            "options": poll.get("options") or [],
+            "counts": counts,
+            "total_votes": sum(counts.values()),
+            "your_vote": your_vote,
+            "created_at": poll.get("created_at"),
+        }
+    }
+
+
+@api_router.post("/lobby/poll/{poll_id}/vote")
+async def lobby_vote_poll(poll_id: str, payload: dict, user=Depends(get_current_user)):
+    option = (payload or {}).get("option")
+    if not option or not isinstance(option, str):
+        raise HTTPException(400, "Opțiune invalidă.")
+    poll = await db.lobby_polls.find_one({"id": poll_id, "active": True}, {"_id": 0})
+    if not poll:
+        raise HTTPException(404, "Sondaj inexistent sau încheiat.")
+    if option not in (poll.get("options") or []):
+        raise HTTPException(400, "Opțiunea nu există în acest sondaj.")
+    await db.lobby_polls.update_one(
+        {"id": poll_id},
+        {"$set": {f"votes.{user['id']}": option}},
+    )
+    return {"success": True}
+
+
+@api_router.post("/lobby/suggestion")
+async def lobby_submit_suggestion(payload: dict, user=Depends(get_current_user)):
+    """Suggestion box — quick free-text channel to admins. Capped & rate-limited."""
+    text = ((payload or {}).get("text") or "").strip()
+    if not text:
+        raise HTTPException(400, "Sugestia este goală.")
+    if len(text) > 600:
+        raise HTTPException(400, "Sugestia depășește 600 de caractere.")
+    # Simple per-user rate limit: max 5 / hour
+    from datetime import timedelta as _td
+    cutoff = (datetime.now(timezone.utc) - _td(hours=1)).isoformat()
+    recent = await db.lobby_suggestions.count_documents(
+        {"user_id": user["id"], "created_at": {"$gte": cutoff}}
+    )
+    if recent >= 5:
+        raise HTTPException(429, "Ai trimis prea multe sugestii recent. Reîncearcă mai târziu.")
+    from models import new_id
+    await db.lobby_suggestions.insert_one({
+        "id": new_id(),
+        "user_id": user["id"],
+        "nickname": user.get("nickname") or "",
+        "text": text,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "read": False,
+    })
+    return {"success": True}
+
+
+# ----- Admin: poll CRUD -----
+@api_router.get("/admin/lobby/poll")
+async def admin_lobby_get_poll(user=Depends(require_admin)):
+    poll = await db.lobby_polls.find_one({"active": True}, {"_id": 0})
+    return {"poll": poll}
+
+
+@api_router.post("/admin/lobby/poll")
+async def admin_lobby_create_poll(payload: dict, user=Depends(require_admin)):
+    question = ((payload or {}).get("question") or "").strip()
+    options = [str(o).strip() for o in ((payload or {}).get("options") or []) if str(o).strip()]
+    if not question:
+        raise HTTPException(400, "Întrebare obligatorie.")
+    if len(options) < 2:
+        raise HTTPException(400, "Sondajul trebuie să aibă cel puțin 2 opțiuni.")
+    if len(options) > 6:
+        raise HTTPException(400, "Maxim 6 opțiuni per sondaj.")
+    # Deactivate any previously active poll — only one can be live
+    await db.lobby_polls.update_many({"active": True}, {"$set": {"active": False}})
+    from models import new_id
+    doc = {
+        "id": new_id(),
+        "question": question[:200],
+        "options": options[:6],
+        "votes": {},
+        "active": True,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.lobby_polls.insert_one(doc)
+    return {"success": True, "poll": {k: v for k, v in doc.items() if k != "_id"}}
+
+
+@api_router.patch("/admin/lobby/poll/{poll_id}")
+async def admin_lobby_close_poll(poll_id: str, payload: dict, user=Depends(require_admin)):
+    active = bool((payload or {}).get("active", False))
+    res = await db.lobby_polls.update_one({"id": poll_id}, {"$set": {"active": active}})
+    if res.matched_count == 0:
+        raise HTTPException(404, "Sondaj inexistent.")
+    return {"success": True}
+
+
+@api_router.get("/admin/lobby/suggestions")
+async def admin_lobby_list_suggestions(user=Depends(require_admin), limit: int = 50):
+    limit = max(1, min(200, int(limit or 50)))
+    items = []
+    async for r in db.lobby_suggestions.find({}, {"_id": 0}).sort("created_at", -1).limit(limit):
+        items.append(r)
+    unread = await db.lobby_suggestions.count_documents({"read": False})
+    return {"items": items, "unread": int(unread)}
+
+
+@api_router.patch("/admin/lobby/suggestions/{sid}")
+async def admin_lobby_mark_suggestion(sid: str, payload: dict, user=Depends(require_admin)):
+    read = bool((payload or {}).get("read", True))
+    res = await db.lobby_suggestions.update_one({"id": sid}, {"$set": {"read": read}})
+    if res.matched_count == 0:
+        raise HTTPException(404, "Sugestie inexistentă.")
+    return {"success": True}
 
 
 @api_router.get("/admin/live/maraton")

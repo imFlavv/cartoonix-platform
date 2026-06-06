@@ -40,8 +40,8 @@ import AdminSupport from "@/pages/admin/AdminSupport";
 import AdminLive from "@/pages/admin/AdminLive";
 import SupportPage from "@/pages/SupportPage";
 import StaffPage from "@/pages/StaffPage";
+import LobbyPage from "@/pages/LobbyPage";
 import { RequireAdmin, RequireAuth } from "@/components/RouteGuards";
-import ChatWidget from "@/components/chat/ChatWidget";
 import OnlineUsersWidget from "@/components/OnlineUsersWidget";
 
 /**
@@ -236,38 +236,6 @@ function EarlyAccessRoute() {
 }
 
 /**
- * Chat widget is rendered ONLY for logged-in users (not admins inside /admin)
- * and only when chat_enabled. It is hidden on maintenance/auth pages and inside
- * the admin panel (admins use /admin/chat).
- */
-function ChatMount() {
-  const { user, loading: authLoading } = useAuth() || {};
-  const { settings, loading: settingsLoading } = useSettings() || {};
-  const location = useLocation();
-  if (authLoading || settingsLoading) return null;
-  if (!user) return null;
-  if (settings?.maintenance_mode && user.role !== "admin") return null;
-  if (settings?.chat_enabled === false) return null;
-  const path = location.pathname;
-  // Hide on auth / verification flows and inside /admin
-  const HIDDEN_PREFIXES = [
-    "/admin",
-    "/login",
-    "/register",
-    "/verify",
-    "/reset-password",
-    "/forgot-password",
-    "/terms-and-conditions",
-    "/gdpr",
-    "/castigatori",
-  ];
-  if (HIDDEN_PREFIXES.some((p) => path === p || path.startsWith(p + "/"))) {
-    return null;
-  }
-  return <ChatWidget />;
-}
-
-/**
  * Mount the small "online users" badge in the bottom-left corner on public
  * pages. Hidden inside /admin and on auth/verification flows to stay out of
  * the way of dense admin tooling. Public for everyone (no login required).
@@ -367,6 +335,14 @@ function App() {
                     </RequireAuth>
                   }
                 />
+                <Route
+                  path="/lobby"
+                  element={
+                    <RequireAuth>
+                      <LobbyPage />
+                    </RequireAuth>
+                  }
+                />
                 <Route path="/admin" element={<RequireAdmin><AdminLayout /></RequireAdmin>}>
                   <Route index element={<AdminOverview />} />
                   <Route path="cartoons" element={<AdminCartoons />} />
@@ -383,7 +359,6 @@ function App() {
               </Routes>
               </EarlyAccessGate>
               </MaintenanceGate>
-              <ChatMount />
               <OnlineUsersMount />
               <Toaster position="top-right" />
             </SettingsProvider>
