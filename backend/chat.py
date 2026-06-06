@@ -1090,6 +1090,40 @@ def attach_handlers(get_current_user, require_admin):
             logger.exception("delete broadcast failed")
         return {"success": True}
 
+    @chat_router.delete("/admin/messages")
+    async def admin_clear_chat(
+        room: str = Query("global", pattern="^(global|plus|all)$"),
+        user=Depends(require_admin),
+    ):
+        """Permanently wipe ALL chat history for a room (or both rooms when
+        `room=all`). Returns the number of messages removed and notifies all
+        connected clients via SSE so their lists clear instantly.
+
+        This is destructive — there is no soft-delete here because the goal
+        is to reset the room and reclaim disk on Mongo.
+        """
+        db = await _get_db()
+        q: dict = {} if room == "all" else {"room": room}
+        res = await db.chat_messages.delete_many(q)
+        # Unpin if the pinned message was in a wiped room
+        try:
+            s = await _get_settings_full()
+            pin = s.get("chat_pinned_message") or {}
+            if pin and (room == "all" or pin.get("room") == room or not pin.get("room")):
+                await db.settings.update_one(
+                    {"_id": "global"}, {"$set": {"chat_pinned_message": None}}, upsert=True
+                )
+        except Exception:
+            pass
+        # Notify each affected room
+        rooms = ("global", "plus") if room == "all" else (room,)
+        for r in rooms:
+            try:
+                await _broadcast_event(r, {"type": "clear"})
+            except Exception:
+                logger.exception("clear broadcast failed")
+        return {"success": True, "removed": int(res.deleted_count), "room": room}
+
     @chat_router.post("/admin/pin")
     async def admin_pin_message(payload: PinMessage, user=Depends(require_admin)):
         db = await _get_db()

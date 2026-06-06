@@ -938,6 +938,9 @@ export default function AdminChat() {
         </div>
       </div>
 
+      {/* Danger zone — clear chat history */}
+      <ClearChatCard />
+
       {/* CartoonixTV bot management */}
       <div
         className="rounded-2xl border p-5 space-y-4"
@@ -1512,5 +1515,106 @@ export default function AdminChat() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+/**
+ * Destructive admin action — permanently wipes chat history for a chosen
+ * room. Requires explicit confirmation in a dialog and shows the number of
+ * messages removed in a toast. Connected clients receive an SSE `clear`
+ * event and clear their local message list instantly.
+ */
+function ClearChatCard() {
+  const [busy, setBusy] = useState(false);
+  const [room, setRoom] = useState("global");
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const labels = { global: "Global", plus: "Cameră PLUS", all: "TOATE camerele" };
+
+  const doClear = async () => {
+    setConfirmOpen(false);
+    setBusy(true);
+    try {
+      const { data } = await api.delete(`/chat/admin/messages?room=${room}`);
+      toast.success(
+        `${data.removed || 0} mesaje șterse din ${labels[room].toLowerCase()}.`,
+        { description: "Toți utilizatorii conectați văd chat-ul gol acum." }
+      );
+    } catch (err) {
+      toast.error("Nu am putut șterge mesajele.", {
+        description: err?.response?.data?.detail || "Încearcă din nou.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="rounded-2xl border border-red-500/30 bg-red-500/[0.03] p-5">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="flex-1 min-w-[280px]">
+            <h2 className="font-display text-xl tracking-wide flex items-center gap-2 text-red-200">
+              <Trash2 className="h-5 w-5 text-red-400" />
+              Golire chat
+            </h2>
+            <p className="text-xs text-muted-foreground mt-1 max-w-prose leading-relaxed">
+              Șterge permanent toate mesajele din camera aleasă. Acțiune
+              ireversibilă — folosește-o doar când vrei reset complet. Toți
+              utilizatorii văd chat-ul gol instant (prin SSE broadcast).
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <select
+              value={room}
+              onChange={(e) => setRoom(e.target.value)}
+              data-testid="clear-chat-room-select"
+              className="h-9 rounded-md bg-black/40 border border-white/10 px-3 text-[13px] text-white focus:outline-none focus:ring-2 focus:ring-red-500/40"
+            >
+              <option value="global">Doar Global</option>
+              <option value="plus">Doar Cameră PLUS</option>
+              <option value="all">TOATE camerele</option>
+            </select>
+            <Button
+              onClick={() => setConfirmOpen(true)}
+              disabled={busy}
+              data-testid="clear-chat-trigger"
+              className="bg-red-500 hover:bg-red-600 text-white"
+            >
+              {busy ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Trash2 className="h-4 w-4 mr-1" />}
+              Golește
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-300">
+              <AlertTriangle className="h-5 w-5" />
+              Confirmă ștergerea
+            </DialogTitle>
+            <DialogDescription>
+              Vei șterge <strong>permanent</strong> toate mesajele din{" "}
+              <strong>{labels[room]}</strong>. Această acțiune nu poate fi
+              anulată. Continui?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setConfirmOpen(false)}>
+              Anulează
+            </Button>
+            <Button
+              data-testid="clear-chat-confirm"
+              className="bg-red-500 hover:bg-red-600 text-white"
+              onClick={doClear}
+            >
+              Da, șterge tot
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

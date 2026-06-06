@@ -2,7 +2,12 @@ import React, { useEffect, useState, useCallback } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { LogOut, User as UserIcon, Shield, Mail, Crown, ArrowRight, Radio } from "lucide-react";
+import { LogOut, User as UserIcon, Shield, Mail, Crown, ArrowRight, Radio, Menu } from "lucide-react";
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -135,22 +140,26 @@ function NotificationsBell() {
   }, []);
 
   useEffect(() => {
-    refreshUnread();
-    const id = setInterval(() => {
-      // Skip the request when the tab is hidden — saves bandwidth and DB load
-      // when users have many tabs open.
+    const refresh = async () => {
       if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
-      refreshUnread();
-    }, 120000); // every 2 min instead of 1
+      try {
+        const { data } = await api.get("/notifications/unread-count");
+        setUnread(Number(data?.notifications || 0));
+      } catch {
+        /* silent */
+      }
+    };
+    refresh();
+    const id = setInterval(refresh, 120000);
     const onVis = () => {
-      if (typeof document !== "undefined" && document.visibilityState === "visible") refreshUnread();
+      if (typeof document !== "undefined" && document.visibilityState === "visible") refresh();
     };
     document.addEventListener("visibilitychange", onVis);
     return () => {
       clearInterval(id);
       document.removeEventListener("visibilitychange", onVis);
     };
-  }, [refreshUnread]);
+  }, []);
 
   const badge = unread > 9 ? "9+" : String(unread);
 
@@ -196,6 +205,7 @@ export function TopNav() {
   const presentationOn = !!settings?.presentation_mode;
   const restrictedView = presentationOn && user?.role !== "admin";
   const isPlus = user?.subscription === "plus";
+  const [mobileOpen, setMobileOpen] = React.useState(false);
 
   const isAdmin = user?.role === "admin";
   const lobbyVisible = user && (settings?.lobby_enabled !== false || isAdmin);
@@ -216,6 +226,68 @@ export function TopNav() {
     >
       <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[hsl(var(--accent))]/30 to-transparent" />
       <div className="mx-auto flex h-[68px] max-w-7xl items-center gap-3 px-4 sm:px-6 lg:px-8">
+        {/* Mobile burger trigger (visible <md) */}
+        {!restrictedView && NAV_ITEMS.length > 0 && (
+          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+            <SheetTrigger asChild>
+              <button
+                type="button"
+                data-testid="mobile-menu-trigger"
+                aria-label="Deschide meniul"
+                className="md:hidden inline-flex items-center justify-center h-9 w-9 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors"
+              >
+                <Menu className="h-5 w-5" />
+              </button>
+            </SheetTrigger>
+            <SheetContent
+              side="left"
+              data-testid="mobile-menu-panel"
+              className="w-[78vw] max-w-[320px] border-r border-white/[0.08] bg-[#0b0c10]/95 backdrop-blur-xl p-0 flex flex-col"
+            >
+              <div className="px-5 pt-5 pb-4 border-b border-white/[0.06] flex items-center justify-between">
+                <BrandLogo variant="horizontal" size="sm" />
+              </div>
+              <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-1">
+                {NAV_ITEMS.map((it) => (
+                  <NavLink
+                    key={it.to}
+                    to={it.to}
+                    data-testid={`mobile-nav-${it.to.replace(/\//g, "-")}`}
+                    onClick={() => setMobileOpen(false)}
+                    className={({ isActive }) =>
+                      `flex items-center gap-2 px-3 py-2.5 rounded-lg text-[14px] font-medium tracking-wide transition-colors ${
+                        isActive
+                          ? "bg-white/[0.06] text-white border border-white/[0.08]"
+                          : "text-white/70 hover:bg-white/[0.04] hover:text-white"
+                      }`
+                    }
+                  >
+                    <ArrowRight className="h-3.5 w-3.5 text-white/40" />
+                    {it.label}
+                  </NavLink>
+                ))}
+              </nav>
+              {user && (
+                <div className="border-t border-white/[0.06] px-4 py-3 flex items-center gap-2.5">
+                  <img
+                    src={mediaUrl(user.avatar_url)}
+                    alt={user.nickname}
+                    className="h-9 w-9 rounded-full object-cover ring-1 ring-white/10"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[13px] font-semibold text-white truncate">
+                      {user.nickname}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground truncate">
+                      {user.email}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </SheetContent>
+          </Sheet>
+        )}
+
         <Link to="/" data-testid="nav-logo" className="flex items-center group shrink-0">
           <BrandLogo variant="horizontal" size="md" />
         </Link>

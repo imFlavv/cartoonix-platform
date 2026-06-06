@@ -61,6 +61,8 @@ function reducer(s, a) {
     }
     case "DELETE":
       return { ...s, items: s.items.filter((m) => m.id !== a.id) };
+    case "CLEAR":
+      return { ...s, items: [], hasMore: false };
     case "LOAD_MORE":
       return { ...s, loadingMore: true };
     case "SEND_START":
@@ -170,6 +172,8 @@ export default function LobbyChat({ room = "global" }) {
         }
       } else if (payload.type === "delete" && payload.id) {
         dispatch({ type: "DELETE", id: payload.id });
+      } else if (payload.type === "clear") {
+        dispatch({ type: "CLEAR" });
       }
     };
 
@@ -224,8 +228,20 @@ export default function LobbyChat({ room = "global" }) {
     if (!content || state.sending) return;
     dispatch({ type: "SEND_START" });
     try {
-      await api.post("/chat/send", { room, content });
+      const { data } = await api.post("/chat/send", { room, content });
       setDraft("");
+      // Append the canonical message returned by the server so it appears
+      // instantly even if the SSE echo is delayed. The reducer dedupes by
+      // `id`, so the later SSE echo will be a no-op.
+      if (data?.message?.id) {
+        dispatch({ type: "APPEND_ONE", item: data.message });
+        const el = listRef.current;
+        if (el) {
+          requestAnimationFrame(() => {
+            el.scrollTop = el.scrollHeight;
+          });
+        }
+      }
     } catch (err) {
       toast.error(getErrorMessage(err, "Mesajul nu a putut fi trimis."));
     } finally {
