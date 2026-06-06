@@ -1,23 +1,30 @@
 import React from "react";
-import { PLUS_BADGE_URL } from "@/lib/badges";
+import { PLUS_BADGE_URL, ADMIN_BADGE_URL } from "@/lib/badges";
 
 /**
- * <UserBadges /> — renders the user's PLUS badge inline, aligned to text.
+ * <UserBadges /> — renders the user's identity badge(s) inline, aligned to
+ * the surrounding text.
  *
  * `size` is the rendered HEIGHT in px; width auto-scales.
+ *
+ * If both `isAdmin` and `isPlus` are true, only the ADMIN badge is shown
+ * (admin always supersedes the PLUS pill).
  */
 export default function UserBadges({
   isPlus = false,
+  isAdmin = false,
   size = 18,
   className = "",
 }) {
-  if (!isPlus) return null;
+  if (!isPlus && !isAdmin) return null;
+  const src = isAdmin ? ADMIN_BADGE_URL : PLUS_BADGE_URL;
+  const label = isAdmin ? "Administrator Cartoonix" : "Membru Cartoonix PLUS";
   return (
     <span className={`inline-flex items-center align-middle ${className}`}>
       <img
-        src={PLUS_BADGE_URL}
-        alt="Membru Cartoonix PLUS"
-        title="Membru Cartoonix PLUS"
+        src={src}
+        alt={label}
+        title={label}
         draggable={false}
         className="inline-block select-none"
         style={{

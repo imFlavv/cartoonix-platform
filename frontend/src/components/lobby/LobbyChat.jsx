@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { api, mediaUrl, getErrorMessage } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
-import { Send, Loader2, ChevronUp, Shield, Crown } from "lucide-react";
+import { Send, Loader2, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
+import UserBadges from "@/components/UserBadges";
 
 /**
  * LobbyChat — slim chat panel for /lobby.
@@ -58,19 +59,10 @@ function reducer(s, a) {
   }
 }
 
-function PlanBadge({ plan, role }) {
-  if (role === "admin")
-    return (
-      <span className="inline-flex items-center gap-0.5 rounded-full bg-red-500/20 text-red-300 text-[9px] font-semibold uppercase tracking-wider px-1.5 py-px">
-        <Shield className="h-2.5 w-2.5" /> Admin
-      </span>
-    );
-  if (plan === "plus")
-    return (
-      <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-400/20 text-amber-300 text-[9px] font-semibold uppercase tracking-wider px-1.5 py-px">
-        <Crown className="h-2.5 w-2.5" /> Plus
-      </span>
-    );
+function NickBadges({ plan, role }) {
+  // Admin always wins; otherwise show PLUS for paying members; nothing for free.
+  if (role === "admin") return <UserBadges isAdmin size={16} />;
+  if (plan === "plus") return <UserBadges isPlus size={16} />;
   return null;
 }
 
@@ -325,12 +317,12 @@ const ChatRow = React.memo(function ChatRow({ m }) {
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <div className="flex items-baseline gap-2 flex-wrap">
-          <span className="text-[13px] font-semibold text-white/95 truncate">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-[13px] font-semibold text-white/95 truncate leading-none">
             {m.nickname || "anonim"}
           </span>
-          <PlanBadge plan={m.plan} role={m.role} />
-          <span className="text-[10px] text-muted-foreground tabular-nums">
+          <NickBadges plan={m.plan} role={m.role} />
+          <span className="text-[10px] text-muted-foreground tabular-nums leading-none">
             {timeOnly(m.created_at)}
           </span>
         </div>

@@ -1,7 +1,9 @@
 /**
- * Cartoonix badge system — PLUS only.
+ * Cartoonix badge system.
  *
- * Note: the level/progress system was retired. We keep the file lean and only
- * export the PLUS badge URL used across the app (chat, header, profile).
+ * Two visual identity badges are rendered inline next to nicknames:
+ *  - PLUS — the crown logo for paying members.
+ *  - ADMIN — the red "ADMIN" pill for platform moderators.
  */
 export const PLUS_BADGE_URL = "/badges/plus.png";
+export const ADMIN_BADGE_URL = "/badges/admin.png";

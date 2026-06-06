@@ -11,13 +11,13 @@ import {
   BarChart3,
   Sparkles,
   Lightbulb,
-  Crown,
-  Shield,
   RefreshCcw,
   Loader2,
   Check,
   Clock,
+  Lock,
 } from "lucide-react";
+import UserBadges from "@/components/UserBadges";
 import { toast } from "sonner";
 
 /**
@@ -56,7 +56,7 @@ function SectionCard({ icon: Icon, title, action, children, tone = "default", te
 function Avatar({ src, name, plan, role, size = 32 }) {
   const initials = (name || "?").slice(0, 2).toUpperCase();
   return (
-    <div className="relative shrink-0">
+    <div className="shrink-0">
       <div
         className="rounded-full overflow-hidden bg-gradient-to-br from-rose-600/50 to-amber-400/40 grid place-items-center text-[11px] font-bold text-white/90"
         style={{ height: size, width: size }}
@@ -67,17 +67,20 @@ function Avatar({ src, name, plan, role, size = 32 }) {
           initials
         )}
       </div>
-      {role === "admin" && (
-        <span className="absolute -bottom-0.5 -right-0.5 rounded-full bg-red-500 grid place-items-center" style={{ height: 14, width: 14 }}>
-          <Shield className="h-2.5 w-2.5 text-white" />
-        </span>
-      )}
-      {plan === "plus" && role !== "admin" && (
-        <span className="absolute -bottom-0.5 -right-0.5 rounded-full bg-amber-400 grid place-items-center" style={{ height: 14, width: 14 }}>
-          <Crown className="h-2.5 w-2.5 text-black" />
-        </span>
-      )}
     </div>
+  );
+}
+
+function NickWithBadge({ nickname, plan, role, className = "", size = 14 }) {
+  return (
+    <span className={`inline-flex items-center gap-1 min-w-0 ${className}`}>
+      <span className="truncate">{nickname || "anonim"}</span>
+      {role === "admin" ? (
+        <UserBadges isAdmin size={size} />
+      ) : plan === "plus" ? (
+        <UserBadges isPlus size={size} />
+      ) : null}
+    </span>
   );
 }
 
@@ -116,9 +119,13 @@ function OnlinePanel() {
               className="flex items-center gap-2.5 rounded-lg px-2 py-1 hover:bg-white/[0.03]"
             >
               <Avatar src={u.avatar_url} name={u.nickname} plan={u.plan} size={28} />
-              <span className="text-[13px] font-medium text-white/90 truncate">
-                {u.nickname || "anonim"}
-              </span>
+              <NickWithBadge
+                nickname={u.nickname}
+                plan={u.plan}
+                role={u.role}
+                size={14}
+                className="text-[13px] font-medium text-white/90"
+              />
             </li>
           ))}
         </ul>
@@ -151,7 +158,13 @@ function TopFansPanel() {
                 {i + 1}
               </span>
               <Avatar src={f.avatar_url} name={f.nickname} plan={f.plan} size={24} />
-              <span className="flex-1 truncate text-[13px] text-white/90 font-medium">{f.nickname}</span>
+              <NickWithBadge
+                nickname={f.nickname}
+                plan={f.plan}
+                role={f.role}
+                size={12}
+                className="flex-1 text-[13px] text-white/90 font-medium"
+              />
               <span className="text-[11px] tabular-nums text-muted-foreground">{f.messages}</span>
             </li>
           ))}
@@ -449,6 +462,8 @@ function SuggestionPanel() {
 
 export default function LobbyPage() {
   const { user } = useAuth();
+  const isPlus = user?.subscription === "plus" || user?.role === "admin";
+  const [room, setRoom] = useState("global");
   const title = useMemo(
     () => `Lobby${user?.nickname ? ` · Bun venit, ${user.nickname}` : ""}`,
     [user?.nickname]
@@ -467,6 +482,9 @@ export default function LobbyPage() {
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">{title}</p>
           </div>
+
+          {/* Room toggle: Global / PLUS */}
+          <RoomSwitcher room={room} setRoom={setRoom} isPlus={isPlus} />
         </div>
 
         {/* 3-col layout: left meta · chat centre · right meta */}
@@ -481,7 +499,7 @@ export default function LobbyPage() {
           {/* Centre column: chat */}
           <main className="lg:col-span-6 order-1 lg:order-2">
             <div className="h-[calc(100vh-260px)] min-h-[520px]">
-              <LobbyChat room="global" />
+              <LobbyChat room={room} key={room} />
             </div>
           </main>
 
@@ -495,5 +513,47 @@ export default function LobbyPage() {
         </div>
       </div>
     </PublicLayout>
+  );
+}
+
+function RoomSwitcher({ room, setRoom, isPlus }) {
+  return (
+    <div
+      data-testid="lobby-room-switcher"
+      className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-black/40 p-1 shadow-sm"
+    >
+      <button
+        onClick={() => setRoom("global")}
+        data-testid="lobby-room-global"
+        className={`px-3 py-1.5 rounded-full text-[11px] font-semibold uppercase tracking-widest transition ${
+          room === "global"
+            ? "bg-white/10 text-white shadow-inner"
+            : "text-white/60 hover:text-white"
+        }`}
+      >
+        Global
+      </button>
+      <button
+        onClick={() => {
+          if (!isPlus) {
+            toast.info("Camera PLUS este rezervată membrilor PLUS.", {
+              description: "Devino PLUS din pagina ta de profil pentru acces exclusiv.",
+            });
+            return;
+          }
+          setRoom("plus");
+        }}
+        data-testid="lobby-room-plus"
+        className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold uppercase tracking-widest transition ${
+          room === "plus"
+            ? "bg-gradient-to-r from-amber-500/40 to-yellow-400/30 text-white shadow-inner"
+            : "text-white/60 hover:text-white"
+        }`}
+      >
+        <UserBadges isPlus size={14} />
+        <span>Cameră PLUS</span>
+        {!isPlus && <Lock className="h-3 w-3 text-muted-foreground" />}
+      </button>
+    </div>
   );
 }

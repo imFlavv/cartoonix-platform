@@ -714,15 +714,24 @@ async def lobby_online(user=Depends(get_current_user), limit: int = 20):
             "id": row["_id"],
             "nickname": row.get("nickname") or "",
             "plan": row.get("plan") or "free",
+            "role": "user",
             "avatar_url": None,
         })
     if user_ids:
-        # Single batched lookup for avatars
-        avatars = {}
-        async for u in db.users.find({"id": {"$in": user_ids}}, {"_id": 0, "id": 1, "avatar_url": 1}):
-            avatars[u["id"]] = u.get("avatar_url") or ""
+        # Single batched lookup for avatar + role (avoids 1+N queries)
+        meta = {}
+        async for u in db.users.find(
+            {"id": {"$in": user_ids}},
+            {"_id": 0, "id": 1, "avatar_url": 1, "role": 1},
+        ):
+            meta[u["id"]] = {
+                "avatar_url": u.get("avatar_url") or "",
+                "role": u.get("role") or "user",
+            }
         for o in online:
-            o["avatar_url"] = avatars.get(o["id"], "")
+            m = meta.get(o["id"], {})
+            o["avatar_url"] = m.get("avatar_url", "")
+            o["role"] = m.get("role", "user")
     total = await db.chat_online.count_documents({"last_seen": {"$gte": threshold}})
     return {"items": online, "total": int(total)}
 
@@ -851,14 +860,17 @@ async def lobby_submit_suggestion(payload: dict, user=Depends(get_current_user))
         raise HTTPException(400, "Sugestia este goală.")
     if len(text) > 600:
         raise HTTPException(400, "Sugestia depășește 600 de caractere.")
-    # Simple per-user rate limit: max 5 / hour
+    # Per-user rate limit: max 1 / 24h
     from datetime import timedelta as _td
-    cutoff = (datetime.now(timezone.utc) - _td(hours=1)).isoformat()
+    cutoff = (datetime.now(timezone.utc) - _td(hours=24)).isoformat()
     recent = await db.lobby_suggestions.count_documents(
         {"user_id": user["id"], "created_at": {"$gte": cutoff}}
     )
-    if recent >= 5:
-        raise HTTPException(429, "Ai trimis prea multe sugestii recent. Reîncearcă mai târziu.")
+    if recent >= 1:
+        raise HTTPException(
+            429,
+            "Poți trimite o singură sugestie la fiecare 24h. Mai încearcă mâine!",
+        )
     from models import new_id
     await db.lobby_suggestions.insert_one({
         "id": new_id(),
