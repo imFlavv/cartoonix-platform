@@ -1,26 +1,22 @@
 import React, { useEffect, useMemo, useState } from "react";
-import PublicLayout from "@/components/PublicLayout";
-import {
-  Film,
-  Tv,
-  Gamepad2,
-  MessageSquare,
-  Popcorn,
-  Ticket,
-  Search,
-  Calendar,
-  MapPin,
-} from "lucide-react";
+import { Link } from "react-router-dom";
+import { ArrowLeft, Sparkles } from "lucide-react";
 
 /**
- * /festival — Cartoonix Fest reveal page.
+ * /festival — Cartoonix Fest standalone reveal experience.
  *
- * - Static, fixed full-page background (the sunset hill artwork) with a
- *   subtle dark gradient overlay so foreground content stays readable on
- *   any viewport without compressing or repeating the artwork.
- * - Centerpiece: elegant flip-style countdown to 1 July 00:00 (Europe/Bucharest).
- * - The Festival Pass lanyard image floats alongside the description as a
- *   tangible "object" the user can almost reach out and grab.
+ * Intentionally rendered WITHOUT PublicLayout (no TopNav, no AnnouncementBar,
+ * no Footer). The page is full-bleed and cinematic. The user's session is
+ * preserved by RequireAuth at the route level; we just hide the chrome to
+ * let the artwork carry the moment.
+ *
+ * Design language:
+ *  - Full-viewport static artwork backdrop with a soft vignette so foreground
+ *    typography always has just enough contrast without crushing the colors.
+ *  - Editorial, asymmetric layout. Big serif/display headline, generous
+ *    spacing, a single elegant countdown row and a quietly typed "tag line".
+ *  - A discreet "Înapoi la Cartoonix" link top-left is the only nav element,
+ *    so users can return without feeling trapped.
  */
 
 const FEST_TARGET = new Date("2026-07-01T00:00:00+03:00").getTime(); // Bucharest
@@ -34,243 +30,384 @@ function useCountdown(target) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const total = Math.floor(ms / 1000);
-  const days = Math.floor(total / 86400);
-  const hours = Math.floor((total % 86400) / 3600);
-  const minutes = Math.floor((total % 3600) / 60);
-  const seconds = total % 60;
-  return { days, hours, minutes, seconds, expired: ms <= 0 };
+  return {
+    days: Math.floor(total / 86400),
+    hours: Math.floor((total % 86400) / 3600),
+    minutes: Math.floor((total % 3600) / 60),
+    seconds: total % 60,
+    expired: ms <= 0,
+  };
 }
 
-function Unit({ value, label }) {
+function CountdownCell({ value, label, last }) {
   const padded = String(value).padStart(2, "0");
   return (
-    <div className="flex flex-col items-center gap-2">
-      <div
-        className="relative rounded-2xl px-4 sm:px-6 py-4 sm:py-5 min-w-[78px] sm:min-w-[110px] text-center"
-        style={{
-          background:
-            "linear-gradient(180deg, rgba(20,12,30,0.78) 0%, rgba(8,4,18,0.85) 100%)",
-          border: "1px solid rgba(255,255,255,0.10)",
-          boxShadow:
-            "0 20px 50px -20px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.05)",
-          backdropFilter: "blur(10px)",
-        }}
-      >
-        <div
-          aria-hidden
-          className="absolute inset-x-0 top-1/2 h-px"
-          style={{ background: "rgba(255,255,255,0.05)" }}
-        />
+    <div className="flex items-center">
+      <div className="flex flex-col items-center">
         <span
-          className="font-display tabular-nums text-4xl sm:text-6xl tracking-wider leading-none bg-clip-text text-transparent"
+          className="font-display tabular-nums leading-none text-white"
           style={{
-            backgroundImage: "linear-gradient(180deg, #fde68a 0%, #f59e0b 60%, #f97316 100%)",
+            fontSize: "clamp(2.6rem, 6.5vw, 5.5rem)",
+            textShadow:
+              "0 2px 12px rgba(0,0,0,0.55), 0 0 38px rgba(255,180,90,0.18)",
+            letterSpacing: "-0.02em",
           }}
         >
           {padded}
         </span>
+        <span className="mt-2 text-[10px] sm:text-[11px] uppercase tracking-[0.34em] text-white/55 font-medium">
+          {label}
+        </span>
       </div>
-      <span className="text-[10px] sm:text-[11px] uppercase tracking-[0.28em] text-white/70 font-semibold">
-        {label}
-      </span>
+      {!last && (
+        <span
+          aria-hidden
+          className="mx-3 sm:mx-5 lg:mx-7 font-display leading-none text-white/15"
+          style={{ fontSize: "clamp(2rem, 4.5vw, 3.8rem)" }}
+        >
+          ·
+        </span>
+      )}
     </div>
   );
 }
 
-const HIGHLIGHTS = [
-  { icon: Film, text: "Maratoane și proiecții în Cinema Retro" },
-  { icon: Tv, text: "Programe speciale pe Scena Live" },
-  { icon: Gamepad2, text: "Quiz-uri, jocuri și provocări nostalgice" },
-  { icon: MessageSquare, text: "Lobby și activități alături de comunitate" },
-  { icon: Popcorn, text: "Watch Party-uri și seri tematice" },
-  { icon: Ticket, text: "Festival Pass, misiuni și insigne exclusive" },
-  { icon: Search, text: "Obiecte ascunse și surprize care se deblochează pe parcurs" },
+const PILLARS = [
+  {
+    n: "01",
+    title: "Cinema Retro",
+    body: "Maratoane și proiecții cu desenele care au definit copilăria.",
+  },
+  {
+    n: "02",
+    title: "Scena Live",
+    body: "Programe speciale, transmisiuni și momente create pentru festival.",
+  },
+  {
+    n: "03",
+    title: "Lobby & Watch Party",
+    body: "Camere comune, quiz-uri și seri tematice alături de comunitate.",
+  },
+  {
+    n: "04",
+    title: "Festival Pass",
+    body: "Misiuni, insigne exclusive și surprize care se deblochează zi de zi.",
+  },
 ];
 
 export default function FestivalPage() {
   const { days, hours, minutes, seconds, expired } = useCountdown(FEST_TARGET);
-  const title = useMemo(
-    () => (expired ? "Cartoonix Fest e LIVE" : "Cartoonix Fest se deschide în"),
+  const label = useMemo(
+    () => (expired ? "Cartoonix Fest este LIVE" : "Începe în"),
     [expired]
   );
 
   return (
-    <PublicLayout>
-      {/* Wrapper that paints the artwork as a fixed-attachment background.
-          This avoids stacking-context fights with PublicLayout's bg-background
-          while keeping the visual effect of an immovable backdrop. */}
+    <div
+      data-testid="festival-page"
+      className="relative min-h-screen w-full overflow-x-hidden text-white antialiased selection:bg-amber-200/30 selection:text-white"
+      style={{
+        backgroundImage: "url(/festival/bg.jpg)",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+        backgroundAttachment: "fixed",
+        backgroundColor: "#0a0612",
+      }}
+    >
+      {/* Soft vignette — keeps the corners moody without losing the artwork. */}
       <div
-        className="relative isolate min-h-[calc(100vh-68px)]"
+        aria-hidden
+        className="pointer-events-none fixed inset-0"
         style={{
-          backgroundImage: "url(/festival/bg.jpg)",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundRepeat: "no-repeat",
-          backgroundAttachment: "fixed",
+          background:
+            "radial-gradient(120% 80% at 50% 35%, rgba(8,4,18,0.0) 0%, rgba(8,4,18,0.30) 55%, rgba(8,4,18,0.85) 100%)",
         }}
+      />
+      {/* Bottom fade so scrolled sections sit on a darker stage. */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-x-0 bottom-0 h-[55vh]"
+        style={{
+          background:
+            "linear-gradient(180deg, rgba(8,4,18,0) 0%, rgba(8,4,18,0.55) 55%, rgba(8,4,18,0.95) 100%)",
+        }}
+      />
+
+      {/* Discreet back link — the only chrome we keep, so users aren't trapped. */}
+      <Link
+        to="/"
+        data-testid="festival-back-link"
+        className="fixed top-5 left-5 z-30 inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/30 px-3.5 py-1.5 text-[11px] uppercase tracking-[0.22em] text-white/75 backdrop-blur-md hover:text-white hover:border-white/30 hover:bg-black/45 transition-all"
       >
-        {/* Subtle dark gradient overlay so text stays readable without
-            crushing the artwork colors. */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0"
-          style={{
-            background:
-              "linear-gradient(180deg, rgba(8,6,18,0.30) 0%, rgba(8,6,18,0.55) 55%, rgba(8,6,18,0.82) 100%)",
-          }}
-        />
+        <ArrowLeft className="h-3.5 w-3.5" />
+        Înapoi la Cartoonix
+      </Link>
 
-        <div className="relative">
-        {/* HERO */}
-        <section className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pt-12 sm:pt-20 pb-10 text-center">
-          <span
-            className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-amber-100/95"
-            style={{
-              background:
-                "linear-gradient(90deg, rgba(255,59,59,0.20), rgba(250,204,21,0.20))",
-              border: "1px solid rgba(250,204,21,0.35)",
-            }}
-          >
-            <span className="h-1.5 w-1.5 rounded-full bg-amber-300 animate-pulse" />
-            Prima ediție · 1–4 iulie
-          </span>
-
-          <h1
-            data-testid="festival-title"
-            className="mt-6 font-display text-5xl sm:text-7xl lg:text-8xl leading-none tracking-tight"
-          >
-            <span
-              className="bg-clip-text text-transparent"
-              style={{
-                backgroundImage:
-                  "linear-gradient(90deg, #fde68a 0%, #f97316 40%, #ec4899 80%, #a855f7 100%)",
-              }}
-            >
-              Cartoonix Fest
-            </span>
-          </h1>
-          <p
-            data-testid="festival-subtitle"
-            className="mt-3 text-base sm:text-lg text-white/85 max-w-2xl mx-auto"
-          >
-            {title}
-          </p>
-
-          {/* Countdown */}
-          <div
-            data-testid="festival-countdown"
-            className="mt-8 sm:mt-10 inline-flex items-center gap-3 sm:gap-5"
-          >
-            <Unit value={days} label="Zile" />
-            <span className="text-2xl text-white/30 font-light">:</span>
-            <Unit value={hours} label="Ore" />
-            <span className="text-2xl text-white/30 font-light">:</span>
-            <Unit value={minutes} label="Minute" />
-            <span className="text-2xl text-white/30 font-light">:</span>
-            <Unit value={seconds} label="Secunde" />
-          </div>
-
-          <div className="mt-6 inline-flex items-center gap-4 text-[12px] text-white/70 uppercase tracking-widest">
-            <span className="inline-flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" /> 1–4 iulie</span>
-            <span className="opacity-30">·</span>
-            <span className="inline-flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> Exclusiv pe Cartoonix</span>
-          </div>
-        </section>
-
-        {/* PASS + STORY */}
-        <section className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-          {/* Festival Pass / preview — floating with a gentle perspective tilt */}
-          <div className="lg:col-span-5 order-2 lg:order-1 flex justify-center">
-            <div
-              data-testid="festival-pass"
-              className="relative rounded-2xl overflow-hidden"
-              style={{
-                filter: "drop-shadow(0 30px 50px rgba(0,0,0,0.55))",
-                background:
-                  "linear-gradient(180deg, rgba(20,12,30,0.45), rgba(8,4,18,0.55))",
-                border: "1px solid rgba(255,255,255,0.10)",
-                backdropFilter: "blur(6px)",
-                padding: "10px",
-              }}
-            >
-              <img
-                src="/festival/pass.png"
-                alt="Cartoonix Fest — All Access Pass"
-                className="block w-[260px] sm:w-[340px] lg:w-[400px] h-auto rounded-xl animate-[festPassFloat_7s_ease-in-out_infinite] select-none"
-                draggable={false}
+      {/* ============================ HERO ============================ */}
+      <section
+        data-testid="festival-hero"
+        className="relative min-h-screen w-full flex flex-col"
+      >
+        <div className="flex-1 flex flex-col justify-center px-6 sm:px-10 lg:px-20 pt-24 pb-20">
+          <div className="max-w-[1280px] mx-auto w-full">
+            {/* Eyebrow */}
+            <div className="flex items-center gap-3 mb-7 animate-[festFadeUp_900ms_ease-out_both]">
+              <span
+                aria-hidden
+                className="h-px w-10 sm:w-16"
+                style={{
+                  background:
+                    "linear-gradient(90deg, transparent, rgba(255,200,120,0.65))",
+                }}
               />
+              <span className="inline-flex items-center gap-2 text-[10.5px] sm:text-[12px] uppercase tracking-[0.42em] text-amber-200/85 font-medium">
+                <Sparkles className="h-3.5 w-3.5" />
+                Prima ediție · 1—4 iulie
+              </span>
+            </div>
+
+            {/* Title */}
+            <h1
+              data-testid="festival-title"
+              className="font-display leading-[0.92] tracking-[-0.02em] animate-[festFadeUp_1100ms_ease-out_140ms_both]"
+              style={{
+                fontSize: "clamp(3rem, 11vw, 9rem)",
+              }}
+            >
+              <span
+                className="block bg-clip-text text-transparent"
+                style={{
+                  backgroundImage:
+                    "linear-gradient(180deg, #fff3d4 0%, #ffb56b 55%, #ff7a5a 100%)",
+                  filter:
+                    "drop-shadow(0 4px 22px rgba(255,140,70,0.22))",
+                }}
+              >
+                Cartoonix
+              </span>
+              <span
+                className="block italic font-light text-white/90 mt-1 sm:mt-2"
+                style={{
+                  fontSize: "clamp(2.2rem, 8.5vw, 7rem)",
+                  textShadow: "0 2px 18px rgba(0,0,0,0.45)",
+                }}
+              >
+                Fest
+              </span>
+            </h1>
+
+            {/* Sub */}
+            <p
+              data-testid="festival-tagline"
+              className="mt-7 max-w-xl text-[15px] sm:text-[17px] leading-relaxed text-white/80 animate-[festFadeUp_1100ms_ease-out_260ms_both]"
+            >
+              Patru zile în care nostalgia iese din ecran. Un festival digital
+              pentru cei care au crescut cu telecomanda în mână și au învățat
+              dorul de la următorul episod.
+            </p>
+
+            {/* Countdown */}
+            <div className="mt-12 sm:mt-14 animate-[festFadeUp_1200ms_ease-out_380ms_both]">
+              <div className="text-[10px] sm:text-[11px] uppercase tracking-[0.42em] text-white/45 mb-4">
+                {label}
+              </div>
+              <div
+                data-testid="festival-countdown"
+                className="flex items-center flex-wrap"
+              >
+                <CountdownCell value={days} label="Zile" />
+                <CountdownCell value={hours} label="Ore" />
+                <CountdownCell value={minutes} label="Minute" />
+                <CountdownCell value={seconds} label="Secunde" last />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Quiet scroll cue */}
+        <div className="relative pb-6 flex justify-center">
+          <div
+            aria-hidden
+            className="flex flex-col items-center gap-2 text-white/40 animate-[festPulse_2.6s_ease-in-out_infinite]"
+          >
+            <span className="text-[10px] uppercase tracking-[0.36em]">
+              Scroll
+            </span>
+            <span
+              className="h-9 w-px"
+              style={{
+                background:
+                  "linear-gradient(180deg, rgba(255,255,255,0.55), transparent)",
+              }}
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* ============================ MANIFESTO ============================ */}
+      <section
+        data-testid="festival-manifesto"
+        className="relative px-6 sm:px-10 lg:px-20 py-24 sm:py-32"
+      >
+        <div className="max-w-[1100px] mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-start">
+            <div className="lg:col-span-5">
+              <div className="text-[10.5px] uppercase tracking-[0.42em] text-amber-200/80 mb-5">
+                Manifest
+              </div>
+              <h2
+                className="font-display leading-[1.02] tracking-tight"
+                style={{
+                  fontSize: "clamp(2rem, 4.6vw, 3.5rem)",
+                }}
+              >
+                Vara aceasta,
+                <br />
+                <span className="italic font-light text-white/85">
+                  ne întoarcem acasă.
+                </span>
+              </h2>
+            </div>
+            <div className="lg:col-span-7 lg:pt-3">
+              <p className="text-[16px] sm:text-[18px] leading-[1.75] text-white/82">
+                Cartoonix Fest nu e doar un maraton de desene. E o serie de
+                seri în care timpul se oprește, telecomanda redevine cel mai
+                important obiect din cameră, iar singura grijă e următorul
+                episod.
+              </p>
+              <p className="mt-5 text-[15px] sm:text-[16px] leading-[1.8] text-white/65">
+                Patru zile, patru atmosfere, o comunitate. Programul complet va
+                fi anunțat în zilele dinaintea festivalului — fii pregătit, va
+                fi greu să stai liniștit pe canapea.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ============================ PILLARS ============================ */}
+      <section
+        data-testid="festival-pillars"
+        className="relative px-6 sm:px-10 lg:px-20 pb-28 sm:pb-36"
+      >
+        <div className="max-w-[1200px] mx-auto">
+          <div className="flex items-end justify-between flex-wrap gap-4 mb-12">
+            <div>
+              <div className="text-[10.5px] uppercase tracking-[0.42em] text-amber-200/80 mb-3">
+                Ce te așteaptă
+              </div>
+              <h3
+                className="font-display tracking-tight"
+                style={{ fontSize: "clamp(1.7rem, 3.4vw, 2.6rem)" }}
+              >
+                Patru piloni. Patru seri. <span className="italic font-light text-white/70">O singură rezervare în calendar.</span>
+              </h3>
             </div>
           </div>
 
-          {/* Narrative */}
-          <div className="lg:col-span-7 order-1 lg:order-2">
-            <h2 className="font-display text-2xl sm:text-3xl text-white tracking-wide leading-tight">
-              Vara aceasta, nostalgia iese din ecran.
-            </h2>
-            <p className="mt-4 text-[15px] leading-relaxed text-white/85">
-              Patru zile în care Cartoonix devine locul în care amintirile,
-              desenele îndrăgite și comunitatea se întâlnesc într-o atmosferă
-              specială — creată pentru cei care au crescut cu televizorul
-              pornit și cu nerăbdarea următorului episod.
-            </p>
-
-            <ul className="mt-6 space-y-2.5">
-              {HIGHLIGHTS.map(({ icon: Icon, text }, i) => (
-                <li
-                  key={i}
-                  className="flex items-start gap-3 rounded-xl px-3 py-2 border border-white/[0.06]"
-                  style={{ background: "rgba(8,6,18,0.40)" }}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+            {PILLARS.map((p, i) => (
+              <div
+                key={p.n}
+                data-testid={`festival-pillar-${i}`}
+                className="group relative rounded-2xl p-6 sm:p-7 border border-white/[0.08] hover:border-amber-200/30 transition-all duration-500 hover:-translate-y-1"
+                style={{
+                  background:
+                    "linear-gradient(180deg, rgba(20,10,30,0.55) 0%, rgba(8,4,18,0.78) 100%)",
+                  backdropFilter: "blur(10px)",
+                  WebkitBackdropFilter: "blur(10px)",
+                }}
+              >
+                {/* number watermark */}
+                <span
+                  aria-hidden
+                  className="absolute right-5 top-4 font-display text-[3.5rem] leading-none text-white/[0.05] group-hover:text-amber-200/20 transition-colors"
+                  style={{ letterSpacing: "-0.04em" }}
                 >
-                  <span
-                    className="shrink-0 mt-0.5 grid place-items-center h-7 w-7 rounded-full"
-                    style={{
-                      background:
-                        "linear-gradient(135deg, #f97316, #ec4899)",
-                    }}
-                  >
-                    <Icon className="h-3.5 w-3.5 text-white" strokeWidth={2.4} />
-                  </span>
-                  <span className="text-[14px] text-white/90 leading-snug">{text}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </section>
+                  {p.n}
+                </span>
 
-        {/* CLOSING NOTE */}
-        <section className="mx-auto max-w-3xl px-4 sm:px-6 py-10 pb-20 text-center">
+                <div className="text-[11px] uppercase tracking-[0.3em] text-amber-200/70 mb-3">
+                  Ziua {p.n}
+                </div>
+                <h4
+                  className="font-display text-2xl sm:text-[1.7rem] leading-tight tracking-tight"
+                >
+                  {p.title}
+                </h4>
+                <p className="mt-3 text-[14px] leading-relaxed text-white/65">
+                  {p.body}
+                </p>
+
+                <span
+                  aria-hidden
+                  className="absolute left-6 right-6 bottom-5 h-px opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                  style={{
+                    background:
+                      "linear-gradient(90deg, transparent, rgba(255,200,120,0.4), transparent)",
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ============================ CLOSING ============================ */}
+      <section
+        data-testid="festival-closing"
+        className="relative px-6 sm:px-10 lg:px-20 pb-32"
+      >
+        <div className="max-w-[820px] mx-auto text-center">
           <div
-            className="rounded-2xl p-6 sm:p-8"
+            aria-hidden
+            className="mx-auto h-px w-24 mb-10"
             style={{
               background:
-                "linear-gradient(180deg, rgba(20,12,30,0.55) 0%, rgba(8,4,18,0.70) 100%)",
-              border: "1px solid rgba(255,255,255,0.08)",
-              backdropFilter: "blur(8px)",
+                "linear-gradient(90deg, transparent, rgba(255,200,120,0.6), transparent)",
+            }}
+          />
+          <p
+            className="font-display italic leading-tight tracking-tight text-white/92"
+            style={{ fontSize: "clamp(1.6rem, 3.8vw, 2.6rem)" }}
+          >
+            „Cei care au stat lipiți de televizor știu deja despre ce e vorba.&rdquo;
+          </p>
+          <div className="mt-10 inline-flex items-center gap-3 rounded-full border border-amber-200/25 px-5 py-2.5"
+            style={{
+              background:
+                "linear-gradient(90deg, rgba(255,122,90,0.10), rgba(255,180,90,0.08))",
             }}
           >
-            <p className="text-[15px] leading-relaxed text-white/85 italic">
-              „Nu va fi doar un maraton de desene. Va fi o călătorie înapoi
-              spre serile în care timpul se oprea, telecomanda devenea cel
-              mai important obiect din cameră, iar următorul episod era
-              singura noastră grijă."
-            </p>
-            <p className="mt-5 text-[12px] uppercase tracking-[0.28em] text-amber-200/80 font-semibold">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-300 animate-pulse" />
+            <span className="text-[11px] uppercase tracking-[0.36em] text-amber-100">
               Pregătește-ți Festival Pass-ul
-            </p>
-            <p className="mt-1 text-[12px] text-white/60">
-              Programul complet va fi anunțat în curând.
-            </p>
+            </span>
           </div>
-        </section>
-      </div>
-      </div>
+          <p className="mt-6 text-[12px] uppercase tracking-[0.36em] text-white/40">
+            1 — 4 Iulie · Exclusiv pe Cartoonix
+          </p>
+        </div>
+      </section>
 
       <style>{`
-        @keyframes festPassFloat {
-          0%, 100% { transform: translateY(0); }
-          50%      { transform: translateY(-10px); }
+        @keyframes festFadeUp {
+          0%   { opacity: 0; transform: translateY(18px); }
+          100% { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes festPulse {
+          0%, 100% { opacity: 0.35; transform: translateY(0); }
+          50%      { opacity: 0.85; transform: translateY(4px); }
+        }
+        /* On mobile devices background-attachment: fixed is buggy / disabled;
+           fall back to a scrolling cover that still feels immersive. */
+        @media (max-width: 768px) {
+          [data-testid="festival-page"] {
+            background-attachment: scroll !important;
+          }
         }
       `}</style>
-    </PublicLayout>
+    </div>
   );
 }

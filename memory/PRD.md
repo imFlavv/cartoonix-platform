@@ -5,14 +5,18 @@ Cartoonix este o platformă nostalgică de streaming dedicată desenelor din epo
 
 ## Recent Fixes (Feb 2026)
 
-### ✅ Pagina /festival — Cartoonix Fest (P0) — Feb 2026
-- Pagină nouă `/app/frontend/src/pages/FestivalPage.jsx`, rută protejată cu `RequireAuth` în `App.js`.
-- Fundal artwork (`/festival/bg.jpg` — sunset / deal / copac) afișat fix prin `background-attachment: fixed` cu overlay gradient subtil (0.30 → 0.55 → 0.82) ca textul să rămână lizibil fără a strivi culorile.
-- Countdown elegant până la 1 iulie 2026 00:00 (Europe/Bucharest), unități rotunjite cu gradient amber → orange.
-- Imaginea `pass.png` (preview comunitate) afișată în cadru cu glass + drop-shadow + animație float blândă (`festPassFloat 7s`).
-- Copy nostalgic: maratoane Cinema Retro, Scena Live, quiz-uri, Lobby, Watch Parties, Festival Pass + insigne, obiecte ascunse.
-- Link `Festival` în `TopNav` (desktop + burger mobil) cu badge subtil „IULIE" pentru a semnala evenimentul.
-- Verificat: screenshot desktop + mobil — fundalul, countdown-ul și pass-ul afișate corect.
+### ✅ Pagina /festival — redesign cinematic independent (P0) — Feb 2026
+- `FestivalPage.jsx` rescris complet ca pagină **standalone**: fără `PublicLayout`, fără `TopNav`, `AnnouncementBar`, `Footer`. Sesiunea utilizatorului rămâne intactă prin `RequireAuth` la nivel de rută.
+- `/festival` adăugat în `HIDDEN_PREFIXES` din `OnlineUsersMount` ca să ascundă și widget-ul de online.
+- Layout nou, editorial / cinematic:
+  - Hero full-viewport cu titlul „CARTOONIX / Fest" în 2 niveluri (gradient amber → orange peste italic light)
+  - Countdown minimal (zile · ore · min · sec) cu typography mare, tabular-nums, separatori discreți
+  - Manifest asimetric (titlu pe stânga, copy pe dreapta)
+  - 4 piloni glass cu watermark de zi (01–04), hover lift + linie aurie
+  - Secțiune de închidere cu citat italic + chip „Pregătește-ți Festival Pass-ul"
+- Singura piesă de UI globală: link discret „Înapoi la Cartoonix" fix sus-stânga.
+- Fallback mobil: `background-attachment: scroll` pe ≤768px (fix iOS).
+- Verificat vizual desktop + mobil.
 
 ### ✅ Player video — primul episod se încarcă automat (P0)
 - Fix anterior. `<video src>` declarativ + `useEffect` pe `activeEp.id` apelează `load()+play()`.

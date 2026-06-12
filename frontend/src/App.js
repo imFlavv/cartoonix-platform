@@ -256,6 +256,7 @@ function OnlineUsersMount() {
     "/reset-password",
     "/forgot-password",
     "/early-access",
+    "/festival",
   ];
   if (HIDDEN_PREFIXES.some((p) => path === p || path.startsWith(p + "/"))) {
     return null;
