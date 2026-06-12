@@ -96,23 +96,31 @@ export default function FestivalPage() {
 
   return (
     <PublicLayout>
-      {/* Static, fixed background — pinned behind every section so it never
-          repeats or compresses on tall content. */}
+      {/* Wrapper that paints the artwork as a fixed-attachment background.
+          This avoids stacking-context fights with PublicLayout's bg-background
+          while keeping the visual effect of an immovable backdrop. */}
       <div
-        aria-hidden
-        className="fixed inset-0 -z-10 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: "url(/festival/bg.jpg)" }}
-      />
-      <div
-        aria-hidden
-        className="fixed inset-0 -z-10 pointer-events-none"
+        className="relative isolate min-h-[calc(100vh-68px)]"
         style={{
-          background:
-            "linear-gradient(180deg, rgba(8,6,18,0.55) 0%, rgba(8,6,18,0.75) 60%, rgba(8,6,18,0.92) 100%)",
+          backgroundImage: "url(/festival/bg.jpg)",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+          backgroundAttachment: "fixed",
         }}
-      />
+      >
+        {/* Subtle dark gradient overlay so text stays readable without
+            crushing the artwork colors. */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(180deg, rgba(8,6,18,0.30) 0%, rgba(8,6,18,0.55) 55%, rgba(8,6,18,0.82) 100%)",
+          }}
+        />
 
-      <div className="relative">
+        <div className="relative">
         {/* HERO */}
         <section className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pt-12 sm:pt-20 pb-10 text-center">
           <span
@@ -171,17 +179,24 @@ export default function FestivalPage() {
 
         {/* PASS + STORY */}
         <section className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-          {/* Lanyard pass — floating, slight tilt */}
+          {/* Festival Pass / preview — floating with a gentle perspective tilt */}
           <div className="lg:col-span-5 order-2 lg:order-1 flex justify-center">
             <div
               data-testid="festival-pass"
-              className="relative"
-              style={{ filter: "drop-shadow(0 30px 50px rgba(0,0,0,0.55))" }}
+              className="relative rounded-2xl overflow-hidden"
+              style={{
+                filter: "drop-shadow(0 30px 50px rgba(0,0,0,0.55))",
+                background:
+                  "linear-gradient(180deg, rgba(20,12,30,0.45), rgba(8,4,18,0.55))",
+                border: "1px solid rgba(255,255,255,0.10)",
+                backdropFilter: "blur(6px)",
+                padding: "10px",
+              }}
             >
               <img
                 src="/festival/pass.png"
                 alt="Cartoonix Fest — All Access Pass"
-                className="w-[260px] sm:w-[340px] lg:w-[400px] h-auto animate-[festPassFloat_6s_ease-in-out_infinite] select-none"
+                className="block w-[260px] sm:w-[340px] lg:w-[400px] h-auto rounded-xl animate-[festPassFloat_7s_ease-in-out_infinite] select-none"
                 draggable={false}
               />
             </div>
@@ -248,11 +263,12 @@ export default function FestivalPage() {
           </div>
         </section>
       </div>
+      </div>
 
       <style>{`
         @keyframes festPassFloat {
-          0%, 100% { transform: translateY(0) rotate(-3deg); }
-          50%      { transform: translateY(-14px) rotate(2deg); }
+          0%, 100% { transform: translateY(0); }
+          50%      { transform: translateY(-10px); }
         }
       `}</style>
     </PublicLayout>

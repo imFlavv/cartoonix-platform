@@ -5,6 +5,15 @@ Cartoonix este o platformă nostalgică de streaming dedicată desenelor din epo
 
 ## Recent Fixes (Feb 2026)
 
+### ✅ Pagina /festival — Cartoonix Fest (P0) — Feb 2026
+- Pagină nouă `/app/frontend/src/pages/FestivalPage.jsx`, rută protejată cu `RequireAuth` în `App.js`.
+- Fundal artwork (`/festival/bg.jpg` — sunset / deal / copac) afișat fix prin `background-attachment: fixed` cu overlay gradient subtil (0.30 → 0.55 → 0.82) ca textul să rămână lizibil fără a strivi culorile.
+- Countdown elegant până la 1 iulie 2026 00:00 (Europe/Bucharest), unități rotunjite cu gradient amber → orange.
+- Imaginea `pass.png` (preview comunitate) afișată în cadru cu glass + drop-shadow + animație float blândă (`festPassFloat 7s`).
+- Copy nostalgic: maratoane Cinema Retro, Scena Live, quiz-uri, Lobby, Watch Parties, Festival Pass + insigne, obiecte ascunse.
+- Link `Festival` în `TopNav` (desktop + burger mobil) cu badge subtil „IULIE" pentru a semnala evenimentul.
+- Verificat: screenshot desktop + mobil — fundalul, countdown-ul și pass-ul afișate corect.
+
 ### ✅ Player video — primul episod se încarcă automat (P0)
 - Fix anterior. `<video src>` declarativ + `useEffect` pe `activeEp.id` apelează `load()+play()`.
 

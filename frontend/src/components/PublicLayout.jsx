@@ -214,6 +214,7 @@ export function TopNav() {
     { to: "/category/cartoon-network", label: "Cartoon Network" },
     { to: "/category/minimax", label: "Minimax" },
     ...(lobbyVisible ? [{ to: "/lobby", label: "Lobby" }] : []),
+    ...(user ? [{ to: "/festival", label: "Festival", badge: "Iulie" }] : []),
     ...(user && settings?.support_enabled !== false
       ? [{ to: "/support", label: "Support" }]
       : []),
@@ -263,7 +264,19 @@ export function TopNav() {
                     }
                   >
                     <ArrowRight className="h-3.5 w-3.5 text-white/40" />
-                    {it.label}
+                    <span className="flex-1">{it.label}</span>
+                    {it.badge && (
+                      <span
+                        className="inline-flex items-center rounded-full px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-[0.18em] text-amber-100"
+                        style={{
+                          background:
+                            "linear-gradient(90deg, rgba(249,115,22,0.22), rgba(236,72,153,0.22))",
+                          border: "1px solid rgba(250,204,21,0.35)",
+                        }}
+                      >
+                        {it.badge}
+                      </span>
+                    )}
                   </NavLink>
                 ))}
               </nav>
@@ -308,7 +321,21 @@ export function TopNav() {
                 >
                   {({ isActive }) => (
                     <>
-                      {it.label}
+                      <span className="inline-flex items-center gap-2">
+                        {it.label}
+                        {it.badge && (
+                          <span
+                            className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.18em] text-amber-100"
+                            style={{
+                              background:
+                                "linear-gradient(90deg, rgba(249,115,22,0.22), rgba(236,72,153,0.22))",
+                              border: "1px solid rgba(250,204,21,0.35)",
+                            }}
+                          >
+                            {it.badge}
+                          </span>
+                        )}
+                      </span>
                       <span
                         className={`pointer-events-none absolute left-3.5 right-3.5 -bottom-[2px] h-[2px] rounded-full bg-[hsl(var(--accent))] transition-all duration-300 ${
                           isActive ? "opacity-100 scale-x-100" : "opacity-0 scale-x-0"

@@ -41,6 +41,7 @@ import AdminLive from "@/pages/admin/AdminLive";
 import SupportPage from "@/pages/SupportPage";
 import StaffPage from "@/pages/StaffPage";
 import LobbyPage from "@/pages/LobbyPage";
+import FestivalPage from "@/pages/FestivalPage";
 import { RequireAdmin, RequireAuth } from "@/components/RouteGuards";
 import OnlineUsersWidget from "@/components/OnlineUsersWidget";
 
@@ -340,6 +341,14 @@ function App() {
                   element={
                     <RequireAuth>
                       <LobbyPage />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/festival"
+                  element={
+                    <RequireAuth>
+                      <FestivalPage />
                     </RequireAuth>
                   }
                 />
