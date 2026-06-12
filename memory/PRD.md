@@ -5,18 +5,13 @@ Cartoonix este o platformă nostalgică de streaming dedicată desenelor din epo
 
 ## Recent Fixes (Feb 2026)
 
-### ✅ Pagina /festival — redesign cinematic independent (P0) — Feb 2026
-- `FestivalPage.jsx` rescris complet ca pagină **standalone**: fără `PublicLayout`, fără `TopNav`, `AnnouncementBar`, `Footer`. Sesiunea utilizatorului rămâne intactă prin `RequireAuth` la nivel de rută.
-- `/festival` adăugat în `HIDDEN_PREFIXES` din `OnlineUsersMount` ca să ascundă și widget-ul de online.
-- Layout nou, editorial / cinematic:
-  - Hero full-viewport cu titlul „CARTOONIX / Fest" în 2 niveluri (gradient amber → orange peste italic light)
-  - Countdown minimal (zile · ore · min · sec) cu typography mare, tabular-nums, separatori discreți
-  - Manifest asimetric (titlu pe stânga, copy pe dreapta)
-  - 4 piloni glass cu watermark de zi (01–04), hover lift + linie aurie
-  - Secțiune de închidere cu citat italic + chip „Pregătește-ți Festival Pass-ul"
-- Singura piesă de UI globală: link discret „Înapoi la Cartoonix" fix sus-stânga.
-- Fallback mobil: `background-attachment: scroll` pe ≤768px (fix iOS).
-- Verificat vizual desktop + mobil.
+### ✅ /festival v3 — fără italic, efecte și casete + secțiune Pass (P0) — Feb 2026
+- Eliminat tot textul italic înclinat. Hierarhia este realizată acum prin weight, scale și gradient.
+- Hero re-stilizat: titlu „CARTOONIX FEST" cu gradient amber→orange + pastilă neon, countdown afișat în 4 stat-boxes glass cu hairline neon (orange / amber / pink / purple) și halo radial.
+- Manifest: copy mutat într-un card glass cu border subtil, accentul „ne întoarcem acasă" cu gradient amber→pink→purple.
+- **Nouă secțiune Pass** (`/festival/pass-lanyard.png`): lanyard real cu halo conic-spin animat (`festSpin 22s`), spotlight purple, sway 7s. Lângă imagine: 4 perks (QR, tier-uri, acces, boost-uri) ca grid de carduri cu iconițe pink, plus chip-uri pentru tier-urile Standard / Creator / MVP cu dots glow colorate.
+- Piloni rescriși: fiecare card primește un accent color propriu (orange, amber, pink, purple), iconiță în box glow + watermark de zi.
+- Adăugat overlay subtil tip grilă pentru un feel „festival floor".
 
 ### ✅ Player video — primul episod se încarcă automat (P0)
 - Fix anterior. `<video src>` declarativ + `useEffect` pe `activeEp.id` apelează `load()+play()`.
