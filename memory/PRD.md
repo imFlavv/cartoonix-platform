@@ -5,6 +5,18 @@ Cartoonix este o platformă nostalgică de streaming dedicată desenelor din epo
 
 ## Recent Fixes (Feb 2026)
 
+### ✅ Popup promoțional WEEKEND20 pentru FREE (P0) — Feb 2026
+- Componentă nouă `/app/frontend/src/components/PromoUpgradeModal.jsx`, montată în `App.js` ca overlay global.
+- Reguli vizibilitate:
+  - **Doar useri FREE logați** (`subscription !== 'plus'`, `role !== 'admin'`).
+  - Ascuns pe `/login`, `/register`, `/verify`, `/reset-password`, `/forgot-password`, `/early-access`, `/admin`, `/festival`, `/terms-and-conditions`, `/gdpr`.
+  - Ascuns când `maintenance_mode` sau `early_access_mode` e activ.
+  - Apare cu un delay de 1.4s ca să nu lovească instant la încărcare.
+- Persistență dismiss: `localStorage.cartoonix_promo_weekend20_v1` cu map `{userId: timestamp}` — apăsare pe ✕ / „Poate altă dată" / backdrop oprește definitiv apariția.
+- UI: card glass amber cu glow, eyebrow „Ofertă de weekend", titlu „Treci pe Cartoonix PLUS cu −20%", code box cu border dashed și buton de copiere (clipboard API + toast feedback), CTA principal „Aplică reducerea" (deschide checkout-ul Stripe + copiază codul automat în clipboard) și buton secundar „Poate altă dată".
+- Hint dedesubt: „Codul se introduce în câmpul Add promotion code din pagina de plată Stripe."
+- **De activat manual în Stripe Dashboard**: pe Payment Link-ul de upgrade — toggle „Promotion codes" + crearea cuponului `WEEKEND20` 20% off.
+
 ### ✅ /festival v3 — fără italic, efecte și casete + secțiune Pass (P0) — Feb 2026
 - Eliminat tot textul italic înclinat. Hierarhia este realizată acum prin weight, scale și gradient.
 - Hero re-stilizat: titlu „CARTOONIX FEST" cu gradient amber→orange + pastilă neon, countdown afișat în 4 stat-boxes glass cu hairline neon (orange / amber / pink / purple) și halo radial.

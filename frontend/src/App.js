@@ -44,6 +44,7 @@ import LobbyPage from "@/pages/LobbyPage";
 import FestivalPage from "@/pages/FestivalPage";
 import { RequireAdmin, RequireAuth } from "@/components/RouteGuards";
 import OnlineUsersWidget from "@/components/OnlineUsersWidget";
+import PromoUpgradeModal from "@/components/PromoUpgradeModal";
 
 /**
  * Routes that remain available even when presentation_mode is ON:
@@ -370,6 +371,7 @@ function App() {
               </EarlyAccessGate>
               </MaintenanceGate>
               <OnlineUsersMount />
+              <PromoUpgradeModal />
               <Toaster position="top-right" />
             </SettingsProvider>
           </AuthProvider>
