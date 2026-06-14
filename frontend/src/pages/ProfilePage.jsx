@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import UserBadges from "@/components/UserBadges";
+import CreateWatchPartyButton from "@/components/watchparty/CreateWatchPartyButton";
 
 function Stat({ label, value }) {
   return (
@@ -158,6 +159,12 @@ export default function ProfilePage() {
           <Stat label="Playlist-uri" value={isPlus ? playlists.length : 0} />
           <Stat label="Abonament" value={isPlus ? "PLUS" : "FREE"} />
         </div>
+
+        {(isPlus || user.role === "admin") && (
+          <div className="mb-6">
+            <CreateWatchPartyButton variant="card" />
+          </div>
+        )}
 
         <Tabs defaultValue="history" className="w-full">
           <TabsList className="rounded-xl bg-white/[0.03] border border-white/[0.06]">

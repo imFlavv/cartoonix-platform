@@ -42,6 +42,7 @@ import SupportPage from "@/pages/SupportPage";
 import StaffPage from "@/pages/StaffPage";
 import LobbyPage from "@/pages/LobbyPage";
 import FestivalPage from "@/pages/FestivalPage";
+import WatchPartyRoomPage from "@/pages/WatchPartyRoomPage";
 import { RequireAdmin, RequireAuth } from "@/components/RouteGuards";
 import OnlineUsersWidget from "@/components/OnlineUsersWidget";
 import PromoUpgradeModal from "@/components/PromoUpgradeModal";
@@ -351,6 +352,14 @@ function App() {
                   element={
                     <RequireAuth>
                       <FestivalPage />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/watch-party/:code"
+                  element={
+                    <RequireAuth>
+                      <WatchPartyRoomPage />
                     </RequireAuth>
                   }
                 />

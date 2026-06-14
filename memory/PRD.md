@@ -5,6 +5,42 @@ Cartoonix este o platformă nostalgică de streaming dedicată desenelor din epo
 
 ## Recent Fixes (Feb 2026)
 
+### ✅ Watch Party — PLUS-only synchronized rooms (P0) — Feb 2026
+Modul complet, fără mock-uri:
+- **Backend** (`/app/backend/watch_party.py` — modul nou, ~970 LOC):
+  - 16 endpoint-uri REST sub `/api/watch-parties/...` + WebSocket `/api/watch-parties/ws/{public_code}`.
+  - `WatchPartyManager` in-memory (broadcast, chat istorie, reacții, rate-limit, host grace 120s) izolat ca service.
+  - Algoritm sync: heartbeat 5s host, threshold-uri 0.75s/1.5s, snapshot la join/reconnect, flag anti-loop pe client.
+  - Verificare PLUS server-side la **fiecare** acțiune (REST + WS handshake + fiecare comandă WS).
+  - Coduri publice cu `secrets.token_urlsafe` (≈60 biți entropie) — nu se expun ObjectId-uri.
+  - Notificări inbox la invitație (`db.notifications`).
+  - Index-uri Mongo + TTL pe `expires_at_dt` (4h inactivitate, 10min după `end`).
+- **Frontend** (componente noi):
+  - `/app/frontend/src/pages/WatchPartyRoomPage.jsx` — pagina principală (player + chat + queue + reacții + sync).
+  - `/app/frontend/src/components/watchparty/CreateWatchPartyButton.jsx` — 3 variante (primary/subtle/card).
+  - `/app/frontend/src/components/watchparty/WatchPartyInviteModal.jsx` — invitație prin nickname.
+  - `/app/frontend/src/hooks/useWatchPartySocket.js` — WS hook cu reconnect exponential + queue offline.
+  - `/app/frontend/src/lib/watchparty.js` — wrapper REST + `resolveVideoUrl` partajat.
+  - Buton plasat: `/lobby` (right rail), `/profile` (sub stats), `/cartoon/:id` (banner peste player), meniu dropdown user.
+  - Ruta `/watch-party/:code` cu `RequireAuth`.
+- **Teste** (`/app/backend/tests/test_watch_party.py`): 11 teste pytest, toate trec — FREE create/join blocat, PLUS create, max 5 invitați, invite duplicat / self / Free / kicked respinse, guest fără control queue, episod inexistent, kicked nu poate reveni, transfer host, end party, WS endpoint înregistrat.
+- **Constante configurabile**: `WATCH_PARTY_MAX_GUESTS=5`, `WATCH_PARTY_MAX_QUEUE=100`, `WATCH_PARTY_INACTIVITY_HOURS=4`, `WATCH_PARTY_HOST_GRACE_SECONDS=120`.
+- **Nginx** (de adăugat ÎNAINTE de blocul generic `/api/`):
+  ```nginx
+  location /api/watch-parties/ws/ {
+    proxy_pass http://127.0.0.1:8002;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_buffering off;
+    proxy_read_timeout 3600s;
+    proxy_send_timeout 3600s;
+  }
+  ```
+
 ### ✅ Popup promoțional WEEKEND20 pentru FREE (P0) — Feb 2026
 - Componentă nouă `/app/frontend/src/components/PromoUpgradeModal.jsx`, montată în `App.js` ca overlay global.
 - Reguli vizibilitate:

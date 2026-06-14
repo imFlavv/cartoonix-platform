@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { LogOut, User as UserIcon, Shield, Mail, Crown, ArrowRight, Radio, Menu } from "lucide-react";
+import { LogOut, User as UserIcon, Shield, Mail, Crown, ArrowRight, Radio, Menu, Tv } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -424,6 +424,22 @@ export function TopNav() {
                 <DropdownMenuItem onClick={() => navigate("/profile")} data-testid="nav-dashboard-link">
                   <UserIcon className="mr-2 h-4 w-4" /> Profilul meu
                 </DropdownMenuItem>
+                {(isPlus || user.role === "admin") && (
+                  <DropdownMenuItem
+                    onClick={async (e) => {
+                      e?.preventDefault?.();
+                      try {
+                        const { data } = await api.post("/watch-parties", {});
+                        navigate(`/watch-party/${data.party.public_code}`);
+                      } catch (err) {
+                        toast.error(getErrorMessage(err, "Nu am putut crea camera."));
+                      }
+                    }}
+                    data-testid="nav-watch-party-link"
+                  >
+                    <Tv className="mr-2 h-4 w-4 text-pink-300" /> Watch Party
+                  </DropdownMenuItem>
+                )}
                 {user.role === "admin" && (
                   <DropdownMenuItem onClick={() => navigate("/admin")} data-testid="nav-admin-link">
                     <Shield className="mr-2 h-4 w-4" /> Panou Admin

@@ -19,6 +19,7 @@ import {
   Lock,
 } from "lucide-react";
 import UserBadges from "@/components/UserBadges";
+import CreateWatchPartyButton from "@/components/watchparty/CreateWatchPartyButton";
 import { toast } from "sonner";
 
 /**
@@ -597,6 +598,7 @@ export default function LobbyPage() {
 
           {/* Right rail */}
           <aside className="lg:col-span-3 space-y-4 order-3">
+            <CreateWatchPartyButton variant="card" data-testid="lobby-create-wp" />
             <NextLivePanel />
             <PollPanel />
             <RecommendationPanel />

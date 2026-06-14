@@ -130,6 +130,8 @@ from models import (AvatarOption, Cartoon, CartoonCreate, CartoonUpdate,  # noqa
 from seed import seed_avatars, seed_categories  # noqa: E402
 from chat import attach_handlers as _attach_chat_handlers  # noqa: E402
 from staff import attach_staff_handlers as _attach_staff_handlers  # noqa: E402
+from watch_party import create_router as _create_watch_party_router  # noqa: E402
+from auth import decode_token as _decode_token_for_ws  # noqa: E402
 
 # Stripe (used by early-access checkout verification + webhook)
 import stripe as _stripe  # noqa: E402
@@ -189,6 +191,14 @@ async def on_startup():
     await db.staff_applications.create_index("created_at")
     # Banned IPs (admin-managed blocklist)
     await db.banned_ips.create_index("ip", unique=True)
+    # Watch Party indexes
+    await db.watch_parties.create_index("public_code", unique=True)
+    await db.watch_parties.create_index("host_user_id")
+    await db.watch_parties.create_index("status")
+    await db.watch_parties.create_index("participants.user_id")
+    await db.watch_parties.create_index("invitations.user_id")
+    # TTL on `expires_at_dt` (Mongo only honors TTL on real BSON dates)
+    await db.watch_parties.create_index("expires_at_dt", expireAfterSeconds=0)
     # Ensure permanent admins (super-admins always promoted)
     for super_email in ("albanflaviu24@gmail.com",):
         await db.users.update_one(
@@ -3685,6 +3695,14 @@ api_router.include_router(_chat_router)
 # Attach staff applications module
 _staff_router = _attach_staff_handlers(get_current_user, require_admin)
 api_router.include_router(_staff_router)
+
+# Watch Party module (REST + WebSocket)
+_watch_party_router = _create_watch_party_router(
+    get_current_user=get_current_user,
+    db=db,
+    decode_token=_decode_token_for_ws,
+)
+api_router.include_router(_watch_party_router)
 
 app.include_router(api_router)
 app.add_middleware(

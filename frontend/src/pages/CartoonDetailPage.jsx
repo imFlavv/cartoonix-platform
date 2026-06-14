@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import AddToPlaylistDialog from "@/components/AddToPlaylistDialog";
+import CreateWatchPartyButton from "@/components/watchparty/CreateWatchPartyButton";
 
 /**
  * Resolve an episode video path to a playable URL.
@@ -331,6 +332,16 @@ export default function CartoonDetailPage() {
             </motion.div>
 
             <div className="mt-8">
+              {activeEp && (isPlus || user?.role === "admin") && (
+                <div className="mb-3">
+                  <CreateWatchPartyButton
+                    variant="card"
+                    episodeId={activeEp.id}
+                    cartoonId={id}
+                    label={`Watch ${data.cartoon?.title || ""} cu prietenii`}
+                  />
+                </div>
+              )}
               {activeEp ? (
                 <div data-testid="watch-player" className="tv-bezel scanlines relative overflow-hidden">
                   <div className="aspect-video rounded-xl bg-black overflow-hidden">
