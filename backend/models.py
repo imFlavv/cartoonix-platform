@@ -25,6 +25,7 @@ class UserPublic(BaseModel):
     level: int = 1  # gamification level 1-10 (badge)
     email_verified: bool = False
     created_at: datetime
+    presence_seconds: int = 0  # cumulative time spent online (for profile "Timp Online")
 
 
 class UserCreate(BaseModel):
