@@ -223,7 +223,7 @@ function BadgesCard({ className = "" }) {
 /* ------------------------------------------------------------------ */
 
 export default function ProfilePage() {
-  const { user, updateMe } = useAuth();
+  const { user, loading, updateMe } = useAuth();
   const navigate = useNavigate();
   const [favs, setFavs] = useState([]);
   const [history, setHistory] = useState([]);
@@ -248,13 +248,24 @@ export default function ProfilePage() {
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
+    if (loading) return;
     if (!user) {
       navigate("/login");
       return;
     }
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, loading]);
+
+  if (loading) {
+    return (
+      <PublicLayout>
+        <div className="mx-auto flex max-w-7xl items-center justify-center px-4 py-24">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-[hsl(var(--accent))]" />
+        </div>
+      </PublicLayout>
+    );
+  }
 
   if (!user) return null;
 

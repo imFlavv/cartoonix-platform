@@ -305,14 +305,30 @@ frontend:
         agent: "main"
         comment: "1) Fixed contests footer text from 'cu care ești înregistrat. Mult succes' to 'cu care sunt înregistrați. Mult succes'. 2) Added deadline_iso='2026-05-25T20:00:00+03:00' on each of the 4 contests; each card now renders a live countdown widget (zile:ore:min:sec, ticks every second) and shows 'Concurs finalizat' once expired. 3) On the /early-access success page, added a settings cog button at the end of the user bar that opens a dropdown menu with two items: Inbox (badge SOON, opens a Dialog with a 'Niciun mesaj nou — Mesageria va fi disponibilă odată cu lansarea platformei' placeholder) and Avatar (opens a Dialog grid with all avatars from /api/avatars; clicking saves via PATCH /auth/me { avatar_url } and refreshes the user). Verified: 14 avatars listed, current avatar highlighted with check, saving shows 'AVATAR ACTUALIZAT!' toast and the new avatar appears in the user bar immediately. Inbox dialog opens and shows the placeholder. Countdown widgets show 4 distinct timers (7d 6h 59m ~ 25 May 20:00)."
 
+  - task: "Expose presence_seconds on UserPublic (for profile Timp Online)"
+    implemented: true
+    working: true
+    file: "backend/models.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Added `presence_seconds: int = 0` to UserPublic model so GET /api/auth/me and POST /api/auth/login user payload now include cumulative online seconds (used by the redesigned profile page 'Timp Online' card). Field defaults to 0 for users without it. Also restored missing backend/.env (MONGO_URL=mongodb://localhost:27017, DB_NAME=cartoonix) and frontend/.env (REACT_APP_BACKEND_URL) which were absent and had taken the backend down; reseeded categories/avatars (startup) and test users. Please verify: login + /auth/me return presence_seconds (int, default 0), level (default 1) and created_at; PATCH /auth/me avatar change still works; /api/avatars returns 14 deduped items."
+      - working: true
+        agent: "testing"
+        comment: "Comprehensive backend testing completed with 5 test cases (34 assertions total) for auth/profile endpoints. ALL TESTS PASSED (5/5, 100% success rate). ✅ Test 1: POST /api/auth/login with test_plus@cartoonix.ro returns HTTP 200 with access_token and user object containing ALL required fields: presence_seconds=42 (int, >=0), level=1 (int, >=1), created_at, nickname='PlusUser', email='test_plus@cartoonix.ro', avatar_url='/api/uploads/avatars/hero_girl.jpg', subscription='plus', role='user'. ✅ Test 2: GET /api/auth/me with bearer token returns HTTP 200 with same fields: presence_seconds=42 (int), level=1 (int), all other fields present and correct. ✅ Test 3: PATCH /api/auth/me with {avatar_url: '/api/uploads/avatars/robot.jpg'} returns HTTP 200, avatar updated correctly, GET /api/auth/me confirms persistence, avatar restored to original '/api/uploads/avatars/hero_girl.jpg' successfully. ✅ Test 4: GET /api/avatars returns HTTP 200 with 14 unique items, each with slug and url fields, no duplicate slugs detected (sample: hero_boy, hero_girl, ninja). ✅ Test 5: GET /api/settings returns HTTP 200 with public settings object (presentation_mode, maintenance_mode, early_access_mode, chat_enabled, etc.). Implementation verified: UserPublic model correctly exposes presence_seconds (int, default 0) and level (int, default 1) fields in both login and /auth/me responses; avatar update via PATCH persists correctly; avatars endpoint returns deduplicated list. Feature is production-ready."
+
 metadata:
   created_by: "main_agent"
-  version: "1.7"
-  test_sequence: 7
+  version: "1.8"
+  test_sequence: 8
   run_ui: false
 
 test_plan:
-  current_focus: []
+  current_focus:
+    - "Expose presence_seconds on UserPublic (for profile Timp Online)"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -334,3 +350,9 @@ agent_communication:
 
   - agent: "testing"
     message: "BACKEND TESTING COMPLETE for Video Streaming Endpoint with HTTP Range Support. Comprehensive test suite executed with 6 test cases covering all scenarios. RESULTS: 6/6 tests PASSED (100% success rate). All functionality working correctly: ✅ Full GET returns 200 with Accept-Ranges, Content-Type video/mp4, correct Content-Length and body size, ✅ Range GET bytes=0-1023 returns 206 Partial Content with correct Content-Range and 1024 bytes, ✅ Open-ended Range GET bytes=1048000- returns 206 with correct ending at 1048575/1048576 and 576 bytes, ✅ Unsatisfiable range returns 416 with Content-Range bytes */1048576, ✅ Missing file returns 404, ✅ Path traversal attempt (../../../etc/passwd) returns 403 and does NOT expose system files. Security verified: realpath guard successfully blocks path traversal. Feature is production-ready for video seeking in browser."
+
+  - agent: "main"
+    message: "PROFILE PAGE REDESIGN (dashboard) + ENV RECOVERY. Recovered missing backend/.env and frontend/.env (the backend was down with KeyError MONGO_URL; DB was empty). Restored MONGO_URL=mongodb://localhost:27017, DB_NAME=cartoonix, REACT_APP_BACKEND_URL=preview; backend startup reseeded categories(3)/avatars(14); reseeded 4 test users (see test_credentials.md). Backend code change: added `presence_seconds: int = 0` to UserPublic (models.py) for the new 'Timp Online' card. Please backend-test (scope = auth only, do not re-run chat/video suites): 1) POST /api/auth/login (test_plus@cartoonix.ro / TestPlus#2026) returns user with presence_seconds (int>=0), level (default 1) and created_at; 2) GET /api/auth/me with that token returns same fields; 3) PATCH /api/auth/me {avatar_url} changes avatar and persists; 4) GET /api/avatars returns 14 deduped items. Frontend redesign already verified via screenshots."
+
+  - agent: "testing"
+    message: "BACKEND TESTING COMPLETE for presence_seconds field on UserPublic. Comprehensive test suite executed with 5 test cases (34 assertions) covering auth/profile contract. RESULTS: 5/5 tests PASSED (100% success rate). All functionality working correctly: ✅ POST /api/auth/login returns HTTP 200 with access_token and user object containing presence_seconds=42 (int, >=0), level=1 (int, >=1), created_at, nickname, email, avatar_url, subscription='plus', role='user', ✅ GET /api/auth/me returns HTTP 200 with same fields including presence_seconds (int) and level (int), ✅ PATCH /api/auth/me successfully updates avatar_url to robot.jpg, persists change, and restores to hero_girl.jpg, ✅ GET /api/avatars returns HTTP 200 with 14 unique items (no duplicate slugs), each with slug and url fields, ✅ GET /api/settings returns HTTP 200 with public settings object. Test credentials from /app/memory/test_credentials.md working correctly. The new presence_seconds field is correctly exposed in the UserPublic model and returned in both login and /auth/me responses. Feature is production-ready."
