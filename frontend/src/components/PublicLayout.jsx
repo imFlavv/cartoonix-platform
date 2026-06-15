@@ -214,7 +214,6 @@ export function TopNav() {
     { to: "/category/cartoon-network", label: "Cartoon Network" },
     { to: "/category/minimax", label: "Minimax" },
     ...(lobbyVisible ? [{ to: "/lobby", label: "Lobby" }] : []),
-    ...(user ? [{ to: "/festival", label: "Festival", badge: "Iulie" }] : []),
     ...(user && settings?.support_enabled !== false
       ? [{ to: "/support", label: "Support" }]
       : []),
