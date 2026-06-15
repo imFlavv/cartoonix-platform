@@ -5,7 +5,7 @@ import time
 import io
 from datetime import datetime
 
-BASE_URL = "https://episode-player-fix.preview.emergentagent.com/api"
+BASE_URL = "https://user-dashboard-138.preview.emergentagent.com/api"
 
 class CartoonixAPITester:
     def __init__(self):
@@ -127,7 +127,7 @@ class CartoonixAPITester:
     
     def test_static_avatar_file(self):
         """GET /uploads/avatars/hero_boy.jpg returns 200 with image content-type."""
-        resp = requests.get(f"https://episode-player-fix.preview.emergentagent.com/uploads/avatars/hero_boy.jpg")
+        resp = requests.get(f"https://user-dashboard-138.preview.emergentagent.com/uploads/avatars/hero_boy.jpg")
         self.assert_status(resp, 200, "Static avatar file not accessible")
         content_type = resp.headers.get("content-type", "")
         assert "image" in content_type.lower(), f"Expected image content-type, got {content_type}"
