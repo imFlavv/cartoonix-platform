@@ -1085,6 +1085,9 @@ DEFAULT_SETTINGS = {
     "chat_max_length": 300,
     "chat_block_links": True,
     "chat_pinned_message": None,
+    # Watch Party feature toggle — when False, the whole Watch Party feature is
+    # disabled platform-wide (create button hidden, REST + WebSocket blocked).
+    "watch_party_enabled": True,
 }
 
 
@@ -1114,6 +1117,7 @@ async def public_settings():
         "chat_new_user_days",
         "chat_max_length",
         "chat_pinned_message",
+        "watch_party_enabled",
     }
     return {k: full[k] for k in full if k in public_keys}
 

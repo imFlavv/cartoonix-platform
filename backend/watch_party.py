@@ -395,6 +395,17 @@ def create_router(*, get_current_user, db, decode_token):
         if user.get("subscription") != "plus":
             raise HTTPException(403, "Watch Party este disponibil doar pentru membrii PLUS.")
 
+    async def _watch_party_enabled() -> bool:
+        """Global feature flag from db.settings (_id='global'). Defaults to True."""
+        doc = await db.settings.find_one({"_id": "global"}, {"_id": 0, "watch_party_enabled": 1})
+        if not doc:
+            return True
+        return doc.get("watch_party_enabled", True) is not False
+
+    async def _require_feature_enabled() -> None:
+        if not await _watch_party_enabled():
+            raise HTTPException(403, "Watch Party este dezactivat momentan pe platformă.")
+
     async def _load_party_or_404(code: str) -> dict:
         party = await db.watch_parties.find_one({"public_code": code}, {"_id": 0})
         if not party:
@@ -479,6 +490,7 @@ def create_router(*, get_current_user, db, decode_token):
     @router.post("")
     async def create_party(payload: CreateWatchPartyReq,
                            user=Depends(get_current_user)):
+        await _require_feature_enabled()
         await _require_plus(user)
 
         # Reuse an existing active party for this host if any (idempotency).
@@ -789,6 +801,7 @@ def create_router(*, get_current_user, db, decode_token):
     # ---- JOIN / LEAVE ----
     @router.post("/{code}/join")
     async def join_party(code: str, user=Depends(get_current_user)):
+        await _require_feature_enabled()
         await _require_plus(user)
         party = await _load_party_or_404(code)
         if not _is_party_active(party):
@@ -1043,6 +1056,10 @@ def create_router(*, get_current_user, db, decode_token):
         user = await db.users.find_one({"id": user_id}, {"_id": 0, "password_hash": 0})
         if not user or user.get("banned"):
             await ws.close(code=4401)
+            return
+        if not await _watch_party_enabled():
+            # Feature disabled platform-wide — reject before accept (4403).
+            await ws.close(code=4403)
             return
         if user.get("role") != "admin" and user.get("subscription") != "plus":
             await ws.close(code=4403)

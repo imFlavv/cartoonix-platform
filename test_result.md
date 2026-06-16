@@ -335,14 +335,30 @@ frontend:
         agent: "testing"
         comment: "Comprehensive backend testing completed with 6 test cases (21 assertions total) for admin notification broadcast endpoint. ALL TESTS PASSED (21/21, 100% success rate). ✅ Test 1: Auth/Permission checks - POST /api/admin/notifications with non-admin token (test_free) returns HTTP 403, with no token returns HTTP 401. ✅ Test 2: Validation - POST target=user without user_id returns HTTP 400 with message 'user_id este obligatoriu pentru target=user'. ✅ Test 3: Single user send - POST target=user with test_plus user_id returns HTTP 200 with {success: true, sent: 1, queued: false}, notification 'Test single' delivered to test_plus and verified via GET /api/notifications. ✅ Test 4: Broadcast tier - POST target=plus returns HTTP 200 quickly (0.10s < 5s) with {success: true, sent: 1, queued: true}, notification 'Broadcast plus' delivered to test_plus after ~3s wait (background task completed successfully). ✅ Test 5: Broadcast all - POST target=all returns HTTP 200 quickly (0.09s < 5s) with {success: true, sent: 4, queued: true} (4 total users in DB). ✅ Test 6: No recipients edge case - POST target=user with nonexistent user_id 'nonexistent-id-123' returns HTTP 404 with message 'Niciun destinatar nu corespunde criteriilor.' Implementation verified: Single-user sends are inline (instant response, sent=1, queued=false), broadcasts (all/free/plus) count recipients instantly then deliver via background task with batched inserts (returns immediately with queued=true, sent=<count>), responses return promptly (under 1s, well below 5s timeout threshold), background delivery completes successfully within 3 seconds. The 504 timeout issue is RESOLVED - endpoint now returns immediately for large audiences while background task handles delivery. Feature is production-ready."
 
+  - task: "Watch Party global feature toggle (watch_party_enabled) — admin can disable platform-wide"
+    implemented: true
+    working: true
+    file: "backend/server.py, backend/watch_party.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Added `watch_party_enabled: True` to DEFAULT_SETTINGS and exposed it in GET /api/settings (public). When False (set via PATCH /api/admin/settings), the whole Watch Party feature is blocked: POST /api/watch-parties (create) and POST /api/watch-parties/{code}/join return 403 ('Watch Party este dezactivat momentan pe platformă.'), and the WS /api/watch-parties/ws/{code} is rejected before accept (close 4403 → handshake 403) for everyone incl admins. Frontend: CreateWatchPartyButton hides when watch_party_enabled===false; new admin toggle card in /admin/settings. Sanity-verified locally: create 200→disable→create 403→WS REJECTED 403→re-enable→WS OPEN. Please verify via API: 1) PATCH /api/admin/settings {watch_party_enabled:false} returns 200 and GET /api/settings reflects false; 2) POST /api/watch-parties (admin token) returns 403 while disabled; 3) PATCH back to true returns 200 and create works again (200); 4) only admin can PATCH settings (non-admin 403). Restore watch_party_enabled=true at the end."
+      - working: true
+        agent: "testing"
+        comment: "Comprehensive backend testing completed with 9 test cases (6 main scenarios) for Watch Party global toggle feature. ALL TESTS PASSED (9/9, 100% success rate). ✅ TEST 1: GET /api/settings (public, no auth) returns HTTP 200 with watch_party_enabled key present (value: true). ✅ TEST 2a: PATCH /api/admin/settings with non-admin token (test_free) returns HTTP 403 with detail 'Admin access required'. ✅ TEST 2b: PATCH /api/admin/settings with no token returns HTTP 401 with detail 'Missing token'. ✅ TEST 3a: Admin PATCH /api/admin/settings {watch_party_enabled: false} returns HTTP 200 with watch_party_enabled=false in response. ✅ TEST 3b: GET /api/settings confirms watch_party_enabled=false after admin disable. ✅ TEST 4: While disabled, admin POST /api/watch-parties {title: 'Should be blocked'} returns HTTP 403 with detail 'Watch Party este dezactivat momentan pe platformă.' (correct Romanian message). ✅ TEST 5a: Admin PATCH /api/admin/settings {watch_party_enabled: true} returns HTTP 200 with watch_party_enabled=true. ✅ TEST 5b: GET /api/settings confirms watch_party_enabled=true after re-enable. ✅ TEST 6: While enabled, admin POST /api/watch-parties {title: 'Now allowed'} returns HTTP 200 with success=true and party object containing public_code='dg0kXsgnFD' (creation works, idempotent behavior confirmed). ✅ FINAL: Verified watch_party_enabled is left TRUE at end of testing. Implementation verified: Global setting watch_party_enabled (default true) is exposed in public GET /api/settings, admin-only PATCH /api/admin/settings correctly enforces permissions (403 for non-admin, 401 for no token), setting persists and reflects immediately in public endpoint, POST /api/watch-parties correctly blocks with 403 when disabled (with appropriate Romanian error message), and allows creation with 200 when enabled. Feature is production-ready."
+
 metadata:
   created_by: "main_agent"
-  version: "1.10"
-  test_sequence: 10
+  version: "2.0"
+  test_sequence: 11
   run_ui: false
 
 test_plan:
-  current_focus: []
+  current_focus:
+    - "Watch Party global feature toggle (watch_party_enabled) — admin can disable platform-wide"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -373,3 +389,6 @@ agent_communication:
 
   - agent: "testing"
     message: "BACKEND TESTING COMPLETE for Admin Notification Broadcast (504 timeout fix). Comprehensive test suite executed with 6 test cases (21 assertions total) covering all aspects of the refactored POST /api/admin/notifications endpoint. RESULTS: 21/21 tests PASSED (100% success rate). ✅ Test 1: Auth/Permission - non-admin token (test_free) returns HTTP 403, no token returns HTTP 401. ✅ Test 2: Validation - target=user without user_id returns HTTP 400. ✅ Test 3: Single user send - target=user with valid user_id returns HTTP 200 with {success: true, sent: 1, queued: false}, notification delivered and verified. ✅ Test 4: Broadcast tier - target=plus returns HTTP 200 in 0.10s with {success: true, sent: 1, queued: true}, notification delivered after 3s (background task completed). ✅ Test 5: Broadcast all - target=all returns HTTP 200 in 0.09s with {success: true, sent: 4, queued: true}. ✅ Test 6: No recipients - nonexistent user_id returns HTTP 404. Implementation verified: Single-user sends are inline (instant), broadcasts use background task with batched inserts (returns immediately, no timeout), responses return in under 1 second (well below 5s threshold). The 504 timeout issue is RESOLVED. Feature is production-ready."
+
+  - agent: "testing"
+    message: "BACKEND TESTING COMPLETE for Watch Party Global Toggle feature. Comprehensive test suite executed with 9 test cases (6 main scenarios) covering all aspects of the watch_party_enabled setting. RESULTS: 9/9 tests PASSED (100% success rate). All functionality working correctly: ✅ GET /api/settings (public, no auth) returns watch_party_enabled key, ✅ PATCH /api/admin/settings with non-admin token returns 403, with no token returns 401, ✅ Admin can disable watch_party_enabled via PATCH (returns 200, persists in GET /api/settings), ✅ While disabled, POST /api/watch-parties returns 403 with correct Romanian error message 'Watch Party este dezactivat momentan pe platformă.', ✅ Admin can re-enable watch_party_enabled (returns 200, persists in GET /api/settings), ✅ While enabled, POST /api/watch-parties returns 200 with party object containing public_code (idempotent creation works). ✅ FINAL: Verified watch_party_enabled is left TRUE at end of testing. Test credentials from /app/memory/test_credentials.md working correctly. Feature is production-ready."

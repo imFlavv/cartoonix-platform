@@ -1,472 +1,327 @@
 #!/usr/bin/env python3
 """
-Backend API Testing Suite for Cartoonix
-Tests auth/profile endpoints with focus on presence_seconds and level fields
+Backend API Test Suite for Cartoonix Watch Party Global Toggle
+Tests the watch_party_enabled setting and its enforcement across REST and WebSocket endpoints.
 """
-import os
-import sys
 import requests
+import sys
 import json
-from typing import Optional
 
-# Backend URL from environment
-BACKEND_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://4b695aa3-ef7a-461f-9755-32ede9a21472.preview.emergentagent.com")
-API_BASE = f"{BACKEND_URL}/api"
+# Configuration
+BASE_URL = "https://user-dashboard-138.preview.emergentagent.com/api"
 
-# Test credentials
-TEST_EMAIL = "test_plus@cartoonix.ro"
-TEST_PASSWORD = "TestPlus#2026"
+# Test credentials from /app/memory/test_credentials.md
+ADMIN_EMAIL = "test_admin@cartoonix.ro"
+ADMIN_PASSWORD = "TestAdmin#2026"
+FREE_EMAIL = "test_free@cartoonix.ro"
+FREE_PASSWORD = "TestFree#2026"
 
-# Color codes for output
-GREEN = "\033[92m"
-RED = "\033[91m"
-YELLOW = "\033[93m"
-BLUE = "\033[94m"
-RESET = "\033[0m"
+def login(email: str, password: str) -> str:
+    """Login and return access token."""
+    resp = requests.post(f"{BASE_URL}/auth/login", json={"email": email, "password": password})
+    if resp.status_code != 200:
+        print(f"❌ Login failed for {email}: {resp.status_code} {resp.text}")
+        return None
+    data = resp.json()
+    return data.get("access_token")
 
-def log_test(test_num: int, description: str):
-    """Log test case header"""
-    print(f"\n{BLUE}{'='*80}{RESET}")
-    print(f"{BLUE}Test {test_num}: {description}{RESET}")
-    print(f"{BLUE}{'='*80}{RESET}")
-
-def log_pass(message: str):
-    """Log success message"""
-    print(f"{GREEN}✅ PASS: {message}{RESET}")
-
-def log_fail(message: str):
-    """Log failure message"""
-    print(f"{RED}❌ FAIL: {message}{RESET}")
-
-def log_info(message: str):
-    """Log info message"""
-    print(f"{YELLOW}ℹ️  INFO: {message}{RESET}")
-
-def log_detail(key: str, value):
-    """Log detail with key-value"""
-    print(f"   {key}: {value}")
-
-class TestResults:
-    """Track test results"""
-    def __init__(self):
-        self.passed = 0
-        self.failed = 0
-        self.failures = []
+def test_watch_party_toggle():
+    """Test Watch Party global toggle feature."""
+    print("\n" + "="*80)
+    print("WATCH PARTY GLOBAL TOGGLE TEST SUITE")
+    print("="*80)
     
-    def add_pass(self, test_name: str):
-        self.passed += 1
-        log_pass(test_name)
+    results = []
     
-    def add_fail(self, test_name: str, reason: str):
-        self.failed += 1
-        self.failures.append(f"{test_name}: {reason}")
-        log_fail(f"{test_name} - {reason}")
+    # Get tokens
+    print("\n🔐 Authenticating...")
+    admin_token = login(ADMIN_EMAIL, ADMIN_PASSWORD)
+    free_token = login(FREE_EMAIL, FREE_PASSWORD)
     
-    def summary(self):
-        total = self.passed + self.failed
-        print(f"\n{BLUE}{'='*80}{RESET}")
-        print(f"{BLUE}TEST SUMMARY{RESET}")
-        print(f"{BLUE}{'='*80}{RESET}")
-        print(f"Total Tests: {total}")
-        print(f"{GREEN}Passed: {self.passed}{RESET}")
-        print(f"{RED}Failed: {self.failed}{RESET}")
-        if self.failures:
-            print(f"\n{RED}Failed Tests:{RESET}")
-            for failure in self.failures:
-                print(f"  - {failure}")
-        print(f"{BLUE}{'='*80}{RESET}\n")
-        return self.failed == 0
-
-results = TestResults()
-
-def test_1_login():
-    """Test 1: POST /api/auth/login with test credentials"""
-    log_test(1, "POST /api/auth/login - Verify response structure and new fields")
+    if not admin_token:
+        print("❌ CRITICAL: Admin login failed")
+        return False
+    if not free_token:
+        print("❌ CRITICAL: Free user login failed")
+        return False
     
+    print(f"✅ Admin token: {admin_token[:20]}...")
+    print(f"✅ Free token: {free_token[:20]}...")
+    
+    # ========================================================================
+    # TEST 1: GET /api/settings (public, no auth) returns watch_party_enabled
+    # ========================================================================
+    print("\n" + "-"*80)
+    print("TEST 1: GET /api/settings (public, no auth)")
+    print("-"*80)
     try:
-        response = requests.post(
-            f"{API_BASE}/auth/login",
-            json={"email": TEST_EMAIL, "password": TEST_PASSWORD},
-            timeout=10
-        )
+        resp = requests.get(f"{BASE_URL}/settings")
+        print(f"Status: {resp.status_code}")
+        print(f"Response: {resp.text[:500]}")
         
-        log_info(f"Status Code: {response.status_code}")
-        
-        if response.status_code != 200:
-            results.add_fail("Login request", f"Expected HTTP 200, got {response.status_code}")
-            log_detail("Response", response.text[:500])
-            return None
-        
-        results.add_pass("Login returns HTTP 200")
-        
-        data = response.json()
-        log_detail("Response keys", list(data.keys()))
-        
-        # Check for access_token
-        if "access_token" not in data:
-            results.add_fail("Login response", "Missing 'access_token' field")
-            return None
-        results.add_pass("Response contains 'access_token'")
-        
-        # Check for user object
-        if "user" not in data:
-            results.add_fail("Login response", "Missing 'user' object")
-            return None
-        results.add_pass("Response contains 'user' object")
-        
-        user = data["user"]
-        log_detail("User keys", list(user.keys()))
-        
-        # Required fields
-        required_fields = ["presence_seconds", "level", "created_at", "nickname", "email", 
-                          "avatar_url", "subscription", "role"]
-        
-        for field in required_fields:
-            if field not in user:
-                results.add_fail(f"User object field '{field}'", f"Missing required field")
+        if resp.status_code == 200:
+            data = resp.json()
+            if "watch_party_enabled" in data:
+                current_value = data["watch_party_enabled"]
+                print(f"✅ PASS: watch_party_enabled present in response: {current_value}")
+                results.append(("TEST 1", True, f"watch_party_enabled={current_value}"))
             else:
-                results.add_pass(f"User object contains '{field}'")
-                log_detail(f"  {field}", user[field])
-        
-        # Validate presence_seconds type and value
-        if "presence_seconds" in user:
-            ps = user["presence_seconds"]
-            if not isinstance(ps, int):
-                results.add_fail("presence_seconds type", f"Expected int, got {type(ps).__name__}")
-            elif ps < 0:
-                results.add_fail("presence_seconds value", f"Expected >= 0, got {ps}")
-            else:
-                results.add_pass(f"presence_seconds is valid integer >= 0 (value: {ps})")
-        
-        # Validate level type and value
-        if "level" in user:
-            level = user["level"]
-            if not isinstance(level, int):
-                results.add_fail("level type", f"Expected int, got {type(level).__name__}")
-            elif level < 1:
-                results.add_fail("level value", f"Expected >= 1, got {level}")
-            else:
-                results.add_pass(f"level is valid integer >= 1 (value: {level})")
-        
-        # Validate subscription
-        if "subscription" in user:
-            if user["subscription"] != "plus":
-                log_info(f"Note: subscription is '{user['subscription']}', expected 'plus' for test_plus user")
-        
-        return data["access_token"]
-        
-    except requests.exceptions.RequestException as e:
-        results.add_fail("Login request", f"Request failed: {str(e)}")
-        return None
-    except json.JSONDecodeError as e:
-        results.add_fail("Login response", f"Invalid JSON: {str(e)}")
-        return None
-    except Exception as e:
-        results.add_fail("Login test", f"Unexpected error: {str(e)}")
-        return None
-
-def test_2_auth_me(token: str):
-    """Test 2: GET /api/auth/me with bearer token"""
-    log_test(2, "GET /api/auth/me - Verify same fields present")
-    
-    if not token:
-        results.add_fail("Auth me test", "No token available (login failed)")
-        return None
-    
-    try:
-        response = requests.get(
-            f"{API_BASE}/auth/me",
-            headers={"Authorization": f"Bearer {token}"},
-            timeout=10
-        )
-        
-        log_info(f"Status Code: {response.status_code}")
-        
-        if response.status_code != 200:
-            results.add_fail("Auth me request", f"Expected HTTP 200, got {response.status_code}")
-            log_detail("Response", response.text[:500])
-            return None
-        
-        results.add_pass("GET /auth/me returns HTTP 200")
-        
-        user = response.json()
-        log_detail("User keys", list(user.keys()))
-        
-        # Required fields
-        required_fields = ["presence_seconds", "level", "created_at", "nickname", "email", 
-                          "avatar_url", "subscription", "role"]
-        
-        for field in required_fields:
-            if field not in user:
-                results.add_fail(f"User object field '{field}'", f"Missing required field")
-            else:
-                results.add_pass(f"User object contains '{field}'")
-                log_detail(f"  {field}", user[field])
-        
-        # Validate presence_seconds type and value
-        if "presence_seconds" in user:
-            ps = user["presence_seconds"]
-            if not isinstance(ps, int):
-                results.add_fail("presence_seconds type", f"Expected int, got {type(ps).__name__}")
-            elif ps < 0:
-                results.add_fail("presence_seconds value", f"Expected >= 0, got {ps}")
-            else:
-                results.add_pass(f"presence_seconds is valid integer >= 0 (value: {ps})")
-        
-        # Validate level type and value
-        if "level" in user:
-            level = user["level"]
-            if not isinstance(level, int):
-                results.add_fail("level type", f"Expected int, got {type(level).__name__}")
-            elif level < 1:
-                results.add_fail("level value", f"Expected >= 1, got {level}")
-            else:
-                results.add_pass(f"level is valid integer >= 1 (value: {level})")
-        
-        return user
-        
-    except requests.exceptions.RequestException as e:
-        results.add_fail("Auth me request", f"Request failed: {str(e)}")
-        return None
-    except json.JSONDecodeError as e:
-        results.add_fail("Auth me response", f"Invalid JSON: {str(e)}")
-        return None
-    except Exception as e:
-        results.add_fail("Auth me test", f"Unexpected error: {str(e)}")
-        return None
-
-def test_3_patch_avatar(token: str):
-    """Test 3: PATCH /api/auth/me - Update avatar_url and verify persistence"""
-    log_test(3, "PATCH /api/auth/me - Update avatar_url and verify persistence")
-    
-    if not token:
-        results.add_fail("Patch avatar test", "No token available (login failed)")
-        return
-    
-    # Step 1: Get current avatar
-    try:
-        response = requests.get(
-            f"{API_BASE}/auth/me",
-            headers={"Authorization": f"Bearer {token}"},
-            timeout=10
-        )
-        if response.status_code != 200:
-            results.add_fail("Get current avatar", f"Failed to get current user: {response.status_code}")
-            return
-        
-        original_avatar = response.json().get("avatar_url")
-        log_info(f"Original avatar: {original_avatar}")
-        
-    except Exception as e:
-        results.add_fail("Get current avatar", f"Error: {str(e)}")
-        return
-    
-    # Step 2: Update to robot.jpg
-    new_avatar = "/api/uploads/avatars/robot.jpg"
-    log_info(f"Updating avatar to: {new_avatar}")
-    
-    try:
-        response = requests.patch(
-            f"{API_BASE}/auth/me",
-            headers={"Authorization": f"Bearer {token}"},
-            json={"avatar_url": new_avatar},
-            timeout=10
-        )
-        
-        log_info(f"PATCH Status Code: {response.status_code}")
-        
-        if response.status_code != 200:
-            results.add_fail("PATCH avatar", f"Expected HTTP 200, got {response.status_code}")
-            log_detail("Response", response.text[:500])
-            return
-        
-        results.add_pass("PATCH /auth/me returns HTTP 200")
-        
-        user = response.json()
-        if user.get("avatar_url") != new_avatar:
-            results.add_fail("Avatar update", f"Expected '{new_avatar}', got '{user.get('avatar_url')}'")
+                print(f"❌ FAIL: watch_party_enabled key missing from response")
+                results.append(("TEST 1", False, "watch_party_enabled key missing"))
         else:
-            results.add_pass(f"Avatar updated to '{new_avatar}'")
-        
+            print(f"❌ FAIL: Expected 200, got {resp.status_code}")
+            results.append(("TEST 1", False, f"HTTP {resp.status_code}"))
     except Exception as e:
-        results.add_fail("PATCH avatar", f"Error: {str(e)}")
-        return
+        print(f"❌ FAIL: Exception: {e}")
+        results.append(("TEST 1", False, str(e)))
     
-    # Step 3: Verify persistence with GET
-    log_info("Verifying persistence with GET /auth/me")
+    # ========================================================================
+    # TEST 2: Permission checks - non-admin and no-auth cannot modify setting
+    # ========================================================================
+    print("\n" + "-"*80)
+    print("TEST 2: Permission checks for PATCH /api/admin/settings")
+    print("-"*80)
     
+    # 2a: Non-admin token (free user) should get 403
+    print("\n2a. Non-admin token (free user) -> expect 403")
     try:
-        response = requests.get(
-            f"{API_BASE}/auth/me",
-            headers={"Authorization": f"Bearer {token}"},
-            timeout=10
+        resp = requests.patch(
+            f"{BASE_URL}/admin/settings",
+            json={"watch_party_enabled": False},
+            headers={"Authorization": f"Bearer {free_token}"}
         )
+        print(f"Status: {resp.status_code}")
+        print(f"Response: {resp.text[:300]}")
         
-        if response.status_code != 200:
-            results.add_fail("Verify persistence", f"GET failed: {response.status_code}")
-            return
-        
-        user = response.json()
-        if user.get("avatar_url") != new_avatar:
-            results.add_fail("Avatar persistence", f"Expected '{new_avatar}', got '{user.get('avatar_url')}'")
+        if resp.status_code == 403:
+            print(f"✅ PASS: Non-admin correctly rejected with 403")
+            results.append(("TEST 2a", True, "Non-admin rejected with 403"))
         else:
-            results.add_pass(f"Avatar persisted correctly: '{new_avatar}'")
-        
+            print(f"❌ FAIL: Expected 403, got {resp.status_code}")
+            results.append(("TEST 2a", False, f"Expected 403, got {resp.status_code}"))
     except Exception as e:
-        results.add_fail("Verify persistence", f"Error: {str(e)}")
-        return
+        print(f"❌ FAIL: Exception: {e}")
+        results.append(("TEST 2a", False, str(e)))
     
-    # Step 4: Restore original avatar
-    log_info(f"Restoring original avatar: {original_avatar}")
-    
+    # 2b: No token should get 401 or 403
+    print("\n2b. No token -> expect 401 or 403")
     try:
-        response = requests.patch(
-            f"{API_BASE}/auth/me",
-            headers={"Authorization": f"Bearer {token}"},
-            json={"avatar_url": original_avatar},
-            timeout=10
+        resp = requests.patch(
+            f"{BASE_URL}/admin/settings",
+            json={"watch_party_enabled": False}
         )
+        print(f"Status: {resp.status_code}")
+        print(f"Response: {resp.text[:300]}")
         
-        if response.status_code != 200:
-            results.add_fail("Restore avatar", f"Failed to restore: {response.status_code}")
-            log_info("WARNING: Avatar not restored to original value")
-            return
-        
-        user = response.json()
-        if user.get("avatar_url") != original_avatar:
-            results.add_fail("Restore avatar", f"Expected '{original_avatar}', got '{user.get('avatar_url')}'")
+        if resp.status_code in (401, 403):
+            print(f"✅ PASS: No token correctly rejected with {resp.status_code}")
+            results.append(("TEST 2b", True, f"No token rejected with {resp.status_code}"))
         else:
-            results.add_pass(f"Avatar restored to original: '{original_avatar}'")
-        
+            print(f"❌ FAIL: Expected 401 or 403, got {resp.status_code}")
+            results.append(("TEST 2b", False, f"Expected 401/403, got {resp.status_code}"))
     except Exception as e:
-        results.add_fail("Restore avatar", f"Error: {str(e)}")
-
-def test_4_avatars():
-    """Test 4: GET /api/avatars - Verify 14 unique items"""
-    log_test(4, "GET /api/avatars - Verify 14 unique items with slug and url")
+        print(f"❌ FAIL: Exception: {e}")
+        results.append(("TEST 2b", False, str(e)))
     
+    # ========================================================================
+    # TEST 3: Admin can disable watch_party_enabled
+    # ========================================================================
+    print("\n" + "-"*80)
+    print("TEST 3: Admin PATCH to disable watch_party_enabled")
+    print("-"*80)
     try:
-        response = requests.get(f"{API_BASE}/avatars", timeout=10)
+        resp = requests.patch(
+            f"{BASE_URL}/admin/settings",
+            json={"watch_party_enabled": False},
+            headers={"Authorization": f"Bearer {admin_token}"}
+        )
+        print(f"Status: {resp.status_code}")
+        print(f"Response: {resp.text[:500]}")
         
-        log_info(f"Status Code: {response.status_code}")
-        
-        if response.status_code != 200:
-            results.add_fail("GET avatars", f"Expected HTTP 200, got {response.status_code}")
-            log_detail("Response", response.text[:500])
-            return
-        
-        results.add_pass("GET /api/avatars returns HTTP 200")
-        
-        avatars = response.json()
-        
-        if not isinstance(avatars, list):
-            results.add_fail("Avatars response", f"Expected list, got {type(avatars).__name__}")
-            return
-        
-        results.add_pass(f"Response is a list")
-        log_detail("Avatar count", len(avatars))
-        
-        # Check for 14 items
-        if len(avatars) != 14:
-            log_info(f"Expected 14 avatars, got {len(avatars)}")
-        else:
-            results.add_pass("Response contains 14 avatars")
-        
-        # Check for unique slugs
-        slugs = []
-        for i, avatar in enumerate(avatars):
-            if not isinstance(avatar, dict):
-                results.add_fail(f"Avatar {i}", f"Expected dict, got {type(avatar).__name__}")
-                continue
-            
-            # Check for slug and url
-            if "slug" not in avatar:
-                results.add_fail(f"Avatar {i}", "Missing 'slug' field")
-            else:
-                slug = avatar["slug"]
-                if slug in slugs:
-                    results.add_fail(f"Avatar {i}", f"Duplicate slug: '{slug}'")
+        if resp.status_code == 200:
+            data = resp.json()
+            if data.get("watch_party_enabled") == False:
+                print(f"✅ PASS: Admin successfully disabled watch_party_enabled")
+                results.append(("TEST 3a", True, "Admin PATCH successful"))
+                
+                # Verify via GET /api/settings
+                print("\n3b. Verify via GET /api/settings")
+                resp2 = requests.get(f"{BASE_URL}/settings")
+                if resp2.status_code == 200:
+                    data2 = resp2.json()
+                    if data2.get("watch_party_enabled") == False:
+                        print(f"✅ PASS: GET /api/settings confirms watch_party_enabled=false")
+                        results.append(("TEST 3b", True, "GET confirms disabled"))
+                    else:
+                        print(f"❌ FAIL: GET shows watch_party_enabled={data2.get('watch_party_enabled')}")
+                        results.append(("TEST 3b", False, f"GET shows {data2.get('watch_party_enabled')}"))
                 else:
-                    slugs.append(slug)
-            
-            if "url" not in avatar:
-                results.add_fail(f"Avatar {i}", "Missing 'url' field")
-        
-        if len(slugs) == len(avatars):
-            results.add_pass(f"All {len(avatars)} avatars have unique slugs")
+                    print(f"❌ FAIL: GET returned {resp2.status_code}")
+                    results.append(("TEST 3b", False, f"GET returned {resp2.status_code}"))
+            else:
+                print(f"❌ FAIL: watch_party_enabled={data.get('watch_party_enabled')}, expected False")
+                results.append(("TEST 3a", False, f"Value is {data.get('watch_party_enabled')}"))
         else:
-            results.add_fail("Avatar uniqueness", f"Found {len(avatars) - len(slugs)} duplicate slugs")
-        
-        # Log first 3 avatars as sample
-        log_info("Sample avatars (first 3):")
-        for avatar in avatars[:3]:
-            log_detail(f"  {avatar.get('slug', 'N/A')}", avatar.get('url', 'N/A'))
-        
-    except requests.exceptions.RequestException as e:
-        results.add_fail("GET avatars", f"Request failed: {str(e)}")
-    except json.JSONDecodeError as e:
-        results.add_fail("Avatars response", f"Invalid JSON: {str(e)}")
+            print(f"❌ FAIL: Expected 200, got {resp.status_code}")
+            results.append(("TEST 3a", False, f"HTTP {resp.status_code}"))
     except Exception as e:
-        results.add_fail("Avatars test", f"Unexpected error: {str(e)}")
-
-def test_5_settings():
-    """Test 5: GET /api/settings - Sanity check"""
-    log_test(5, "GET /api/settings - Sanity check (public settings)")
+        print(f"❌ FAIL: Exception: {e}")
+        results.append(("TEST 3a", False, str(e)))
     
+    # ========================================================================
+    # TEST 4: While disabled, POST /api/watch-parties should return 403
+    # ========================================================================
+    print("\n" + "-"*80)
+    print("TEST 4: While disabled, admin POST /api/watch-parties -> expect 403")
+    print("-"*80)
     try:
-        response = requests.get(f"{API_BASE}/settings", timeout=10)
+        resp = requests.post(
+            f"{BASE_URL}/watch-parties",
+            json={"title": "Should be blocked"},
+            headers={"Authorization": f"Bearer {admin_token}"}
+        )
+        print(f"Status: {resp.status_code}")
+        print(f"Response: {resp.text[:500]}")
         
-        log_info(f"Status Code: {response.status_code}")
-        
-        if response.status_code != 200:
-            results.add_fail("GET settings", f"Expected HTTP 200, got {response.status_code}")
-            log_detail("Response", response.text[:500])
-            return
-        
-        results.add_pass("GET /api/settings returns HTTP 200")
-        
-        settings = response.json()
-        
-        if not isinstance(settings, dict):
-            results.add_fail("Settings response", f"Expected dict, got {type(settings).__name__}")
-            return
-        
-        results.add_pass("Response is a JSON object")
-        log_detail("Settings keys", list(settings.keys()))
-        
-        # Log some common settings
-        for key in ["presentation_mode", "maintenance_mode", "early_access_mode", "chat_enabled"]:
-            if key in settings:
-                log_detail(f"  {key}", settings[key])
-        
-    except requests.exceptions.RequestException as e:
-        results.add_fail("GET settings", f"Request failed: {str(e)}")
-    except json.JSONDecodeError as e:
-        results.add_fail("Settings response", f"Invalid JSON: {str(e)}")
+        if resp.status_code == 403:
+            data = resp.json()
+            detail = data.get("detail", "")
+            if "dezactivat" in detail.lower() or "disabled" in detail.lower():
+                print(f"✅ PASS: Create blocked with 403 and appropriate message")
+                results.append(("TEST 4", True, f"403 with message: {detail}"))
+            else:
+                print(f"⚠️  PASS (status): Got 403 but message unclear: {detail}")
+                results.append(("TEST 4", True, f"403 but message: {detail}"))
+        else:
+            print(f"❌ FAIL: Expected 403, got {resp.status_code}")
+            results.append(("TEST 4", False, f"Expected 403, got {resp.status_code}"))
     except Exception as e:
-        results.add_fail("Settings test", f"Unexpected error: {str(e)}")
-
-def main():
-    """Run all tests"""
-    print(f"\n{BLUE}{'='*80}{RESET}")
-    print(f"{BLUE}CARTOONIX BACKEND API TESTING - AUTH/PROFILE SCOPE{RESET}")
-    print(f"{BLUE}{'='*80}{RESET}")
-    print(f"Backend URL: {API_BASE}")
-    print(f"Test User: {TEST_EMAIL}")
-    print(f"{BLUE}{'='*80}{RESET}\n")
+        print(f"❌ FAIL: Exception: {e}")
+        results.append(("TEST 4", False, str(e)))
     
-    # Run tests in sequence
-    token = test_1_login()
-    test_2_auth_me(token)
-    test_3_patch_avatar(token)
-    test_4_avatars()
-    test_5_settings()
+    # ========================================================================
+    # TEST 5: Re-enable watch_party_enabled
+    # ========================================================================
+    print("\n" + "-"*80)
+    print("TEST 5: Admin PATCH to re-enable watch_party_enabled")
+    print("-"*80)
+    try:
+        resp = requests.patch(
+            f"{BASE_URL}/admin/settings",
+            json={"watch_party_enabled": True},
+            headers={"Authorization": f"Bearer {admin_token}"}
+        )
+        print(f"Status: {resp.status_code}")
+        print(f"Response: {resp.text[:500]}")
+        
+        if resp.status_code == 200:
+            data = resp.json()
+            if data.get("watch_party_enabled") == True:
+                print(f"✅ PASS: Admin successfully re-enabled watch_party_enabled")
+                results.append(("TEST 5a", True, "Admin PATCH successful"))
+                
+                # Verify via GET /api/settings
+                print("\n5b. Verify via GET /api/settings")
+                resp2 = requests.get(f"{BASE_URL}/settings")
+                if resp2.status_code == 200:
+                    data2 = resp2.json()
+                    if data2.get("watch_party_enabled") == True:
+                        print(f"✅ PASS: GET /api/settings confirms watch_party_enabled=true")
+                        results.append(("TEST 5b", True, "GET confirms enabled"))
+                    else:
+                        print(f"❌ FAIL: GET shows watch_party_enabled={data2.get('watch_party_enabled')}")
+                        results.append(("TEST 5b", False, f"GET shows {data2.get('watch_party_enabled')}"))
+                else:
+                    print(f"❌ FAIL: GET returned {resp2.status_code}")
+                    results.append(("TEST 5b", False, f"GET returned {resp2.status_code}"))
+            else:
+                print(f"❌ FAIL: watch_party_enabled={data.get('watch_party_enabled')}, expected True")
+                results.append(("TEST 5a", False, f"Value is {data.get('watch_party_enabled')}"))
+        else:
+            print(f"❌ FAIL: Expected 200, got {resp.status_code}")
+            results.append(("TEST 5a", False, f"HTTP {resp.status_code}"))
+    except Exception as e:
+        print(f"❌ FAIL: Exception: {e}")
+        results.append(("TEST 5a", False, str(e)))
     
-    # Print summary
-    success = results.summary()
+    # ========================================================================
+    # TEST 6: While enabled, POST /api/watch-parties should work (200 with party)
+    # ========================================================================
+    print("\n" + "-"*80)
+    print("TEST 6: While enabled, admin POST /api/watch-parties -> expect 200")
+    print("-"*80)
+    try:
+        resp = requests.post(
+            f"{BASE_URL}/watch-parties",
+            json={"title": "Now allowed"},
+            headers={"Authorization": f"Bearer {admin_token}"}
+        )
+        print(f"Status: {resp.status_code}")
+        print(f"Response: {resp.text[:500]}")
+        
+        if resp.status_code == 200:
+            data = resp.json()
+            party = data.get("party", {})
+            public_code = party.get("public_code")
+            if public_code:
+                print(f"✅ PASS: Create succeeded with 200, party.public_code={public_code}")
+                results.append(("TEST 6", True, f"200 with public_code={public_code}"))
+            else:
+                print(f"⚠️  PASS (status): Got 200 but no public_code in response")
+                results.append(("TEST 6", True, "200 but no public_code"))
+        else:
+            print(f"❌ FAIL: Expected 200, got {resp.status_code}")
+            results.append(("TEST 6", False, f"Expected 200, got {resp.status_code}"))
+    except Exception as e:
+        print(f"❌ FAIL: Exception: {e}")
+        results.append(("TEST 6", False, str(e)))
     
-    # Exit with appropriate code
-    sys.exit(0 if success else 1)
+    # ========================================================================
+    # FINAL: Ensure watch_party_enabled is left TRUE
+    # ========================================================================
+    print("\n" + "-"*80)
+    print("FINAL: Ensure watch_party_enabled is left TRUE")
+    print("-"*80)
+    try:
+        resp = requests.get(f"{BASE_URL}/settings")
+        if resp.status_code == 200:
+            data = resp.json()
+            if data.get("watch_party_enabled") == True:
+                print(f"✅ Setting is TRUE (as required)")
+            else:
+                print(f"⚠️  Setting is {data.get('watch_party_enabled')}, re-enabling...")
+                resp2 = requests.patch(
+                    f"{BASE_URL}/admin/settings",
+                    json={"watch_party_enabled": True},
+                    headers={"Authorization": f"Bearer {admin_token}"}
+                )
+                if resp2.status_code == 200:
+                    print(f"✅ Re-enabled successfully")
+                else:
+                    print(f"❌ Failed to re-enable: {resp2.status_code}")
+    except Exception as e:
+        print(f"⚠️  Could not verify final state: {e}")
+    
+    # ========================================================================
+    # SUMMARY
+    # ========================================================================
+    print("\n" + "="*80)
+    print("TEST SUMMARY")
+    print("="*80)
+    
+    passed = sum(1 for _, success, _ in results if success)
+    total = len(results)
+    
+    for test_name, success, detail in results:
+        status = "✅ PASS" if success else "❌ FAIL"
+        print(f"{status} | {test_name:15} | {detail}")
+    
+    print("\n" + "="*80)
+    print(f"TOTAL: {passed}/{total} tests passed")
+    print("="*80)
+    
+    return passed == total
 
 if __name__ == "__main__":
-    main()
+    success = test_watch_party_toggle()
+    sys.exit(0 if success else 1)

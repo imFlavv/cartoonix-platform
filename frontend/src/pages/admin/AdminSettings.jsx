@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-import { Eye, EyeOff, Globe, Loader2, AlertTriangle, Wrench, Rocket, LifeBuoy, Megaphone, Users } from "lucide-react";
+import { Eye, EyeOff, Globe, Loader2, AlertTriangle, Wrench, Rocket, LifeBuoy, Megaphone, Users, Tv } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useSettings } from "@/contexts/SettingsContext";
@@ -39,6 +39,7 @@ export default function AdminSettings() {
     early_access_mode: false,
     support_enabled: true,
     lobby_enabled: true,
+    watch_party_enabled: true,
     announcement_active: false,
     announcement_text: "",
   });
@@ -205,6 +206,30 @@ export default function AdminSettings() {
       });
     } catch (err) {
       setLocal((s) => ({ ...s, lobby_enabled: prev }));
+      toast.error("Nu am putut salva setarea", {
+        description: err?.response?.data?.detail || "Încearcă din nou.",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggleWatchParty = async (next) => {
+    if (saving) return;
+    const prev = local.watch_party_enabled;
+    setLocal((s) => ({ ...s, watch_party_enabled: next }));
+    setSaving(true);
+    try {
+      const { data } = await api.patch("/admin/settings", { watch_party_enabled: next });
+      setLocal(data);
+      if (refresh) await refresh();
+      toast.success(next ? "Watch Party activat" : "Watch Party dezactivat", {
+        description: next
+          ? "Membrii PLUS pot crea din nou camere Watch Party."
+          : "Funcția Watch Party este oprită complet: butonul dispare, iar crearea/conectarea sunt blocate pentru toți.",
+      });
+    } catch (err) {
+      setLocal((s) => ({ ...s, watch_party_enabled: prev }));
       toast.error("Nu am putut salva setarea", {
         description: err?.response?.data?.detail || "Încearcă din nou.",
       });
@@ -586,6 +611,52 @@ export default function AdminSettings() {
           >
             <a href="/admin/chat">Deschide Admin Chat →</a>
           </Button>
+        </div>
+      </div>
+
+      {/* WATCH PARTY TOGGLE CARD */}
+      <div className="rounded-2xl border border-border bg-card/70 overflow-hidden">
+        <div className="p-6 flex items-start gap-5">
+          <div className="shrink-0 h-12 w-12 rounded-xl bg-gradient-to-br from-pink-500 to-purple-600 grid place-items-center text-white">
+            <Tv className="h-6 w-6" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="font-display text-xl tracking-wide flex items-center gap-2">
+                  Watch Party
+                  {loading ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  ) : local.watch_party_enabled ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 uppercase tracking-widest">
+                      <Eye className="h-3 w-3" /> Activ
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-white/10 text-muted-foreground uppercase tracking-widest">
+                      <EyeOff className="h-3 w-3" /> Inactiv
+                    </span>
+                  )}
+                </h2>
+                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+                  Activează sau dezactivează complet funcția <strong>Watch Party</strong> (vizionare
+                  sincronizată + chat) pe întreaga platformă. Când e <strong>dezactivat</strong>:
+                  butonul &laquo;Crează un Watch Party&raquo; dispare peste tot, iar crearea, alăturarea
+                  și conexiunile WebSocket sunt blocate pentru toți utilizatorii (inclusiv adminii).
+                </p>
+              </div>
+              <Toggle
+                id="settings-watchparty-toggle"
+                checked={!!local.watch_party_enabled}
+                onChange={toggleWatchParty}
+                disabled={saving || loading}
+              />
+            </div>
+          </div>
+        </div>
+        <div className="px-6 py-3 bg-black/20 border-t border-border/60 flex items-center">
+          <span className="text-xs text-muted-foreground">
+            Schimbarea e instantanee pentru toți utilizatorii.
+          </span>
         </div>
       </div>
 

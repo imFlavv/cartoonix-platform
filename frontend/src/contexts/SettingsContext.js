@@ -7,6 +7,7 @@ const DEFAULT_SETTINGS = {
   presentation_mode: false,
   maintenance_mode: false,
   early_access_mode: false,
+  watch_party_enabled: true,
 };
 
 export function SettingsProvider({ children }) {

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSettings } from "@/contexts/SettingsContext";
 import { watchPartyApi } from "@/lib/watchparty";
 import { toast } from "sonner";
 import { Tv, Users, Sparkles } from "lucide-react";
@@ -27,10 +28,13 @@ export default function CreateWatchPartyButton({
   className = "",
 }) {
   const { user } = useAuth() || {};
+  const { settings } = useSettings() || {};
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
 
   if (!user) return null;
+  // Feature disabled platform-wide by an admin — hide the entry point entirely.
+  if (settings && settings.watch_party_enabled === false) return null;
   const isAdmin = user.role === "admin";
   const isPlus = user.subscription === "plus";
   const canUse = isPlus || isAdmin;
