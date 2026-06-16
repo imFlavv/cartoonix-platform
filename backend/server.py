@@ -2682,6 +2682,92 @@ async def admin_delete_user(user_id: str, user=Depends(require_admin)):
 
 
 # ============================================================
+#                  ADMIN: MODERATORS
+# ============================================================
+def _serialize_moderator(u: dict) -> dict:
+    return {
+        "id": u.get("id"),
+        "nickname": u.get("nickname", ""),
+        "email": u.get("email", ""),
+        "avatar_url": u.get("avatar_url", ""),
+        "subscription": u.get("subscription", "free"),
+        "role": u.get("role", "user"),
+        "is_moderator": bool(u.get("is_moderator", False)),
+        "moderator_since": u.get("moderator_since"),
+    }
+
+
+@api_router.get("/admin/moderators")
+async def admin_list_moderators(user=Depends(require_admin)):
+    """List all current chat moderators."""
+    items = await db.users.find(
+        {"is_moderator": True}, {"_id": 0, "password_hash": 0}
+    ).to_list(500)
+    items.sort(key=lambda u: (u.get("moderator_since") or ""), reverse=True)
+    return {"items": [_serialize_moderator(u) for u in items]}
+
+
+@api_router.post("/admin/moderators/{user_id}/promote")
+async def admin_promote_moderator(user_id: str, user=Depends(require_admin)):
+    """Promote a user to chat Moderator and notify them."""
+    target = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not target:
+        raise HTTPException(404, "Utilizator inexistent.")
+    if target.get("role") == "admin":
+        raise HTTPException(400, "Adminii au deja drepturi complete.")
+    if target.get("is_moderator"):
+        raise HTTPException(400, "Utilizatorul este deja moderator.")
+    now_iso = now_utc().isoformat()
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {"is_moderator": True, "moderator_since": now_iso}},
+    )
+    # Notify the new moderator.
+    await db.notifications.insert_one({
+        "id": new_id(),
+        "user_id": user_id,
+        "title": "Ai fost promovat la Moderator! 🛡️",
+        "body": (
+            "Felicitări! Ai primit rolul de Moderator în chat-ul Cartoonix. "
+            "Acum poți da mute / scoate mut utilizatorilor direct din chat. "
+            "Folosește acest rol responsabil!"
+        ),
+        "icon": "shield",
+        "read": False,
+        "created_at": now_iso,
+        "sent_by": user["id"],
+    })
+    updated = await db.users.find_one({"id": user_id}, {"_id": 0, "password_hash": 0})
+    return {"success": True, "moderator": _serialize_moderator(updated)}
+
+
+@api_router.post("/admin/moderators/{user_id}/demote")
+async def admin_demote_moderator(user_id: str, user=Depends(require_admin)):
+    """Remove the chat Moderator role from a user and notify them."""
+    target = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not target:
+        raise HTTPException(404, "Utilizator inexistent.")
+    if not target.get("is_moderator"):
+        raise HTTPException(400, "Utilizatorul nu este moderator.")
+    now_iso = now_utc().isoformat()
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {"is_moderator": False}, "$unset": {"moderator_since": ""}},
+    )
+    await db.notifications.insert_one({
+        "id": new_id(),
+        "user_id": user_id,
+        "title": "Rolul de Moderator a fost retras",
+        "body": "Rolul tău de Moderator în chat-ul Cartoonix a fost dezactivat. Mulțumim pentru ajutor!",
+        "icon": "shield",
+        "read": False,
+        "created_at": now_iso,
+        "sent_by": user["id"],
+    })
+    return {"success": True}
+
+
+# ============================================================
 #                  ADMIN: BAN / IP MANAGEMENT
 # ============================================================
 class BanPayload(BaseModel):

@@ -1,40 +1,57 @@
 import React from "react";
-import { PLUS_BADGE_URL, ADMIN_BADGE_URL } from "@/lib/badges";
+import { PLUS_BADGE_URL, ADMIN_BADGE_URL, MODERATOR_BADGE_URL } from "@/lib/badges";
 
 /**
- * <UserBadges /> — renders the user's identity badge(s) inline, aligned to
- * the surrounding text.
+ * <UserBadges /> — renders ALL identity badges a user holds, inline and aligned
+ * to the surrounding text. A user can stack several (e.g. PLUS + Moderator).
  *
- * `size` — height in px for the PLUS badge.
- * `adminSize` — optional override for the ADMIN badge height (defaults to 30
- * because the wider pill shape needs more presence to remain readable).
+ * Order: PLUS crown → Moderator crown → Admin pill.
  *
- * If both `isAdmin` and `isPlus` are true, only the ADMIN badge is shown.
+ * `size` — height in px for the square/crown badges (PLUS, Moderator).
+ * `adminSize` — optional override for the wider ADMIN pill (defaults to 30).
  */
 export default function UserBadges({
   isPlus = false,
   isAdmin = false,
+  isModerator = false,
   size = 18,
   adminSize,
   className = "",
 }) {
-  if (!isPlus && !isAdmin) return null;
-  const src = isAdmin ? ADMIN_BADGE_URL : PLUS_BADGE_URL;
-  const label = isAdmin ? "Administrator Cartoonix" : "Membru Cartoonix PLUS";
-  const renderedHeight = isAdmin ? adminSize ?? 30 : size;
+  if (!isPlus && !isAdmin && !isModerator) return null;
+  const adminHeight = adminSize ?? 30;
   return (
-    <span className={`inline-flex items-center align-middle ${className}`}>
-      <img
-        src={src}
-        alt={label}
-        title={label}
-        draggable={false}
-        className="inline-block select-none"
-        style={{
-          height: renderedHeight,
-          width: "auto",
-        }}
-      />
+    <span className={`inline-flex items-center gap-1.5 align-middle ${className}`}>
+      {isPlus && (
+        <img
+          src={PLUS_BADGE_URL}
+          alt="Membru Cartoonix PLUS"
+          title="Membru Cartoonix PLUS"
+          draggable={false}
+          className="inline-block select-none"
+          style={{ height: size, width: "auto" }}
+        />
+      )}
+      {isModerator && (
+        <img
+          src={MODERATOR_BADGE_URL}
+          alt="Moderator Cartoonix"
+          title="Moderator Cartoonix"
+          draggable={false}
+          className="inline-block select-none"
+          style={{ height: size, width: "auto" }}
+        />
+      )}
+      {isAdmin && (
+        <img
+          src={ADMIN_BADGE_URL}
+          alt="Administrator Cartoonix"
+          title="Administrator Cartoonix"
+          draggable={false}
+          className="inline-block select-none"
+          style={{ height: adminHeight, width: "auto" }}
+        />
+      )}
     </span>
   );
 }

@@ -35,6 +35,7 @@ import AdminContests from "@/pages/admin/AdminContests";
 import AdminNotifications from "@/pages/admin/AdminNotifications";
 import AdminSettings from "@/pages/admin/AdminSettings";
 import AdminChat from "@/pages/admin/AdminChat";
+import AdminModerators from "@/pages/admin/AdminModerators";
 import AdminStaff from "@/pages/admin/AdminStaff";
 import AdminSupport from "@/pages/admin/AdminSupport";
 import AdminLive from "@/pages/admin/AdminLive";
@@ -372,6 +373,7 @@ function App() {
                   <Route path="notifications" element={<AdminNotifications />} />
                   <Route path="settings" element={<AdminSettings />} />
                   <Route path="chat" element={<AdminChat />} />
+                  <Route path="moderators" element={<AdminModerators />} />
                   <Route path="staff" element={<AdminStaff />} />
                   <Route path="support" element={<AdminSupport />} />
                   <Route path="live" element={<AdminLive />} />

@@ -357,7 +357,7 @@ export default function ProfilePage() {
               <div className="text-[11px] uppercase tracking-[0.3em] text-white/40">Profilul meu</div>
               <div className="mt-1 flex flex-wrap items-center gap-3">
                 <h1 className="font-display text-3xl tracking-wider text-white sm:text-4xl">{user.nickname}</h1>
-                <UserBadges isPlus={isPlus} isAdmin={isAdmin} size={28} />
+                <UserBadges isPlus={isPlus} isAdmin={isAdmin} isModerator={user.is_moderator} size={28} />
               </div>
 
               <div className="mt-3 flex flex-wrap items-center gap-2">

@@ -14,6 +14,9 @@ import {
   Smile,
   Tv,
   X,
+  MoreVertical,
+  VolumeX,
+  Volume2,
 } from "lucide-react";
 import { api, mediaUrl } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
@@ -21,7 +24,16 @@ import { useSettings } from "@/contexts/SettingsContext";
 import PremiumAvatarFrame from "@/components/chat/PremiumAvatarFrame";
 import EmoticonPicker from "@/components/chat/EmoticonPicker";
 import { parseEmoticons } from "@/components/chat/emoticons";
-import { PLUS_BADGE_URL } from "@/lib/badges";
+import { PLUS_BADGE_URL, MODERATOR_BADGE_URL } from "@/lib/badges";
+import { toast } from "sonner";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const MESSAGE_POLL_MS = 5000; // delta-only poll, see refreshMessages
 const PRESENCE_POLL_MS = 45000; // presence + heartbeat
@@ -56,6 +68,19 @@ function PlusBadge({ size = 13 }) {
       src={PLUS_BADGE_URL}
       alt="Membru Cartoonix PLUS"
       title="Membru Cartoonix PLUS"
+      draggable={false}
+      className="inline-block align-middle select-none"
+      style={{ height: size, width: "auto" }}
+    />
+  );
+}
+
+function ModBadge({ size = 13 }) {
+  return (
+    <img
+      src={MODERATOR_BADGE_URL}
+      alt="Moderator Cartoonix"
+      title="Moderator Cartoonix"
       draggable={false}
       className="inline-block align-middle select-none"
       style={{ height: size, width: "auto" }}
@@ -151,7 +176,7 @@ function renderMessageContent(text) {
   });
 }
 
-function MessageRow({ msg, isMine, animatedAvatars }) {
+function MessageRow({ msg, isMine, animatedAvatars, canModerate, youIsAdmin, onModerate }) {
   if (msg.deleted) {
     return (
       <div className="px-3 py-1 text-[11px] italic text-muted-foreground/60">
@@ -161,6 +186,14 @@ function MessageRow({ msg, isMine, animatedAvatars }) {
   }
   const isAnimated = animatedAvatars && animatedAvatars.has(msg.avatar_url);
   const isBot = msg.role === "bot" || msg.is_bot;
+  // A moderator/admin can mute everyone except: themselves, bots, admins, and
+  // (unless they are admin) other moderators.
+  const showModMenu =
+    canModerate &&
+    !isBot &&
+    !isMine &&
+    msg.role !== "admin" &&
+    !(msg.is_moderator && !youIsAdmin);
   return (
     <div
       className={`group flex items-start gap-2 px-3 py-1.5 hover:bg-white/[0.03] transition-colors ${
@@ -196,7 +229,43 @@ function MessageRow({ msg, isMine, animatedAvatars }) {
             {msg.nickname}
           </span>
           {!isBot && msg.plan === "plus" && <PlusBadge size={13} />}
+          {!isBot && msg.is_moderator && <ModBadge size={13} />}
           {isBot ? <BotBadge /> : msg.role === "admin" ? <AdminBadge /> : null}
+          {showModMenu && (
+            <span className="ml-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="p-0.5 rounded hover:bg-white/10 text-muted-foreground/70 hover:text-white"
+                    title="Moderare"
+                    data-testid={`chat-mod-actions-${msg.id}`}
+                  >
+                    <MoreVertical className="h-3.5 w-3.5" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-48">
+                  <DropdownMenuLabel className="text-xs">
+                    Moderare · {msg.nickname}
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => onModerate(msg, "mute_5m")}>
+                    <VolumeX className="h-4 w-4 mr-2" /> Mute 5 min
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onModerate(msg, "mute_1h")}>
+                    <VolumeX className="h-4 w-4 mr-2" /> Mute 1 oră
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onModerate(msg, "mute_24h")}>
+                    <VolumeX className="h-4 w-4 mr-2" /> Mute 24 ore
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => onModerate(msg, "unmute")}>
+                    <Volume2 className="h-4 w-4 mr-2" /> Scoate mut
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </span>
+          )}
           <span className="text-[10px] text-muted-foreground/70 ml-auto pl-2">
             {formatTime(msg.created_at)}
           </span>
@@ -445,6 +514,26 @@ export default function ChatWidget() {
   const you = state?.you || {};
   const pinned = state?.settings?.chat_pinned_message || settings?.chat_pinned_message;
 
+  // Moderation: moderators and admins can mute/unmute from the chat.
+  const youIsAdmin = you.role === "admin" || user.role === "admin";
+  const canModerate = !!(you.is_moderator || youIsAdmin);
+
+  const moderate = async (msg, action) => {
+    try {
+      await api.post("/chat/mod/moderate", { user_id: msg.user_id, action });
+      const labels = {
+        mute_5m: `${msg.nickname} a fost silențiat 5 minute.`,
+        mute_1h: `${msg.nickname} a fost silențiat 1 oră.`,
+        mute_24h: `${msg.nickname} a fost silențiat 24 ore.`,
+        unmute: `${msg.nickname} nu mai este silențiat.`,
+      };
+      toast.success(labels[action] || "Acțiune aplicată.");
+      refreshState();
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Acțiunea de moderare a eșuat.");
+    }
+  };
+
   // Reason for read-only
   let readonlyReason = null;
   if (!messagesEnabled) {
@@ -674,6 +763,9 @@ export default function ChatWidget() {
                     msg={m}
                     isMine={m.user_id === user.id}
                     animatedAvatars={animatedAvatars}
+                    canModerate={canModerate}
+                    youIsAdmin={youIsAdmin}
+                    onModerate={moderate}
                   />
                 ))
               )}

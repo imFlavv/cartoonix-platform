@@ -268,6 +268,7 @@ def _format_message_doc(m: dict) -> dict:
         "plan": m.get("plan", "free"),
         "role": m.get("role", "user"),
         "level": int(m.get("level", 1)),
+        "is_moderator": bool(m.get("is_moderator", False)),
         "content": m.get("content"),
         "created_at": m.get("created_at"),
         "deleted": bool(m.get("deleted", False)),
@@ -611,6 +612,7 @@ def attach_handlers(get_current_user, require_admin):
             "you": {
                 "role": user.get("role", "user"),
                 "plan": user.get("subscription", "free"),
+                "is_moderator": bool(user.get("is_moderator", False)),
                 "can_send": can_send,
                 "cooldown_remaining": cooldown_remaining,
                 "cooldown_level": level,
@@ -800,6 +802,7 @@ def attach_handlers(get_current_user, require_admin):
             "plan": user.get("subscription", "free"),
             "role": user.get("role", "user"),
             "level": int(user.get("level", 1)),
+            "is_moderator": bool(user.get("is_moderator", False)),
             "content": content,
             "censored": had_profanity,
             "deleted": False,
@@ -1309,6 +1312,85 @@ def attach_handlers(get_current_user, require_admin):
                 "user": target,
             })
         return {"items": out}
+
+    # --------- MODERATOR ACTIONS (mute / unmute only) ---------
+    _MOD_DURATIONS = {
+        "mute_5m": (5 * 60, "5 minute"),
+        "mute_1h": (60 * 60, "1 oră"),
+        "mute_24h": (24 * 60 * 60, "24 ore"),
+    }
+
+    @chat_router.post("/mod/moderate")
+    async def mod_moderate(payload: ModerateAction, user=Depends(get_current_user)):
+        """Moderator-scoped action: mute / unmute a user in chat.
+
+        Available to users with is_moderator=True OR admins. Moderators can ONLY
+        mute (5m/1h/24h) or unmute — never ban, delete or change settings. Every
+        action is recorded in `mod_logs` for the admin audit page.
+        """
+        from models import new_id
+        db = await _get_db()
+        is_admin = user.get("role") == "admin"
+        is_mod = bool(user.get("is_moderator")) or is_admin
+        if not is_mod:
+            raise HTTPException(403, "Doar moderatorii pot face această acțiune.")
+        if payload.action not in ("mute_5m", "mute_1h", "mute_24h", "unmute"):
+            raise HTTPException(403, "Moderatorii pot doar să dea mute sau să scoată mut.")
+
+        target = await db.users.find_one({"id": payload.user_id}, {"_id": 0})
+        if not target:
+            raise HTTPException(404, "Utilizator inexistent.")
+        if target.get("id") == user["id"]:
+            raise HTTPException(400, "Nu te poți modera pe tine.")
+        if target.get("role") == "admin":
+            raise HTTPException(400, "Nu poți modera un administrator.")
+        if target.get("is_moderator") and not is_admin:
+            raise HTTPException(400, "Nu poți modera un alt moderator.")
+
+        now = _now()
+        if payload.action == "unmute":
+            await db.chat_bans.delete_one({"_id": target["id"]})
+            duration_label = None
+            active = None
+        else:
+            seconds, duration_label = _MOD_DURATIONS[payload.action]
+            until = now + timedelta(seconds=seconds)
+            await db.chat_bans.update_one(
+                {"_id": target["id"]},
+                {"$set": {
+                    "_id": target["id"],
+                    "type": "mute",
+                    "until": until,
+                    "reason": payload.reason,
+                    "created_by": user["id"],
+                    "created_at": now,
+                }},
+                upsert=True,
+            )
+            active = {"type": "mute", "until": until.isoformat(), "reason": payload.reason}
+
+        # Audit log (moderator actions only).
+        await db.mod_logs.insert_one({
+            "id": new_id(),
+            "moderator_id": user["id"],
+            "moderator_nickname": user.get("nickname", ""),
+            "moderator_role": "admin" if is_admin else "moderator",
+            "action": "unmute" if payload.action == "unmute" else "mute",
+            "duration": duration_label,
+            "target_id": target["id"],
+            "target_nickname": target.get("nickname", ""),
+            "reason": payload.reason,
+            "created_at": now.isoformat(),
+        })
+        return {"success": True, "active": active}
+
+    @chat_router.get("/admin/mod-logs")
+    async def admin_mod_logs(user=Depends(require_admin), limit: int = 200):
+        """Audit trail of moderator mute/unmute actions (admin only)."""
+        db = await _get_db()
+        limit = max(1, min(500, int(limit or 200)))
+        items = await db.mod_logs.find({}, {"_id": 0}).sort("created_at", -1).limit(limit).to_list(limit)
+        return {"items": items}
 
     # --------- CARTOONIX TV BOT (admin) ---------
     @chat_router.get("/admin/cartoonixtv")

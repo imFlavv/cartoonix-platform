@@ -26,6 +26,7 @@ class UserPublic(BaseModel):
     email_verified: bool = False
     created_at: datetime
     presence_seconds: int = 0  # cumulative time spent online (for profile "Timp Online")
+    is_moderator: bool = False  # chat moderator role (can mute/unmute in chat)
 
 
 class UserCreate(BaseModel):
