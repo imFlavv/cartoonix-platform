@@ -82,7 +82,7 @@ function NickBadges({ plan, role, isModerator }) {
   const isPlus = plan === "plus";
   if (!isAdmin && !isPlus && !isModerator) return null;
   return (
-    <UserBadges isAdmin={isAdmin} isPlus={isPlus} isModerator={!!isModerator} size={16} adminSize={20} />
+    <UserBadges isAdmin={isAdmin} isPlus={isPlus} isModerator={!!isModerator} size={16} moderatorSize={23} adminSize={20} />
   );
 }
 

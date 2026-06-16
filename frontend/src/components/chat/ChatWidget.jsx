@@ -228,8 +228,12 @@ function MessageRow({ msg, isMine, animatedAvatars, canModerate, youIsAdmin, onM
           >
             {msg.nickname}
           </span>
-          {!isBot && msg.plan === "plus" && <PlusBadge size={13} />}
-          {!isBot && msg.is_moderator && <ModBadge size={13} />}
+          {!isBot && (msg.plan === "plus" || msg.is_moderator) && (
+            <span className="inline-flex items-center gap-0.5">
+              {msg.plan === "plus" && <PlusBadge size={13} />}
+              {msg.is_moderator && <ModBadge size={23} />}
+            </span>
+          )}
           {isBot ? <BotBadge /> : msg.role === "admin" ? <AdminBadge /> : null}
           {showModMenu && (
             <span className="ml-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">

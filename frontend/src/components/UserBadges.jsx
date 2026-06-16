@@ -16,12 +16,14 @@ export default function UserBadges({
   isModerator = false,
   size = 18,
   adminSize,
+  moderatorSize,
   className = "",
 }) {
   if (!isPlus && !isAdmin && !isModerator) return null;
   const adminHeight = adminSize ?? 30;
+  const modHeight = moderatorSize ?? size;
   return (
-    <span className={`inline-flex items-center gap-1.5 align-middle ${className}`}>
+    <span className={`inline-flex items-center gap-0.5 align-middle ${className}`}>
       {isPlus && (
         <img
           src={PLUS_BADGE_URL}
@@ -39,7 +41,7 @@ export default function UserBadges({
           title="Moderator Cartoonix"
           draggable={false}
           className="inline-block select-none"
-          style={{ height: size, width: "auto" }}
+          style={{ height: modHeight, width: "auto" }}
         />
       )}
       {isAdmin && (
