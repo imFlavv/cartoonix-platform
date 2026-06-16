@@ -76,11 +76,14 @@ function reducer(s, a) {
   }
 }
 
-function NickBadges({ plan, role }) {
-  // Admin always wins; otherwise show PLUS for paying members; nothing for free.
-  if (role === "admin") return <UserBadges isAdmin size={16} />;
-  if (plan === "plus") return <UserBadges isPlus size={16} />;
-  return null;
+function NickBadges({ plan, role, isModerator }) {
+  // Show every badge the user holds (PLUS crown + Moderator + Admin can stack).
+  const isAdmin = role === "admin";
+  const isPlus = plan === "plus";
+  if (!isAdmin && !isPlus && !isModerator) return null;
+  return (
+    <UserBadges isAdmin={isAdmin} isPlus={isPlus} isModerator={!!isModerator} size={16} adminSize={20} />
+  );
 }
 
 function timeOnly(iso) {
@@ -346,6 +349,8 @@ export default function LobbyChat({ room = "global" }) {
               key={m.id}
               m={m}
               viewerIsAdmin={isAdmin}
+              viewerIsModerator={!!user?.is_moderator}
+              viewerId={user?.id}
             />
           ))
         )}
@@ -490,11 +495,17 @@ function PinnedBanner({ pin, isAdmin }) {
   );
 }
 
-const ChatRow = React.memo(function ChatRow({ m, viewerIsAdmin }) {
+const ChatRow = React.memo(function ChatRow({ m, viewerIsAdmin, viewerIsModerator, viewerId }) {
   const avatar = m.avatar_url ? mediaUrl(m.avatar_url) : "";
   const src = avatar;
-  // Admin can moderate everyone EXCEPT themselves and other admins.
-  const canModerate = viewerIsAdmin && m.role !== "admin";
+  const isOwn = viewerId && m.user_id === viewerId;
+  // Admins moderate everyone (except self / other admins). Moderators may also
+  // moderate, but NOT admins and NOT other moderators.
+  const canModerate =
+    (viewerIsAdmin || viewerIsModerator) &&
+    !isOwn &&
+    m.role !== "admin" &&
+    !(m.is_moderator && !viewerIsAdmin);
   return (
     <div className="group flex items-start gap-2.5 rounded-lg px-2 py-1.5 hover:bg-white/[0.025] transition-colors">
       <div className="shrink-0 h-8 w-8 rounded-full overflow-hidden bg-gradient-to-br from-rose-600/60 to-amber-400/40 grid place-items-center text-[11px] font-bold text-white/90">
@@ -509,7 +520,7 @@ const ChatRow = React.memo(function ChatRow({ m, viewerIsAdmin }) {
           <span className="text-[13px] font-semibold text-white/95 truncate leading-none">
             {m.nickname || "anonim"}
           </span>
-          <NickBadges plan={m.plan} role={m.role} />
+          <NickBadges plan={m.plan} role={m.role} isModerator={m.is_moderator} />
           <span className="text-[10px] text-muted-foreground tabular-nums leading-none">
             {timeOnly(m.created_at)}
           </span>
@@ -522,7 +533,7 @@ const ChatRow = React.memo(function ChatRow({ m, viewerIsAdmin }) {
           <MessageContent text={m.content || ""} />
         </p>
       </div>
-      {canModerate && <ModerationMenu m={m} />}
+      {canModerate && <ModerationMenu m={m} viewerIsAdmin={viewerIsAdmin} />}
     </div>
   );
 });
@@ -558,7 +569,7 @@ const MessageContent = React.memo(function MessageContent({ text }) {
  * non-intrusive. All actions hit the existing `/chat/admin/*` endpoints,
  * so backend authorisation stays the single source of truth.
  */
-function ModerationMenu({ m }) {
+function ModerationMenu({ m, viewerIsAdmin }) {
   const [busy, setBusy] = useState(false);
 
   const run = async (label, doIt) => {
@@ -574,13 +585,14 @@ function ModerationMenu({ m }) {
     }
   };
 
+  // Admins use the full admin endpoint; moderators use the mute-only endpoint.
+  const moderateEndpoint = viewerIsAdmin ? "/chat/admin/moderate" : "/chat/mod/moderate";
+
   const deleteMessage = () =>
     run("Mesaj șters", () => api.delete(`/chat/admin/messages/${m.id}`));
 
   const moderate = (action, label) =>
-    run(label, () =>
-      api.post("/chat/admin/moderate", { user_id: m.user_id, action })
-    );
+    run(label, () => api.post(moderateEndpoint, { user_id: m.user_id, action }));
 
   return (
     <DropdownMenu>
@@ -607,25 +619,33 @@ function ModerationMenu({ m }) {
         <DropdownMenuLabel className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
           Moderare · {m.nickname}
         </DropdownMenuLabel>
-        <DropdownMenuItem
-          onClick={deleteMessage}
-          data-testid={`chat-mod-delete-${m.id}`}
-          className="text-[13px] focus:bg-red-500/20 focus:text-red-200"
-        >
-          <Trash2 className="mr-2 h-3.5 w-3.5" /> Șterge mesaj
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() =>
-            run("Mesaj fixat în chat", () =>
-              api.post("/chat/admin/pin", { message_id: m.id })
-            )
-          }
-          data-testid={`chat-mod-pin-${m.id}`}
-          className="text-[13px] focus:bg-amber-500/20"
-        >
-          <Pin className="mr-2 h-3.5 w-3.5" /> Fixează în chat
-        </DropdownMenuItem>
-        <DropdownMenuSeparator className="bg-white/[0.06]" />
+
+        {/* Admin-only message actions */}
+        {viewerIsAdmin && (
+          <>
+            <DropdownMenuItem
+              onClick={deleteMessage}
+              data-testid={`chat-mod-delete-${m.id}`}
+              className="text-[13px] focus:bg-red-500/20 focus:text-red-200"
+            >
+              <Trash2 className="mr-2 h-3.5 w-3.5" /> Șterge mesaj
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() =>
+                run("Mesaj fixat în chat", () =>
+                  api.post("/chat/admin/pin", { message_id: m.id })
+                )
+              }
+              data-testid={`chat-mod-pin-${m.id}`}
+              className="text-[13px] focus:bg-amber-500/20"
+            >
+              <Pin className="mr-2 h-3.5 w-3.5" /> Fixează în chat
+            </DropdownMenuItem>
+            <DropdownMenuSeparator className="bg-white/[0.06]" />
+          </>
+        )}
+
+        {/* Mute durations — available to moderators and admins */}
         <DropdownMenuItem
           onClick={() => moderate("mute_5m", "Mute 5 minute aplicat")}
           className="text-[13px] focus:bg-amber-500/20"
@@ -644,30 +664,37 @@ function ModerationMenu({ m }) {
         >
           <Clock className="mr-2 h-3.5 w-3.5" /> Mute 24 ore
         </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => moderate("mute_perm", "Mute permanent aplicat")}
-          className="text-[13px] focus:bg-amber-500/20"
-        >
-          <Ban className="mr-2 h-3.5 w-3.5" /> Mute permanent
-        </DropdownMenuItem>
+
+        {/* Admin-only: permanent mute + ban */}
+        {viewerIsAdmin && (
+          <>
+            <DropdownMenuItem
+              onClick={() => moderate("mute_perm", "Mute permanent aplicat")}
+              className="text-[13px] focus:bg-amber-500/20"
+            >
+              <Ban className="mr-2 h-3.5 w-3.5" /> Mute permanent
+            </DropdownMenuItem>
+            <DropdownMenuSeparator className="bg-white/[0.06]" />
+            <DropdownMenuItem
+              onClick={() => {
+                if (window.confirm(`Vrei să dai BAN la ${m.nickname}?`)) {
+                  moderate("ban", "Ban aplicat");
+                }
+              }}
+              data-testid={`chat-mod-ban-${m.id}`}
+              className="text-[13px] focus:bg-red-500/20 text-red-300"
+            >
+              <Ban className="mr-2 h-3.5 w-3.5" /> Ban definitiv
+            </DropdownMenuItem>
+          </>
+        )}
+
         <DropdownMenuSeparator className="bg-white/[0.06]" />
         <DropdownMenuItem
-          onClick={() => {
-            if (window.confirm(`Vrei să dai BAN la ${m.nickname}?`)) {
-              moderate("ban", "Ban aplicat");
-            }
-          }}
-          data-testid={`chat-mod-ban-${m.id}`}
-          className="text-[13px] focus:bg-red-500/20 text-red-300"
-        >
-          <Ban className="mr-2 h-3.5 w-3.5" /> Ban definitiv
-        </DropdownMenuItem>
-        <DropdownMenuSeparator className="bg-white/[0.06]" />
-        <DropdownMenuItem
-          onClick={() => moderate("unmute", "Sancțiune anulată")}
+          onClick={() => moderate("unmute", viewerIsAdmin ? "Sancțiune anulată" : "Mut scos")}
           className="text-[13px] text-emerald-300 focus:bg-emerald-500/15"
         >
-          <ShieldOff className="mr-2 h-3.5 w-3.5" /> Anulează mute / ban
+          <ShieldOff className="mr-2 h-3.5 w-3.5" /> {viewerIsAdmin ? "Anulează mute / ban" : "Scoate mut"}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
