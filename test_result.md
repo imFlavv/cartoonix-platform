@@ -320,15 +320,29 @@ frontend:
         agent: "testing"
         comment: "Comprehensive backend testing completed with 5 test cases (34 assertions total) for auth/profile endpoints. ALL TESTS PASSED (5/5, 100% success rate). ✅ Test 1: POST /api/auth/login with test_plus@cartoonix.ro returns HTTP 200 with access_token and user object containing ALL required fields: presence_seconds=42 (int, >=0), level=1 (int, >=1), created_at, nickname='PlusUser', email='test_plus@cartoonix.ro', avatar_url='/api/uploads/avatars/hero_girl.jpg', subscription='plus', role='user'. ✅ Test 2: GET /api/auth/me with bearer token returns HTTP 200 with same fields: presence_seconds=42 (int), level=1 (int), all other fields present and correct. ✅ Test 3: PATCH /api/auth/me with {avatar_url: '/api/uploads/avatars/robot.jpg'} returns HTTP 200, avatar updated correctly, GET /api/auth/me confirms persistence, avatar restored to original '/api/uploads/avatars/hero_girl.jpg' successfully. ✅ Test 4: GET /api/avatars returns HTTP 200 with 14 unique items, each with slug and url fields, no duplicate slugs detected (sample: hero_boy, hero_girl, ninja). ✅ Test 5: GET /api/settings returns HTTP 200 with public settings object (presentation_mode, maintenance_mode, early_access_mode, chat_enabled, etc.). Implementation verified: UserPublic model correctly exposes presence_seconds (int, default 0) and level (int, default 1) fields in both login and /auth/me responses; avatar update via PATCH persists correctly; avatars endpoint returns deduplicated list. Feature is production-ready."
 
+  - task: "Admin notification broadcast: background + batched inserts (fix 504 on large audiences)"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "User reported a 504 (Cloudflare 'origin did not respond in time') when sending a notification to all ~19,000 users; the notification still got delivered eventually. Root cause: POST /api/admin/notifications loaded all recipients and did a single synchronous insert_many of 19k docs inside the request, exceeding the proxy timeout. FIX: target=='user' still inserts inline (returns sent=1). Broadcasts (all/free/plus) now: count_documents(query) for an instant recipient total, then enqueue a FastAPI BackgroundTask (_broadcast_notifications) that streams users with a cursor and inserts in batches of 2000 (ordered=False). Endpoint returns immediately {success, sent: total, queued: true}. Please verify: 1) POST /api/admin/notifications target=user (valid user_id) returns 200 sent=1 queued=false and creates exactly one notification for that user (check via that user's GET /api/notifications); 2) target=plus returns 200 quickly with sent=<count of plus users> queued=true and (after ~1-2s) the plus test user receives the notification; 3) target with no matching recipients returns 404; 4) target=user without user_id returns 400; 5) requires admin (non-admin gets 403). Use admin token test_admin@cartoonix.ro / TestAdmin#2026."
+      - working: true
+        agent: "testing"
+        comment: "Comprehensive backend testing completed with 6 test cases (21 assertions total) for admin notification broadcast endpoint. ALL TESTS PASSED (21/21, 100% success rate). ✅ Test 1: Auth/Permission checks - POST /api/admin/notifications with non-admin token (test_free) returns HTTP 403, with no token returns HTTP 401. ✅ Test 2: Validation - POST target=user without user_id returns HTTP 400 with message 'user_id este obligatoriu pentru target=user'. ✅ Test 3: Single user send - POST target=user with test_plus user_id returns HTTP 200 with {success: true, sent: 1, queued: false}, notification 'Test single' delivered to test_plus and verified via GET /api/notifications. ✅ Test 4: Broadcast tier - POST target=plus returns HTTP 200 quickly (0.10s < 5s) with {success: true, sent: 1, queued: true}, notification 'Broadcast plus' delivered to test_plus after ~3s wait (background task completed successfully). ✅ Test 5: Broadcast all - POST target=all returns HTTP 200 quickly (0.09s < 5s) with {success: true, sent: 4, queued: true} (4 total users in DB). ✅ Test 6: No recipients edge case - POST target=user with nonexistent user_id 'nonexistent-id-123' returns HTTP 404 with message 'Niciun destinatar nu corespunde criteriilor.' Implementation verified: Single-user sends are inline (instant response, sent=1, queued=false), broadcasts (all/free/plus) count recipients instantly then deliver via background task with batched inserts (returns immediately with queued=true, sent=<count>), responses return promptly (under 1s, well below 5s timeout threshold), background delivery completes successfully within 3 seconds. The 504 timeout issue is RESOLVED - endpoint now returns immediately for large audiences while background task handles delivery. Feature is production-ready."
+
 metadata:
   created_by: "main_agent"
-  version: "1.8"
-  test_sequence: 8
+  version: "1.10"
+  test_sequence: 10
   run_ui: false
 
 test_plan:
-  current_focus:
-    - "Expose presence_seconds on UserPublic (for profile Timp Online)"
+  current_focus: []
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -356,3 +370,6 @@ agent_communication:
 
   - agent: "testing"
     message: "BACKEND TESTING COMPLETE for presence_seconds field on UserPublic. Comprehensive test suite executed with 5 test cases (34 assertions) covering auth/profile contract. RESULTS: 5/5 tests PASSED (100% success rate). All functionality working correctly: ✅ POST /api/auth/login returns HTTP 200 with access_token and user object containing presence_seconds=42 (int, >=0), level=1 (int, >=1), created_at, nickname, email, avatar_url, subscription='plus', role='user', ✅ GET /api/auth/me returns HTTP 200 with same fields including presence_seconds (int) and level (int), ✅ PATCH /api/auth/me successfully updates avatar_url to robot.jpg, persists change, and restores to hero_girl.jpg, ✅ GET /api/avatars returns HTTP 200 with 14 unique items (no duplicate slugs), each with slug and url fields, ✅ GET /api/settings returns HTTP 200 with public settings object. Test credentials from /app/memory/test_credentials.md working correctly. The new presence_seconds field is correctly exposed in the UserPublic model and returned in both login and /auth/me responses. Feature is production-ready."
+
+  - agent: "testing"
+    message: "BACKEND TESTING COMPLETE for Admin Notification Broadcast (504 timeout fix). Comprehensive test suite executed with 6 test cases (21 assertions total) covering all aspects of the refactored POST /api/admin/notifications endpoint. RESULTS: 21/21 tests PASSED (100% success rate). ✅ Test 1: Auth/Permission - non-admin token (test_free) returns HTTP 403, no token returns HTTP 401. ✅ Test 2: Validation - target=user without user_id returns HTTP 400. ✅ Test 3: Single user send - target=user with valid user_id returns HTTP 200 with {success: true, sent: 1, queued: false}, notification delivered and verified. ✅ Test 4: Broadcast tier - target=plus returns HTTP 200 in 0.10s with {success: true, sent: 1, queued: true}, notification delivered after 3s (background task completed). ✅ Test 5: Broadcast all - target=all returns HTTP 200 in 0.09s with {success: true, sent: 4, queued: true}. ✅ Test 6: No recipients - nonexistent user_id returns HTTP 404. Implementation verified: Single-user sends are inline (instant), broadcasts use background task with batched inserts (returns immediately, no timeout), responses return in under 1 second (well below 5s threshold). The 504 timeout issue is RESOLVED. Feature is production-ready."

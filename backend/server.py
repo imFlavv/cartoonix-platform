@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import List, Literal, Optional
 
 from dotenv import load_dotenv
-from fastapi import (APIRouter, Depends, FastAPI, File, Form, HTTPException, Header, Request,
+from fastapi import (APIRouter, BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, Header, Request,
                      UploadFile, status)
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -3316,9 +3316,57 @@ async def delete_notification(notification_id: str, user=Depends(get_current_use
 
 
 # ----- Admin: send notifications -----
+async def _broadcast_notifications(
+    query: dict, title: str, body: str, icon: Optional[str], sent_by: str, created_at: str
+):
+    """Insert one notification per matching user, in batches.
+
+    Runs as a background task so the HTTP request returns immediately — sending
+    to tens of thousands of users would otherwise exceed the reverse-proxy
+    (Cloudflare) timeout and surface a 504 even though the work eventually
+    completed. Batched + unordered inserts keep memory low and are resilient to
+    the occasional duplicate _id.
+    """
+    BATCH_SIZE = 2000
+    batch: list[dict] = []
+    total = 0
+    try:
+        cursor = db.users.find(query, {"_id": 0, "id": 1})
+        async for r in cursor:
+            batch.append({
+                "id": new_id(),
+                "user_id": r["id"],
+                "title": title,
+                "body": body,
+                "icon": icon,
+                "read": False,
+                "created_at": created_at,
+                "sent_by": sent_by,
+            })
+            if len(batch) >= BATCH_SIZE:
+                await db.notifications.insert_many(batch, ordered=False)
+                total += len(batch)
+                batch = []
+        if batch:
+            await db.notifications.insert_many(batch, ordered=False)
+            total += len(batch)
+        logger.info("Broadcast notification delivered to %d users (sent_by=%s).", total, sent_by)
+    except Exception as exc:  # pragma: no cover - best-effort background job
+        logger.exception("Broadcast notification failed after %d inserts: %s", total, exc)
+
+
 @api_router.post("/admin/notifications")
-async def admin_send_notification(payload: NotificationCreate, user=Depends(require_admin)):
-    """Send a notification to all users, a subscription tier, or a single user."""
+async def admin_send_notification(
+    payload: NotificationCreate,
+    background_tasks: BackgroundTasks,
+    user=Depends(require_admin),
+):
+    """Send a notification to all users, a subscription tier, or a single user.
+
+    Single-user sends are inserted inline. Broadcasts (all/free/plus) are
+    counted, then queued to a background task so the request returns instantly
+    regardless of audience size (avoids 504 timeouts on large platforms).
+    """
     # Build recipient query
     query: dict = {}
     if payload.target == "all":
@@ -3332,27 +3380,35 @@ async def admin_send_notification(payload: NotificationCreate, user=Depends(requ
     else:
         raise HTTPException(400, "Target invalid")
 
-    recipients = await db.users.find(query, {"_id": 0, "id": 1}).to_list(100000)
-    if not recipients:
-        raise HTTPException(404, "Niciun destinatar nu corespunde criteriilor.")
-
+    title = payload.title.strip()
+    body = payload.body.strip()
     now_iso = now_utc().isoformat()
-    docs = [
-        {
+
+    # Single-user: do it inline for immediate, accurate feedback.
+    if payload.target == "user":
+        recipient = await db.users.find_one(query, {"_id": 0, "id": 1})
+        if not recipient:
+            raise HTTPException(404, "Niciun destinatar nu corespunde criteriilor.")
+        await db.notifications.insert_one({
             "id": new_id(),
-            "user_id": r["id"],
-            "title": payload.title.strip(),
-            "body": payload.body.strip(),
+            "user_id": recipient["id"],
+            "title": title,
+            "body": body,
             "icon": payload.icon,
             "read": False,
             "created_at": now_iso,
             "sent_by": user["id"],
-        }
-        for r in recipients
-    ]
-    if docs:
-        await db.notifications.insert_many(docs)
-    return {"success": True, "sent": len(docs)}
+        })
+        return {"success": True, "sent": 1, "queued": False}
+
+    # Broadcast: count fast, then deliver in the background.
+    total = await db.users.count_documents(query)
+    if total == 0:
+        raise HTTPException(404, "Niciun destinatar nu corespunde criteriilor.")
+    background_tasks.add_task(
+        _broadcast_notifications, query, title, body, payload.icon, user["id"], now_iso
+    )
+    return {"success": True, "sent": total, "queued": True}
 
 
 @api_router.get("/admin/notifications")
