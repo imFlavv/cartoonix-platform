@@ -5,6 +5,14 @@ Cartoonix este o platformă nostalgică de streaming dedicată desenelor din epo
 
 ## Recent Fixes (Feb 2026)
 
+### ✅ Pagina nouă /live-tv — Cartoonix Live (HLS) — Jun 2026
+- Pagină nouă `/app/frontend/src/pages/LiveTvPage.jsx`, separată de `/live`, protejată cu `RequireAuth` (orice user logat).
+- Player HLS folosind `hls.js@1.6.16` (adăugat în package.json). Stream URL păstrat EXACT ca în codul clientului: `https://stream.cartoonix.ro/iptv/channel/1.m3u8?mode=segmenter`. Config-ul hls.js (buffer/retry/timeout) și logica de reconectare sunt identice cu HTML-ul original.
+- Design re-stilizat în identitatea platformei (accent amber `hsl(var(--accent))`, glass, `PublicLayout`): kicker „Transmisiune în direct", titlu „Cartoonix Live" cu shimmer, badge live, overlay loading/eroare cu retry, ceas RO, contor spectatori, 4 stat-pills.
+- Rută adăugată în `App.js` + `/live-tv` în `EARLY_ACCESS_ALLOWED_PREFIXES`. Keyframe `shimmer` adăugat în `index.css`.
+- ⚠️ CORS: `stream.cartoonix.ro` returnează `Access-Control-Allow-Origin: https://live-tv.cartoonix.ro`. Pentru ca player-ul să încarce la `https://cartoonix.ro/live-tv`, serverul de stream trebuie să permită și origin-ul `https://cartoonix.ro` (sau `*`). Cod corect, config server = pe partea clientului.
+- NOTE infra: backend/.env și frontend/.env lipseau pe acest container + DB gol; recreate cu valori standard + test users re-seed.
+
 ### ✅ Watch Party — PLUS-only synchronized rooms (P0) — Feb 2026
 Modul complet, fără mock-uri:
 - **Backend** (`/app/backend/watch_party.py` — modul nou, ~970 LOC):

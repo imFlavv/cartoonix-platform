@@ -23,6 +23,7 @@ import EarlyAccessPage from "@/pages/EarlyAccessPage";
 import EarlyAccessSuccessPage from "@/pages/EarlyAccessSuccessPage";
 import UpgradeReturnPage from "@/pages/UpgradeReturnPage";
 import LivePage from "@/pages/LivePage";
+import LiveTvPage from "@/pages/LiveTvPage";
 import WinnersPage from "@/pages/WinnersPage";
 import GuestGatePage from "@/pages/GuestGatePage";
 import CartoonixContestsPage from "@/pages/CartoonixContestsPage";
@@ -121,6 +122,7 @@ const EARLY_ACCESS_ALLOWED_PREFIXES = [
   "/verify",
   "/staff",
   "/live",
+  "/live-tv",
   "/castigatori",
 ];
 
@@ -296,6 +298,14 @@ function App() {
                   element={
                     <RequireAuth>
                       <LivePage />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/live-tv"
+                  element={
+                    <RequireAuth>
+                      <LiveTvPage />
                     </RequireAuth>
                   }
                 />
