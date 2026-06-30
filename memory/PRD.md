@@ -11,7 +11,6 @@ Cartoonix este o platformă nostalgică de streaming dedicată desenelor din epo
 - Design re-stilizat în identitatea platformei (accent amber `hsl(var(--accent))`, glass, `PublicLayout`): kicker „Transmisiune în direct", titlu „Cartoonix Live" cu shimmer, badge live, overlay loading/eroare cu retry, ceas RO, contor spectatori, 4 stat-pills.
 - Rută adăugată în `App.js` + `/live-tv` în `EARLY_ACCESS_ALLOWED_PREFIXES`. Keyframe `shimmer` adăugat în `index.css`.
 - ⚠️ CORS: `stream.cartoonix.ro` returnează `Access-Control-Allow-Origin: https://live-tv.cartoonix.ro`. Pentru ca player-ul să încarce la `https://cartoonix.ro/live-tv`, serverul de stream trebuie să permită și origin-ul `https://cartoonix.ro` (sau `*`). Cod corect, config server = pe partea clientului.
-- NOTE infra: backend/.env și frontend/.env lipseau pe acest container + DB gol; recreate cu valori standard + test users re-seed.
 
 ### ✅ Watch Party — PLUS-only synchronized rooms (P0) — Feb 2026
 Modul complet, fără mock-uri:
