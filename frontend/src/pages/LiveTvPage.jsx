@@ -10,7 +10,6 @@ import {
   RotateCcw,
   AlertTriangle,
   Tv,
-  Users,
   Wifi,
   Gauge,
   ShieldCheck,
@@ -49,7 +48,6 @@ function LiveTvPageInner() {
 
   const [status, setStatus] = useState("loading"); // loading | playing | error
   const [clock, setClock] = useState("--:--");
-  const [viewers, setViewers] = useState(1284);
 
   // ---- overlay helpers (mirrors original showLoading / showError / hide) ----
   const showLoading = useCallback(() => setStatus("loading"), []);
@@ -222,14 +220,6 @@ function LiveTvPageInner() {
     return () => clearInterval(id);
   }, []);
 
-  // ---- fake viewers counter (same behaviour as original) ----
-  useEffect(() => {
-    const id = setInterval(() => {
-      setViewers((v) => Math.max(900, v + Math.floor(Math.random() * 21) - 10));
-    }, 4000);
-    return () => clearInterval(id);
-  }, []);
-
   const handleRetry = () => {
     manualRetryRef.current = 0;
     loadStream();
@@ -238,12 +228,6 @@ function LiveTvPageInner() {
   const details = [
     { ic: Tv, label: "Canal", value: "Cartoonix 1" },
     { ic: Gauge, label: "Calitate", value: "Live HD", accentValue: true },
-    {
-      ic: Users,
-      label: "Spectatori",
-      value: viewers.toLocaleString("ro-RO"),
-      pulse: true,
-    },
     { ic: SignalHigh, label: "Status", value: "În direct", dot: true },
   ];
 
@@ -369,14 +353,6 @@ function LiveTvPageInner() {
                     <span className="relative inline-flex h-2 w-2 rounded-full bg-[hsl(var(--accent))]" />
                   </span>
                   În direct
-                </div>
-
-                {/* Viewers pill */}
-                <div className="absolute right-4 top-4 z-20 flex items-center gap-2 rounded-full border border-white/10 bg-black/60 backdrop-blur-md px-3 py-1.5 text-[11px] font-semibold text-white">
-                  <Users className="h-3.5 w-3.5 text-[hsl(var(--accent))]" />
-                  <span data-testid="livetv-viewers" className="tabular-nums">
-                    {viewers.toLocaleString("ro-RO")}
-                  </span>
                 </div>
 
                 {/* Bottom info bar */}
