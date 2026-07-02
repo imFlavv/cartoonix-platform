@@ -5,6 +5,19 @@ Cartoonix este o platformă nostalgică de streaming dedicată desenelor din epo
 
 ## Recent Fixes (Feb 2026)
 
+### ✅ Toggle „Shop activ/inactiv" din admin (P1) — Feb 2026
+- Adăugate în `shop_settings`: `shop_enabled` (bool, default `True`) și `shop_disabled_message` (text, max 500).
+- **Backend** (`/app/backend/shop.py`):
+  - `DEFAULT_SHOP_SETTINGS` extins + `ShopSettingsUpdate` primește cele 2 câmpuri noi.
+  - `GET /api/shop/config` returnează `shop_enabled` + `shop_disabled_message`.
+  - `_get_settings()` face `{**DEFAULTS, **doc}` — backwards-compat pentru docs vechi fără cheile noi.
+  - `POST /api/shop/checkout` returnează 503 cu mesajul custom dacă shop-ul e dezactivat (previne bypass).
+- **Frontend**:
+  - Nouă componentă `/app/frontend/src/components/shop/ShopUnavailable.jsx` (ecran „indisponibil" + banner „previzualizare admin").
+  - `AdminShop` → tab „Setări": switch `settings-shop-enabled` + textarea `settings-shop-disabled-message` (vizibilă când shop-ul e off).
+  - `ShopPage`, `ShopProductPage`, `ShopCheckoutPage`: dacă `config.shop_enabled === false` și `user.role !== "admin"` → randează `<ShopUnavailable />`. Adminul vede shop-ul normal + banner de previzualizare.
+- Nu necesită .env nou. Nu afectează plățile PLUS/donații (cheia Stripe existentă e refolosită).
+
 ### ✅ Shop oficial Cartoonix pe /shop (P0) — Jun 2026
 Magazin complet (obiecte printate 3D etc.), aceeași bază Mongo + aceleași conturi de utilizatori. Testat integral (backend pytest 28/28 + Playwright E2E: iteration_5/6.json).
 - **Alegeri user**: plăți Stripe (RON), livrare gratuită peste prag configurabil + cost fix sub el, admin = rolul admin existent, recenzii DOAR de la cumpărători, stoc per produs activabil/dezactivabil.

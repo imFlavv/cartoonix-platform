@@ -424,12 +424,22 @@ function ReviewsTab() {
 }
 
 function SettingsTab() {
-  const [form, setForm] = useState({ shipping_cost: "", free_shipping_threshold: "" });
+  const [form, setForm] = useState({
+    shipping_cost: "",
+    free_shipping_threshold: "",
+    shop_enabled: true,
+    shop_disabled_message: "",
+  });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     api.get("/shop/admin/settings").then((r) =>
-      setForm({ shipping_cost: String(r.data.shipping_cost), free_shipping_threshold: String(r.data.free_shipping_threshold) })
+      setForm({
+        shipping_cost: String(r.data.shipping_cost),
+        free_shipping_threshold: String(r.data.free_shipping_threshold),
+        shop_enabled: r.data.shop_enabled !== false,
+        shop_disabled_message: r.data.shop_disabled_message || "",
+      })
     ).catch(() => {});
   }, []);
 
@@ -439,8 +449,10 @@ function SettingsTab() {
       await api.put("/shop/admin/settings", {
         shipping_cost: parseFloat(form.shipping_cost) || 0,
         free_shipping_threshold: parseFloat(form.free_shipping_threshold) || 0,
+        shop_enabled: !!form.shop_enabled,
+        shop_disabled_message: form.shop_disabled_message.trim(),
       });
-      toast.success("Setările de livrare au fost salvate.");
+      toast.success("Setările shop-ului au fost salvate.");
     } catch {
       toast.error("Eroare la salvare.");
     } finally {
@@ -449,7 +461,40 @@ function SettingsTab() {
   };
 
   return (
-    <div className="max-w-md space-y-4">
+    <div className="max-w-lg space-y-6">
+      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <Label className="text-sm font-semibold">Shop disponibil pentru utilizatori</Label>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Dacă e dezactivat, utilizatorii care nu sunt admini vor vedea un mesaj în loc de shop și nu pot iniția plăți.
+            </p>
+          </div>
+          <Switch
+            checked={form.shop_enabled}
+            onCheckedChange={(v) => setForm((f) => ({ ...f, shop_enabled: v }))}
+            data-testid="settings-shop-enabled"
+          />
+        </div>
+        {!form.shop_enabled && (
+          <div className="mt-4">
+            <Label>Mesaj afișat utilizatorilor</Label>
+            <Textarea
+              value={form.shop_disabled_message}
+              onChange={(e) => setForm((f) => ({ ...f, shop_disabled_message: e.target.value }))}
+              placeholder="Ex: Shop-ul este momentan indisponibil. Revenim în curând!"
+              rows={3}
+              maxLength={500}
+              data-testid="settings-shop-disabled-message"
+              className="mt-1.5"
+            />
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {form.shop_disabled_message.length}/500 caractere
+            </p>
+          </div>
+        )}
+      </div>
+
       <div>
         <Label>Cost livrare (RON)</Label>
         <Input

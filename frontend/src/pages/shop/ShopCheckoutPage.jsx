@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import PublicLayout from "@/components/PublicLayout";
 import { api, mediaUrl } from "@/lib/api";
 import { useCart, fmtPrice } from "@/contexts/CartContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { ShopUnavailable } from "@/components/shop/ShopUnavailable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -21,6 +23,7 @@ const FIELDS = [
 
 export default function ShopCheckoutPage() {
   const { items, setQty, removeItem, subtotal } = useCart();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [config, setConfig] = useState(null);
   const [form, setForm] = useState({
@@ -47,6 +50,13 @@ export default function ShopCheckoutPage() {
   const remainingForFree = config ? Math.max(0, config.free_shipping_threshold - subtotal) : 0;
 
   const setField = (key, value) => setForm((f) => ({ ...f, [key]: value }));
+
+  const isAdmin = user?.role === "admin";
+  const shopDisabled = config && config.shop_enabled === false;
+
+  if (shopDisabled && !isAdmin) {
+    return <ShopUnavailable message={config.shop_disabled_message} />;
+  }
 
   const submit = async () => {
     for (const f of FIELDS) {

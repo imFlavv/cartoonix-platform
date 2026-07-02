@@ -16,7 +16,9 @@ import PublicLayout from "@/components/PublicLayout";
 import { api, mediaUrl } from "@/lib/api";
 import { CartDrawer } from "@/components/shop/CartDrawer";
 import { RatingStars } from "@/components/shop/ProductCard";
+import { ShopUnavailable, AdminShopPreviewBanner } from "@/components/shop/ShopUnavailable";
 import { useCart, fmtPrice } from "@/contexts/CartContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -81,6 +83,7 @@ function ReviewForm({ productId, onCreated }) {
 
 export default function ShopProductPage() {
   const { id } = useParams();
+  const { user } = useAuth();
   const { addItem, setDrawerOpen } = useCart();
   const [product, setProduct] = useState(null);
   const [reviews, setReviews] = useState([]);
@@ -88,12 +91,21 @@ export default function ShopProductPage() {
   const [qty, setQty] = useState(1);
   const [notFound, setNotFound] = useState(false);
   const [activeImage, setActiveImage] = useState(0);
+  const [config, setConfig] = useState(null);
 
   useEffect(() => {
+    api.get("/shop/config").then((r) => setConfig(r.data)).catch(() => {});
     api.get(`/shop/products/${id}`).then((r) => setProduct(r.data)).catch(() => setNotFound(true));
     api.get(`/shop/products/${id}/reviews`).then((r) => setReviews(r.data)).catch(() => {});
     api.get(`/shop/reviews/eligibility/${id}`).then((r) => setEligibility(r.data)).catch(() => {});
   }, [id]);
+
+  const isAdmin = user?.role === "admin";
+  const shopDisabled = config && config.shop_enabled === false;
+
+  if (shopDisabled && !isAdmin) {
+    return <ShopUnavailable message={config.shop_disabled_message} />;
+  }
 
   if (notFound) {
     return (
@@ -135,6 +147,7 @@ export default function ShopProductPage() {
 
   return (
     <PublicLayout>
+      {shopDisabled && isAdmin && <AdminShopPreviewBanner />}
       <div data-testid="shop-product-page" className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pb-24">
         <Link
           to="/shop"

@@ -24,6 +24,8 @@ DEFAULT_SHOP_SETTINGS = {
     "key": "main",
     "shipping_cost": 19.99,
     "free_shipping_threshold": 200.0,
+    "shop_enabled": True,
+    "shop_disabled_message": "Shop-ul este momentan indisponibil. Revenim în curând cu produse noi!",
 }
 
 
@@ -93,6 +95,8 @@ class OrderStatusUpdate(BaseModel):
 class ShopSettingsUpdate(BaseModel):
     shipping_cost: float = Field(ge=0)
     free_shipping_threshold: float = Field(ge=0)
+    shop_enabled: bool = True
+    shop_disabled_message: str = Field(default="", max_length=500)
 
 
 def attach_shop_handlers(get_current_user, require_admin, db, upload_dir: Path) -> APIRouter:
@@ -111,8 +115,9 @@ def attach_shop_handlers(get_current_user, require_admin, db, upload_dir: Path) 
         doc = await db.shop_settings.find_one({"key": "main"}, {"_id": 0})
         if not doc:
             await db.shop_settings.insert_one({**DEFAULT_SHOP_SETTINGS})
-            doc = {**DEFAULT_SHOP_SETTINGS}
-        return doc
+            return {**DEFAULT_SHOP_SETTINGS}
+        # merge defaults for any missing keys (backwards compat for old docs)
+        return {**DEFAULT_SHOP_SETTINGS, **doc}
 
     async def _mark_paid(session_id: str, payment_status: str, status: str):
         """Idempotently update transaction + order and decrement stock once."""
@@ -150,6 +155,8 @@ def attach_shop_handlers(get_current_user, require_admin, db, upload_dir: Path) 
         return {
             "shipping_cost": settings["shipping_cost"],
             "free_shipping_threshold": settings["free_shipping_threshold"],
+            "shop_enabled": bool(settings.get("shop_enabled", True)),
+            "shop_disabled_message": settings.get("shop_disabled_message", ""),
             "categories": sorted([c for c in categories if c]),
         }
 
@@ -226,6 +233,11 @@ def attach_shop_handlers(get_current_user, require_admin, db, upload_dir: Path) 
     @router.post("/checkout")
     async def create_checkout(payload: CheckoutRequest, request: Request, user=Depends(get_current_user)):
         settings = await _get_settings()
+        if not settings.get("shop_enabled", True):
+            raise HTTPException(
+                503,
+                settings.get("shop_disabled_message") or "Shop-ul este momentan indisponibil.",
+            )
         items = []
         subtotal = 0.0
         for it in payload.items:

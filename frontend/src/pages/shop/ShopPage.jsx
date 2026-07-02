@@ -6,7 +6,9 @@ import PublicLayout from "@/components/PublicLayout";
 import { api } from "@/lib/api";
 import { ProductCard } from "@/components/shop/ProductCard";
 import { CartDrawer } from "@/components/shop/CartDrawer";
+import { ShopUnavailable, AdminShopPreviewBanner } from "@/components/shop/ShopUnavailable";
 import { fmtPrice } from "@/contexts/CartContext";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Select,
   SelectContent,
@@ -16,6 +18,7 @@ import {
 } from "@/components/ui/select";
 
 export default function ShopPage() {
+  const { user } = useAuth();
   const [products, setProducts] = useState([]);
   const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -44,9 +47,16 @@ export default function ShopPage() {
   }, [category, search, sort]);
 
   const categories = useMemo(() => config?.categories || [], [config]);
+  const isAdmin = user?.role === "admin";
+  const shopDisabled = config && config.shop_enabled === false;
+
+  if (shopDisabled && !isAdmin) {
+    return <ShopUnavailable message={config.shop_disabled_message} />;
+  }
 
   return (
     <PublicLayout>
+      {shopDisabled && isAdmin && <AdminShopPreviewBanner />}
       <div data-testid="shop-page" className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-24">
         {/* Hero */}
         <div className="relative overflow-hidden rounded-3xl border border-white/[0.07] bg-gradient-to-br from-white/[0.05] to-transparent mt-6 mb-8">
