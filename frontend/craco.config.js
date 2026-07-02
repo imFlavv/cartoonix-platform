@@ -61,6 +61,13 @@ let webpackConfig = {
 };
 
 webpackConfig.devServer = (devServerConfig) => {
+  // Proxy /api to the local backend in dev (production uses nginx)
+  devServerConfig.proxy = {
+    "/api": {
+      target: "http://localhost:8001",
+      changeOrigin: true,
+    },
+  };
   // Add health check endpoints if enabled
   if (config.enableHealthCheck && setupHealthEndpoints && healthPluginInstance) {
     const originalSetupMiddlewares = devServerConfig.setupMiddlewares;

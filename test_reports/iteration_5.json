@@ -1,0 +1,54 @@
+{
+  "summary": "Comprehensive testing of Cartoonix Shop (products, checkout, orders, reviews, admin CRUD). Backend pytest: 27 passed, 1 xfail (known emergentintegrations lib bug on GET /checkout/status). Frontend UI: shop, product, cart, checkout form, admin shop pages all render correctly with proper data-testids and gating logic. CRITICAL: CRA/webpack dev-server proxy for /api on localhost:3000 hangs indefinitely on POST requests with JSON body (POST /api/auth/login, POST /api/shop/checkout, etc.), which blocks all UI-driven auth and checkout flows. GET requests through proxy work fine.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "GET /api/shop/checkout/status/{session_id}",
+        "issue": "Returns 500 due to emergentintegrations library pydantic validation error: 'CheckoutStatusResponse.metadata: Input should be a valid dictionary [type=dict_type, input_value=<StripeObject ...>, input_type=StripeObject]'. Impacts ShopSuccessPage polling after Stripe redirect — users returning from Stripe will see error state. Root cause: emergentintegrations/payments/stripe/checkout.py::get_checkout_status is passing a raw StripeObject to the CheckoutStatusResponse model which expects a dict.",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Any UI flow that POSTs JSON through the frontend dev server",
+        "issue": "craco.config.js dev proxy hangs on POST requests with JSON body (30s timeout, no response). Direct curl POST to :8001 works in ~500ms; same POST to :3000/api/... never responds. GETs work fine. This blocks UI login, register, checkout, review submission, admin CRUD, settings update etc. through the browser preview. Root cause is the well-known webpack-dev-server v4 + http-proxy-middleware body-parser interaction (dev-server consumes body before proxy). Common fix: set `bodyParser: false` on http-proxy-middleware or register proxy via `setupMiddlewares` BEFORE dev-server's body-parser, or use `onProxyReq` to re-write the body stream.",
+        "affected_selectors": ["checkout-pay-button", "login-submit", "product-save-button", "settings-save-button", "review-submit-button"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_shop.py",
+    "/app/test_reports/pytest/shop_results.xml"
+  ],
+  "action_items": [
+    "HIGH: Fix CRA/webpack dev-server proxy body-forwarding for POST/PUT/DELETE — this is the environment blocker preventing any UI write flow. Suggested fix in craco.config.js devServer proxy: add `onProxyReq: fixRequestBody` from `http-proxy-middleware/dev/lib/index.js` OR configure proxy under `setupMiddlewares` before body-parser is registered. As a quick verification: `curl -X POST http://localhost:3000/api/auth/login -d '{}'` should return 4xx quickly, but currently hangs.",
+    "HIGH: Fix GET /api/shop/checkout/status/{session_id} 500 error. The bug is in emergentintegrations library validating metadata field. Workaround: in shop.py::checkout_status, wrap the stripe_checkout.get_checkout_status call in a try/except and fall back to reading the transaction/order state from mongo (as done for already-paid case). This will keep ShopSuccessPage working even when Stripe polling errors out.",
+    "MEDIUM: Consider seeding admin with a full name/nickname on paid-order test flow. Verified reviews positive path via UI works after mongo-injected paid order — review-form appears correctly.",
+    "LOW: Many `link preload but not used` console warnings from /brand/*.webp on every page load."
+  ],
+  "critical_code_review_comments": [
+    "shop.py::create_review is not atomic — race condition possible between insert_one and the aggregate recompute; low impact for MVP.",
+    "shop.py::_stripe reads STRIPE_API_KEY from env at request-time; fine but ensure env is loaded before app start.",
+    "ShopCheckoutPage.jsx: no min-length client-side validation matches Pydantic min_length=2 for city/county/full_name — users may submit forms that then 422 from backend. Consider surfacing per-field validation.",
+    "shop.py: admin_update_product uses `payload.model_dump().items()` filter `v is not None`; badge=None with badge in model_fields_set handled correctly, but stock_enabled=False+stock=0 update logic is fine.",
+    "Backend does not restrict image upload size in admin_upload_image — potentially a DoS vector; consider max file size."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_shop.py"
+  ],
+  "success_rate": {"backend": "96% (27/28 pass, 1 xfail on library bug)", "frontend": "UI rendering 100%; UI write flows 0% due to proxy issue (backend endpoints tested directly are fine)"},
+  "test_credentials": "test_admin@cartoonix.ro / TestAdmin#2026, test_plus@cartoonix.ro / TestPlus#2026",
+  "seed_data_creation": "Test-created products/orders are cleaned up in test teardown fixtures. Extra pending orders from test runs were manually cleaned via mongo (delete_many status=pending_payment for test_plus).",
+  "retest_needed": true,
+  "main_agent_can_self_test": false,
+  "context_for_next_testing_agent": "Backend fully tested via pytest at /app/backend/tests/test_shop.py (fast, ~2.5s). If proxy issue is fixed, rerun playwright flows for pay-button->Stripe redirect and admin CRUD via UI. Use localStorage token injection to bypass UI login if it is still broken: get token via `page.request.post('http://localhost:8001/api/auth/login', ...)` then `localStorage.setItem('cartoonix_token', token); localStorage.setItem('cartoonix_user', JSON.stringify(user))`. Cart localStorage key: `cartoonix_cart`. Do NOT complete real Stripe payments — mongo-inject paid orders instead.",
+  "rca of the issue": {
+    "get_checkout_status 500": "emergentintegrations.payments.stripe.checkout.get_checkout_status hits the Stripe API and constructs CheckoutStatusResponse; the metadata field is typed as dict, but the wrapped Stripe SDK returns a StripeObject subclass (not a plain dict). Pydantic v2 no longer coerces StripeObject → dict, so validation fails. Fix in caller (shop.py) OR upstream in emergentintegrations to `dict(session.metadata)` before constructing the response.",
+    "dev proxy POST hang": "webpack-dev-server v4 registers Express body-parser middleware before the http-proxy-middleware. When the proxy forwards to the backend it needs the raw stream — but the body has already been consumed, so the upstream backend never receives the request body and the socket remains open until timeout. Standard fix documented at https://github.com/chimurai/http-proxy-middleware#restream-request. Use `onProxyReq` with `fixRequestBody` helper or reorder middleware via `setupMiddlewares` before body-parser."
+  }
+}

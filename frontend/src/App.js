@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-route
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { SettingsProvider, useSettings } from "@/contexts/SettingsContext";
+import { CartProvider } from "@/contexts/CartContext";
 import { Toaster } from "@/components/ui/sonner";
 import HomePage from "@/pages/HomePage";
 import CategoryPage from "@/pages/CategoryPage";
@@ -27,6 +28,11 @@ import LiveTvPage from "@/pages/LiveTvPage";
 import WinnersPage from "@/pages/WinnersPage";
 import GuestGatePage from "@/pages/GuestGatePage";
 import CartoonixContestsPage from "@/pages/CartoonixContestsPage";
+import ShopPage from "@/pages/shop/ShopPage";
+import ShopProductPage from "@/pages/shop/ShopProductPage";
+import ShopCheckoutPage from "@/pages/shop/ShopCheckoutPage";
+import ShopSuccessPage from "@/pages/shop/ShopSuccessPage";
+import ShopOrdersPage from "@/pages/shop/ShopOrdersPage";
 import AdminLayout from "@/components/AdminLayout";
 import AdminOverview from "@/pages/admin/AdminOverview";
 import AdminCartoons from "@/pages/admin/AdminCartoons";
@@ -40,6 +46,7 @@ import AdminModerators from "@/pages/admin/AdminModerators";
 import AdminStaff from "@/pages/admin/AdminStaff";
 import AdminSupport from "@/pages/admin/AdminSupport";
 import AdminLive from "@/pages/admin/AdminLive";
+import AdminShop from "@/pages/admin/AdminShop";
 import SupportPage from "@/pages/SupportPage";
 import StaffPage from "@/pages/StaffPage";
 import LobbyPage from "@/pages/LobbyPage";
@@ -123,6 +130,7 @@ const EARLY_ACCESS_ALLOWED_PREFIXES = [
   "/staff",
   "/live",
   "/live-tv",
+  "/shop",
   "/castigatori",
 ];
 
@@ -276,6 +284,7 @@ function App() {
         <BrowserRouter>
           <AuthProvider>
             <SettingsProvider>
+              <CartProvider>
               <MaintenanceGate>
                 <EarlyAccessGate>
                 <Routes>
@@ -306,6 +315,46 @@ function App() {
                   element={
                     <RequireAuth>
                       <LiveTvPage />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/shop"
+                  element={
+                    <RequireAuth>
+                      <ShopPage />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/shop/product/:id"
+                  element={
+                    <RequireAuth>
+                      <ShopProductPage />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/shop/checkout"
+                  element={
+                    <RequireAuth>
+                      <ShopCheckoutPage />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/shop/success"
+                  element={
+                    <RequireAuth>
+                      <ShopSuccessPage />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/shop/orders"
+                  element={
+                    <RequireAuth>
+                      <ShopOrdersPage />
                     </RequireAuth>
                   }
                 />
@@ -387,10 +436,12 @@ function App() {
                   <Route path="staff" element={<AdminStaff />} />
                   <Route path="support" element={<AdminSupport />} />
                   <Route path="live" element={<AdminLive />} />
+                  <Route path="shop" element={<AdminShop />} />
                 </Route>
               </Routes>
               </EarlyAccessGate>
               </MaintenanceGate>
+              </CartProvider>
               <OnlineUsersMount />
               <PromoUpgradeModal />
               <Toaster position="top-right" />

@@ -19,6 +19,7 @@ import {
   Shield,
   ShieldCheck,
   Radio,
+  ShoppingBag,
 } from "lucide-react";
 import {
   Sheet,
@@ -38,6 +39,7 @@ const NAV_ITEMS = [
   { to: "/admin/chat", label: "Chat", icon: MessageSquare, testId: "admin-nav-chat" },
   { to: "/admin/moderators", label: "Moderatori", icon: ShieldCheck, testId: "admin-nav-moderators" },
   { to: "/admin/live", label: "Maraton Live", icon: Radio, testId: "admin-nav-live" },
+  { to: "/admin/shop", label: "Shop", icon: ShoppingBag, testId: "admin-nav-shop" },
   { to: "/admin/staff", label: "Staff Applications", icon: Shield, testId: "admin-nav-staff" },
   { to: "/admin/support", label: "Support", icon: LifeBuoy, testId: "admin-nav-support" },
   { to: "/admin/settings", label: "Setări", icon: SettingsIcon, testId: "admin-nav-settings" },

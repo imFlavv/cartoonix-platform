@@ -131,6 +131,7 @@ from seed import seed_avatars, seed_categories  # noqa: E402
 from chat import attach_handlers as _attach_chat_handlers  # noqa: E402
 from staff import attach_staff_handlers as _attach_staff_handlers  # noqa: E402
 from watch_party import create_router as _create_watch_party_router  # noqa: E402
+from shop import attach_shop_handlers as _attach_shop_handlers  # noqa: E402
 from auth import decode_token as _decode_token_for_ws  # noqa: E402
 
 # Stripe (used by early-access checkout verification + webhook)
@@ -3849,6 +3850,10 @@ _watch_party_router = _create_watch_party_router(
     decode_token=_decode_token_for_ws,
 )
 api_router.include_router(_watch_party_router)
+
+# Cartoonix Shop module (products, Stripe checkout, orders, reviews)
+_shop_router = _attach_shop_handlers(get_current_user, require_admin, db, UPLOAD_DIR)
+api_router.include_router(_shop_router)
 
 app.include_router(api_router)
 app.add_middleware(
