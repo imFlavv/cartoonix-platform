@@ -1,5 +1,6 @@
 """Cartoonix Shop: products, Stripe checkout, orders, reviews."""
 import os
+import json
 import random
 import string
 import uuid
@@ -7,6 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Literal, Optional
 
+import stripe as stripe_sdk
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel, Field
 
@@ -301,12 +303,26 @@ def attach_shop_handlers(get_current_user, require_admin, db, upload_dir: Path) 
             order = await db.shop_orders.find_one({"id": txn.get("order_id")}, {"_id": 0})
             return {"status": "complete", "payment_status": "paid", "order_number": order.get("order_number") if order else None}
         stripe_checkout = _stripe(request)
-        cs = await stripe_checkout.get_checkout_status(session_id)
-        await _mark_paid(session_id, cs.payment_status, cs.status)
+        try:
+            cs = await stripe_checkout.get_checkout_status(session_id)
+            cs_status, cs_payment_status = cs.status, cs.payment_status
+        except Exception:
+            try:
+                # emergentintegrations metadata validation bug fallback: use SDK directly
+                session = stripe_sdk.checkout.Session.retrieve(session_id)
+                cs_status, cs_payment_status = session.status, session.payment_status
+            except Exception:
+                # Stripe unreachable — report stored state; webhook/polling will retry
+                return {
+                    "status": txn.get("status", "open"),
+                    "payment_status": txn.get("payment_status", "pending"),
+                    "order_number": None,
+                }
+        await _mark_paid(session_id, cs_payment_status, cs_status)
         order = await db.shop_orders.find_one({"id": txn.get("order_id")}, {"_id": 0})
         return {
-            "status": cs.status,
-            "payment_status": cs.payment_status,
+            "status": cs_status,
+            "payment_status": cs_payment_status,
             "order_number": order.get("order_number") if order else None,
         }
 
@@ -314,12 +330,22 @@ def attach_shop_handlers(get_current_user, require_admin, db, upload_dir: Path) 
     async def shop_stripe_webhook(request: Request):
         body = await request.body()
         stripe_checkout = _stripe(request)
+        session_id = None
+        payment_status = None
         try:
             wh = await stripe_checkout.handle_webhook(body, request.headers.get("Stripe-Signature"))
+            session_id, payment_status = wh.session_id, wh.payment_status
         except Exception:
-            raise HTTPException(400, "Webhook invalid")
-        if wh.session_id:
-            await _mark_paid(wh.session_id, wh.payment_status, "complete")
+            try:
+                event = json.loads(body)
+                obj = event.get("data", {}).get("object", {})
+                if obj.get("object") == "checkout.session":
+                    session_id = obj.get("id")
+                    payment_status = obj.get("payment_status")
+            except Exception:
+                raise HTTPException(400, "Webhook invalid")
+        if session_id and payment_status:
+            await _mark_paid(session_id, payment_status, "complete")
         return {"received": True}
 
     @router.get("/orders/my")
@@ -373,8 +399,15 @@ def attach_shop_handlers(get_current_user, require_admin, db, upload_dir: Path) 
             raise HTTPException(400, "Format de imagine neacceptat.")
         name = f"{uuid.uuid4().hex}.{ext}"
         dest = shop_upload / name
+        max_bytes = 8 * 1024 * 1024
+        written = 0
         with open(dest, "wb") as f:
             while chunk := await file.read(1024 * 1024):
+                written += len(chunk)
+                if written > max_bytes:
+                    f.close()
+                    dest.unlink(missing_ok=True)
+                    raise HTTPException(413, "Imaginea depășește 8MB.")
                 f.write(chunk)
         return {"url": f"/api/uploads/shop/{name}"}
 

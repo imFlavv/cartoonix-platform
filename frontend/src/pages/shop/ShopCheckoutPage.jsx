@@ -11,11 +11,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 
 const FIELDS = [
-  { key: "full_name", label: "Nume complet", placeholder: "Ion Popescu", required: true },
-  { key: "phone", label: "Telefon", placeholder: "07xx xxx xxx", required: true },
-  { key: "address", label: "Adresă (stradă, număr, bloc)", placeholder: "Str. Exemplu nr. 10", required: true, full: true },
-  { key: "city", label: "Oraș", placeholder: "București", required: true },
-  { key: "county", label: "Județ", placeholder: "Ilfov", required: true },
+  { key: "full_name", label: "Nume complet", placeholder: "Ion Popescu", required: true, min: 3 },
+  { key: "phone", label: "Telefon", placeholder: "07xx xxx xxx", required: true, min: 6 },
+  { key: "address", label: "Adresă (stradă, număr, bloc)", placeholder: "Str. Exemplu nr. 10", required: true, full: true, min: 5 },
+  { key: "city", label: "Oraș", placeholder: "București", required: true, min: 2 },
+  { key: "county", label: "Județ", placeholder: "Ilfov", required: true, min: 2 },
   { key: "postal_code", label: "Cod poștal (opțional)", placeholder: "012345", required: false },
 ];
 
@@ -50,8 +50,13 @@ export default function ShopCheckoutPage() {
 
   const submit = async () => {
     for (const f of FIELDS) {
-      if (f.required && !form[f.key].trim()) {
+      const val = form[f.key].trim();
+      if (f.required && !val) {
         toast.error(`Completează câmpul „${f.label}”.`);
+        return;
+      }
+      if (f.min && val.length < f.min) {
+        toast.error(`Câmpul „${f.label}” este prea scurt.`);
         return;
       }
     }

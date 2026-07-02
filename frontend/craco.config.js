@@ -62,10 +62,12 @@ let webpackConfig = {
 
 webpackConfig.devServer = (devServerConfig) => {
   // Proxy /api to the local backend in dev (production uses nginx)
+  const { fixRequestBody } = require("http-proxy-middleware");
   devServerConfig.proxy = {
     "/api": {
       target: "http://localhost:8001",
       changeOrigin: true,
+      onProxyReq: fixRequestBody,
     },
   };
   // Add health check endpoints if enabled

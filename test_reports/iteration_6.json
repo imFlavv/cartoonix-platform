@@ -1,0 +1,53 @@
+{
+  "summary": "Full retest of Cartoonix Shop after E1 fixes. Both previously-blocking bugs are now RESOLVED and verified end-to-end via UI on http://localhost:3000. Backend regression pytest 28/28 PASS (previous xfail on checkout_status now passing). Frontend UI flows all pass: login form, add-to-cart, checkout with Stripe redirect, order creation & listing, review gating (positive + duplicate 409 + not-purchased UI), admin product CRUD, order status change, and shop settings save/restore.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Shop hero / product pages", "issues": ["Several 'link preload but not used' console warnings for /brand/*.webp on multiple pages (cosmetic, no impact)."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_shop.py",
+    "/app/test_reports/pytest/shop_iter6.xml"
+  ],
+  "verified_fixes": [
+    "FIX #1 (proxy POST hang): craco.config.js now uses fixRequestBody. Verified: curl POST /api/auth/login via :3000 returns 200 in ~240ms; UI login form navigates to /profile end-to-end with a real cartoonix_token in localStorage.",
+    "FIX #2 (checkout_status 500): GET /api/shop/checkout/status/{session_id} with a Stripe session that cannot be retrieved by the test proxy now returns 200 with {status:'initiated', payment_status:'pending', order_number:null}. /shop/success polls 8 times then gracefully renders the [data-testid='payment-failed'] block with the Romanian copy 'Nu am putut confirma plata' + 'Încearcă din nou' + 'Comenzile mele' buttons — no crash."
+  ],
+  "verified_flows": [
+    "UI login (test_plus@cartoonix.ro / TestPlus#2026) → /profile, token persisted",
+    "Cart add via localStorage (schema qty/price) + open drawer → subtotal 244.97 lei",
+    "Checkout above threshold (244.97 > 200) → 'Gratuită' free shipping, Total 244.97 lei",
+    "Checkout below threshold (34.99) → shipping 19.99 lei, Total 54.98 lei",
+    "Fill form (checkout-full_name/phone/address/city/county/postal_code/notes) + pay button → redirect to checkout.stripe.com session; order CX-K9G9NQ created in DB as pending_payment; visible on /shop/orders with items, address, 'Livrare: gratuită'",
+    "Review positive: after DB mark-paid, review-form appears; 5 stars + comment → HTTP 200, review card renders under 'Recenzii (1)' with 'Recenzia ta a fost publicată' toast; form hides after submit",
+    "Review 409: second POST via API returns 409 with 'Ai lăsat deja o recenzie pentru acest produs.'",
+    "Review not-purchased: test_free@cartoonix.ro on product page shows review-not-purchased-note and no review-form",
+    "Admin products CRUD: create TEST_Product_Auto (Figurine 3D, 42.50, stock 10) — visible in list; edit price to 55.00 → 200; toggle active → 200; delete → 200, removed from list",
+    "Admin orders: expand-order-CX-K9G9NQ shows details; order-status-select-CX-K9G9NQ changes status → 200",
+    "Admin settings: shipping_cost 25.00 / free_shipping_threshold 250 saved (PUT 200), /api/shop/config reflects change; restored to 19.99 / 200 successfully"
+  ],
+  "action_items": [
+    "LOW/cosmetic: silence or remove the 'link preload but not used' warnings for /brand/*.webp; either add proper 'as' hints or drop the preload if the assets are not used above-the-fold on those pages.",
+    "OPTIONAL: consider showing Romanian per-field error messages inline in ShopCheckoutPage.jsx when Pydantic 422 comes back (e.g., min_length on city/county/full_name)."
+  ],
+  "critical_code_review_comments": [
+    "checkout_status fallback (shop.py 297-327) is correct and defensive — falls back to stored txn state when both emergentintegrations and stripe_sdk fail; no more 500. Suggest logging the exception for observability (silently swallowed today).",
+    "craco proxy fix uses named `fixRequestBody` from http-proxy-middleware — clean single-line change; works for POST/PUT/DELETE with JSON body.",
+    "ShopSuccessPage caps at 8 polls with 2s cadence (~16s). Consider surfacing a manual 'Verifică din nou' button on the error state, since the webhook is what actually flips payment_status to paid in production.",
+    "shop.py::create_review still does insert then aggregate re-compute non-atomically. Low impact but a $push+aggregate pipeline update would be race-safe.",
+    "No client-side validation of min_length on full_name/city/county → user can hit 422 from backend. Minor UX issue."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (28/28 pytest pass)", "frontend": "100% (all listed UI flows verified end-to-end via Playwright + REST)"},
+  "test_credentials": "test_admin@cartoonix.ro / TestAdmin#2026, test_plus@cartoonix.ro / TestPlus#2026, test_free@cartoonix.ro / TestFree#2026",
+  "seed_data_creation": "Test artifacts cleaned up post-run: deleted order CX-K9G9NQ, TEST_ review, payment_transaction record, and reset product rating aggregate for product 825264c9-... Shop settings restored to shipping_cost=19.99 / free_shipping_threshold=200.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All shop MVP features (customer + admin) are working end-to-end. If any refactor happens, rerun /app/backend/tests/test_shop.py (fast ~2.5s) and one Playwright smoke on /shop → cart → /shop/checkout → /shop/orders. UI login form now works (proxy POST fixed). Cart schema uses `qty` (not `quantity`) and `price`; checkout form has NO email field — only full_name/phone/address/city/county/postal_code/notes. Admin routes are under /api/shop/admin/* (not /api/admin/shop/*)."
+}
