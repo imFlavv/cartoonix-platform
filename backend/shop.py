@@ -1,4 +1,5 @@
 """Cartoonix Shop: products, Stripe checkout, orders, reviews."""
+import logging
 import os
 import json
 import random
@@ -311,8 +312,9 @@ def attach_shop_handlers(get_current_user, require_admin, db, upload_dir: Path) 
                 # emergentintegrations metadata validation bug fallback: use SDK directly
                 session = stripe_sdk.checkout.Session.retrieve(session_id)
                 cs_status, cs_payment_status = session.status, session.payment_status
-            except Exception:
+            except Exception as e:
                 # Stripe unreachable — report stored state; webhook/polling will retry
+                logging.getLogger(__name__).warning(f"[shop] checkout status retrieve failed for {session_id}: {e}")
                 return {
                     "status": txn.get("status", "open"),
                     "payment_status": txn.get("payment_status", "pending"),

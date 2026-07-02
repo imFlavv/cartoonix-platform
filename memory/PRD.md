@@ -5,6 +5,25 @@ Cartoonix este o platformă nostalgică de streaming dedicată desenelor din epo
 
 ## Recent Fixes (Feb 2026)
 
+### ✅ Shop oficial Cartoonix pe /shop (P0) — Jun 2026
+Magazin complet (obiecte printate 3D etc.), aceeași bază Mongo + aceleași conturi de utilizatori. Testat integral (backend pytest 28/28 + Playwright E2E: iteration_5/6.json).
+- **Alegeri user**: plăți Stripe (RON), livrare gratuită peste prag configurabil + cost fix sub el, admin = rolul admin existent, recenzii DOAR de la cumpărători, stoc per produs activabil/dezactivabil.
+- **Backend** (`/app/backend/shop.py`, modul nou montat în `server.py` cu `attach_shop_handlers`):
+  - Colecții: `shop_products`, `shop_orders`, `shop_reviews`, `shop_settings` (key="main": shipping_cost=19.99, free_shipping_threshold=200), `payment_transactions`.
+  - Public: `GET /api/shop/products` (category/search/sort), `GET /api/shop/products/{id}`, `GET /api/shop/config`, recenzii `GET/POST /api/shop/products/{id}/reviews` (403 fără comandă plătită, 409 duplicat), `GET /api/shop/reviews/eligibility/{id}`.
+  - Checkout: `POST /api/shop/checkout` (prețuri calculate DOAR server-side, validare stoc, creează order `pending_payment` + tranzacție) → Stripe Checkout (emergentintegrations, `STRIPE_API_KEY` cu fallback pe `STRIPE_SECRET_KEY` existent al clientului); `GET /api/shop/checkout/status/{session_id}` (idempotent, decrementează stocul o singură dată, fallback grațios dacă Stripe retrieve eșuează); webhook `POST /api/shop/webhook/stripe`.
+  - Admin (`require_admin`): CRUD produse, upload imagini (max 8MB, `/api/uploads/shop/`), comenzi + schimbare status, ștergere recenzii, setări livrare, stats (venituri/comenzi/produse/recenzii).
+  - Statusuri comandă: pending_payment → paid → processing → shipped → delivered; cancelled.
+  - Seed: `/app/backend/seed_shop.py` (6 produse demo cu imagini generate în `/app/backend/uploads/shop/`).
+  - Teste: `/app/backend/tests/test_shop.py` (28 pass).
+- **Frontend**:
+  - `CartContext.js` (coș în localStorage `cartoonix_cart`), `components/shop/ProductCard.jsx` + `CartDrawer.jsx` (buton plutitor + sheet).
+  - Pagini `pages/shop/`: ShopPage (hero, filtre categorie, căutare, sortare), ShopProductPage (galerie, qty, recenzii cu gating), ShopCheckoutPage (formular livrare + logică livrare gratuită), ShopSuccessPage (polling 8×2s + buton „Verifică din nou"), ShopOrdersPage (comenzile mele).
+  - Admin: `pages/admin/AdminShop.jsx` (tab-uri Produse/Comenzi/Recenzii/Setări + stats) la `/admin/shop`; link „Shop" în sidebar admin.
+  - Rute protejate `RequireAuth` în App.js: /shop, /shop/product/:id, /shop/checkout, /shop/success, /shop/orders; „Shop" cu badge NOU în meniul principal; `/shop` adăugat în `EARLY_ACCESS_ALLOWED_PREFIXES`.
+- **Dev-only fix**: `craco.config.js` — proxy devServer `/api → localhost:8001` cu `fixRequestBody` (nu afectează build-ul de producție; producția folosește nginx-ul clientului).
+- ⚠️ Preview Stripe: cheia `sk_test_emergent` nu permite retrieve pe sesiuni (proxy limitation) — status polling cade grațios pe „pending". Cu cheia reală a clientului în producție totul funcționează. Recomandat: setează `STRIPE_API_KEY` în .env-ul de producție (altfel folosește automat `STRIPE_SECRET_KEY`).
+
 ### ✅ Pagina nouă /live-tv — Cartoonix Live (HLS) — Jun 2026
 - Pagină nouă `/app/frontend/src/pages/LiveTvPage.jsx`, separată de `/live`, protejată cu `RequireAuth` (orice user logat).
 - Player HLS folosind `hls.js@1.6.16` (adăugat în package.json). Stream URL păstrat EXACT ca în codul clientului: `https://stream.cartoonix.ro/iptv/channel/1.m3u8?mode=segmenter`. Config-ul hls.js (buffer/retry/timeout) și logica de reconectare sunt identice cu HTML-ul original.

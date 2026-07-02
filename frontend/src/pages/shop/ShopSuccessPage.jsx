@@ -12,6 +12,7 @@ export default function ShopSuccessPage() {
   const { clearCart } = useCart();
   const [state, setState] = useState("checking"); // checking | paid | expired | error
   const [orderNumber, setOrderNumber] = useState(null);
+  const [retryKey, setRetryKey] = useState(0);
   const attemptsRef = useRef(0);
 
   useEffect(() => {
@@ -51,7 +52,7 @@ export default function ShopSuccessPage() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId]);
+  }, [sessionId, retryKey]);
 
   return (
     <PublicLayout>
@@ -99,8 +100,21 @@ export default function ShopSuccessPage() {
               Dacă ai finalizat plata, comanda va apărea în „Comenzile mele” în scurt timp. Altfel, poți încerca din nou.
             </p>
             <div className="flex flex-wrap justify-center gap-3 pt-2">
+              {state === "error" && sessionId && (
+                <Button
+                  data-testid="success-retry-check"
+                  onClick={() => {
+                    attemptsRef.current = 0;
+                    setState("checking");
+                    setRetryKey((k) => k + 1);
+                  }}
+                  className="rounded-full bg-amber-400 text-black font-bold hover:bg-amber-300"
+                >
+                  Verifică din nou
+                </Button>
+              )}
               <Link to="/shop/checkout">
-                <Button className="rounded-full bg-amber-400 text-black font-bold hover:bg-amber-300">
+                <Button variant="outline" className="rounded-full border-white/15 text-white hover:bg-white/10">
                   Încearcă din nou
                 </Button>
               </Link>
