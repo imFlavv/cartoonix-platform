@@ -20,6 +20,7 @@ import {
   ShieldCheck,
   Radio,
   ShoppingBag,
+  Tv2,
 } from "lucide-react";
 import {
   Sheet,
@@ -40,6 +41,7 @@ const NAV_ITEMS = [
   { to: "/admin/moderators", label: "Moderatori", icon: ShieldCheck, testId: "admin-nav-moderators" },
   { to: "/admin/live", label: "Maraton Live", icon: Radio, testId: "admin-nav-live" },
   { to: "/admin/shop", label: "Shop", icon: ShoppingBag, testId: "admin-nav-shop" },
+  { to: "/admin/cartoonix-tv", label: "Cartoonix TV", icon: Tv2, testId: "admin-nav-cartoonix-tv" },
   { to: "/admin/staff", label: "Staff Applications", icon: Shield, testId: "admin-nav-staff" },
   { to: "/admin/support", label: "Support", icon: LifeBuoy, testId: "admin-nav-support" },
   { to: "/admin/settings", label: "Setări", icon: SettingsIcon, testId: "admin-nav-settings" },

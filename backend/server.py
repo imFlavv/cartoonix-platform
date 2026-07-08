@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import List, Literal, Optional
 
 from dotenv import load_dotenv
-from fastapi import (APIRouter, BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, Header, Request,
+from fastapi import (APIRouter, BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, Header, Query, Request,
                      UploadFile, status)
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -200,6 +200,10 @@ async def on_startup():
     await db.watch_parties.create_index("invitations.user_id")
     # TTL on `expires_at_dt` (Mongo only honors TTL on real BSON dates)
     await db.watch_parties.create_index("expires_at_dt", expireAfterSeconds=0)
+    # Cartoonix TV pre-registrations (kept separate from platform users)
+    await db.cartoonix_tv_registrations.create_index("email", unique=True)
+    await db.cartoonix_tv_registrations.create_index("stripe_session_id")
+    await db.cartoonix_tv_registrations.create_index("created_at")
     # Ensure permanent admins (super-admins always promoted)
     for super_email in ("albanflaviu24@gmail.com",):
         await db.users.update_one(
@@ -1089,6 +1093,10 @@ DEFAULT_SETTINGS = {
     # Watch Party feature toggle — when False, the whole Watch Party feature is
     # disabled platform-wide (create button hidden, REST + WebSocket blocked).
     "watch_party_enabled": True,
+    # Cartoonix TV pre-registration landing page toggle. When False, non-admin
+    # users hit /live-tv and see a friendly "coming soon" placeholder instead
+    # of the full pre-registration flow.
+    "cartoonix_tv_enabled": True,
 }
 
 
@@ -1119,6 +1127,7 @@ async def public_settings():
         "chat_max_length",
         "chat_pinned_message",
         "watch_party_enabled",
+        "cartoonix_tv_enabled",
     }
     return {k: full[k] for k in full if k in public_keys}
 
@@ -1707,6 +1716,217 @@ async def early_access_resend(payload: EarlyAccessResend):
         }},
     )
     send_verification_email(pending["email"], pending["nickname"], code)
+    return {"success": True}
+
+
+# ============================================================
+#             CARTOONIX TV — PRE-REGISTRATION (LANDING)
+# ============================================================
+# Standalone pre-registration flow for the future Cartoonix TV app.
+# Kept intentionally separate from the main `users` collection: these are
+# just leads that paid a one-time fee to reserve a spot before launch.
+#
+# Flow:
+#   1) POST /api/cartoonix-tv/register  -> validate, upsert a pending record,
+#      return a Stripe Payment Link URL (with client_reference_id).
+#   2) User pays on Stripe, gets redirected back to /live-tv?session_id=...
+#   3) POST /api/cartoonix-tv/confirm-payment -> verifies the Stripe session
+#      and flips `payment_verified=True`.
+#
+# Admin endpoints under /api/admin/cartoonix-tv/* list and manage the leads.
+
+CARTOONIX_TV_STRIPE_LINK = os.environ.get(
+    "CARTOONIX_TV_STRIPE_LINK",
+    "https://buy.stripe.com/aFa7sEg3D4X62ydccC9EI03",
+)
+
+
+class CartoonixTvRegister(BaseModel):
+    name: str = Field(min_length=2, max_length=80)
+    email: EmailStr
+    password: str = Field(min_length=6, max_length=100)
+    accepted: bool
+
+
+class CartoonixTvConfirmPayment(BaseModel):
+    session_id: str
+
+
+def _ctv_serialize(doc: dict) -> dict:
+    """Public/admin-safe representation of a Cartoonix TV registration."""
+    if not doc:
+        return {}
+    return {
+        "id": doc.get("id"),
+        "name": doc.get("name", ""),
+        "email": doc.get("email", ""),
+        "payment_verified": bool(doc.get("payment_verified", False)),
+        "stripe_session_id": doc.get("stripe_session_id"),
+        "stripe_amount_total": doc.get("stripe_amount_total"),
+        "stripe_currency": doc.get("stripe_currency"),
+        "created_at": doc.get("created_at"),
+        "paid_at": doc.get("paid_at"),
+    }
+
+
+@api_router.post("/cartoonix-tv/register")
+async def cartoonix_tv_register(payload: CartoonixTvRegister):
+    if not payload.accepted:
+        raise HTTPException(400, "Trebuie să fii de acord să fii contactat la lansare.")
+
+    email = payload.email.lower().strip()
+    name = payload.name.strip()
+
+    existing = await db.cartoonix_tv_registrations.find_one({"email": email})
+    if existing:
+        if existing.get("payment_verified"):
+            raise HTTPException(400, "Acest email este deja pre-înregistrat și plata a fost confirmată.")
+        # Not yet paid — re-issue the payment link with the same id so the
+        # user can complete the checkout without duplicate records.
+        reg_id = existing.get("id") or new_id()
+        await db.cartoonix_tv_registrations.update_one(
+            {"email": email},
+            {"$set": {
+                "id": reg_id,
+                "name": name,
+                "password_hash": hash_password(payload.password),
+                "accepted": True,
+                "updated_at": now_utc().isoformat(),
+            }},
+        )
+    else:
+        reg_id = new_id()
+        doc = {
+            "id": reg_id,
+            "name": name,
+            "email": email,
+            "password_hash": hash_password(payload.password),
+            "accepted": True,
+            "payment_verified": False,
+            "stripe_session_id": None,
+            "stripe_amount_total": None,
+            "stripe_currency": None,
+            "created_at": now_utc().isoformat(),
+            "paid_at": None,
+        }
+        await db.cartoonix_tv_registrations.insert_one(doc)
+
+    sep = "&" if "?" in CARTOONIX_TV_STRIPE_LINK else "?"
+    stripe_url = (
+        f"{CARTOONIX_TV_STRIPE_LINK}{sep}"
+        f"client_reference_id={reg_id}"
+        f"&prefilled_email={email}"
+    )
+    return {"success": True, "id": reg_id, "stripe_url": stripe_url}
+
+
+@api_router.post("/cartoonix-tv/confirm-payment")
+async def cartoonix_tv_confirm_payment(payload: CartoonixTvConfirmPayment):
+    """Verify a returning Stripe Checkout Session and mark the registration
+    as paid. Idempotent: safe to call multiple times with the same session_id."""
+    if not _STRIPE_SECRET_KEY:
+        logger.error("[cartoonix-tv] STRIPE_SECRET_KEY is not configured")
+        raise HTTPException(503, "Stripe nu este configurat pe server. Contactează administratorul.")
+
+    # If we've already processed this session, return success immediately.
+    prior = await db.cartoonix_tv_registrations.find_one({"stripe_session_id": payload.session_id})
+    if prior and prior.get("payment_verified"):
+        return {"success": True, "already_verified": True, "registration": _ctv_serialize(prior)}
+
+    try:
+        session = _stripe.checkout.Session.retrieve(payload.session_id)
+    except Exception as e:
+        logger.error(f"[cartoonix-tv] Stripe retrieve failed: {e}")
+        raise HTTPException(400, "Sesiunea de plată nu a putut fi verificată.")
+
+    s_status = getattr(session, "status", None)
+    s_payment_status = getattr(session, "payment_status", None)
+    s_client_ref = getattr(session, "client_reference_id", None) or ""
+    s_amount_total = getattr(session, "amount_total", None)
+    s_currency = (getattr(session, "currency", None) or "ron").upper()
+
+    if s_status != "complete" or s_payment_status != "paid":
+        logger.warning(
+            f"[cartoonix-tv] payment not confirmed status={s_status} payment_status={s_payment_status}"
+        )
+        raise HTTPException(400, "Plata nu este confirmată.")
+
+    if not s_client_ref:
+        raise HTTPException(400, "Sesiunea Stripe nu conține referința necesară.")
+
+    reg = await db.cartoonix_tv_registrations.find_one({"id": s_client_ref})
+    if not reg:
+        raise HTTPException(404, "Pre-înregistrarea nu a fost găsită.")
+
+    now = now_utc().isoformat()
+    await db.cartoonix_tv_registrations.update_one(
+        {"id": reg["id"]},
+        {"$set": {
+            "payment_verified": True,
+            "stripe_session_id": payload.session_id,
+            "stripe_amount_total": s_amount_total,
+            "stripe_currency": s_currency,
+            "paid_at": now,
+            "updated_at": now,
+        }},
+    )
+    fresh = await db.cartoonix_tv_registrations.find_one({"id": reg["id"]})
+    return {"success": True, "registration": _ctv_serialize(fresh)}
+
+
+@api_router.get("/admin/cartoonix-tv/registrations")
+async def admin_list_ctv_registrations(
+    q: Optional[str] = None,
+    status_filter: Optional[Literal["all", "paid", "pending"]] = Query("all", alias="status"),
+    page: int = 1,
+    page_size: int = 50,
+    user=Depends(require_admin),
+):
+    page = max(1, int(page or 1))
+    page_size = max(1, min(200, int(page_size or 50)))
+
+    query: dict = {}
+    if status_filter == "paid":
+        query["payment_verified"] = True
+    elif status_filter == "pending":
+        query["payment_verified"] = {"$ne": True}
+    if q:
+        needle = str(q).strip()
+        if needle:
+            safe = re.escape(needle)
+            query["$or"] = [
+                {"email": {"$regex": safe, "$options": "i"}},
+                {"name": {"$regex": safe, "$options": "i"}},
+            ]
+
+    total = await db.cartoonix_tv_registrations.count_documents(query)
+    paid_count = await db.cartoonix_tv_registrations.count_documents({"payment_verified": True})
+    pending_count = await db.cartoonix_tv_registrations.count_documents({"payment_verified": {"$ne": True}})
+
+    cursor = (
+        db.cartoonix_tv_registrations
+        .find(query, {"_id": 0, "password_hash": 0})
+        .sort("created_at", -1)
+        .skip((page - 1) * page_size)
+        .limit(page_size)
+    )
+    items = [_ctv_serialize(d) async for d in cursor]
+
+    return {
+        "items": items,
+        "total": total,
+        "paid_count": paid_count,
+        "pending_count": pending_count,
+        "page": page,
+        "page_size": page_size,
+    }
+
+
+@api_router.delete("/admin/cartoonix-tv/registrations/{reg_id}")
+async def admin_delete_ctv_registration(reg_id: str, user=Depends(require_admin)):
+    res = await db.cartoonix_tv_registrations.delete_one({"id": reg_id})
+    if res.deleted_count == 0:
+        raise HTTPException(404, "Pre-înregistrare inexistentă")
     return {"success": True}
 
 

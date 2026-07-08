@@ -47,6 +47,7 @@ import AdminStaff from "@/pages/admin/AdminStaff";
 import AdminSupport from "@/pages/admin/AdminSupport";
 import AdminLive from "@/pages/admin/AdminLive";
 import AdminShop from "@/pages/admin/AdminShop";
+import AdminCartoonixTv from "@/pages/admin/AdminCartoonixTv";
 import SupportPage from "@/pages/SupportPage";
 import StaffPage from "@/pages/StaffPage";
 import LobbyPage from "@/pages/LobbyPage";
@@ -312,11 +313,7 @@ function App() {
                 />
                 <Route
                   path="/live-tv"
-                  element={
-                    <RequireAuth>
-                      <LiveTvPage />
-                    </RequireAuth>
-                  }
+                  element={<LiveTvPage />}
                 />
                 <Route
                   path="/shop"
@@ -437,6 +434,7 @@ function App() {
                   <Route path="support" element={<AdminSupport />} />
                   <Route path="live" element={<AdminLive />} />
                   <Route path="shop" element={<AdminShop />} />
+                  <Route path="cartoonix-tv" element={<AdminCartoonixTv />} />
                 </Route>
               </Routes>
               </EarlyAccessGate>

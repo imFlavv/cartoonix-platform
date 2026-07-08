@@ -213,7 +213,7 @@ export function TopNav() {
     { to: "/category/jetix-foxkids", label: "JETIX & Fox Kids" },
     { to: "/category/cartoon-network", label: "Cartoon Network" },
     { to: "/category/minimax", label: "Minimax" },
-    ...(user ? [{ to: "/live-tv", label: "Live TV" }] : []),
+    ...(user ? [{ to: "/live-tv", label: "Live TV" }] : [{ to: "/live-tv", label: "Cartoonix TV", badge: "NOU" }]),
     ...(user ? [{ to: "/shop", label: "Shop", badge: "NOU" }] : []),
     ...(lobbyVisible ? [{ to: "/lobby", label: "Lobby" }] : []),
     ...(user && settings?.support_enabled !== false

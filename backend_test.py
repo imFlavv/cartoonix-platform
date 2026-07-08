@@ -1,517 +1,528 @@
 #!/usr/bin/env python3
 """
-Backend API tests for Cartoonix Chat Moderator Role feature.
-
-Tests the new moderator role functionality:
-- Admin promote/demote moderators
-- Moderator mute/unmute actions
-- Moderator audit logs
-- Chat message is_moderator field
+Backend test suite for Cartoonix TV pre-registration feature.
+Tests only the NEW Cartoonix TV endpoints as requested.
 """
 import requests
 import sys
 import time
 
-# Base URL from frontend/.env
-BASE_URL = "https://tv-prelaunch.preview.emergentagent.com/api"
+# Backend URL from frontend/.env
+BACKEND_URL = "http://localhost:8001/api"
 
-# Test credentials from /app/memory/test_credentials.md
+# Admin credentials from /app/memory/test_credentials.md
 ADMIN_EMAIL = "test_admin@cartoonix.ro"
 ADMIN_PASSWORD = "TestAdmin#2026"
 
+# Test user credentials
 FREE_EMAIL = "test_free@cartoonix.ro"
 FREE_PASSWORD = "TestFree#2026"
 
-NEW_EMAIL = "test_new@cartoonix.ro"
-NEW_PASSWORD = "TestNew#2026"
+def print_test(num, desc):
+    print(f"\n{'='*80}")
+    print(f"TEST {num}: {desc}")
+    print('='*80)
 
-PLUS_EMAIL = "test_plus@cartoonix.ro"
-PLUS_PASSWORD = "TestPlus#2026"
+def print_pass(msg):
+    print(f"✅ PASS: {msg}")
 
+def print_fail(msg):
+    print(f"❌ FAIL: {msg}")
 
-def login(email: str, password: str) -> tuple[str, dict]:
-    """Login and return (token, user_dict)."""
-    resp = requests.post(
-        f"{BASE_URL}/auth/login",
-        json={"email": email, "password": password},
-        timeout=10,
-    )
+def get_admin_token():
+    """Login as admin and return access token."""
+    resp = requests.post(f"{BACKEND_URL}/auth/login", json={
+        "email": ADMIN_EMAIL,
+        "password": ADMIN_PASSWORD
+    })
     if resp.status_code != 200:
-        print(f"❌ Login failed for {email}: {resp.status_code} {resp.text}")
+        print_fail(f"Admin login failed: {resp.status_code} {resp.text}")
         sys.exit(1)
-    data = resp.json()
-    return data["access_token"], data["user"]
+    return resp.json()["access_token"]
 
-
-def get_user_info(token: str) -> dict:
-    """Get current user info via /auth/me."""
-    resp = requests.get(
-        f"{BASE_URL}/auth/me",
-        headers={"Authorization": f"Bearer {token}"},
-        timeout=10,
-    )
+def get_free_token():
+    """Login as free user and return access token."""
+    resp = requests.post(f"{BACKEND_URL}/auth/login", json={
+        "email": FREE_EMAIL,
+        "password": FREE_PASSWORD
+    })
     if resp.status_code != 200:
-        print(f"❌ GET /auth/me failed: {resp.status_code} {resp.text}")
+        print_fail(f"Free user login failed: {resp.status_code} {resp.text}")
         sys.exit(1)
-    return resp.json()
+    return resp.json()["access_token"]
 
-
-def get_notifications(token: str) -> list:
-    """Get user notifications."""
-    resp = requests.get(
-        f"{BASE_URL}/notifications",
-        headers={"Authorization": f"Bearer {token}"},
-        timeout=10,
-    )
+def test_1_settings_includes_cartoonix_tv_enabled():
+    """Test 1: GET /api/settings includes cartoonix_tv_enabled key (bool, default true)"""
+    print_test(1, "GET /api/settings includes cartoonix_tv_enabled")
+    
+    resp = requests.get(f"{BACKEND_URL}/settings")
+    
     if resp.status_code != 200:
-        print(f"❌ GET /notifications failed: {resp.status_code} {resp.text}")
-        return []
+        print_fail(f"Expected 200, got {resp.status_code}")
+        return False
+    
     data = resp.json()
-    return data.get("items", [])
+    
+    if "cartoonix_tv_enabled" not in data:
+        print_fail("cartoonix_tv_enabled key not found in response")
+        return False
+    
+    if not isinstance(data["cartoonix_tv_enabled"], bool):
+        print_fail(f"cartoonix_tv_enabled is not bool, got {type(data['cartoonix_tv_enabled'])}")
+        return False
+    
+    print_pass(f"cartoonix_tv_enabled present and is bool: {data['cartoonix_tv_enabled']}")
+    return True
 
+def test_2_register_valid_returns_success_and_stripe_url():
+    """Test 2: POST /api/cartoonix-tv/register with valid data returns success + id + stripe_url"""
+    print_test(2, "POST /api/cartoonix-tv/register with valid data")
+    
+    # Use unique email with timestamp to avoid conflicts
+    test_email = f"ion.popescu.ctv.{int(time.time())}@test.ro"
+    
+    payload = {
+        "name": "Ion Popescu",
+        "email": test_email,
+        "password": "secret123",
+        "accepted": True
+    }
+    
+    resp = requests.post(f"{BACKEND_URL}/cartoonix-tv/register", json=payload)
+    
+    if resp.status_code != 200:
+        print_fail(f"Expected 200, got {resp.status_code}: {resp.text}")
+        return False, None, None
+    
+    data = resp.json()
+    
+    # Check response structure
+    if not data.get("success"):
+        print_fail("success is not True")
+        return False, None, None
+    
+    if "id" not in data:
+        print_fail("id not in response")
+        return False, None, None
+    
+    if "stripe_url" not in data:
+        print_fail("stripe_url not in response")
+        return False, None, None
+    
+    reg_id = data["id"]
+    stripe_url = data["stripe_url"]
+    
+    # Verify stripe_url contains client_reference_id and prefilled_email
+    if f"client_reference_id={reg_id}" not in stripe_url:
+        print_fail(f"stripe_url does not contain client_reference_id={reg_id}")
+        return False, None, None
+    
+    if f"prefilled_email={test_email}" not in stripe_url:
+        print_fail(f"stripe_url does not contain prefilled_email={test_email}")
+        return False, None, None
+    
+    print_pass(f"Registration successful with id={reg_id}")
+    print_pass(f"stripe_url contains client_reference_id={reg_id}")
+    print_pass(f"stripe_url contains prefilled_email={test_email}")
+    
+    return True, reg_id, test_email
+
+def test_3_register_same_email_unpaid_returns_same_id():
+    """Test 3: Registering with same email (unpaid) returns same id (idempotent)"""
+    print_test(3, "POST /api/cartoonix-tv/register with same email (unpaid) - idempotent")
+    
+    # First registration
+    test_email = f"maria.ionescu.ctv.{int(time.time())}@test.ro"
+    payload = {
+        "name": "Maria Ionescu",
+        "email": test_email,
+        "password": "password123",
+        "accepted": True
+    }
+    
+    resp1 = requests.post(f"{BACKEND_URL}/cartoonix-tv/register", json=payload)
+    if resp1.status_code != 200:
+        print_fail(f"First registration failed: {resp1.status_code}")
+        return False
+    
+    id1 = resp1.json()["id"]
+    print_pass(f"First registration: id={id1}")
+    
+    # Second registration with same email
+    time.sleep(0.5)  # Small delay
+    resp2 = requests.post(f"{BACKEND_URL}/cartoonix-tv/register", json=payload)
+    if resp2.status_code != 200:
+        print_fail(f"Second registration failed: {resp2.status_code}")
+        return False
+    
+    id2 = resp2.json()["id"]
+    print_pass(f"Second registration: id={id2}")
+    
+    if id1 != id2:
+        print_fail(f"IDs don't match: {id1} != {id2}")
+        return False
+    
+    print_pass(f"Idempotent behavior confirmed: same id={id1} returned")
+    return True
+
+def test_4_register_validation_errors():
+    """Test 4: POST /api/cartoonix-tv/register validation errors"""
+    print_test(4, "POST /api/cartoonix-tv/register validation errors")
+    
+    all_passed = True
+    
+    # Test 4a: accepted=false should return 400
+    payload_no_accept = {
+        "name": "Test User",
+        "email": "test@example.com",
+        "password": "secret123",
+        "accepted": False
+    }
+    resp = requests.post(f"{BACKEND_URL}/cartoonix-tv/register", json=payload_no_accept)
+    if resp.status_code == 400:
+        print_pass("accepted=false returns HTTP 400")
+    else:
+        print_fail(f"accepted=false: expected 400, got {resp.status_code}")
+        all_passed = False
+    
+    # Test 4b: invalid email should return 422
+    payload_bad_email = {
+        "name": "Test User",
+        "email": "not-an-email",
+        "password": "secret123",
+        "accepted": True
+    }
+    resp = requests.post(f"{BACKEND_URL}/cartoonix-tv/register", json=payload_bad_email)
+    if resp.status_code == 422:
+        print_pass("Invalid email returns HTTP 422")
+    else:
+        print_fail(f"Invalid email: expected 422, got {resp.status_code}")
+        all_passed = False
+    
+    # Test 4c: password shorter than 6 chars should return 422
+    payload_short_pass = {
+        "name": "Test User",
+        "email": "test@example.com",
+        "password": "12345",  # Only 5 chars
+        "accepted": True
+    }
+    resp = requests.post(f"{BACKEND_URL}/cartoonix-tv/register", json=payload_short_pass)
+    if resp.status_code == 422:
+        print_pass("Password < 6 chars returns HTTP 422")
+    else:
+        print_fail(f"Short password: expected 422, got {resp.status_code}")
+        all_passed = False
+    
+    return all_passed
+
+def test_5_confirm_payment_with_fake_session():
+    """Test 5: POST /api/cartoonix-tv/confirm-payment with fake session_id returns 400"""
+    print_test(5, "POST /api/cartoonix-tv/confirm-payment with fake session_id")
+    
+    payload = {
+        "session_id": "cs_test_invalid_1234567890"
+    }
+    
+    resp = requests.post(f"{BACKEND_URL}/cartoonix-tv/confirm-payment", json=payload)
+    
+    if resp.status_code == 400:
+        print_pass(f"Fake session_id returns HTTP 400 (expected)")
+        return True
+    else:
+        print_fail(f"Expected 400, got {resp.status_code}: {resp.text}")
+        return False
+
+def test_6_admin_list_registrations_auth():
+    """Test 6: GET /api/admin/cartoonix-tv/registrations auth checks"""
+    print_test(6, "GET /api/admin/cartoonix-tv/registrations auth checks")
+    
+    all_passed = True
+    
+    # Test 6a: No auth token -> 401
+    resp = requests.get(f"{BACKEND_URL}/admin/cartoonix-tv/registrations")
+    if resp.status_code == 401:
+        print_pass("No token returns HTTP 401")
+    else:
+        print_fail(f"No token: expected 401, got {resp.status_code}")
+        all_passed = False
+    
+    # Test 6b: Free user token -> 403
+    free_token = get_free_token()
+    headers = {"Authorization": f"Bearer {free_token}"}
+    resp = requests.get(f"{BACKEND_URL}/admin/cartoonix-tv/registrations", headers=headers)
+    if resp.status_code == 403:
+        print_pass("Free user token returns HTTP 403")
+    else:
+        print_fail(f"Free user token: expected 403, got {resp.status_code}")
+        all_passed = False
+    
+    return all_passed
+
+def test_7_admin_list_registrations_success():
+    """Test 7: GET /api/admin/cartoonix-tv/registrations with admin token returns data"""
+    print_test(7, "GET /api/admin/cartoonix-tv/registrations with admin token")
+    
+    admin_token = get_admin_token()
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    
+    resp = requests.get(f"{BACKEND_URL}/admin/cartoonix-tv/registrations", headers=headers)
+    
+    if resp.status_code != 200:
+        print_fail(f"Expected 200, got {resp.status_code}: {resp.text}")
+        return False, None
+    
+    data = resp.json()
+    
+    # Check response structure
+    required_keys = ["items", "total", "paid_count", "pending_count", "page", "page_size"]
+    for key in required_keys:
+        if key not in data:
+            print_fail(f"Missing key: {key}")
+            return False, None
+    
+    print_pass(f"Response includes all required keys: {required_keys}")
+    print_pass(f"Total registrations: {data['total']}")
+    print_pass(f"Paid: {data['paid_count']}, Pending: {data['pending_count']}")
+    
+    return True, data
+
+def test_8_admin_list_registrations_filters():
+    """Test 8: GET /api/admin/cartoonix-tv/registrations with filters (status, q)"""
+    print_test(8, "GET /api/admin/cartoonix-tv/registrations with filters")
+    
+    admin_token = get_admin_token()
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    
+    all_passed = True
+    
+    # Test 8a: Filter by status=pending
+    resp = requests.get(
+        f"{BACKEND_URL}/admin/cartoonix-tv/registrations",
+        headers=headers,
+        params={"status": "pending"}
+    )
+    if resp.status_code == 200:
+        data = resp.json()
+        print_pass(f"status=pending filter works: {len(data['items'])} items")
+    else:
+        print_fail(f"status=pending: expected 200, got {resp.status_code}")
+        all_passed = False
+    
+    # Test 8b: Search with query parameter
+    resp = requests.get(
+        f"{BACKEND_URL}/admin/cartoonix-tv/registrations",
+        headers=headers,
+        params={"q": "ion"}
+    )
+    if resp.status_code == 200:
+        data = resp.json()
+        print_pass(f"q=ion search works: {len(data['items'])} items")
+    else:
+        print_fail(f"q=ion: expected 200, got {resp.status_code}")
+        all_passed = False
+    
+    # Test 8c: Combined filters
+    resp = requests.get(
+        f"{BACKEND_URL}/admin/cartoonix-tv/registrations",
+        headers=headers,
+        params={"status": "pending", "q": "ion"}
+    )
+    if resp.status_code == 200:
+        data = resp.json()
+        print_pass(f"Combined filters work: {len(data['items'])} items")
+    else:
+        print_fail(f"Combined filters: expected 200, got {resp.status_code}")
+        all_passed = False
+    
+    return all_passed
+
+def test_9_admin_delete_registration(reg_id):
+    """Test 9: DELETE /api/admin/cartoonix-tv/registrations/{id}"""
+    print_test(9, "DELETE /api/admin/cartoonix-tv/registrations/{id}")
+    
+    admin_token = get_admin_token()
+    free_token = get_free_token()
+    
+    all_passed = True
+    
+    # Test 9a: Non-admin -> 403
+    headers = {"Authorization": f"Bearer {free_token}"}
+    resp = requests.delete(f"{BACKEND_URL}/admin/cartoonix-tv/registrations/{reg_id}", headers=headers)
+    if resp.status_code == 403:
+        print_pass("Non-admin returns HTTP 403")
+    else:
+        print_fail(f"Non-admin: expected 403, got {resp.status_code}")
+        all_passed = False
+    
+    # Test 9b: Admin with valid id -> 200
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    resp = requests.delete(f"{BACKEND_URL}/admin/cartoonix-tv/registrations/{reg_id}", headers=headers)
+    if resp.status_code == 200:
+        print_pass(f"Admin delete successful: {reg_id}")
+    else:
+        print_fail(f"Admin delete: expected 200, got {resp.status_code}")
+        all_passed = False
+    
+    # Test 9c: Admin with same id again -> 404
+    resp = requests.delete(f"{BACKEND_URL}/admin/cartoonix-tv/registrations/{reg_id}", headers=headers)
+    if resp.status_code == 404:
+        print_pass("Re-delete returns HTTP 404 (already deleted)")
+    else:
+        print_fail(f"Re-delete: expected 404, got {resp.status_code}")
+        all_passed = False
+    
+    return all_passed
+
+def test_10_admin_settings_toggle_cartoonix_tv():
+    """Test 10: PATCH /api/admin/settings to toggle cartoonix_tv_enabled"""
+    print_test(10, "PATCH /api/admin/settings toggle cartoonix_tv_enabled")
+    
+    admin_token = get_admin_token()
+    free_token = get_free_token()
+    
+    all_passed = True
+    
+    # Test 10a: Non-admin PATCH -> 403
+    headers = {"Authorization": f"Bearer {free_token}"}
+    resp = requests.patch(
+        f"{BACKEND_URL}/admin/settings",
+        headers=headers,
+        json={"cartoonix_tv_enabled": False}
+    )
+    if resp.status_code == 403:
+        print_pass("Non-admin PATCH returns HTTP 403")
+    else:
+        print_fail(f"Non-admin PATCH: expected 403, got {resp.status_code}")
+        all_passed = False
+    
+    # Test 10b: Admin PATCH to disable -> 200
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    resp = requests.patch(
+        f"{BACKEND_URL}/admin/settings",
+        headers=headers,
+        json={"cartoonix_tv_enabled": False}
+    )
+    if resp.status_code == 200:
+        data = resp.json()
+        if data.get("cartoonix_tv_enabled") == False:
+            print_pass("Admin disabled cartoonix_tv_enabled successfully")
+        else:
+            print_fail(f"cartoonix_tv_enabled not false in response: {data.get('cartoonix_tv_enabled')}")
+            all_passed = False
+    else:
+        print_fail(f"Admin PATCH disable: expected 200, got {resp.status_code}")
+        all_passed = False
+    
+    # Test 10c: GET /api/settings reflects the change
+    resp = requests.get(f"{BACKEND_URL}/settings")
+    if resp.status_code == 200:
+        data = resp.json()
+        if data.get("cartoonix_tv_enabled") == False:
+            print_pass("GET /api/settings shows cartoonix_tv_enabled=false")
+        else:
+            print_fail(f"GET /api/settings: cartoonix_tv_enabled not false: {data.get('cartoonix_tv_enabled')}")
+            all_passed = False
+    else:
+        print_fail(f"GET /api/settings: expected 200, got {resp.status_code}")
+        all_passed = False
+    
+    # Test 10d: Admin PATCH to re-enable -> 200
+    resp = requests.patch(
+        f"{BACKEND_URL}/admin/settings",
+        headers=headers,
+        json={"cartoonix_tv_enabled": True}
+    )
+    if resp.status_code == 200:
+        data = resp.json()
+        if data.get("cartoonix_tv_enabled") == True:
+            print_pass("Admin re-enabled cartoonix_tv_enabled successfully")
+        else:
+            print_fail(f"cartoonix_tv_enabled not true in response: {data.get('cartoonix_tv_enabled')}")
+            all_passed = False
+    else:
+        print_fail(f"Admin PATCH re-enable: expected 200, got {resp.status_code}")
+        all_passed = False
+    
+    # Test 10e: GET /api/settings reflects the re-enable
+    resp = requests.get(f"{BACKEND_URL}/settings")
+    if resp.status_code == 200:
+        data = resp.json()
+        if data.get("cartoonix_tv_enabled") == True:
+            print_pass("GET /api/settings shows cartoonix_tv_enabled=true (restored)")
+        else:
+            print_fail(f"GET /api/settings: cartoonix_tv_enabled not true: {data.get('cartoonix_tv_enabled')}")
+            all_passed = False
+    else:
+        print_fail(f"GET /api/settings: expected 200, got {resp.status_code}")
+        all_passed = False
+    
+    return all_passed
 
 def main():
-    print("=" * 80)
-    print("BACKEND TEST: Chat Moderator Role")
-    print("=" * 80)
+    print("\n" + "="*80)
+    print("CARTOONIX TV PRE-REGISTRATION BACKEND TEST SUITE")
+    print("="*80)
     
-    # Login all test users
-    print("\n[Setup] Logging in test users...")
-    admin_token, admin_user = login(ADMIN_EMAIL, ADMIN_PASSWORD)
-    free_token, free_user = login(FREE_EMAIL, FREE_PASSWORD)
-    new_token, new_user = login(NEW_EMAIL, NEW_PASSWORD)
-    plus_token, plus_user = login(PLUS_EMAIL, PLUS_PASSWORD)
+    results = []
     
-    free_id = free_user["id"]
-    new_id = new_user["id"]
-    admin_id = admin_user["id"]
+    # Test 1: GET /api/settings includes cartoonix_tv_enabled
+    results.append(("Test 1: GET /api/settings", test_1_settings_includes_cartoonix_tv_enabled()))
     
-    print(f"✅ Admin: {admin_user['nickname']} (id={admin_id[:8]}...)")
-    print(f"✅ Free: {free_user['nickname']} (id={free_id[:8]}...)")
-    print(f"✅ New: {new_user['nickname']} (id={new_id[:8]}...)")
-    print(f"✅ Plus: {plus_user['nickname']} (id={plus_user['id'][:8]}...)")
+    # Test 2: POST /api/cartoonix-tv/register with valid data
+    test2_result, reg_id, test_email = test_2_register_valid_returns_success_and_stripe_url()
+    results.append(("Test 2: POST /api/cartoonix-tv/register (valid)", test2_result))
     
-    passed = 0
-    failed = 0
+    # Test 3: Idempotent re-issue with same email
+    results.append(("Test 3: Idempotent re-issue", test_3_register_same_email_unpaid_returns_same_id()))
     
-    # ========================================================================
-    # TEST 1: Permissions on promote (non-admin → 403, no token → 401/403)
-    # ========================================================================
-    print("\n" + "=" * 80)
-    print("TEST 1: Permissions on promote endpoint")
-    print("=" * 80)
+    # Test 4: Validation errors
+    results.append(("Test 4: Validation errors", test_4_register_validation_errors()))
     
-    # 1a: Non-admin token (test_new) → 403
-    print("\n[1a] POST /admin/moderators/{free_id}/promote with non-admin token (test_new)...")
-    resp = requests.post(
-        f"{BASE_URL}/admin/moderators/{free_id}/promote",
-        headers={"Authorization": f"Bearer {new_token}"},
-        timeout=10,
-    )
-    if resp.status_code == 403:
-        print(f"✅ PASS: Non-admin returns 403 (detail: {resp.json().get('detail', '')})")
-        passed += 1
+    # Test 5: Confirm payment with fake session
+    results.append(("Test 5: Confirm payment (fake session)", test_5_confirm_payment_with_fake_session()))
+    
+    # Test 6: Admin list registrations auth checks
+    results.append(("Test 6: Admin list auth checks", test_6_admin_list_registrations_auth()))
+    
+    # Test 7: Admin list registrations success
+    test7_result, list_data = test_7_admin_list_registrations_success()
+    results.append(("Test 7: Admin list registrations", test7_result))
+    
+    # Test 8: Admin list with filters
+    results.append(("Test 8: Admin list with filters", test_8_admin_list_registrations_filters()))
+    
+    # Test 9: Admin delete registration (use reg_id from test 2)
+    if reg_id:
+        results.append(("Test 9: Admin delete registration", test_9_admin_delete_registration(reg_id)))
     else:
-        print(f"❌ FAIL: Expected 403, got {resp.status_code}: {resp.text}")
-        failed += 1
+        print_fail("Skipping Test 9: no reg_id from Test 2")
+        results.append(("Test 9: Admin delete registration", False))
     
-    # 1b: No token → 401
-    print("\n[1b] POST /admin/moderators/{free_id}/promote with no token...")
-    resp = requests.post(
-        f"{BASE_URL}/admin/moderators/{free_id}/promote",
-        timeout=10,
-    )
-    if resp.status_code in (401, 403):
-        print(f"✅ PASS: No token returns {resp.status_code} (detail: {resp.json().get('detail', '')})")
-        passed += 1
-    else:
-        print(f"❌ FAIL: Expected 401/403, got {resp.status_code}: {resp.text}")
-        failed += 1
+    # Test 10: Admin settings toggle
+    results.append(("Test 10: Admin settings toggle", test_10_admin_settings_toggle_cartoonix_tv()))
     
-    # ========================================================================
-    # TEST 2: Promote flow (admin promotes test_free)
-    # ========================================================================
-    print("\n" + "=" * 80)
-    print("TEST 2: Promote flow (admin promotes test_free)")
-    print("=" * 80)
-    
-    # 2a: Get test_free id (already have it from login)
-    print(f"\n[2a] test_free id: {free_id}")
-    
-    # 2b: POST /admin/moderators/{free_id}/promote as admin → 200
-    print(f"\n[2b] POST /admin/moderators/{free_id}/promote as admin...")
-    resp = requests.post(
-        f"{BASE_URL}/admin/moderators/{free_id}/promote",
-        headers={"Authorization": f"Bearer {admin_token}"},
-        timeout=10,
-    )
-    if resp.status_code == 200:
-        data = resp.json()
-        if data.get("success") and data.get("moderator", {}).get("is_moderator") is True:
-            print(f"✅ PASS: Promote returns 200, is_moderator=true")
-            print(f"   Moderator: {data['moderator']['nickname']}, since={data['moderator'].get('moderator_since', 'N/A')[:19]}")
-            passed += 1
-        else:
-            print(f"❌ FAIL: Response missing success or is_moderator: {data}")
-            failed += 1
-    else:
-        print(f"❌ FAIL: Expected 200, got {resp.status_code}: {resp.text}")
-        failed += 1
-    
-    # 2c: Re-login test_free and GET /auth/me → is_moderator==true
-    print("\n[2c] Re-login test_free and GET /auth/me...")
-    free_token, free_user = login(FREE_EMAIL, FREE_PASSWORD)
-    if free_user.get("is_moderator") is True:
-        print(f"✅ PASS: GET /auth/me returns is_moderator=true for test_free")
-        passed += 1
-    else:
-        print(f"❌ FAIL: is_moderator={free_user.get('is_moderator')} (expected True)")
-        failed += 1
-    
-    # 2d: GET /notifications as test_free → notification exists
-    print("\n[2d] GET /notifications as test_free...")
-    time.sleep(0.5)  # Brief delay for notification to be inserted
-    notifications = get_notifications(free_token)
-    promo_notif = [n for n in notifications if "Moderator" in n.get("title", "")]
-    if promo_notif:
-        print(f"✅ PASS: Notification found: '{promo_notif[0]['title']}'")
-        passed += 1
-    else:
-        print(f"❌ FAIL: No moderator promotion notification found (total notifications: {len(notifications)})")
-        failed += 1
-    
-    # ========================================================================
-    # TEST 3: Promote idempotency (promote again → 400)
-    # ========================================================================
-    print("\n" + "=" * 80)
-    print("TEST 3: Promote idempotency (promote already-moderator → 400)")
-    print("=" * 80)
-    
-    print(f"\n[3] POST /admin/moderators/{free_id}/promote again...")
-    resp = requests.post(
-        f"{BASE_URL}/admin/moderators/{free_id}/promote",
-        headers={"Authorization": f"Bearer {admin_token}"},
-        timeout=10,
-    )
-    if resp.status_code == 400:
-        print(f"✅ PASS: Promote idempotency returns 400 (detail: {resp.json().get('detail', '')})")
-        passed += 1
-    else:
-        print(f"❌ FAIL: Expected 400, got {resp.status_code}: {resp.text}")
-        failed += 1
-    
-    # ========================================================================
-    # TEST 4: Moderator mute (test_free mutes test_new with mute_5m)
-    # ========================================================================
-    print("\n" + "=" * 80)
-    print("TEST 4: Moderator mute (test_free mutes test_new with mute_5m)")
-    print("=" * 80)
-    
-    print(f"\n[4] POST /chat/mod/moderate as test_free (moderator)...")
-    resp = requests.post(
-        f"{BASE_URL}/chat/mod/moderate",
-        headers={"Authorization": f"Bearer {free_token}"},
-        json={"user_id": new_id, "action": "mute_5m"},
-        timeout=10,
-    )
-    if resp.status_code == 200:
-        data = resp.json()
-        if data.get("success") and data.get("active", {}).get("type") == "mute":
-            print(f"✅ PASS: Moderator mute returns 200, active.type='mute'")
-            print(f"   Until: {data['active'].get('until', 'N/A')[:19]}")
-            passed += 1
-        else:
-            print(f"❌ FAIL: Response missing success or active.type: {data}")
-            failed += 1
-    else:
-        print(f"❌ FAIL: Expected 200, got {resp.status_code}: {resp.text}")
-        failed += 1
-    
-    # ========================================================================
-    # TEST 5: Moderator restrictions
-    # ========================================================================
-    print("\n" + "=" * 80)
-    print("TEST 5: Moderator restrictions")
-    print("=" * 80)
-    
-    # 5a: Mute self → 400
-    print(f"\n[5a] POST /chat/mod/moderate (test_free mutes self)...")
-    resp = requests.post(
-        f"{BASE_URL}/chat/mod/moderate",
-        headers={"Authorization": f"Bearer {free_token}"},
-        json={"user_id": free_id, "action": "mute_5m"},
-        timeout=10,
-    )
-    if resp.status_code == 400:
-        print(f"✅ PASS: Mute self returns 400 (detail: {resp.json().get('detail', '')})")
-        passed += 1
-    else:
-        print(f"❌ FAIL: Expected 400, got {resp.status_code}: {resp.text}")
-        failed += 1
-    
-    # 5b: Mute admin → 400
-    print(f"\n[5b] POST /chat/mod/moderate (test_free mutes admin)...")
-    resp = requests.post(
-        f"{BASE_URL}/chat/mod/moderate",
-        headers={"Authorization": f"Bearer {free_token}"},
-        json={"user_id": admin_id, "action": "mute_5m"},
-        timeout=10,
-    )
-    if resp.status_code == 400:
-        print(f"✅ PASS: Mute admin returns 400 (detail: {resp.json().get('detail', '')})")
-        passed += 1
-    else:
-        print(f"❌ FAIL: Expected 400, got {resp.status_code}: {resp.text}")
-        failed += 1
-    
-    # 5c: Action "ban" → 403
-    print(f"\n[5c] POST /chat/mod/moderate (test_free action='ban')...")
-    resp = requests.post(
-        f"{BASE_URL}/chat/mod/moderate",
-        headers={"Authorization": f"Bearer {free_token}"},
-        json={"user_id": new_id, "action": "ban"},
-        timeout=10,
-    )
-    if resp.status_code == 403:
-        print(f"✅ PASS: Action 'ban' returns 403 (detail: {resp.json().get('detail', '')})")
-        passed += 1
-    else:
-        print(f"❌ FAIL: Expected 403, got {resp.status_code}: {resp.text}")
-        failed += 1
-    
-    # 5d: Action "mute_perm" → 403
-    print(f"\n[5d] POST /chat/mod/moderate (test_free action='mute_perm')...")
-    resp = requests.post(
-        f"{BASE_URL}/chat/mod/moderate",
-        headers={"Authorization": f"Bearer {free_token}"},
-        json={"user_id": new_id, "action": "mute_perm"},
-        timeout=10,
-    )
-    if resp.status_code == 403:
-        print(f"✅ PASS: Action 'mute_perm' returns 403 (detail: {resp.json().get('detail', '')})")
-        passed += 1
-    else:
-        print(f"❌ FAIL: Expected 403, got {resp.status_code}: {resp.text}")
-        failed += 1
-    
-    # ========================================================================
-    # TEST 6: Non-moderator blocked
-    # ========================================================================
-    print("\n" + "=" * 80)
-    print("TEST 6: Non-moderator blocked (test_new tries to moderate)")
-    print("=" * 80)
-    
-    print(f"\n[6] POST /chat/mod/moderate as test_new (not a moderator)...")
-    resp = requests.post(
-        f"{BASE_URL}/chat/mod/moderate",
-        headers={"Authorization": f"Bearer {new_token}"},
-        json={"user_id": free_id, "action": "mute_5m"},
-        timeout=10,
-    )
-    if resp.status_code == 403:
-        print(f"✅ PASS: Non-moderator returns 403 (detail: {resp.json().get('detail', '')})")
-        passed += 1
-    else:
-        print(f"❌ FAIL: Expected 403, got {resp.status_code}: {resp.text}")
-        failed += 1
-    
-    # ========================================================================
-    # TEST 7: Unmute (test_free unmutes test_new)
-    # ========================================================================
-    print("\n" + "=" * 80)
-    print("TEST 7: Unmute (test_free unmutes test_new)")
-    print("=" * 80)
-    
-    print(f"\n[7] POST /chat/mod/moderate (test_free unmutes test_new)...")
-    resp = requests.post(
-        f"{BASE_URL}/chat/mod/moderate",
-        headers={"Authorization": f"Bearer {free_token}"},
-        json={"user_id": new_id, "action": "unmute"},
-        timeout=10,
-    )
-    if resp.status_code == 200:
-        data = resp.json()
-        if data.get("success") and data.get("active") is None:
-            print(f"✅ PASS: Unmute returns 200, active=null")
-            passed += 1
-        else:
-            print(f"❌ FAIL: Expected active=null, got: {data}")
-            failed += 1
-    else:
-        print(f"❌ FAIL: Expected 200, got {resp.status_code}: {resp.text}")
-        failed += 1
-    
-    # ========================================================================
-    # TEST 8: Mod logs (admin gets logs, non-admin → 403)
-    # ========================================================================
-    print("\n" + "=" * 80)
-    print("TEST 8: Mod logs (admin gets logs, non-admin → 403)")
-    print("=" * 80)
-    
-    # 8a: Admin GET /chat/admin/mod-logs → 200 with items
-    print(f"\n[8a] GET /chat/admin/mod-logs as admin...")
-    resp = requests.get(
-        f"{BASE_URL}/chat/admin/mod-logs",
-        headers={"Authorization": f"Bearer {admin_token}"},
-        timeout=10,
-    )
-    if resp.status_code == 200:
-        data = resp.json()
-        items = data.get("items", [])
-        # Check for recent mute and unmute actions on NewUser by FreeUser
-        recent_logs = [
-            log for log in items
-            if log.get("target_nickname") == new_user["nickname"]
-            and log.get("moderator_nickname") == free_user["nickname"]
-        ]
-        if len(recent_logs) >= 2:  # Should have mute and unmute
-            print(f"✅ PASS: Mod logs returns 200 with {len(items)} items")
-            print(f"   Recent actions on {new_user['nickname']} by {free_user['nickname']}: {len(recent_logs)}")
-            for log in recent_logs[:2]:
-                print(f"   - {log.get('action')}: {log.get('duration', 'N/A')} (reason: {log.get('reason', 'N/A')})")
-            passed += 1
-        else:
-            print(f"❌ FAIL: Expected at least 2 recent logs, found {len(recent_logs)}")
-            print(f"   Total logs: {len(items)}")
-            failed += 1
-    else:
-        print(f"❌ FAIL: Expected 200, got {resp.status_code}: {resp.text}")
-        failed += 1
-    
-    # 8b: Non-admin GET /chat/admin/mod-logs → 403
-    print(f"\n[8b] GET /chat/admin/mod-logs as test_new (non-admin)...")
-    resp = requests.get(
-        f"{BASE_URL}/chat/admin/mod-logs",
-        headers={"Authorization": f"Bearer {new_token}"},
-        timeout=10,
-    )
-    if resp.status_code == 403:
-        print(f"✅ PASS: Non-admin returns 403 (detail: {resp.json().get('detail', '')})")
-        passed += 1
-    else:
-        print(f"❌ FAIL: Expected 403, got {resp.status_code}: {resp.text}")
-        failed += 1
-    
-    # ========================================================================
-    # TEST 9: Chat message includes is_moderator
-    # ========================================================================
-    print("\n" + "=" * 80)
-    print("TEST 9: Chat message includes is_moderator field")
-    print("=" * 80)
-    
-    print(f"\n[9] POST /chat/send as test_free (moderator)...")
-    import random
-    random_suffix = random.randint(1000, 9999)
-    resp = requests.post(
-        f"{BASE_URL}/chat/send",
-        headers={"Authorization": f"Bearer {free_token}"},
-        json={"room": "global", "content": f"Salut, sunt moderator! {random_suffix}"},
-        timeout=10,
-    )
-    if resp.status_code == 200:
-        data = resp.json()
-        message = data.get("message", {})
-        if message.get("is_moderator") is True:
-            print(f"✅ PASS: Chat message has is_moderator=true")
-            print(f"   Message: '{message.get('content', '')[:50]}...'")
-            passed += 1
-        else:
-            print(f"❌ FAIL: is_moderator={message.get('is_moderator')} (expected True)")
-            failed += 1
-    else:
-        print(f"❌ FAIL: Expected 200, got {resp.status_code}: {resp.text}")
-        failed += 1
-    
-    # ========================================================================
-    # TEST 10: Demote (admin demotes test_free)
-    # ========================================================================
-    print("\n" + "=" * 80)
-    print("TEST 10: Demote (admin demotes test_free)")
-    print("=" * 80)
-    
-    # 10a: POST /admin/moderators/{free_id}/demote as admin → 200
-    print(f"\n[10a] POST /admin/moderators/{free_id}/demote as admin...")
-    resp = requests.post(
-        f"{BASE_URL}/admin/moderators/{free_id}/demote",
-        headers={"Authorization": f"Bearer {admin_token}"},
-        timeout=10,
-    )
-    if resp.status_code == 200:
-        data = resp.json()
-        if data.get("success"):
-            print(f"✅ PASS: Demote returns 200, success=true")
-            passed += 1
-        else:
-            print(f"❌ FAIL: Response missing success: {data}")
-            failed += 1
-    else:
-        print(f"❌ FAIL: Expected 200, got {resp.status_code}: {resp.text}")
-        failed += 1
-    
-    # 10b: Re-login test_free and GET /auth/me → is_moderator==false
-    print(f"\n[10b] Re-login test_free and GET /auth/me...")
-    free_token, free_user = login(FREE_EMAIL, FREE_PASSWORD)
-    if free_user.get("is_moderator") is False:
-        print(f"✅ PASS: GET /auth/me returns is_moderator=false for test_free")
-        passed += 1
-    else:
-        print(f"❌ FAIL: is_moderator={free_user.get('is_moderator')} (expected False)")
-        failed += 1
-    
-    # 10c: GET /admin/moderators → test_free not in list
-    print(f"\n[10c] GET /admin/moderators (verify test_free not listed)...")
-    resp = requests.get(
-        f"{BASE_URL}/admin/moderators",
-        headers={"Authorization": f"Bearer {admin_token}"},
-        timeout=10,
-    )
-    if resp.status_code == 200:
-        data = resp.json()
-        items = data.get("items", [])
-        free_in_list = any(m.get("id") == free_id for m in items)
-        if not free_in_list:
-            print(f"✅ PASS: test_free not in moderators list (total moderators: {len(items)})")
-            passed += 1
-        else:
-            print(f"❌ FAIL: test_free still in moderators list")
-            failed += 1
-    else:
-        print(f"❌ FAIL: Expected 200, got {resp.status_code}: {resp.text}")
-        failed += 1
-    
-    # ========================================================================
-    # FINAL CLEANUP VERIFICATION
-    # ========================================================================
-    print("\n" + "=" * 80)
-    print("FINAL CLEANUP VERIFICATION")
-    print("=" * 80)
-    
-    print(f"\n[Cleanup] Verifying test_free is demoted (is_moderator=false)...")
-    free_info = get_user_info(free_token)
-    if free_info.get("is_moderator") is False:
-        print(f"✅ CLEANUP OK: test_free.is_moderator=false")
-    else:
-        print(f"⚠️  CLEANUP WARNING: test_free.is_moderator={free_info.get('is_moderator')}")
-    
-    # ========================================================================
-    # SUMMARY
-    # ========================================================================
-    print("\n" + "=" * 80)
+    # Summary
+    print("\n" + "="*80)
     print("TEST SUMMARY")
-    print("=" * 80)
-    total = passed + failed
-    print(f"\nTotal tests: {total}")
-    print(f"✅ Passed: {passed}")
-    print(f"❌ Failed: {failed}")
-    print(f"Success rate: {passed}/{total} ({100*passed//total if total > 0 else 0}%)")
+    print("="*80)
     
-    if failed == 0:
+    passed = sum(1 for _, result in results if result)
+    total = len(results)
+    
+    for name, result in results:
+        status = "✅ PASS" if result else "❌ FAIL"
+        print(f"{status}: {name}")
+    
+    print("\n" + "="*80)
+    print(f"TOTAL: {passed}/{total} tests passed ({passed*100//total}%)")
+    print("="*80)
+    
+    if passed == total:
         print("\n🎉 ALL TESTS PASSED!")
         sys.exit(0)
     else:
-        print(f"\n⚠️  {failed} TEST(S) FAILED")
+        print(f"\n⚠️  {total - passed} test(s) failed")
         sys.exit(1)
-
 
 if __name__ == "__main__":
     main()

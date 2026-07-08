@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-import { Eye, EyeOff, Globe, Loader2, AlertTriangle, Wrench, Rocket, LifeBuoy, Megaphone, Users, Tv } from "lucide-react";
+import { Eye, EyeOff, Globe, Loader2, AlertTriangle, Wrench, Rocket, LifeBuoy, Megaphone, Users, Tv, Tv2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useSettings } from "@/contexts/SettingsContext";
@@ -40,6 +40,7 @@ export default function AdminSettings() {
     support_enabled: true,
     lobby_enabled: true,
     watch_party_enabled: true,
+    cartoonix_tv_enabled: true,
     announcement_active: false,
     announcement_text: "",
   });
@@ -230,6 +231,30 @@ export default function AdminSettings() {
       });
     } catch (err) {
       setLocal((s) => ({ ...s, watch_party_enabled: prev }));
+      toast.error("Nu am putut salva setarea", {
+        description: err?.response?.data?.detail || "Încearcă din nou.",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggleCartoonixTv = async (next) => {
+    if (saving) return;
+    const prev = local.cartoonix_tv_enabled;
+    setLocal((s) => ({ ...s, cartoonix_tv_enabled: next }));
+    setSaving(true);
+    try {
+      const { data } = await api.patch("/admin/settings", { cartoonix_tv_enabled: next });
+      setLocal(data);
+      if (refresh) await refresh();
+      toast.success(next ? "Pagina Cartoonix TV activată" : "Pagina Cartoonix TV dezactivată", {
+        description: next
+          ? "Vizitatorii văd pagina completă de pre-înregistrare pe /live-tv."
+          : "Vizitatorii non-admin văd un placeholder \"în lucru\" pe /live-tv. Adminii păstrează acces complet.",
+      });
+    } catch (err) {
+      setLocal((s) => ({ ...s, cartoonix_tv_enabled: prev }));
       toast.error("Nu am putut salva setarea", {
         description: err?.response?.data?.detail || "Încearcă din nou.",
       });
@@ -657,6 +682,62 @@ export default function AdminSettings() {
           <span className="text-xs text-muted-foreground">
             Schimbarea e instantanee pentru toți utilizatorii.
           </span>
+        </div>
+      </div>
+
+      {/* CARTOONIX TV TOGGLE CARD */}
+      <div className="rounded-2xl border border-border bg-card/70 overflow-hidden">
+        <div className="p-6 flex items-start gap-5">
+          <div className="shrink-0 h-12 w-12 rounded-xl bg-gradient-to-br from-[#ff3b3b] to-blue-600 grid place-items-center text-white">
+            <Tv2 className="h-6 w-6" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="font-display text-xl tracking-wide flex items-center gap-2">
+                  Pagina Cartoonix TV
+                  {loading ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  ) : local.cartoonix_tv_enabled ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 uppercase tracking-widest">
+                      <Eye className="h-3 w-3" /> Activ
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-white/10 text-muted-foreground uppercase tracking-widest">
+                      <EyeOff className="h-3 w-3" /> Inactiv
+                    </span>
+                  )}
+                </h2>
+                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+                  Controlează pagina publică <code>/live-tv</code> — landing-ul
+                  de pre-înregistrare pentru aplicația Cartoonix TV. Când e
+                  <strong> dezactivată</strong>, vizitatorii non-admin văd un
+                  placeholder &laquo;în lucru&raquo;. Adminii păstrează acces complet pentru
+                  testare. Pre-înregistrările deja plătite rămân în baza de date.
+                </p>
+              </div>
+              <Toggle
+                id="settings-cartoonix-tv-toggle"
+                checked={!!local.cartoonix_tv_enabled}
+                onChange={toggleCartoonixTv}
+                disabled={saving || loading}
+              />
+            </div>
+          </div>
+        </div>
+        <div className="px-6 py-3 bg-black/20 border-t border-border/60 flex items-center justify-between">
+          <span className="text-xs text-muted-foreground">
+            Vezi utilizatorii pre-înregistrați în <code>/admin/cartoonix-tv</code>.
+          </span>
+          <Button
+            asChild
+            variant="ghost"
+            size="sm"
+            className="h-7 text-xs"
+            data-testid="settings-open-ctv-admin"
+          >
+            <a href="/admin/cartoonix-tv">Deschide lista →</a>
+          </Button>
         </div>
       </div>
 
