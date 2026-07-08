@@ -13,7 +13,7 @@ import sys
 import time
 
 # Base URL from frontend/.env
-BASE_URL = "https://stream-player-63.preview.emergentagent.com/api"
+BASE_URL = "https://tv-prelaunch.preview.emergentagent.com/api"
 
 # Test credentials from /app/memory/test_credentials.md
 ADMIN_EMAIL = "test_admin@cartoonix.ro"

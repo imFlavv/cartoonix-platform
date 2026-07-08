@@ -16,7 +16,7 @@ import time
 from typing import Optional, Dict
 
 # Backend URL from environment
-BACKEND_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://stream-player-63.preview.emergentagent.com")
+BACKEND_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://tv-prelaunch.preview.emergentagent.com")
 API_BASE = f"{BACKEND_URL}/api"
 
 # Test credentials from /app/memory/test_credentials.md
