@@ -3,9 +3,6 @@ import { useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import {
-  Tv,
-  Radio,
-  Smartphone,
   Rocket,
   CheckCircle2,
   Sparkles,
@@ -131,7 +128,7 @@ function ComingSoonPlaceholder() {
 // -----------------------------
 // Feature card
 // -----------------------------
-function FeatureCard({ icon: Icon, emoji, title, children, delay = 0 }) {
+function FeatureCard({ emoji, title, children, delay = 0 }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 24 }}
@@ -145,12 +142,9 @@ function FeatureCard({ icon: Icon, emoji, title, children, delay = 0 }) {
         <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-[hsl(var(--accent))]/20 to-transparent ring-1 ring-[hsl(var(--accent))]/25 text-2xl">
           {emoji}
         </div>
-        <div className="flex items-center gap-2">
-          <Icon className="h-4 w-4 text-[hsl(var(--accent))]" />
-          <h3 className="font-display text-lg tracking-wide text-white">
-            {title}
-          </h3>
-        </div>
+        <h3 className="font-display text-lg tracking-wide text-white">
+          {title}
+        </h3>
       </div>
       <p className="mt-4 text-sm leading-relaxed text-white/60">{children}</p>
     </motion.div>
@@ -262,25 +256,21 @@ function CartoonixTvLanding() {
   const FEATURES = useMemo(
     () => [
       {
-        icon: Radio,
         emoji: "📺",
         title: "LIVE TV 24/7",
         text: "Canalul 1 va transmite non-stop desene animate, exact ca un post TV clasic. Deschizi aplicația și te bucuri instant de conținut, fără să alegi episoade.",
       },
       {
-        icon: Tv,
         emoji: "🎬",
         title: "Bibliotecă de desene animate",
         text: "Colecții cu desene animate inspirate din programele care au marcat copilăria, precum Jetix, Cartoon Network și Minimax. Toate într-un singur loc.",
       },
       {
-        icon: Smartphone,
         emoji: "📱",
         title: "Aplicație dedicată pentru TV",
         text: "Interfață optimizată pentru Android TV, Google TV și alte dispozitive compatibile. Ușor de utilizat cu telecomanda, gândită pentru ecrane mari.",
       },
       {
-        icon: Rocket,
         emoji: "🚀",
         title: "Actualizări constante",
         text: "În viitor vom adăuga noi funcționalități, noi seriale și mai multe canale LIVE. Contul tău primește gratuit toate îmbunătățirile.",
@@ -391,7 +381,6 @@ function CartoonixTvLanding() {
             {FEATURES.map((f, i) => (
               <FeatureCard
                 key={f.title}
-                icon={f.icon}
                 emoji={f.emoji}
                 title={f.title}
                 delay={i * 0.08}
