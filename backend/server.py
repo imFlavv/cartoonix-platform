@@ -124,6 +124,17 @@ class RegisterInput(BaseModel):
     avatar: Optional[str] = ""
 
 
+class RegisterStartInput(BaseModel):
+    name: str
+    email: EmailStr
+    password: str = Field(min_length=6)
+
+
+class RegisterVerifyInput(BaseModel):
+    email: EmailStr
+    code: str
+
+
 class LoginInput(BaseModel):
     email: EmailStr
     password: str
