@@ -4,6 +4,7 @@ import { NavBar } from "@/components/NavBar";
 import { HeroBanner } from "@/components/HeroBanner";
 import { ContentCarousel } from "@/components/ContentCarousel";
 import { LOGO_TRANSPARENT, CHANNELS } from "@/data/constants";
+import { OnlineCounter } from "@/components/OnlineCounter";
 
 const Home = () => {
   const [shows, setShows] = useState([]);
@@ -77,6 +78,8 @@ const Home = () => {
         </p>
         <p className="text-xs text-white/30 mt-4">© 2026 Cartoonix. Toate drepturile rezervate.</p>
       </footer>
+
+      <OnlineCounter />
     </div>
   );
 };

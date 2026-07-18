@@ -18,6 +18,20 @@ export const AVATAR_SEEDS = [
   "https://api.dicebear.com/9.x/big-smile/svg?seed=Sunny",
 ];
 
+// Premium avatars - only for Cartoonix PLUS members. Elegant styles.
+export const PREMIUM_AVATARS = [
+  "https://api.dicebear.com/9.x/lorelei/svg?seed=Aurora&backgroundColor=b6e3f4",
+  "https://api.dicebear.com/9.x/notionists/svg?seed=Royale&backgroundColor=ffd5dc",
+  "https://api.dicebear.com/9.x/micah/svg?seed=Diamond&backgroundColor=c0aede",
+  "https://api.dicebear.com/9.x/personas/svg?seed=Legend&backgroundColor=ffdfbf",
+  "https://api.dicebear.com/9.x/lorelei/svg?seed=Phoenix&backgroundColor=d1d4f9",
+  "https://api.dicebear.com/9.x/notionists/svg?seed=Empire&backgroundColor=b6e3f4",
+  "https://api.dicebear.com/9.x/micah/svg?seed=Vortex&backgroundColor=ffd5dc",
+  "https://api.dicebear.com/9.x/personas/svg?seed=Titan&backgroundColor=c0aede",
+  "https://api.dicebear.com/9.x/lorelei/svg?seed=Galaxy&backgroundColor=ffdfbf",
+  "https://api.dicebear.com/9.x/notionists/svg?seed=Cosmic&backgroundColor=d1d4f9",
+];
+
 export const CHANNELS = ["Cartoon Network", "Jetix", "Minimax", "Boomerang"];
 
 export const PLUS_ICON = "/plus-icon.png";

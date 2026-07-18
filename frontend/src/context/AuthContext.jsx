@@ -45,6 +45,15 @@ export const AuthProvider = ({ children }) => {
     return data;
   };
 
+  // presence heartbeat + time tracking
+  useEffect(() => {
+    if (!user) return;
+    const ping = () => api.post("/presence").catch(() => {});
+    ping();
+    const t = setInterval(ping, 30000);
+    return () => clearInterval(t);
+  }, [user]);
+
   return (
     <AuthContext.Provider
       value={{ user, setUser, loading, login, register, logout, refreshUser }}

@@ -153,3 +153,38 @@ body {
   0%, 100% { opacity: 0; transform: scale(0.5); }
   50% { opacity: 1; transform: scale(1); }
 }
+
+/* online pulse dot */
+@keyframes cx-ping {
+  0% { transform: scale(0.9); opacity: 0.8; }
+  75%, 100% { transform: scale(2.2); opacity: 0; }
+}
+.cx-ping::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: #22c55e;
+  animation: cx-ping 1.6s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+/* premium PLUS avatar glowing ring */
+@keyframes cx-ring-spin {
+  to { transform: rotate(360deg); }
+}
+.cx-premium-ring {
+  position: relative;
+}
+.cx-premium-ring::before {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 9999px;
+  background: conic-gradient(from 0deg, #ffcc00, #ec1c24, #ffcc00, #ff8a00, #ffcc00);
+  animation: cx-ring-spin 3s linear infinite;
+  z-index: 0;
+}
+.cx-premium-ring > * {
+  position: relative;
+  z-index: 1;
+}

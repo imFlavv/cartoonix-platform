@@ -3,8 +3,9 @@ import { NavBar } from "@/components/NavBar";
 import { api } from "@/lib/api";
 import { CHANNELS } from "@/data/constants";
 import { toast } from "sonner";
-import { FolderSearch, Plus, Film, Lightbulb, Users, Pencil, ChevronUp, ChevronDown } from "lucide-react";
+import { FolderSearch, Plus, Film, Lightbulb, Users, Pencil, ChevronUp, ChevronDown, ServerCog } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
 import { AdminMembers } from "@/components/AdminMembers";
 import { AdminShowEditor } from "@/components/AdminShowEditor";
 
@@ -27,10 +28,25 @@ const Admin = () => {
   const [detected, setDetected] = useState(null);
   const [suggestions, setSuggestions] = useState([]);
   const [editingShow, setEditingShow] = useState(null);
+  const [maintenance, setMaintenance] = useState(false);
 
   const load = () => api.get("/shows").then((res) => setShows(res.data));
   const loadSuggestions = () => api.get("/admin/suggestions").then((res) => setSuggestions(res.data)).catch(() => {});
-  useEffect(() => { load(); loadSuggestions(); }, []);
+  useEffect(() => {
+    load();
+    loadSuggestions();
+    api.get("/settings/maintenance").then((res) => setMaintenance(res.data.enabled)).catch(() => {});
+  }, []);
+
+  const toggleMaintenance = async (val) => {
+    try {
+      await api.post("/admin/maintenance", { enabled: val });
+      setMaintenance(val);
+      toast.success(val ? "Mentenanță ACTIVATĂ - platforma e blocată pentru utilizatori" : "Mentenanță dezactivată");
+    } catch {
+      toast.error("Eroare");
+    }
+  };
 
   const move = async (index, dir) => {
     const arr = [...shows];
@@ -105,6 +121,9 @@ const Admin = () => {
             </TabsTrigger>
             <TabsTrigger value="members" data-testid="admin-tab-members" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
               <Users className="h-4 w-4 mr-2" /> Membri
+            </TabsTrigger>
+            <TabsTrigger value="platform" data-testid="admin-tab-platform" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
+              <ServerCog className="h-4 w-4 mr-2" /> Platformă
             </TabsTrigger>
           </TabsList>
 
@@ -193,6 +212,22 @@ const Admin = () => {
 
           <TabsContent value="members">
             <AdminMembers />
+          </TabsContent>
+
+          <TabsContent value="platform">
+            <div className="max-w-xl">
+              <div className="bg-[#0f0f0f] border border-white/10 rounded-2xl p-6">
+                <h2 className="font-display text-2xl mb-1 flex items-center gap-2"><ServerCog className="h-5 w-5 text-[#ffcc00]" /> Mod mentenanță</h2>
+                <p className="text-sm text-white/50 mb-5">Când e activat, întreaga platformă este blocată pentru utilizatori. Doar adminii se pot loga și naviga.</p>
+                <div className="flex items-center justify-between p-4 rounded-xl bg-white/5">
+                  <div>
+                    <p className="font-semibold">Platformă în mentenanță</p>
+                    <p className={`text-xs ${maintenance ? "text-[#ec1c24]" : "text-[#22c55e]"}`}>{maintenance ? "ACTIVĂ - utilizatorii nu au acces" : "Inactivă - platforma funcționează normal"}</p>
+                  </div>
+                  <Switch data-testid="maintenance-toggle" checked={maintenance} onCheckedChange={toggleMaintenance} />
+                </div>
+              </div>
+            </div>
           </TabsContent>
         </Tabs>
       </div>

@@ -1,14 +1,23 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { NavBar } from "@/components/NavBar";
 import { useAuth } from "@/context/AuthContext";
 import { useLibrary } from "@/context/LibraryContext";
 import { api } from "@/lib/api";
-import { AVATAR_SEEDS } from "@/data/constants";
+import { AVATAR_SEEDS, PREMIUM_AVATARS } from "@/data/constants";
 import { PlusIcon } from "@/components/PlusIcon";
-import { Check, Play, Heart, Trash2, ListMusic, Film } from "lucide-react";
+import { Check, Play, Heart, Trash2, ListMusic, Film, Clock, Lock } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+
+const formatTime = (sec) => {
+  sec = Math.floor(sec || 0);
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m`;
+  return `${sec}s`;
+};
 
 const EpItem = ({ item, onPlay, right }) => (
   <div className="group flex items-center gap-3 p-2.5 rounded-xl bg-[#141414] border border-white/5 hover:bg-[#1c1c1c] transition-colors duration-200">
@@ -27,11 +36,16 @@ const EpItem = ({ item, onPlay, right }) => (
 );
 
 const Profile = () => {
-  const { user, setUser } = useAuth();
+  const { user, setUser, refreshUser } = useAuth();
   const { favorites, playlists, toggleFavorite, deletePlaylist, togglePlaylistItem } = useLibrary();
   const navigate = useNavigate();
   const [avatar, setAvatar] = useState(user?.avatar || AVATAR_SEEDS[0]);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    refreshUser().catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const saveAvatar = async () => {
     setBusy(true);
@@ -39,9 +53,20 @@ const Profile = () => {
       const { data } = await api.put("/auth/avatar", { avatar });
       setUser(data);
       toast.success("Avatar actualizat!");
+    } catch (e) {
+      toast.error(e.response?.data?.detail || "Nu s-a putut salva");
     } finally {
       setBusy(false);
     }
+  };
+
+  const pickPremium = (a) => {
+    if (!user?.plus) {
+      toast.error("Avatarele premium sunt doar pentru membrii PLUS");
+      navigate("/plus");
+      return;
+    }
+    setAvatar(a);
   };
 
   const play = (i) => navigate(`/watch/${i.show_id}/${i.episode_number}`);
@@ -83,6 +108,12 @@ const Profile = () => {
               <div>
                 <p className="font-display text-3xl text-[#ffcc00]">{playlists.length}</p>
                 <p className="text-xs text-white/50">Playlist-uri</p>
+              </div>
+              <div data-testid="time-spent">
+                <p className="font-display text-3xl text-[#ffcc00] flex items-center gap-1 justify-center">
+                  <Clock className="h-5 w-5" /> {formatTime(user?.total_time_seconds)}
+                </p>
+                <p className="text-xs text-white/50">Timp petrecut</p>
               </div>
             </div>
           </div>
@@ -191,6 +222,45 @@ const Profile = () => {
               <button data-testid="profile-save" onClick={saveAvatar} disabled={busy} className="px-7 py-3 rounded-full bg-[#ec1c24] font-bold hover:bg-[#ff2d36] transition-colors duration-200 disabled:opacity-60">
                 {busy ? "Se salvează..." : "Salvează avatarul"}
               </button>
+
+              <div className="mt-8">
+                <h3 className="font-display text-2xl mb-1 flex items-center gap-2">
+                  <PlusIcon className="h-5 w-5" /> Avatare PLUS
+                </h3>
+                <p className="text-sm text-white/50 mb-4">Avatare elegante, exclusiv pentru membrii Cartoonix PLUS.</p>
+                <div className="grid grid-cols-5 sm:grid-cols-7 gap-4 max-w-lg">
+                  {PREMIUM_AVATARS.map((a) => {
+                    const selected = avatar === a;
+                    return (
+                      <button
+                        key={a}
+                        data-testid="premium-avatar-option"
+                        onClick={() => pickPremium(a)}
+                        className={`relative rounded-full transition-all duration-200 ${selected ? "scale-105" : ""} ${!user?.plus ? "opacity-90" : ""}`}
+                      >
+                        <span className={`block rounded-full overflow-hidden ${user?.plus ? "cx-premium-ring" : "border-2 border-white/10"}`}>
+                          <img src={a} alt="avatar premium" className="w-full aspect-square object-cover bg-white/5 rounded-full" />
+                        </span>
+                        {!user?.plus && (
+                          <span className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-full">
+                            <Lock className="h-4 w-4 text-[#ffcc00]" />
+                          </span>
+                        )}
+                        {selected && user?.plus && (
+                          <span className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center rounded-full bg-[#ffcc00]">
+                            <Check className="h-3 w-3 text-black" />
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+                {!user?.plus && (
+                  <button onClick={() => navigate("/plus")} data-testid="profile-premium-upsell" className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#ffcc00] text-black font-bold hover:brightness-110 transition-all duration-200">
+                    <PlusIcon className="h-4 w-4" /> Deblochează cu PLUS
+                  </button>
+                )}
+              </div>
             </TabsContent>
           </Tabs>
         </div>

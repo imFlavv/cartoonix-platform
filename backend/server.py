@@ -64,8 +64,25 @@ def serialize_user(doc: dict) -> dict:
         "plus": doc.get("plus", False),
         "banned": doc.get("banned", False),
         "last_ip": doc.get("last_ip", ""),
+        "total_time_seconds": doc.get("total_time_seconds", 0),
+        "last_seen": doc.get("last_seen"),
         "created_at": doc.get("created_at"),
     }
+
+
+# Premium avatars (Cartoonix PLUS only)
+PREMIUM_AVATARS = {
+    "https://api.dicebear.com/9.x/lorelei/svg?seed=Aurora&backgroundColor=b6e3f4",
+    "https://api.dicebear.com/9.x/notionists/svg?seed=Royale&backgroundColor=ffd5dc",
+    "https://api.dicebear.com/9.x/micah/svg?seed=Diamond&backgroundColor=c0aede",
+    "https://api.dicebear.com/9.x/personas/svg?seed=Legend&backgroundColor=ffdfbf",
+    "https://api.dicebear.com/9.x/lorelei/svg?seed=Phoenix&backgroundColor=d1d4f9",
+    "https://api.dicebear.com/9.x/notionists/svg?seed=Empire&backgroundColor=b6e3f4",
+    "https://api.dicebear.com/9.x/micah/svg?seed=Vortex&backgroundColor=ffd5dc",
+    "https://api.dicebear.com/9.x/personas/svg?seed=Titan&backgroundColor=c0aede",
+    "https://api.dicebear.com/9.x/lorelei/svg?seed=Galaxy&backgroundColor=ffdfbf",
+    "https://api.dicebear.com/9.x/notionists/svg?seed=Cosmic&backgroundColor=d1d4f9",
+}
 
 
 def get_client_ip(request: Request) -> str:
@@ -183,6 +200,9 @@ async def login(data: LoginInput, request: Request):
         raise HTTPException(status_code=401, detail="Email sau parolă incorectă")
     if user.get("banned"):
         raise HTTPException(status_code=403, detail="Cont suspendat")
+    settings = await db.settings.find_one({"key": "maintenance"})
+    if settings and settings.get("enabled") and user.get("role") != "admin":
+        raise HTTPException(status_code=503, detail="Platforma este momentan în mentenanță. Revenim curând!")
     await db.users.update_one({"_id": user["_id"]}, {"$set": {"last_ip": ip}})
     user["last_ip"] = ip
     token = create_access_token(str(user["_id"]), email)
@@ -196,6 +216,8 @@ async def me(user: dict = Depends(get_current_user)):
 
 @api_router.put("/auth/avatar")
 async def update_avatar(data: AvatarInput, user: dict = Depends(get_current_user)):
+    if data.avatar in PREMIUM_AVATARS and not user.get("plus"):
+        raise HTTPException(status_code=403, detail="Acest avatar este disponibil doar pentru membrii Cartoonix PLUS")
     await db.users.update_one({"_id": user["_id"]}, {"$set": {"avatar": data.avatar}})
     user["avatar"] = data.avatar
     return serialize_user(user)
@@ -647,6 +669,54 @@ async def get_show_progress(show_id: str, user: dict = Depends(get_current_user)
             "completed": r.get("completed", False),
         }
     return result
+
+
+# ---------- presence & time tracking ----------
+@api_router.post("/presence")
+async def heartbeat(user: dict = Depends(get_current_user)):
+    now = datetime.now(timezone.utc)
+    add = 0
+    last = user.get("last_seen")
+    if last:
+        try:
+            delta = (now - datetime.fromisoformat(last)).total_seconds()
+            if 0 < delta <= 90:
+                add = int(delta)
+        except Exception:
+            add = 0
+    await db.users.update_one(
+        {"_id": user["_id"]},
+        {"$set": {"last_seen": now.isoformat()}, "$inc": {"total_time_seconds": add}},
+    )
+    return {"ok": True}
+
+
+@api_router.get("/presence/online")
+async def online_count():
+    threshold = (datetime.now(timezone.utc) - timedelta(seconds=60)).isoformat()
+    count = await db.users.count_documents({"last_seen": {"$gte": threshold}})
+    return {"online": count}
+
+
+# ---------- maintenance ----------
+class MaintenanceInput(BaseModel):
+    enabled: bool
+
+
+@api_router.get("/settings/maintenance")
+async def get_maintenance():
+    s = await db.settings.find_one({"key": "maintenance"})
+    return {"enabled": bool(s and s.get("enabled"))}
+
+
+@api_router.post("/admin/maintenance")
+async def set_maintenance(data: MaintenanceInput, admin: dict = Depends(require_admin)):
+    await db.settings.update_one(
+        {"key": "maintenance"},
+        {"$set": {"key": "maintenance", "enabled": data.enabled, "updated_at": datetime.now(timezone.utc).isoformat()}},
+        upsert=True,
+    )
+    return {"enabled": data.enabled}
 
 
 @api_router.get("/")
