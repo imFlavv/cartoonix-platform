@@ -247,7 +247,7 @@ const Profile = () => {
                           </span>
                         )}
                         {selected && user?.plus && (
-                          <span className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center rounded-full bg-[#ffcc00]">
+                          <span className="absolute -top-1 -right-1 z-20 h-5 w-5 flex items-center justify-center rounded-full bg-[#ffcc00] shadow-md">
                             <Check className="h-3 w-3 text-black" />
                           </span>
                         )}
