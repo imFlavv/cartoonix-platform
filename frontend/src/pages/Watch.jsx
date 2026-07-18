@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api } from "@/lib/api";
-import { ArrowLeft, ChevronRight, Download, Heart, Plus } from "lucide-react";
+import { ArrowLeft, ChevronRight, Download, Heart, Plus, Check } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useLibrary } from "@/context/LibraryContext";
 import { PlusIcon } from "@/components/PlusIcon";
@@ -15,19 +15,76 @@ const Watch = () => {
   const { isFavorite, toggleFavorite } = useLibrary();
   const [show, setShow] = useState(null);
   const [plDialog, setPlDialog] = useState(false);
+  const [autoplay, setAutoplay] = useState(true);
   const epNumber = parseInt(ep, 10);
+  const videoRef = useRef(null);
+  const resumeRef = useRef(0);
+  const lastSaveRef = useRef(0);
 
   useEffect(() => {
     api.get(`/shows/${id}`).then((res) => setShow(res.data));
   }, [id]);
 
+  const episode = show?.episodes?.find((e) => e.number === epNumber);
+  const locked = !user?.plus && epNumber > 2;
+  const next = show?.episodes?.find((e) => e.number === epNumber + 1);
+  const fav = show ? isFavorite(show.id, epNumber) : false;
+
+  // fetch resume position
+  useEffect(() => {
+    resumeRef.current = 0;
+    if (!show || locked) return;
+    api.get(`/progress/${show.id}`).then((res) => {
+      const p = res.data[String(epNumber)];
+      if (p && !p.completed && p.position > 5) resumeRef.current = p.position;
+    }).catch(() => {});
+  }, [show, epNumber, locked]);
+
+  const saveProgress = useCallback((completed = false) => {
+    const v = videoRef.current;
+    if (!show || !v) return;
+    api.post("/progress", {
+      show_id: show.id,
+      episode_number: epNumber,
+      position: completed ? 0 : Math.floor(v.currentTime || 0),
+      duration: Math.floor(v.duration || 0),
+      completed,
+    }).catch(() => {});
+  }, [show, epNumber]);
+
+  const onLoadedMeta = () => {
+    if (resumeRef.current > 0 && videoRef.current) {
+      videoRef.current.currentTime = resumeRef.current;
+      toast.info("Reluăm de unde ai rămas ▶");
+    }
+  };
+
+  const onTimeUpdate = () => {
+    const v = videoRef.current;
+    if (!v) return;
+    const now = Date.now();
+    if (now - lastSaveRef.current > 5000) {
+      lastSaveRef.current = now;
+      saveProgress(false);
+    }
+  };
+
+  const onEnded = () => {
+    saveProgress(true);
+    if (autoplay && next) {
+      toast.success("Trecem la episodul următor ▶");
+      navigate(`/watch/${id}/${next.number}`);
+    }
+  };
+
+  // save on unmount / navigation
+  useEffect(() => {
+    return () => saveProgress(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [epNumber, show]);
+
   if (!show)
     return <div className="min-h-screen bg-black flex items-center justify-center text-white/40">Se încarcă...</div>;
-
-  const episode = show.episodes?.find((e) => e.number === epNumber);
-  const locked = !user?.plus && epNumber > 2;
-  const next = show.episodes?.find((e) => e.number === epNumber + 1);
-  const fav = isFavorite(show.id, epNumber);
 
   const makeRef = () => ({
     show_id: show.id,
@@ -85,11 +142,16 @@ const Watch = () => {
           </div>
         ) : (
           <video
+            ref={videoRef}
             data-testid="video-player"
             key={episode?.video_url}
             src={episode?.video_url}
             controls
             autoPlay
+            onLoadedMetadata={onLoadedMeta}
+            onTimeUpdate={onTimeUpdate}
+            onEnded={onEnded}
+            onPause={() => saveProgress(false)}
             className="w-full aspect-video rounded-xl bg-black shadow-[0_0_60px_rgba(236,28,36,0.15)]"
           />
         )}
@@ -100,6 +162,10 @@ const Watch = () => {
             <p className="text-white/50 text-sm">{show.channel} · {episode?.duration}</p>
           </div>
           <div className="flex items-center gap-2">
+            <label className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/10 text-sm font-semibold cursor-pointer select-none" data-testid="watch-autoplay-toggle">
+              <input type="checkbox" checked={autoplay} onChange={(e) => setAutoplay(e.target.checked)} className="accent-[#ec1c24]" />
+              Auto-play
+            </label>
             <button data-testid="watch-fav" onClick={onFav} className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/10 hover:bg-white/20 font-semibold transition-colors duration-200">
               <Heart className={`h-4 w-4 ${fav ? "fill-[#ec1c24] text-[#ec1c24]" : ""}`} /> Favorite
             </button>
@@ -124,4 +190,3 @@ const Watch = () => {
 };
 
 export default Watch;
-

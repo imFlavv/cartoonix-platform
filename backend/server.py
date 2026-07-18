@@ -62,8 +62,17 @@ def serialize_user(doc: dict) -> dict:
         "avatar": doc.get("avatar", ""),
         "role": doc.get("role", "user"),
         "plus": doc.get("plus", False),
+        "banned": doc.get("banned", False),
+        "last_ip": doc.get("last_ip", ""),
         "created_at": doc.get("created_at"),
     }
+
+
+def get_client_ip(request: Request) -> str:
+    fwd = request.headers.get("x-forwarded-for", "")
+    if fwd:
+        return fwd.split(",")[0].strip()
+    return request.client.host if request.client else ""
 
 
 async def get_current_user(creds: Optional[HTTPAuthorizationCredentials] = Depends(security)) -> dict:
@@ -75,6 +84,8 @@ async def get_current_user(creds: Optional[HTTPAuthorizationCredentials] = Depen
         user = await db.users.find_one({"_id": ObjectId(payload["sub"])})
         if not user:
             raise HTTPException(status_code=401, detail="Utilizator inexistent")
+        if user.get("banned"):
+            raise HTTPException(status_code=403, detail="Cont suspendat")
         return user
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Sesiune expirată")
@@ -137,10 +148,13 @@ def serialize_show(doc: dict) -> dict:
 
 # ---------- auth routes ----------
 @api_router.post("/auth/register")
-async def register(data: RegisterInput):
+async def register(data: RegisterInput, request: Request):
     email = data.email.lower()
     if await db.users.find_one({"email": email}):
         raise HTTPException(status_code=400, detail="Acest email este deja folosit")
+    ip = get_client_ip(request)
+    if await db.banned_ips.find_one({"ip": ip}):
+        raise HTTPException(status_code=403, detail="Acces interzis")
     doc = {
         "email": email,
         "password_hash": hash_password(data.password),
@@ -148,6 +162,8 @@ async def register(data: RegisterInput):
         "avatar": data.avatar or "",
         "role": "user",
         "plus": False,
+        "banned": False,
+        "last_ip": ip,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     res = await db.users.insert_one(doc)
@@ -157,11 +173,18 @@ async def register(data: RegisterInput):
 
 
 @api_router.post("/auth/login")
-async def login(data: LoginInput):
+async def login(data: LoginInput, request: Request):
     email = data.email.lower()
+    ip = get_client_ip(request)
+    if await db.banned_ips.find_one({"ip": ip}):
+        raise HTTPException(status_code=403, detail="Acces interzis de pe această adresă IP")
     user = await db.users.find_one({"email": email})
     if not user or not verify_password(data.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Email sau parolă incorectă")
+    if user.get("banned"):
+        raise HTTPException(status_code=403, detail="Cont suspendat")
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {"last_ip": ip}})
+    user["last_ip"] = ip
     token = create_access_token(str(user["_id"]), email)
     return {"token": token, "user": serialize_user(user)}
 
@@ -202,7 +225,9 @@ async def get_shows(category: Optional[str] = None, q: Optional[str] = None):
     if q:
         query["title"] = {"$regex": q, "$options": "i"}
     shows = await db.shows.find(query).to_list(500)
-    return [serialize_show(s) for s in shows]
+    shows = [serialize_show(s) for s in shows]
+    shows.sort(key=lambda s: (s.get("order", 9999), s.get("created_at", "")))
+    return shows
 
 
 @api_router.get("/shows/{show_id}")
@@ -433,6 +458,186 @@ async def list_suggestions(admin: dict = Depends(require_admin)):
     for s in sugs:
         s["id"] = str(s.pop("_id"))
     return sugs
+
+
+# ---------- admin: users management ----------
+class AdminUserUpdate(BaseModel):
+    email: Optional[EmailStr] = None
+    name: Optional[str] = None
+    plus: Optional[bool] = None
+    banned: Optional[bool] = None
+    role: Optional[str] = None
+
+
+class PasswordReset(BaseModel):
+    password: str = Field(min_length=6)
+
+
+class BanIpInput(BaseModel):
+    ip: str
+    reason: Optional[str] = ""
+
+
+@api_router.get("/admin/users")
+async def admin_list_users(q: Optional[str] = None, admin: dict = Depends(require_admin)):
+    query = {}
+    if q:
+        query = {"$or": [
+            {"email": {"$regex": q, "$options": "i"}},
+            {"name": {"$regex": q, "$options": "i"}},
+        ]}
+    users = await db.users.find(query).sort("created_at", -1).to_list(1000)
+    return [serialize_user(u) for u in users]
+
+
+@api_router.put("/admin/users/{uid}")
+async def admin_update_user(uid: str, data: AdminUserUpdate, admin: dict = Depends(require_admin)):
+    updates = {k: v for k, v in data.model_dump().items() if v is not None}
+    if "email" in updates:
+        updates["email"] = updates["email"].lower()
+        clash = await db.users.find_one({"email": updates["email"], "_id": {"$ne": ObjectId(uid)}})
+        if clash:
+            raise HTTPException(status_code=400, detail="Email deja folosit de alt cont")
+    if updates:
+        await db.users.update_one({"_id": ObjectId(uid)}, {"$set": updates})
+    user = await db.users.find_one({"_id": ObjectId(uid)})
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilizator inexistent")
+    return serialize_user(user)
+
+
+@api_router.put("/admin/users/{uid}/password")
+async def admin_reset_password(uid: str, data: PasswordReset, admin: dict = Depends(require_admin)):
+    await db.users.update_one({"_id": ObjectId(uid)}, {"$set": {"password_hash": hash_password(data.password)}})
+    return {"ok": True}
+
+
+@api_router.delete("/admin/users/{uid}")
+async def admin_delete_user(uid: str, admin: dict = Depends(require_admin)):
+    if str(admin["_id"]) == uid:
+        raise HTTPException(status_code=400, detail="Nu te poți șterge pe tine")
+    await db.users.delete_one({"_id": ObjectId(uid)})
+    return {"ok": True}
+
+
+@api_router.get("/admin/banned-ips")
+async def admin_banned_ips(admin: dict = Depends(require_admin)):
+    ips = await db.banned_ips.find({}).sort("created_at", -1).to_list(500)
+    for i in ips:
+        i["id"] = str(i.pop("_id"))
+    return ips
+
+
+@api_router.post("/admin/ban-ip")
+async def admin_ban_ip(data: BanIpInput, admin: dict = Depends(require_admin)):
+    if not data.ip.strip():
+        raise HTTPException(status_code=400, detail="IP invalid")
+    existing = await db.banned_ips.find_one({"ip": data.ip.strip()})
+    if not existing:
+        await db.banned_ips.insert_one({
+            "ip": data.ip.strip(),
+            "reason": data.reason,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+    return {"ok": True}
+
+
+@api_router.delete("/admin/ban-ip/{ip}")
+async def admin_unban_ip(ip: str, admin: dict = Depends(require_admin)):
+    await db.banned_ips.delete_one({"ip": ip})
+    return {"ok": True}
+
+
+# ---------- admin: show edit / reorder ----------
+class ShowUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    thumbnail: Optional[str] = None
+    banner: Optional[str] = None
+    category: Optional[str] = None
+    channel: Optional[str] = None
+    year: Optional[str] = None
+    genres: Optional[List[str]] = None
+    order: Optional[int] = None
+    episodes: Optional[List[Episode]] = None
+
+
+@api_router.put("/admin/shows/{sid}")
+async def admin_update_show(sid: str, data: ShowUpdate, admin: dict = Depends(require_admin)):
+    updates = {}
+    for k, v in data.model_dump().items():
+        if v is None:
+            continue
+        if k == "episodes":
+            updates[k] = [e for e in v]
+        else:
+            updates[k] = v
+    if updates:
+        await db.shows.update_one({"_id": ObjectId(sid)}, {"$set": updates})
+    show = await db.shows.find_one({"_id": ObjectId(sid)})
+    if not show:
+        raise HTTPException(status_code=404, detail="Desen inexistent")
+    return serialize_show(show)
+
+
+@api_router.delete("/admin/shows/{sid}")
+async def admin_delete_show(sid: str, admin: dict = Depends(require_admin)):
+    await db.shows.delete_one({"_id": ObjectId(sid)})
+    return {"ok": True}
+
+
+class ReorderInput(BaseModel):
+    ordered_ids: List[str]
+
+
+@api_router.post("/admin/shows/reorder")
+async def admin_reorder_shows(data: ReorderInput, admin: dict = Depends(require_admin)):
+    for idx, sid in enumerate(data.ordered_ids):
+        await db.shows.update_one({"_id": ObjectId(sid)}, {"$set": {"order": idx}})
+    return {"ok": True}
+
+
+# ---------- watch progress ----------
+class ProgressInput(BaseModel):
+    show_id: str
+    episode_number: int
+    position: float = 0
+    duration: float = 0
+    completed: bool = False
+
+
+@api_router.post("/progress")
+async def save_progress(data: ProgressInput, user: dict = Depends(get_current_user)):
+    key = f"{data.show_id}:{data.episode_number}"
+    doc = {
+        "user_id": str(user["_id"]),
+        "key": key,
+        "show_id": data.show_id,
+        "episode_number": data.episode_number,
+        "position": data.position,
+        "duration": data.duration,
+        "completed": data.completed,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.watch_progress.update_one(
+        {"user_id": str(user["_id"]), "key": key},
+        {"$set": doc},
+        upsert=True,
+    )
+    return {"ok": True}
+
+
+@api_router.get("/progress/{show_id}")
+async def get_show_progress(show_id: str, user: dict = Depends(get_current_user)):
+    rows = await db.watch_progress.find({"user_id": str(user["_id"]), "show_id": show_id}).to_list(500)
+    result = {}
+    for r in rows:
+        result[str(r["episode_number"])] = {
+            "position": r.get("position", 0),
+            "duration": r.get("duration", 0),
+            "completed": r.get("completed", False),
+        }
+    return result
 
 
 @api_router.get("/")

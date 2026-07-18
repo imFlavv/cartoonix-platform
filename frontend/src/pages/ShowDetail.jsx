@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api } from "@/lib/api";
 import { NavBar } from "@/components/NavBar";
-import { Play, Calendar, Tv, Heart, Plus, Download } from "lucide-react";
+import { Play, Calendar, Tv, Heart, Plus, Download, CheckCircle2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useLibrary } from "@/context/LibraryContext";
 import { PlusIcon } from "@/components/PlusIcon";
@@ -16,10 +16,16 @@ const ShowDetail = () => {
   const { isFavorite, toggleFavorite } = useLibrary();
   const [show, setShow] = useState(null);
   const [plDialog, setPlDialog] = useState(null);
+  const [progress, setProgress] = useState({});
 
   useEffect(() => {
     api.get(`/shows/${id}`).then((res) => setShow(res.data));
   }, [id]);
+
+  useEffect(() => {
+    if (!user) { setProgress({}); return; }
+    api.get(`/progress/${id}`).then((res) => setProgress(res.data)).catch(() => {});
+  }, [id, user]);
 
   if (!show)
     return (
@@ -124,6 +130,9 @@ const ShowDetail = () => {
             {(show.episodes || []).map((ep) => {
               const locked = !user?.plus && ep.number > 2;
               const fav = isFavorite(show.id, ep.number);
+              const prog = progress[String(ep.number)];
+              const watched = prog?.completed;
+              const pct = prog && prog.duration > 0 && !watched ? Math.min(100, (prog.position / prog.duration) * 100) : 0;
               return (
                 <div
                   key={ep.number}
@@ -141,8 +150,18 @@ const ShowDetail = () => {
                     <p className="font-semibold flex items-center gap-2">
                       {ep.number}. {ep.title}
                       {locked && <PlusIcon className="h-4 w-4" />}
+                      {watched && (
+                        <span data-testid={`watched-${ep.number}`} className="flex items-center gap-1 text-[10px] font-bold text-[#22c55e] uppercase">
+                          <CheckCircle2 className="h-3.5 w-3.5" /> Vizionat
+                        </span>
+                      )}
                     </p>
-                    <p className="text-xs text-white/50">{ep.duration}</p>
+                    <p className="text-xs text-white/50">{ep.duration}{pct > 0 ? ` · continuă (${Math.round(pct)}%)` : ""}</p>
+                    {pct > 0 && (
+                      <div className="mt-1.5 h-1 w-full max-w-xs rounded-full bg-white/10 overflow-hidden">
+                        <div className="h-full bg-[#ec1c24]" style={{ width: `${pct}%` }} />
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-1">
                     <button data-testid={`fav-episode-${ep.number}`} onClick={() => onFav(ep)} className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors duration-200" title="Favorite">
