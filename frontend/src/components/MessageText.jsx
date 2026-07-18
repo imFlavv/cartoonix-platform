@@ -13,7 +13,7 @@ export const MessageText = ({ text }) => {
               key={i}
               src={emoticonUrl(m[1])}
               alt={m[1]}
-              className="inline-block h-5 w-5 align-text-bottom mx-0.5"
+              className="inline-block align-text-bottom mx-0.5"
               draggable={false}
             />
           );

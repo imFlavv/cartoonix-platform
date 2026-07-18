@@ -78,21 +78,20 @@ const ChatRoom = () => {
             <p className="text-center text-white/40 py-10">Fii primul care scrie ceva! 👋</p>
           )}
           {messages.map((m) => {
-            const mine = m.user_id === user?.id;
             return (
-              <div key={m.id} data-testid="chat-message" className={`flex items-start gap-2.5 ${mine ? "flex-row-reverse" : ""}`}>
+              <div key={m.id} data-testid="chat-message" className="flex items-start gap-2.5">
                 <img src={m.avatar || `https://api.dicebear.com/9.x/bottts/svg?seed=${m.name}`} alt="" className="h-8 w-8 rounded-full bg-[#141414] shrink-0" />
-                <div className={`max-w-[75%] ${mine ? "text-right" : ""}`}>
-                  <p className={`text-xs text-white/40 mb-0.5 px-1 flex items-center gap-1 ${mine ? "justify-end" : ""}`}>
+                <div className="max-w-[75%]">
+                  <p className="text-xs text-white/40 mb-0.5 px-1 flex items-center gap-1">
                     {m.name}
                     {m.plus && <PlusIcon className="h-3.5 w-3.5" />}
                   </p>
                   <div
                     data-testid={m.plus ? "chat-bubble-plus" : "chat-bubble"}
-                    className={`inline-block px-4 py-2.5 rounded-2xl text-sm break-words ${
+                    className={`inline-block px-4 py-2.5 rounded-2xl rounded-tl-sm text-sm break-words ${
                       m.plus
-                        ? `cx-plus-bubble font-semibold ${mine ? "rounded-tr-sm" : "rounded-tl-sm"}`
-                        : `bg-[#2a2a2a] text-white/90 ${mine ? "rounded-tr-sm" : "rounded-tl-sm"}`
+                        ? "cx-plus-bubble font-semibold"
+                        : "bg-[#2a2a2a] text-white/90"
                     }`}
                   >
                     {m.plus && (

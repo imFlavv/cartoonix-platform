@@ -21,7 +21,7 @@ export const EmojiPicker = ({ onSelect }) => (
             title={name}
             className="flex items-center justify-center h-9 w-9 rounded-lg hover:bg-white/10 transition-colors duration-200"
           >
-            <img src={emoticonUrl(name)} alt={name} className="h-6 w-6" draggable={false} />
+            <img src={emoticonUrl(name)} alt={name} draggable={false} />
           </button>
         ))}
       </div>
