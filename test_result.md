@@ -101,3 +101,78 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: |
+  Rebrand Cartoonix chat improvements:
+  1. Tone down the golden PLUS message bubble style (less flashy — darker with gold outline, keep shine effect but subtle).
+  2. Add admin-only chat commands (e.g., /important) — message appears centered in a highlighted frame,
+     with NO avatar/name shown (only the highlighted content). Not pinned. Also add a few similar commands.
+  Implemented commands: /important (gold), /announce (red), /warn (orange), /success (green), /info (blue).
+
+backend:
+  - task: "Admin chat commands parsing in POST /api/chat"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "Added ADMIN_CHAT_COMMANDS set {important, announce, warn, success, info}. In POST /api/chat: if text starts with '/' AND user.role=='admin', parse first token as command; if in allowed set and body is non-empty, store command field and strip prefix from text. Non-admins sending /important still get regular message (command=null). All messages now include a 'command' field (null for regular messages)."
+
+  - task: "Environment setup (.env files) recreated"
+    implemented: true
+    working: "NA"
+    file: "backend/.env, frontend/.env"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "Recreated missing .env files: backend has MONGO_URL, DB_NAME=cartoonix, JWT_SECRET, ADMIN_EMAIL=admin@cartoonix.app, ADMIN_PASSWORD=Admin1234!, CORS_ORIGINS=*. Frontend has REACT_APP_BACKEND_URL. Backend and frontend restarted and are running."
+
+frontend:
+  - task: "PLUS chat bubble redesign (darker, gold outline, subtle shine)"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/index.css"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "Replaced full-gold gradient with dark gradient + 1px gold border, softer glow, subtler shine (lower opacity, smaller sweep). Text color changed to warm gold #ffe27a. Sparkles retinted gold."
+
+  - task: "Admin-only chat commands UI (centered highlighted messages + helper)"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/pages/ChatRoom.jsx, frontend/src/index.css"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "Command messages render centered without avatar/name — only the highlighted framed content with icon. Added helper button (HelpCircle) visible to admins that toggles a palette of the 5 commands. Placeholder text also hints commands to admins."
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 0
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Admin chat commands parsing in POST /api/chat"
+    - "Environment setup (.env files) recreated"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "main"
+    -message: "Please test the admin chat command parsing. Test admin credentials in /app/memory/test_credentials.md (admin@cartoonix.app / Admin1234!). Scenarios: (1) Register or login as a regular user, POST /api/chat with text='/important hello' and verify command is null (regular users cannot execute commands). (2) Login as admin, POST /api/chat with '/important Big news!' and verify response contains command='important' and text='Big news!'. (3) Repeat for /announce, /warn, /success, /info. (4) Admin sending '/unknown thing' should result in command=null. (5) Admin sending '/important' with no body should result in command=null. (6) GET /api/chat returns messages including command field. Skip frontend tests unless user asks."

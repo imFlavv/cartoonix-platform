@@ -118,12 +118,13 @@ body {
   animation: cx-float 3s ease-in-out infinite;
 }
 
-/* PLUS golden chat bubble with sparkle */
+/* PLUS golden chat bubble — subtle dark theme with gold border & discrete shine */
 .cx-plus-bubble {
   position: relative;
-  background: linear-gradient(135deg, #ffe27a 0%, #ffcc00 45%, #f0a500 100%);
-  color: #3a2a00;
-  box-shadow: 0 0 18px rgba(255, 204, 0, 0.45);
+  background: linear-gradient(135deg, rgba(255, 204, 0, 0.08) 0%, rgba(20, 15, 0, 0.9) 55%, rgba(30, 22, 0, 0.9) 100%);
+  color: #ffe27a;
+  border: 1px solid rgba(255, 204, 0, 0.55);
+  box-shadow: 0 0 12px rgba(255, 204, 0, 0.18), inset 0 0 0 1px rgba(255, 204, 0, 0.08);
   overflow: hidden;
 }
 .cx-plus-bubble::after {
@@ -131,11 +132,12 @@ body {
   position: absolute;
   top: 0;
   left: -120%;
-  width: 60%;
+  width: 45%;
   height: 100%;
-  background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.75), transparent);
+  background: linear-gradient(120deg, transparent, rgba(255, 204, 0, 0.28), transparent);
   transform: skewX(-20deg);
-  animation: cx-shine 3.2s ease-in-out infinite;
+  animation: cx-shine 4.2s ease-in-out infinite;
+  pointer-events: none;
 }
 @keyframes cx-shine {
   0% { left: -120%; }
@@ -145,13 +147,89 @@ body {
 .cx-sparkle {
   position: absolute;
   pointer-events: none;
-  color: #fff;
-  filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.9));
-  animation: cx-twinkle 1.8s ease-in-out infinite;
+  color: #ffcc00;
+  filter: drop-shadow(0 0 3px rgba(255, 204, 0, 0.7));
+  animation: cx-twinkle 2.2s ease-in-out infinite;
 }
 @keyframes cx-twinkle {
   0%, 100% { opacity: 0; transform: scale(0.5); }
-  50% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(1); }
+}
+
+/* -------- Admin chat command styles (centered highlighted messages) -------- */
+.cx-cmd {
+  position: relative;
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 14px 22px;
+  border-radius: 14px;
+  text-align: center;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  overflow: hidden;
+  animation: cx-cmd-in 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes cx-cmd-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.cx-cmd-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 8px;
+  vertical-align: -3px;
+}
+
+/* /important — gold framed */
+.cx-cmd-important {
+  background: linear-gradient(135deg, rgba(255, 204, 0, 0.12), rgba(20, 15, 0, 0.85));
+  border: 1.5px solid #ffcc00;
+  color: #ffe27a;
+  box-shadow: 0 0 22px rgba(255, 204, 0, 0.25), inset 0 0 0 1px rgba(255, 204, 0, 0.15);
+}
+.cx-cmd-important::before {
+  content: "";
+  position: absolute;
+  top: 0; left: -120%;
+  width: 45%; height: 100%;
+  background: linear-gradient(120deg, transparent, rgba(255, 204, 0, 0.35), transparent);
+  transform: skewX(-20deg);
+  animation: cx-shine 4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* /announce — red carpet */
+.cx-cmd-announce {
+  background: linear-gradient(135deg, rgba(236, 28, 36, 0.18), rgba(30, 5, 5, 0.9));
+  border: 1.5px solid rgba(236, 28, 36, 0.85);
+  color: #ffd7d9;
+  box-shadow: 0 0 22px rgba(236, 28, 36, 0.28), inset 0 0 0 1px rgba(236, 28, 36, 0.18);
+}
+
+/* /warn */
+.cx-cmd-warn {
+  background: linear-gradient(135deg, rgba(255, 138, 0, 0.15), rgba(30, 15, 0, 0.9));
+  border: 1.5px solid rgba(255, 138, 0, 0.85);
+  color: #ffd8a8;
+  box-shadow: 0 0 18px rgba(255, 138, 0, 0.25);
+}
+
+/* /success */
+.cx-cmd-success {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(5, 25, 12, 0.9));
+  border: 1.5px solid rgba(34, 197, 94, 0.85);
+  color: #b7f5c8;
+  box-shadow: 0 0 18px rgba(34, 197, 94, 0.22);
+}
+
+/* /info */
+.cx-cmd-info {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(5, 15, 30, 0.9));
+  border: 1.5px solid rgba(59, 130, 246, 0.85);
+  color: #cfe1ff;
+  box-shadow: 0 0 18px rgba(59, 130, 246, 0.22);
 }
 
 /* online pulse dot */

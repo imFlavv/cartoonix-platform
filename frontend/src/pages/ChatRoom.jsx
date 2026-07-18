@@ -3,10 +3,26 @@ import { useNavigate } from "react-router-dom";
 import { NavBar } from "@/components/NavBar";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
-import { ArrowLeft, Send, Sparkles, Globe, Lock } from "lucide-react";
+import { ArrowLeft, Send, Sparkles, Globe, Lock, Star, Megaphone, AlertTriangle, CheckCircle2, Info, HelpCircle } from "lucide-react";
 import { PlusIcon } from "@/components/PlusIcon";
 import { MessageText } from "@/components/MessageText";
 import { EmojiPicker } from "@/components/EmojiPicker";
+
+const ADMIN_COMMANDS = [
+  { cmd: "important", label: "/important", desc: "Mesaj evidențiat auriu", icon: Star },
+  { cmd: "announce", label: "/announce", desc: "Anunț oficial (roșu)", icon: Megaphone },
+  { cmd: "warn", label: "/warn", desc: "Avertisment (portocaliu)", icon: AlertTriangle },
+  { cmd: "success", label: "/success", desc: "Confirmare (verde)", icon: CheckCircle2 },
+  { cmd: "info", label: "/info", desc: "Informație (albastru)", icon: Info },
+];
+
+const COMMAND_META = {
+  important: { className: "cx-cmd cx-cmd-important", icon: Star },
+  announce: { className: "cx-cmd cx-cmd-announce", icon: Megaphone },
+  warn: { className: "cx-cmd cx-cmd-warn", icon: AlertTriangle },
+  success: { className: "cx-cmd cx-cmd-success", icon: CheckCircle2 },
+  info: { className: "cx-cmd cx-cmd-info", icon: Info },
+};
 
 const ChatRoom = () => {
   const { user } = useAuth();
@@ -14,10 +30,12 @@ const ChatRoom = () => {
   const [room, setRoom] = useState("global");
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
+  const [showCommands, setShowCommands] = useState(false);
   const endRef = useRef(null);
   const lastTs = useRef(null);
   const inputRef = useRef(null);
 
+  const isAdmin = user?.role === "admin";
   const plusLocked = room === "plus" && !user?.plus;
 
   const applyNew = useCallback((incoming) => {
@@ -115,42 +133,95 @@ const ChatRoom = () => {
                   {room === "plus" ? "Camera PLUS e liniștită... scrie primul! 👑" : "Fii primul care scrie ceva! 👋"}
                 </p>
               )}
-              {messages.map((m) => (
-                <div key={m.id} data-testid="chat-message" className="flex items-start gap-2.5">
-                  <img src={m.avatar || `https://api.dicebear.com/9.x/bottts/svg?seed=${m.name}`} alt="" className="h-8 w-8 rounded-full bg-[#141414] shrink-0" />
-                  <div className="max-w-[75%]">
-                    <p className="text-xs text-white/40 mb-0.5 px-1 flex items-center gap-1">
-                      {m.name}
-                      {m.plus && <PlusIcon className="h-3.5 w-3.5" />}
-                    </p>
-                    <div
-                      data-testid={m.plus ? "chat-bubble-plus" : "chat-bubble"}
-                      className={`inline-block px-4 py-2.5 rounded-2xl rounded-tl-sm text-sm break-words ${
-                        m.plus ? "cx-plus-bubble font-semibold" : "bg-[#2a2a2a] text-white/90"
-                      }`}
-                    >
-                      {m.plus && (
-                        <>
-                          <Sparkles className="cx-sparkle h-3 w-3" style={{ top: 4, right: 6, animationDelay: "0s" }} />
-                          <Sparkles className="cx-sparkle h-2.5 w-2.5" style={{ bottom: 5, left: 8, animationDelay: "0.9s" }} />
-                        </>
-                      )}
-                      <span className="relative"><MessageText text={m.text} /></span>
+              {messages.map((m) => {
+                // Admin command messages -> centered highlighted, no avatar/name
+                if (m.command && COMMAND_META[m.command]) {
+                  const meta = COMMAND_META[m.command];
+                  const Icon = meta.icon;
+                  return (
+                    <div key={m.id} data-testid={`chat-cmd-${m.command}`} className="flex justify-center px-2 py-1">
+                      <div className={meta.className}>
+                        <Icon className="cx-cmd-icon h-5 w-5 inline-block" />
+                        <span className="align-middle"><MessageText text={m.text} /></span>
+                      </div>
+                    </div>
+                  );
+                }
+                return (
+                  <div key={m.id} data-testid="chat-message" className="flex items-start gap-2.5">
+                    <img src={m.avatar || `https://api.dicebear.com/9.x/bottts/svg?seed=${m.name}`} alt="" className="h-8 w-8 rounded-full bg-[#141414] shrink-0" />
+                    <div className="max-w-[75%]">
+                      <p className="text-xs text-white/40 mb-0.5 px-1 flex items-center gap-1">
+                        {m.name}
+                        {m.plus && <PlusIcon className="h-3.5 w-3.5" />}
+                      </p>
+                      <div
+                        data-testid={m.plus ? "chat-bubble-plus" : "chat-bubble"}
+                        className={`inline-block px-4 py-2.5 rounded-2xl rounded-tl-sm text-sm break-words ${
+                          m.plus ? "cx-plus-bubble font-semibold" : "bg-[#2a2a2a] text-white/90"
+                        }`}
+                      >
+                        {m.plus && (
+                          <>
+                            <Sparkles className="cx-sparkle h-3 w-3" style={{ top: 4, right: 6, animationDelay: "0s" }} />
+                            <Sparkles className="cx-sparkle h-2.5 w-2.5" style={{ bottom: 5, left: 8, animationDelay: "0.9s" }} />
+                          </>
+                        )}
+                        <span className="relative"><MessageText text={m.text} /></span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
               <div ref={endRef} />
             </div>
 
+            {isAdmin && showCommands && (
+              <div data-testid="chat-cmd-help" className="mb-2 rounded-xl bg-[#141414] border border-white/10 p-3">
+                <p className="text-xs text-white/50 mb-2 font-semibold uppercase tracking-wider">Comenzi admin</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                  {ADMIN_COMMANDS.map((c) => {
+                    const Icon = c.icon;
+                    return (
+                      <button
+                        key={c.cmd}
+                        type="button"
+                        onClick={() => {
+                          setText(`/${c.cmd} `);
+                          setShowCommands(false);
+                          setTimeout(() => inputRef.current?.focus(), 30);
+                        }}
+                        className="flex items-center gap-2 text-left px-2.5 py-1.5 rounded-lg hover:bg-white/5 transition-colors"
+                      >
+                        <Icon className="h-4 w-4 text-[#ffcc00] shrink-0" />
+                        <span className="text-sm font-mono text-white/90">{c.label}</span>
+                        <span className="text-xs text-white/50 truncate">— {c.desc}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <form onSubmit={send} className="flex gap-2 py-4">
               <EmojiPicker onSelect={insertEmoji} />
+              {isAdmin && (
+                <button
+                  type="button"
+                  data-testid="chat-cmd-toggle"
+                  onClick={() => setShowCommands((v) => !v)}
+                  title="Comenzi admin"
+                  className={`h-12 w-12 flex items-center justify-center rounded-full border border-white/10 transition-colors duration-200 ${showCommands ? "bg-[#ffcc00] text-black" : "bg-white/10 text-white/80 hover:bg-white/20"}`}
+                >
+                  <HelpCircle className="h-5 w-5" />
+                </button>
+              )}
               <input
                 ref={inputRef}
                 data-testid="chat-input"
                 value={text}
                 onChange={(e) => setText(e.target.value)}
-                placeholder={room === "plus" ? "Scrie în camera PLUS..." : "Scrie un mesaj..."}
+                placeholder={isAdmin ? "Scrie un mesaj sau /important, /announce, /warn..." : (room === "plus" ? "Scrie în camera PLUS..." : "Scrie un mesaj...")}
                 maxLength={500}
                 className="flex-1 px-4 py-3 rounded-full bg-white/10 border border-white/10 focus:outline-none focus:ring-2 focus:ring-[#ffcc00] text-sm"
               />

@@ -433,18 +433,37 @@ async def get_chat(room: str = "global", after: Optional[str] = None, user: dict
     return msgs
 
 
+ADMIN_CHAT_COMMANDS = {"important", "announce", "warn", "success", "info"}
+
+
 @api_router.post("/chat")
 async def post_chat(data: ChatInput, user: dict = Depends(get_current_user)):
     room = data.room if data.room in ("global", "plus") else "global"
     if room == "plus" and not user.get("plus"):
         raise HTTPException(status_code=403, detail="Camera PLUS este doar pentru membrii Cartoonix PLUS")
+
+    raw = data.text.strip()
+    command = None
+    text = raw
+
+    # Admin-only chat commands: /important <text>, /announce <text>, /warn <text>, etc.
+    if raw.startswith("/") and user.get("role") == "admin":
+        parts = raw.split(None, 1)
+        cmd = parts[0][1:].lower().strip()
+        body = parts[1].strip() if len(parts) > 1 else ""
+        if cmd in ADMIN_CHAT_COMMANDS and body:
+            command = cmd
+            text = body
+
     doc = {
         "user_id": str(user["_id"]),
         "name": user.get("name", "Anonim"),
         "avatar": user.get("avatar", ""),
         "plus": bool(user.get("plus", False)),
+        "role": user.get("role", "user"),
         "room": room,
-        "text": data.text.strip(),
+        "text": text,
+        "command": command,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     res = await db.chat_messages.insert_one(doc)
