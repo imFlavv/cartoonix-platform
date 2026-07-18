@@ -1,0 +1,128 @@
+{
+  "theme": "dark",
+  "typography": {
+    "heading_font": "Bebas Neue",
+    "body_font": "Nunito",
+    "hierarchy": {
+      "h1": "text-5xl sm:text-6xl lg:text-7xl tracking-tighter uppercase",
+      "h2": "text-3xl sm:text-4xl tracking-tight uppercase",
+      "h3": "text-xl sm:text-2xl",
+      "body": "text-base leading-relaxed"
+    },
+    "notes": "Add Google Fonts link for Bebas Neue and Nunito in public/index.html. Bebas Neue provides that chunky, nostalgic, blocky 2000s TV vibe."
+  },
+  "colors": {
+    "background": "#0A0A0A",
+    "foreground": "#FFFFFF",
+    "primary": "#EC1C24",
+    "accent": "#FFCC00",
+    "surface": "#141414",
+    "surface_hover": "#2A2A2A",
+    "border": "rgba(255,255,255,0.1)",
+    "notes": "Red (#EC1C24) and Yellow (#FFCC00) are the core CARTOONIX brand colors. Use them for CTAs, badges, and the logo."
+  },
+  "visual enhancers": {
+    "glassmorphism": "backdrop-blur-xl bg-black/60 border-b border-white/10",
+    "cards": "hover:scale-105 transition-transform duration-300 ease-out cursor-pointer rounded-md overflow-hidden relative group",
+    "shadows": "shadow-[0_4px_20px_rgba(0,0,0,0.5)]",
+    "glows": "hover:shadow-[0_0_25px_rgba(236,28,36,0.4)]"
+  },
+  "component name": [
+    "SplashScreen",
+    "NavBar",
+    "HeroBanner",
+    "ContentCarousel",
+    "ShowCard",
+    "AuthForm",
+    "AvatarSelector",
+    "SubscriptionPlusCard",
+    "VideoPlayer",
+    "AdminDashboard"
+  ],
+  "grids": {
+    "content_grid": "grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 md:gap-6",
+    "admin_grid": "grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6",
+    "avatar_grid": "grid grid-cols-3 md:grid-cols-5 lg:grid-cols-7 gap-4"
+  },
+  "layouts": {
+    "page_container": "min-h-screen bg-[#0A0A0A] text-white overflow-x-hidden",
+    "hero_section": "relative w-full h-[70vh] md:h-[85vh] flex flex-col justify-end pb-24 px-4 md:px-12 lg:px-20",
+    "hero_overlay": "absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-[#0A0A0A]/60 to-transparent",
+    "carousel_container": "flex gap-4 overflow-x-auto snap-x snap-mandatory scrollbar-hide py-4 px-4 md:px-12 lg:px-20",
+    "section_spacing": "py-8 md:py-12"
+  },
+  "motion": {
+    "splash_screen": "Scale in and bounce the CARTOONIX logo, hold for 2.5 seconds, fade out smoothly. Use Framer Motion for sequence.",
+    "hover_states": "Cards scale by 1.05x. Show play icon overlay on hover. Transition: transform 0.3s ease-out.",
+    "page_transitions": "Fade in with 20px upward translation using Framer Motion.",
+    "carousel_scroll": "Smooth scrolling behavior for horizontal lists."
+  },
+  "accessibility": {
+    "contrast": "Ensure white text on red/yellow buttons has high contrast (or use black text on yellow).",
+    "focus": "focus:ring-2 focus:ring-[#FFCC00] focus:outline-none focus:ring-offset-2 focus:ring-offset-[#0A0A0A]",
+    "data_testid": "All interactive elements MUST include data-testid (e.g., data-testid='hero-play-button')"
+  },
+  "media": {
+    "hero_backgrounds": [
+      {
+        "url": "https://images.unsplash.com/photo-1781603961055-34f033a283ae",
+        "description": "Superhero with pizza, great for a featured cartoon hero image"
+      }
+    ],
+    "avatar_options": [
+      {
+        "url": "https://images.unsplash.com/photo-1657641898365-48ae7d64e676",
+        "description": "Space robot avatar"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1781005675229-8c9043a35b5a",
+        "description": "Ninja turtle plush avatar"
+      }
+    ],
+    "thumbnails": [
+      {
+        "url": "https://images.pexels.com/photos/7809123/pexels-photo-7809123.jpeg",
+        "description": "Comic book covers for superhero nostalgia category"
+      },
+      {
+        "url": "https://images.pexels.com/photos/14283381/pexels-photo-14283381.jpeg",
+        "description": "Urban mural cartoon styles"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1574974409771-cebec54deb00",
+        "description": "Retro TV for vintage classic cartoons category"
+      }
+    ]
+  },
+  "3d libraries": "Framer Motion (for complex 2D animations and splash screen). No heavy WebGL needed for core Netflix style unless specifically doing a 3D avatar selector, but stick to Framer Motion for reliability.",
+  "image urls": {
+    "hero_images": [
+      "https://images.unsplash.com/photo-1781603961055-34f033a283ae",
+      "https://images.pexels.com/photos/13534013/pexels-photo-13534013.jpeg"
+    ],
+    "avatars": [
+      "https://images.unsplash.com/photo-1657641898365-48ae7d64e676",
+      "https://images.unsplash.com/photo-1781005675229-8c9043a35b5a",
+      "https://images.unsplash.com/photo-1781887609148-1ef72a021805"
+    ],
+    "shows": [
+      "https://images.pexels.com/photos/7809123/pexels-photo-7809123.jpeg",
+      "https://images.pexels.com/photos/14283381/pexels-photo-14283381.jpeg",
+      "https://images.unsplash.com/photo-1574974409771-cebec54deb00"
+    ]
+  },
+  "component_path": "/app/frontend/src/components/",
+  "instructions_to_main_agent": "Implement a nostalgic 2000s cartoon streaming platform (CARTOONIX). Use dark mode (Netflix/Disney+ style). The splash screen must feature the CARTOONIX logo (red text, yellow X) scaling in. Build a Hero Banner, horizontal scrolling content carousels, hover-scaling cards. Include JWT auth pages, custom Avatar selection, and a 50 RON PLUS subscription UI. Ensure you follow the provided Google Fonts (Bebas Neue for Headings, Nunito for Body).",
+  "UNIVERSAL GUIDELINES FOR MAIN AGENT": [
+    "You MUST NOT apply universal transition (transition: all). Use specific transitions.",
+    "You MUST NOT center align the app container text-align: center.",
+    "Create depth through layered design elements with z-index hierarchy.",
+    "Use glass-morphism effects with backdrop filters (12-24px blur).",
+    "Never use placeholder URLs (via.placeholder.com). Use the provided image URLs.",
+    "All interactive elements MUST have data-testid attributes.",
+    "Implement Sonner for toast notifications.",
+    "Ensure generous spacing: use padding like p-8, p-12.",
+    "Dark theme is preferred for this Netflix-like nostalgic experience.",
+    "Do not use transparent background in header. Use backdrop-blur and semi-transparent colors."
+  ]
+}
