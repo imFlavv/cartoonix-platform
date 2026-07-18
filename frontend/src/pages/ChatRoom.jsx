@@ -1,9 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { NavBar } from "@/components/NavBar";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
-import { ArrowLeft, Send } from "lucide-react";
+import { ArrowLeft, Send, Sparkles } from "lucide-react";
+import { PlusIcon } from "@/components/PlusIcon";
+import { MessageText } from "@/components/MessageText";
+import { EmojiPicker } from "@/components/EmojiPicker";
 
 const ChatRoom = () => {
   const { user } = useAuth();
@@ -11,14 +14,35 @@ const ChatRoom = () => {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
   const endRef = useRef(null);
+  const lastTs = useRef(null);
+  const inputRef = useRef(null);
 
-  const load = () => api.get("/chat").then((res) => setMessages(res.data)).catch(() => {});
-
-  useEffect(() => {
-    load();
-    const t = setInterval(load, 4000);
-    return () => clearInterval(t);
+  const applyNew = useCallback((incoming) => {
+    if (!incoming.length) return;
+    setMessages((prev) => {
+      const seen = new Set(prev.map((m) => m.id));
+      const merged = [...prev, ...incoming.filter((m) => !seen.has(m.id))];
+      if (merged.length) lastTs.current = merged[merged.length - 1].created_at;
+      return merged;
+    });
   }, []);
+
+  // initial load
+  useEffect(() => {
+    api.get("/chat").then((res) => {
+      setMessages(res.data);
+      if (res.data.length) lastTs.current = res.data[res.data.length - 1].created_at;
+    }).catch(() => {});
+  }, []);
+
+  // incremental polling (only fetches new messages -> lightweight even with many users)
+  useEffect(() => {
+    const t = setInterval(() => {
+      const params = lastTs.current ? { after: lastTs.current } : {};
+      api.get("/chat", { params }).then((res) => applyNew(res.data)).catch(() => {});
+    }, 4000);
+    return () => clearInterval(t);
+  }, [applyNew]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -30,7 +54,12 @@ const ChatRoom = () => {
     const val = text.trim();
     setText("");
     const { data } = await api.post("/chat", { text: val });
-    setMessages((m) => [...m, data]);
+    applyNew([data]);
+  };
+
+  const insertEmoji = (name) => {
+    setText((t) => `${t}${t && !t.endsWith(" ") ? " " : ""}:${name}: `);
+    inputRef.current?.focus();
   };
 
   return (
@@ -54,9 +83,27 @@ const ChatRoom = () => {
               <div key={m.id} data-testid="chat-message" className={`flex items-start gap-2.5 ${mine ? "flex-row-reverse" : ""}`}>
                 <img src={m.avatar || `https://api.dicebear.com/9.x/bottts/svg?seed=${m.name}`} alt="" className="h-8 w-8 rounded-full bg-[#141414] shrink-0" />
                 <div className={`max-w-[75%] ${mine ? "text-right" : ""}`}>
-                  <p className="text-xs text-white/40 mb-0.5 px-1">{m.name}</p>
-                  <div className={`inline-block px-4 py-2.5 rounded-2xl text-sm ${mine ? "bg-[#ec1c24] rounded-tr-sm" : "bg-[#1c1c1c] rounded-tl-sm"}`}>
-                    {m.text}
+                  <p className={`text-xs text-white/40 mb-0.5 px-1 flex items-center gap-1 ${mine ? "justify-end" : ""}`}>
+                    {m.name}
+                    {m.plus && <PlusIcon className="h-3.5 w-3.5" />}
+                  </p>
+                  <div
+                    data-testid={m.plus ? "chat-bubble-plus" : "chat-bubble"}
+                    className={`inline-block px-4 py-2.5 rounded-2xl text-sm break-words ${
+                      m.plus
+                        ? `cx-plus-bubble font-semibold ${mine ? "rounded-tr-sm" : "rounded-tl-sm"}`
+                        : `bg-[#2a2a2a] text-white/90 ${mine ? "rounded-tr-sm" : "rounded-tl-sm"}`
+                    }`}
+                  >
+                    {m.plus && (
+                      <>
+                        <Sparkles className="cx-sparkle h-3 w-3" style={{ top: 4, right: 6, animationDelay: "0s" }} />
+                        <Sparkles className="cx-sparkle h-2.5 w-2.5" style={{ bottom: 5, left: 8, animationDelay: "0.9s" }} />
+                      </>
+                    )}
+                    <span className="relative">
+                      <MessageText text={m.text} />
+                    </span>
                   </div>
                 </div>
               </div>
@@ -66,7 +113,9 @@ const ChatRoom = () => {
         </div>
 
         <form onSubmit={send} className="flex gap-2 py-4">
+          <EmojiPicker onSelect={insertEmoji} />
           <input
+            ref={inputRef}
             data-testid="chat-input"
             value={text}
             onChange={(e) => setText(e.target.value)}

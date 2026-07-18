@@ -357,9 +357,14 @@ class ChatInput(BaseModel):
 
 
 @api_router.get("/chat")
-async def get_chat():
-    msgs = await db.chat_messages.find({}).sort("created_at", -1).limit(100).to_list(100)
-    msgs.reverse()
+async def get_chat(after: Optional[str] = None):
+    query = {}
+    if after:
+        query["created_at"] = {"$gt": after}
+        msgs = await db.chat_messages.find(query).sort("created_at", 1).limit(200).to_list(200)
+    else:
+        msgs = await db.chat_messages.find({}).sort("created_at", -1).limit(60).to_list(60)
+        msgs.reverse()
     for m in msgs:
         m["id"] = str(m.pop("_id"))
     return msgs
@@ -371,6 +376,7 @@ async def post_chat(data: ChatInput, user: dict = Depends(get_current_user)):
         "user_id": str(user["_id"]),
         "name": user.get("name", "Anonim"),
         "avatar": user.get("avatar", ""),
+        "plus": bool(user.get("plus", False)),
         "text": data.text.strip(),
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
