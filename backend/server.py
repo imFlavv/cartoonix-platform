@@ -331,6 +331,18 @@ async def startup():
         })
     elif not verify_password(admin_password, existing["password_hash"]):
         await db.users.update_one({"email": admin_email}, {"$set": {"password_hash": hash_password(admin_password)}})
+    # seed test user
+    test_email = "test@cartoonix.ro"
+    if await db.users.find_one({"email": test_email}) is None:
+        await db.users.insert_one({
+            "email": test_email,
+            "password_hash": hash_password("test1234"),
+            "name": "Cont Test",
+            "avatar": "https://api.dicebear.com/9.x/fun-emoji/svg?seed=Ziggy",
+            "role": "user",
+            "plus": False,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
     # seed shows
     if await db.shows.count_documents({}) == 0:
         for i, s in enumerate(DEMO_SHOWS):
