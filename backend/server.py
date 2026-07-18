@@ -379,16 +379,21 @@ async def read_all_notifications(user: dict = Depends(get_current_user)):
 # ---------- chat ----------
 class ChatInput(BaseModel):
     text: str = Field(min_length=1, max_length=500)
+    room: str = "global"
 
 
 @api_router.get("/chat")
-async def get_chat(after: Optional[str] = None):
-    query = {}
+async def get_chat(room: str = "global", after: Optional[str] = None, user: dict = Depends(get_current_user)):
+    if room not in ("global", "plus"):
+        room = "global"
+    if room == "plus" and not user.get("plus"):
+        raise HTTPException(status_code=403, detail="Camera PLUS este doar pentru membrii Cartoonix PLUS")
+    query = {"room": room}
     if after:
         query["created_at"] = {"$gt": after}
         msgs = await db.chat_messages.find(query).sort("created_at", 1).limit(200).to_list(200)
     else:
-        msgs = await db.chat_messages.find({}).sort("created_at", -1).limit(60).to_list(60)
+        msgs = await db.chat_messages.find(query).sort("created_at", -1).limit(60).to_list(60)
         msgs.reverse()
     for m in msgs:
         m["id"] = str(m.pop("_id"))
@@ -397,11 +402,15 @@ async def get_chat(after: Optional[str] = None):
 
 @api_router.post("/chat")
 async def post_chat(data: ChatInput, user: dict = Depends(get_current_user)):
+    room = data.room if data.room in ("global", "plus") else "global"
+    if room == "plus" and not user.get("plus"):
+        raise HTTPException(status_code=403, detail="Camera PLUS este doar pentru membrii Cartoonix PLUS")
     doc = {
         "user_id": str(user["_id"]),
         "name": user.get("name", "Anonim"),
         "avatar": user.get("avatar", ""),
         "plus": bool(user.get("plus", False)),
+        "room": room,
         "text": data.text.strip(),
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
