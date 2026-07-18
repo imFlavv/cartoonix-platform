@@ -105,6 +105,10 @@ class AvatarInput(BaseModel):
     avatar: str
 
 
+class ProfileInput(BaseModel):
+    name: str
+
+
 class Episode(BaseModel):
     number: int
     title: str
@@ -174,6 +178,13 @@ async def update_avatar(data: AvatarInput, user: dict = Depends(get_current_user
     return serialize_user(user)
 
 
+@api_router.put("/auth/profile")
+async def update_profile(data: ProfileInput, user: dict = Depends(get_current_user)):
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {"name": data.name}})
+    user["name"] = data.name
+    return serialize_user(user)
+
+
 @api_router.post("/auth/subscribe")
 async def subscribe(user: dict = Depends(get_current_user)):
     # Placeholder pentru Stripe - momentan doar marcheaza PLUS activ (UI demo)
@@ -209,6 +220,135 @@ async def create_show(data: ShowInput, admin: dict = Depends(require_admin)):
     res = await db.shows.insert_one(doc)
     doc["_id"] = res.inserted_id
     return serialize_show(doc)
+
+
+# ---------- favorites ----------
+class ItemRef(BaseModel):
+    show_id: str
+    episode_number: int
+    show_title: Optional[str] = ""
+    episode_title: Optional[str] = ""
+    thumbnail: Optional[str] = ""
+    channel: Optional[str] = ""
+
+
+def _item_key(show_id: str, ep: int) -> str:
+    return f"{show_id}:{ep}"
+
+
+@api_router.get("/favorites")
+async def get_favorites(user: dict = Depends(get_current_user)):
+    favs = await db.favorites.find({"user_id": str(user["_id"])}).sort("added_at", -1).to_list(500)
+    for f in favs:
+        f["id"] = str(f.pop("_id"))
+    return favs
+
+
+@api_router.post("/favorites/toggle")
+async def toggle_favorite(data: ItemRef, user: dict = Depends(get_current_user)):
+    key = _item_key(data.show_id, data.episode_number)
+    existing = await db.favorites.find_one({"user_id": str(user["_id"]), "key": key})
+    if existing:
+        await db.favorites.delete_one({"_id": existing["_id"]})
+        return {"favorited": False}
+    doc = data.model_dump()
+    doc.update({
+        "user_id": str(user["_id"]),
+        "key": key,
+        "added_at": datetime.now(timezone.utc).isoformat(),
+    })
+    await db.favorites.insert_one(doc)
+    return {"favorited": True}
+
+
+# ---------- playlists ----------
+class PlaylistCreate(BaseModel):
+    name: str
+
+
+@api_router.get("/playlists")
+async def get_playlists(user: dict = Depends(get_current_user)):
+    pls = await db.playlists.find({"user_id": str(user["_id"])}).sort("created_at", -1).to_list(200)
+    for p in pls:
+        p["id"] = str(p.pop("_id"))
+    return pls
+
+
+@api_router.post("/playlists")
+async def create_playlist(data: PlaylistCreate, user: dict = Depends(get_current_user)):
+    doc = {
+        "user_id": str(user["_id"]),
+        "name": data.name,
+        "items": [],
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    res = await db.playlists.insert_one(doc)
+    doc["id"] = str(res.inserted_id)
+    doc.pop("_id", None)
+    return doc
+
+
+@api_router.delete("/playlists/{pid}")
+async def delete_playlist(pid: str, user: dict = Depends(get_current_user)):
+    await db.playlists.delete_one({"_id": ObjectId(pid), "user_id": str(user["_id"])})
+    return {"ok": True}
+
+
+@api_router.post("/playlists/{pid}/toggle")
+async def toggle_playlist_item(pid: str, data: ItemRef, user: dict = Depends(get_current_user)):
+    pl = await db.playlists.find_one({"_id": ObjectId(pid), "user_id": str(user["_id"])})
+    if not pl:
+        raise HTTPException(status_code=404, detail="Playlist inexistent")
+    key = _item_key(data.show_id, data.episode_number)
+    items = pl.get("items", [])
+    exists = any(i.get("key") == key for i in items)
+    if exists:
+        items = [i for i in items if i.get("key") != key]
+        added = False
+    else:
+        item = data.model_dump()
+        item["key"] = key
+        items.append(item)
+        added = True
+    await db.playlists.update_one({"_id": pl["_id"]}, {"$set": {"items": items}})
+    return {"added": added, "count": len(items)}
+
+
+# ---------- downloads (PLUS only) ----------
+@api_router.get("/download/{show_id}/{episode_number}")
+async def get_download(show_id: str, episode_number: int, user: dict = Depends(get_current_user)):
+    if not user.get("plus"):
+        raise HTTPException(status_code=403, detail="Descărcarea este disponibilă doar pentru membrii Cartoonix PLUS")
+    show = await db.shows.find_one({"_id": ObjectId(show_id)})
+    if not show:
+        raise HTTPException(status_code=404, detail="Desen inexistent")
+    ep = next((e for e in show.get("episodes", []) if e["number"] == episode_number), None)
+    if not ep:
+        raise HTTPException(status_code=404, detail="Episod inexistent")
+    return {"url": ep["video_url"], "filename": f"{show['title']} - Ep{episode_number}.mp4"}
+
+
+# ---------- notifications ----------
+@api_router.get("/notifications")
+async def get_notifications(user: dict = Depends(get_current_user)):
+    notifs = await db.notifications.find({}).sort("created_at", -1).to_list(100)
+    read_at = user.get("notifications_read_at", "")
+    items = []
+    for n in notifs:
+        n["id"] = str(n.pop("_id"))
+        n["read"] = bool(read_at and n.get("created_at", "") <= read_at)
+        items.append(n)
+    unread = sum(1 for n in items if not n["read"])
+    return {"items": items, "unread": unread}
+
+
+@api_router.post("/notifications/read-all")
+async def read_all_notifications(user: dict = Depends(get_current_user)):
+    await db.users.update_one(
+        {"_id": user["_id"]},
+        {"$set": {"notifications_read_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    return {"ok": True}
 
 
 @api_router.get("/")
@@ -359,6 +499,36 @@ async def startup():
             doc["episodes"] = eps
             doc["created_at"] = datetime.now(timezone.utc).isoformat()
             await db.shows.insert_one(doc)
+    # seed notifications
+    if await db.notifications.count_documents({}) == 0:
+        base = datetime.now(timezone.utc)
+        seed_notifs = [
+            {
+                "title": "🎉 Bine ai venit la Cartoonix!",
+                "body": "Ne bucurăm să te avem alături. Explorează biblioteca cu desenele copilăriei de pe Cartoon Network, Jetix, Minimax și Boomerang.",
+                "image": "https://static.prod-images.emergentagent.com/jobs/d62dd950-d3ee-4e8f-8661-5ce4364784fd/images/76a50c88ba7bd95171c0c4c5440190a2abc123034b77e4425ef587d9926b54eb.png",
+                "cta_label": "Explorează",
+                "cta_link": "/browse",
+                "created_at": (base - timedelta(days=1)).isoformat(),
+            },
+            {
+                "title": "👑 Cartoonix PLUS a sosit!",
+                "body": "Deblochează toate episoadele, streaming fără reclame și descărcări offline. Doar 50 RON pe lună.",
+                "image": "https://static.prod-images.emergentagent.com/jobs/d62dd950-d3ee-4e8f-8661-5ce4364784fd/images/6d006af20ec32c576faf383647d597debe0d1e656fdb19e5bca194cd553c4d6c.png",
+                "cta_label": "Vezi PLUS",
+                "cta_link": "/plus",
+                "created_at": (base - timedelta(days=3)).isoformat(),
+            },
+            {
+                "title": "🆕 Desene noi adăugate",
+                "body": "Am adăugat noi seriale clasice în bibliotecă. Verifică secțiunea Ultimele Adăugate!",
+                "image": "https://static.prod-images.emergentagent.com/jobs/d62dd950-d3ee-4e8f-8661-5ce4364784fd/images/c27c5f671b01b6977313ed30d737c72110b691f93df2bdc01c7809a7d247ed7f.png",
+                "cta_label": "Vezi noutățile",
+                "cta_link": "/home",
+                "created_at": (base - timedelta(days=5)).isoformat(),
+            },
+        ]
+        await db.notifications.insert_many(seed_notifs)
     logger.info("Cartoonix startup complete")
 
 

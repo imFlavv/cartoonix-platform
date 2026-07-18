@@ -2,15 +2,20 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api } from "@/lib/api";
 import { NavBar } from "@/components/NavBar";
-import { Play, Calendar, Tv, Crown } from "lucide-react";
+import { Play, Calendar, Tv, Heart, Plus, Download } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { useLibrary } from "@/context/LibraryContext";
+import { PlusIcon } from "@/components/PlusIcon";
+import { AddToPlaylistDialog } from "@/components/AddToPlaylistDialog";
 import { toast } from "sonner";
 
 const ShowDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { isFavorite, toggleFavorite } = useLibrary();
   const [show, setShow] = useState(null);
+  const [plDialog, setPlDialog] = useState(null);
 
   useEffect(() => {
     api.get(`/shows/${id}`).then((res) => setShow(res.data));
@@ -24,13 +29,55 @@ const ShowDetail = () => {
       </div>
     );
 
-  const playEpisode = (epNumber) => {
+  const requireLogin = () => {
     if (!user) {
-      toast.error("Conectează-te pentru a viziona");
+      toast.error("Conectează-te mai întâi");
       navigate("/login");
+      return true;
+    }
+    return false;
+  };
+
+  const playEpisode = (epNumber) => {
+    if (requireLogin()) return;
+    navigate(`/watch/${show.id}/${epNumber}`);
+  };
+
+  const makeRef = (ep) => ({
+    show_id: show.id,
+    episode_number: ep.number,
+    show_title: show.title,
+    episode_title: ep.title,
+    thumbnail: show.thumbnail,
+    channel: show.channel,
+  });
+
+  const onFav = async (ep) => {
+    if (requireLogin()) return;
+    const fav = await toggleFavorite(makeRef(ep));
+    toast.success(fav ? "Adăugat la favorite ❤️" : "Eliminat din favorite");
+  };
+
+  const onDownload = async (ep) => {
+    if (requireLogin()) return;
+    if (!user.plus) {
+      toast.error("Descărcarea e disponibilă doar pentru membrii PLUS");
+      navigate("/plus");
       return;
     }
-    navigate(`/watch/${show.id}/${epNumber}`);
+    try {
+      const { data } = await api.get(`/download/${show.id}/${ep.number}`);
+      const a = document.createElement("a");
+      a.href = data.url;
+      a.download = data.filename;
+      a.target = "_blank";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      toast.success("Descărcare pornită");
+    } catch {
+      toast.error("Nu s-a putut descărca");
+    }
   };
 
   return (
@@ -74,28 +121,49 @@ const ShowDetail = () => {
         <div className="mt-12">
           <h2 className="font-display text-3xl mb-4">Episoade</h2>
           <div className="grid gap-3">
-            {(show.episodes || []).map((ep) => (
-              <div
-                key={ep.number}
-                data-testid={`episode-${ep.number}`}
-                onClick={() => playEpisode(ep.number)}
-                className="group flex items-center gap-4 p-3 rounded-xl bg-[#141414] hover:bg-[#2a2a2a] cursor-pointer transition-colors duration-200 border border-white/5"
-              >
-                <span className="flex items-center justify-center h-11 w-11 rounded-lg bg-black/50 shrink-0 group-hover:bg-[#ec1c24] transition-colors duration-200">
-                  <Play className="h-5 w-5 fill-white" />
-                </span>
-                <div className="flex-1">
-                  <p className="font-semibold">{ep.number}. {ep.title}</p>
-                  <p className="text-xs text-white/50">{ep.duration}</p>
+            {(show.episodes || []).map((ep) => {
+              const locked = !user?.plus && ep.number > 2;
+              const fav = isFavorite(show.id, ep.number);
+              return (
+                <div
+                  key={ep.number}
+                  data-testid={`episode-${ep.number}`}
+                  className="group flex items-center gap-4 p-3 rounded-xl bg-[#141414] hover:bg-[#1c1c1c] transition-colors duration-200 border border-white/5"
+                >
+                  <button
+                    onClick={() => playEpisode(ep.number)}
+                    className="flex items-center justify-center h-11 w-11 rounded-lg bg-black/50 shrink-0 hover:bg-[#ec1c24] transition-colors duration-200"
+                    data-testid={`play-episode-${ep.number}`}
+                  >
+                    <Play className="h-5 w-5 fill-white" />
+                  </button>
+                  <div className="flex-1 min-w-0 cursor-pointer" onClick={() => playEpisode(ep.number)}>
+                    <p className="font-semibold flex items-center gap-2">
+                      {ep.number}. {ep.title}
+                      {locked && <PlusIcon className="h-4 w-4" />}
+                    </p>
+                    <p className="text-xs text-white/50">{ep.duration}</p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button data-testid={`fav-episode-${ep.number}`} onClick={() => onFav(ep)} className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors duration-200" title="Favorite">
+                      <Heart className={`h-4 w-4 ${fav ? "fill-[#ec1c24] text-[#ec1c24]" : "text-white/70"}`} />
+                    </button>
+                    <button data-testid={`playlist-episode-${ep.number}`} onClick={() => (requireLogin() ? null : setPlDialog(makeRef(ep)))} className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors duration-200" title="Adaugă în playlist">
+                      <Plus className="h-4 w-4 text-white/70" />
+                    </button>
+                    <button data-testid={`download-episode-${ep.number}`} onClick={() => onDownload(ep)} className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors duration-200 relative" title={user?.plus ? "Descarcă" : "Descărcare PLUS"}>
+                      <Download className="h-4 w-4 text-white/70" />
+                      {!user?.plus && <PlusIcon className="h-3 w-3 absolute -top-0.5 -right-0.5" />}
+                    </button>
+                  </div>
                 </div>
-                {!user?.plus && ep.number > 2 && (
-                  <Crown className="h-4 w-4 text-[#ffcc00]" title="Cartoonix PLUS" />
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
+
+      <AddToPlaylistDialog open={!!plDialog} onOpenChange={(o) => !o && setPlDialog(null)} itemRef={plDialog} />
     </div>
   );
 };

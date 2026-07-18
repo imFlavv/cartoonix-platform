@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
-import { Check, Crown } from "lucide-react";
+import { Check } from "lucide-react";
 import { NavBar } from "@/components/NavBar";
+import { PlusIcon } from "@/components/PlusIcon";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
@@ -46,7 +47,7 @@ const Plus = () => {
         }} />
         <div className="relative max-w-3xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#ffcc00]/15 border border-[#ffcc00]/40 mb-6">
-            <Crown className="h-4 w-4 text-[#ffcc00]" />
+            <PlusIcon className="h-5 w-5" />
             <span className="text-sm font-bold text-[#ffcc00]">CARTOONIX PLUS</span>
           </div>
           <h1 className="font-display text-5xl md:text-7xl leading-none mb-4">
@@ -79,7 +80,7 @@ const Plus = () => {
 
             {user?.plus ? (
               <div data-testid="plus-active" className="w-full py-3.5 rounded-full bg-[#ffcc00]/15 border border-[#ffcc00]/40 text-[#ffcc00] font-bold flex items-center justify-center gap-2">
-                <Crown className="h-5 w-5" /> Ești abonat PLUS
+                <PlusIcon className="h-5 w-5" /> Ești abonat PLUS
               </div>
             ) : (
               <button

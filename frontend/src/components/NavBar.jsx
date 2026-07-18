@@ -1,21 +1,43 @@
 import { Link, useNavigate } from "react-router-dom";
-import { useState } from "react";
-import { Search, Menu, X, Crown, LogOut, Shield } from "lucide-react";
-import { useAuth } from "@/context/AuthContext";
-import { LOGO_TRANSPARENT } from "@/data/constants";
+import { useState, useEffect, useCallback } from "react";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
+  Search, Menu, X, LogOut, Shield, HelpCircle, Bell,
+  Facebook, Instagram, Youtube, Music2, MessageCircle, User, Settings, CheckCheck,
+} from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { api } from "@/lib/api";
+import { LOGO_TRANSPARENT, FACEBOOK_URL } from "@/data/constants";
+import { PlusIcon } from "@/components/PlusIcon";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+
+const timeAgo = (iso) => {
+  const diff = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (diff < 3600) return `acum ${Math.max(1, Math.floor(diff / 60))} min`;
+  if (diff < 86400) return `acum ${Math.floor(diff / 3600)} h`;
+  return `acum ${Math.floor(diff / 86400)} zile`;
+};
 
 export const NavBar = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
+  const [notifs, setNotifs] = useState({ items: [], unread: 0 });
+
+  const loadNotifs = useCallback(() => {
+    if (!user) return;
+    api.get("/notifications").then((res) => setNotifs(res.data)).catch(() => {});
+  }, [user]);
+
+  useEffect(() => { loadNotifs(); }, [loadNotifs]);
+
+  const markAllRead = async () => {
+    await api.post("/notifications/read-all");
+    loadNotifs();
+  };
 
   const submitSearch = (e) => {
     e.preventDefault();
@@ -25,12 +47,14 @@ export const NavBar = () => {
   const links = [
     { to: "/home", label: "Acasă" },
     { to: "/browse", label: "Bibliotecă" },
-    { to: "/plus", label: "Cartoonix PLUS" },
+    { to: "/plus", label: "Cartoonix PLUS", plus: true },
   ];
 
+  const iconBtn = "relative flex items-center justify-center h-9 w-9 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors duration-200";
+
   return (
-    <header className="fixed top-0 inset-x-0 z-50 backdrop-blur-xl bg-black/70 border-b border-white/10">
-      <div className="flex items-center gap-6 px-4 md:px-12 h-16">
+    <header className="fixed top-0 inset-x-0 z-50 backdrop-blur-xl bg-black/80 border-b border-white/10">
+      <div className="flex items-center gap-6 px-4 md:px-8 h-16">
         <Link to="/home" data-testid="nav-logo" className="flex items-center shrink-0">
           <img src={LOGO_TRANSPARENT} alt="Cartoonix" className="h-9 md:h-10" />
         </Link>
@@ -41,73 +65,164 @@ export const NavBar = () => {
               key={l.to}
               to={l.to}
               data-testid={`nav-${l.label}`}
-              className="text-sm font-semibold text-white/80 hover:text-white transition-colors duration-200"
+              className="flex items-center gap-1.5 text-sm font-semibold text-white/80 hover:text-white transition-colors duration-200"
             >
+              {l.plus && <PlusIcon className="h-4 w-4" />}
               {l.label}
             </Link>
           ))}
         </nav>
 
-        <div className="ml-auto flex items-center gap-3">
-          <form onSubmit={submitSearch} className="relative hidden sm:block">
+        <div className="ml-auto flex items-center gap-1.5 md:gap-2">
+          <form onSubmit={submitSearch} className="relative hidden sm:block mr-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
             <input
               data-testid="nav-search-input"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Caută desene..."
-              className="w-40 md:w-56 pl-9 pr-3 py-2 rounded-full bg-white/10 border border-white/10 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[#ffcc00] focus:w-64 transition-all duration-300"
+              className="w-36 md:w-52 pl-9 pr-3 py-2 rounded-full bg-white/10 border border-white/10 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[#ffcc00] focus:w-60 transition-all duration-300"
             />
           </form>
 
+          {/* Help */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <button data-testid="nav-help-btn" className={iconBtn} aria-label="Ajutor">
+                <HelpCircle className="h-5 w-5" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-64 bg-[#141414] border-white/10 text-white p-2">
+              <button data-testid="help-center" onClick={() => navigate("/help")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/10 transition-colors duration-200 text-sm font-semibold">
+                <HelpCircle className="h-4 w-4 text-white/70" /> Help Center
+              </button>
+              <a href="https://discord.gg" target="_blank" rel="noreferrer" data-testid="help-discord" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/10 transition-colors duration-200 text-sm font-semibold">
+                <MessageCircle className="h-4 w-4 text-white/70" /> Discord
+              </a>
+              <div className="border-t border-white/10 mt-2 pt-3 flex items-center justify-around">
+                <a href={FACEBOOK_URL} target="_blank" rel="noreferrer" className={iconBtn} aria-label="Facebook"><Facebook className="h-4 w-4" /></a>
+                <a href="https://youtube.com" target="_blank" rel="noreferrer" className={iconBtn} aria-label="YouTube"><Youtube className="h-4 w-4" /></a>
+                <a href="https://instagram.com" target="_blank" rel="noreferrer" className={iconBtn} aria-label="Instagram"><Instagram className="h-4 w-4" /></a>
+                <a href="https://tiktok.com" target="_blank" rel="noreferrer" className={iconBtn} aria-label="TikTok"><Music2 className="h-4 w-4" /></a>
+              </div>
+            </PopoverContent>
+          </Popover>
+
           {user ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button data-testid="nav-avatar-btn" className="relative rounded-full ring-2 ring-transparent hover:ring-[#ffcc00] transition-all duration-200">
-                  <img
-                    src={user.avatar || `https://api.dicebear.com/9.x/bottts/svg?seed=${user.email}`}
-                    alt="avatar"
-                    className="h-9 w-9 rounded-full bg-[#141414] object-cover"
-                  />
-                  {user.plus && (
-                    <Crown className="absolute -top-1 -right-1 h-4 w-4 text-[#ffcc00] fill-[#ffcc00]" />
-                  )}
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-[#141414] border-white/10 text-white w-52">
-                <div className="px-2 py-2">
-                  <p className="text-sm font-bold truncate">{user.name}</p>
-                  <p className="text-xs text-white/50 truncate">{user.email}</p>
-                </div>
-                <DropdownMenuSeparator className="bg-white/10" />
-                <DropdownMenuItem data-testid="menu-profile" onClick={() => navigate("/profile")} className="cursor-pointer focus:bg-white/10">
-                  Profil & avatar
-                </DropdownMenuItem>
-                <DropdownMenuItem data-testid="menu-plus" onClick={() => navigate("/plus")} className="cursor-pointer focus:bg-white/10">
-                  <Crown className="h-4 w-4 mr-2 text-[#ffcc00]" /> Cartoonix PLUS
-                </DropdownMenuItem>
-                {user.role === "admin" && (
-                  <DropdownMenuItem data-testid="menu-admin" onClick={() => navigate("/admin")} className="cursor-pointer focus:bg-white/10">
-                    <Shield className="h-4 w-4 mr-2" /> Admin
+            <>
+              {/* Notifications */}
+              <Popover onOpenChange={(o) => { if (o) loadNotifs(); }}>
+                <PopoverTrigger asChild>
+                  <button data-testid="nav-notif-btn" className={iconBtn} aria-label="Notificări">
+                    <Bell className="h-5 w-5" />
+                    {notifs.unread > 0 && (
+                      <span data-testid="notif-badge" className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-[#ec1c24] text-[10px] font-bold flex items-center justify-center">
+                        {notifs.unread}
+                      </span>
+                    )}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-[380px] max-w-[92vw] p-0 bg-[#101010] border-white/10 text-white overflow-hidden">
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+                    <span className="font-display text-xl tracking-wide">Notificări</span>
+                    {notifs.unread > 0 && <span className="h-2 w-2 rounded-full bg-[#ec1c24]" />}
+                  </div>
+                  <div className="max-h-[60vh] overflow-y-auto">
+                    {notifs.items.length === 0 ? (
+                      <p className="p-6 text-center text-white/40 text-sm">Nicio notificare</p>
+                    ) : (
+                      notifs.items.map((n) => (
+                        <div key={n.id} data-testid={`notif-${n.id}`} className="px-4 py-4 border-b border-white/5 hover:bg-white/5 transition-colors duration-200">
+                          <div className="flex items-start gap-2">
+                            {!n.read && <span className="mt-1.5 h-2 w-2 rounded-full bg-[#ec1c24] shrink-0" />}
+                            <div className="flex-1">
+                              <p className="font-bold text-sm leading-snug">{n.title}</p>
+                              <p className="text-xs text-white/40 mt-0.5">{timeAgo(n.created_at)}</p>
+                            </div>
+                          </div>
+                          {n.image && (
+                            <img src={n.image} alt="" className="mt-3 w-full h-36 object-cover rounded-lg" />
+                          )}
+                          <p className="text-sm text-white/70 mt-3 leading-relaxed">{n.body}</p>
+                          {n.cta_label && (
+                            <button
+                              onClick={() => navigate(n.cta_link || "/home")}
+                              className="mt-3 w-full py-2.5 rounded-lg bg-white/10 hover:bg-white/20 text-sm font-semibold transition-colors duration-200"
+                            >
+                              {n.cta_label}
+                            </button>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  <button data-testid="notif-read-all" onClick={markAllRead} className="w-full flex items-center justify-center gap-2 py-3 border-t border-white/10 text-sm font-semibold text-white/70 hover:text-white hover:bg-white/5 transition-colors duration-200">
+                    <CheckCheck className="h-4 w-4" /> Marchează toate ca citite
+                  </button>
+                </PopoverContent>
+              </Popover>
+
+              {/* Avatar */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button data-testid="nav-avatar-btn" className="rounded-full ring-2 ring-transparent hover:ring-[#ffcc00] transition-all duration-200 ml-1">
+                    <img
+                      src={user.avatar || `https://api.dicebear.com/9.x/bottts/svg?seed=${user.email}`}
+                      alt="avatar"
+                      className="h-9 w-9 rounded-full bg-[#141414] object-cover"
+                    />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-[#141414] border-white/10 text-white w-60">
+                  <div className="flex items-center justify-between px-2 py-2.5">
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold truncate">{user.name}</p>
+                      <p className="text-xs text-white/50 truncate">{user.email}</p>
+                    </div>
+                    {user.plus ? (
+                      <span className="flex items-center gap-1 px-2 py-1 rounded-full bg-[#ffcc00]/15 text-[#ffcc00] text-[10px] font-bold shrink-0">
+                        <PlusIcon className="h-3 w-3" /> PLUS
+                      </span>
+                    ) : (
+                      <span className="px-2 py-1 rounded-full border border-white/20 text-white/60 text-[10px] font-bold shrink-0">FREE</span>
+                    )}
+                  </div>
+                  <DropdownMenuSeparator className="bg-white/10" />
+                  <DropdownMenuItem data-testid="menu-profile" onClick={() => navigate("/profile")} className="cursor-pointer focus:bg-white/10">
+                    <User className="h-4 w-4 mr-2" /> My Profile
                   </DropdownMenuItem>
-                )}
-                <DropdownMenuSeparator className="bg-white/10" />
-                <DropdownMenuItem data-testid="menu-logout" onClick={() => { logout(); navigate("/home"); }} className="cursor-pointer focus:bg-white/10 text-[#ec1c24]">
-                  <LogOut className="h-4 w-4 mr-2" /> Deconectare
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  <DropdownMenuItem data-testid="menu-settings" onClick={() => navigate("/settings")} className="cursor-pointer focus:bg-white/10">
+                    <Settings className="h-4 w-4 mr-2" /> Settings
+                  </DropdownMenuItem>
+                  {user.role === "admin" && (
+                    <DropdownMenuItem data-testid="menu-admin" onClick={() => navigate("/admin")} className="cursor-pointer focus:bg-white/10">
+                      <Shield className="h-4 w-4 mr-2" /> Admin
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator className="bg-white/10" />
+                  <DropdownMenuItem data-testid="menu-logout" onClick={() => { logout(); navigate("/home"); }} className="cursor-pointer focus:bg-white/10 text-[#ec1c24]">
+                    <LogOut className="h-4 w-4 mr-2" /> Log Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
           ) : (
             <Link
               to="/login"
               data-testid="nav-login-btn"
-              className="hidden sm:inline-flex items-center px-5 py-2 rounded-full bg-[#ec1c24] text-white text-sm font-bold hover:bg-[#ff2d36] transition-colors duration-200"
+              className="hidden sm:inline-flex items-center px-5 py-2 rounded-full bg-[#ec1c24] text-white text-sm font-bold hover:bg-[#ff2d36] transition-colors duration-200 ml-1"
             >
               Conectare
             </Link>
           )}
 
-          <button data-testid="nav-mobile-toggle" className="md:hidden text-white" onClick={() => setOpen(!open)}>
+          {/* separator + facebook */}
+          <div className="hidden sm:block h-6 w-px bg-white/15 mx-1" />
+          <a href={FACEBOOK_URL} target="_blank" rel="noreferrer" data-testid="nav-facebook" className={`hidden sm:flex ${iconBtn}`} aria-label="Facebook Cartoonix">
+            <Facebook className="h-5 w-5" />
+          </a>
+
+          <button data-testid="nav-mobile-toggle" className="md:hidden text-white ml-1" onClick={() => setOpen(!open)}>
             {open ? <X /> : <Menu />}
           </button>
         </div>
@@ -116,8 +231,8 @@ export const NavBar = () => {
       {open && (
         <div className="md:hidden px-4 pb-4 flex flex-col gap-3 border-t border-white/10 pt-3">
           {links.map((l) => (
-            <Link key={l.to} to={l.to} onClick={() => setOpen(false)} className="text-sm font-semibold text-white/80">
-              {l.label}
+            <Link key={l.to} to={l.to} onClick={() => setOpen(false)} className="flex items-center gap-2 text-sm font-semibold text-white/80">
+              {l.plus && <PlusIcon className="h-4 w-4" />} {l.label}
             </Link>
           ))}
           {!user && (
