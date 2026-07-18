@@ -47,6 +47,7 @@ export const NavBar = () => {
   const links = [
     { to: "/home", label: "Acasă" },
     { to: "/browse", label: "Bibliotecă" },
+    { to: "/lobby", label: "Lobby" },
     { to: "/plus", label: "Cartoonix PLUS", plus: true },
   ];
 
@@ -169,7 +170,7 @@ export const NavBar = () => {
                     <img
                       src={user.avatar || `https://api.dicebear.com/9.x/bottts/svg?seed=${user.email}`}
                       alt="avatar"
-                      className="h-9 w-9 rounded-full bg-[#141414] object-cover"
+                      className="h-7 w-7 rounded-full bg-[#141414] object-cover"
                     />
                   </button>
                 </DropdownMenuTrigger>

@@ -16,6 +16,9 @@ import Plus from "@/pages/Plus";
 import Profile from "@/pages/Profile";
 import Settings from "@/pages/Settings";
 import Help from "@/pages/Help";
+import Lobby from "@/pages/Lobby";
+import ChatRoom from "@/pages/ChatRoom";
+import Announcements from "@/pages/Announcements";
 import Admin from "@/pages/Admin";
 
 function App() {
@@ -49,6 +52,9 @@ function App() {
             <Route path="/watch/:id/:ep" element={<ProtectedRoute><Watch /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+            <Route path="/lobby" element={<ProtectedRoute><Lobby /></ProtectedRoute>} />
+            <Route path="/lobby/chat" element={<ProtectedRoute><ChatRoom /></ProtectedRoute>} />
+            <Route path="/lobby/announcements" element={<ProtectedRoute><Announcements /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute adminOnly><Admin /></ProtectedRoute>} />
             <Route path="*" element={<Navigate to="/home" replace />} />
           </Routes>

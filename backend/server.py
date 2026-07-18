@@ -351,6 +351,84 @@ async def read_all_notifications(user: dict = Depends(get_current_user)):
     return {"ok": True}
 
 
+# ---------- chat ----------
+class ChatInput(BaseModel):
+    text: str = Field(min_length=1, max_length=500)
+
+
+@api_router.get("/chat")
+async def get_chat():
+    msgs = await db.chat_messages.find({}).sort("created_at", -1).limit(100).to_list(100)
+    msgs.reverse()
+    for m in msgs:
+        m["id"] = str(m.pop("_id"))
+    return msgs
+
+
+@api_router.post("/chat")
+async def post_chat(data: ChatInput, user: dict = Depends(get_current_user)):
+    doc = {
+        "user_id": str(user["_id"]),
+        "name": user.get("name", "Anonim"),
+        "avatar": user.get("avatar", ""),
+        "text": data.text.strip(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    res = await db.chat_messages.insert_one(doc)
+    doc["id"] = str(res.inserted_id)
+    doc.pop("_id", None)
+    return doc
+
+
+# ---------- suggestions ----------
+class SuggestionInput(BaseModel):
+    text: str = Field(min_length=3, max_length=1000)
+
+
+async def _last_suggestion(user_id: str):
+    return await db.suggestions.find_one({"user_id": user_id}, sort=[("created_at", -1)])
+
+
+@api_router.get("/suggestions/can")
+async def can_suggest(user: dict = Depends(get_current_user)):
+    last = await _last_suggestion(str(user["_id"]))
+    if not last:
+        return {"can": True, "next_at": None}
+    last_dt = datetime.fromisoformat(last["created_at"])
+    next_dt = last_dt + timedelta(hours=24)
+    now = datetime.now(timezone.utc)
+    return {"can": now >= next_dt, "next_at": next_dt.isoformat()}
+
+
+@api_router.post("/suggestions")
+async def create_suggestion(data: SuggestionInput, user: dict = Depends(get_current_user)):
+    last = await _last_suggestion(str(user["_id"]))
+    if last:
+        last_dt = datetime.fromisoformat(last["created_at"])
+        if datetime.now(timezone.utc) < last_dt + timedelta(hours=24):
+            raise HTTPException(status_code=429, detail="Poți trimite o singură sugestie la 24 de ore. Revino mai târziu!")
+    doc = {
+        "user_id": str(user["_id"]),
+        "name": user.get("name", ""),
+        "email": user.get("email", ""),
+        "text": data.text.strip(),
+        "status": "nou",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    res = await db.suggestions.insert_one(doc)
+    doc["id"] = str(res.inserted_id)
+    doc.pop("_id", None)
+    return doc
+
+
+@api_router.get("/admin/suggestions")
+async def list_suggestions(admin: dict = Depends(require_admin)):
+    sugs = await db.suggestions.find({}).sort("created_at", -1).to_list(500)
+    for s in sugs:
+        s["id"] = str(s.pop("_id"))
+    return sugs
+
+
 @api_router.get("/")
 async def root():
     return {"message": "Cartoonix API"}

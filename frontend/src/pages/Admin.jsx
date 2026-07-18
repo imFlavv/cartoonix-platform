@@ -3,7 +3,8 @@ import { NavBar } from "@/components/NavBar";
 import { api } from "@/lib/api";
 import { CHANNELS } from "@/data/constants";
 import { toast } from "sonner";
-import { FolderSearch, Plus } from "lucide-react";
+import { FolderSearch, Plus, Film, Lightbulb } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const empty = {
   title: "",
@@ -22,9 +23,11 @@ const Admin = () => {
   const [shows, setShows] = useState([]);
   const [busy, setBusy] = useState(false);
   const [detected, setDetected] = useState(null);
+  const [suggestions, setSuggestions] = useState([]);
 
   const load = () => api.get("/shows").then((res) => setShows(res.data));
-  useEffect(() => { load(); }, []);
+  const loadSuggestions = () => api.get("/admin/suggestions").then((res) => setSuggestions(res.data)).catch(() => {});
+  useEffect(() => { load(); loadSuggestions(); }, []);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -74,52 +77,90 @@ const Admin = () => {
       <div className="pt-24 px-4 md:px-12 pb-16 max-w-5xl mx-auto">
         <h1 className="font-display text-4xl md:text-5xl mb-8">Panou Admin</h1>
 
-        <div className="grid md:grid-cols-2 gap-8">
-          <form onSubmit={submit} className="space-y-3 bg-[#141414] border border-white/10 rounded-2xl p-6">
-            <h2 className="font-display text-2xl mb-2">Adaugă desen</h2>
-            <input data-testid="admin-title" required placeholder="Titlu" value={form.title} onChange={(e) => set("title", e.target.value)} className={input} />
-            <textarea data-testid="admin-description" required placeholder="Descriere" value={form.description} onChange={(e) => set("description", e.target.value)} rows={3} className={input} />
-            <input data-testid="admin-thumbnail" required placeholder="URL thumbnail (poster)" value={form.thumbnail} onChange={(e) => set("thumbnail", e.target.value)} className={input} />
-            <input data-testid="admin-banner" placeholder="URL banner (opțional)" value={form.banner} onChange={(e) => set("banner", e.target.value)} className={input} />
-            <div className="grid grid-cols-2 gap-3">
-              <select data-testid="admin-channel" value={form.channel} onChange={(e) => set("channel", e.target.value)} className={input}>
-                {CHANNELS.map((c) => <option key={c} value={c} className="bg-[#141414]">{c}</option>)}
-              </select>
-              <input data-testid="admin-year" placeholder="An" value={form.year} onChange={(e) => set("year", e.target.value)} className={input} />
-            </div>
-            <input data-testid="admin-category" required placeholder="Categorie (ex: Acțiune)" value={form.category} onChange={(e) => set("category", e.target.value)} className={input} />
-            <input data-testid="admin-genres" placeholder="Genuri (separate prin virgulă)" value={form.genres} onChange={(e) => set("genres", e.target.value)} className={input} />
+        <Tabs defaultValue="shows">
+          <TabsList className="bg-[#141414] border border-white/10 mb-6">
+            <TabsTrigger value="shows" data-testid="admin-tab-shows" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
+              <Film className="h-4 w-4 mr-2" /> Desene
+            </TabsTrigger>
+            <TabsTrigger value="suggestions" data-testid="admin-tab-suggestions" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
+              <Lightbulb className="h-4 w-4 mr-2" /> Sugestii{suggestions.length ? ` (${suggestions.length})` : ""}
+            </TabsTrigger>
+          </TabsList>
 
-            <div className="flex gap-2">
-              <input data-testid="admin-vps-path" placeholder="Path folder VPS (ex: /var/www/cartoons/tom)" value={form.vps_path} onChange={(e) => set("vps_path", e.target.value)} className={input} />
-              <button type="button" data-testid="admin-detect" onClick={detectEpisodes} className="shrink-0 px-4 rounded-lg bg-white/10 hover:bg-white/20 transition-colors duration-200 flex items-center gap-1 text-sm font-semibold">
-                <FolderSearch className="h-4 w-4" /> Detectează
-              </button>
-            </div>
-            {detected && (
-              <p data-testid="admin-detected" className="text-xs text-[#ffcc00]">{detected.length} episoade .mp4 detectate din folder</p>
-            )}
-
-            <button data-testid="admin-submit" type="submit" disabled={busy} className="w-full py-3 rounded-lg bg-[#ec1c24] font-bold hover:bg-[#ff2d36] transition-colors duration-200 disabled:opacity-60 flex items-center justify-center gap-2">
-              <Plus className="h-5 w-5" /> {busy ? "Se salvează..." : "Adaugă desen"}
-            </button>
-          </form>
-
-          <div>
-            <h2 className="font-display text-2xl mb-3">Desene existente ({shows.length})</h2>
-            <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
-              {shows.map((s) => (
-                <div key={s.id} className="flex items-center gap-3 p-2 rounded-lg bg-[#141414] border border-white/5">
-                  <img src={s.thumbnail} alt={s.title} className="h-14 w-10 rounded object-cover" />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold truncate">{s.title}</p>
-                    <p className="text-xs text-white/50">{s.channel} · {s.episodes?.length || 0} ep.</p>
-                  </div>
+          <TabsContent value="shows">
+            <div className="grid md:grid-cols-2 gap-8">
+              <form onSubmit={submit} className="space-y-3 bg-[#141414] border border-white/10 rounded-2xl p-6">
+                <h2 className="font-display text-2xl mb-2">Adaugă desen</h2>
+                <input data-testid="admin-title" required placeholder="Titlu" value={form.title} onChange={(e) => set("title", e.target.value)} className={input} />
+                <textarea data-testid="admin-description" required placeholder="Descriere" value={form.description} onChange={(e) => set("description", e.target.value)} rows={3} className={input} />
+                <input data-testid="admin-thumbnail" required placeholder="URL thumbnail (poster)" value={form.thumbnail} onChange={(e) => set("thumbnail", e.target.value)} className={input} />
+                <input data-testid="admin-banner" placeholder="URL banner (opțional)" value={form.banner} onChange={(e) => set("banner", e.target.value)} className={input} />
+                <div className="grid grid-cols-2 gap-3">
+                  <select data-testid="admin-channel" value={form.channel} onChange={(e) => set("channel", e.target.value)} className={input}>
+                    {CHANNELS.map((c) => <option key={c} value={c} className="bg-[#141414]">{c}</option>)}
+                  </select>
+                  <input data-testid="admin-year" placeholder="An" value={form.year} onChange={(e) => set("year", e.target.value)} className={input} />
                 </div>
-              ))}
+                <input data-testid="admin-category" required placeholder="Categorie (ex: Acțiune)" value={form.category} onChange={(e) => set("category", e.target.value)} className={input} />
+                <input data-testid="admin-genres" placeholder="Genuri (separate prin virgulă)" value={form.genres} onChange={(e) => set("genres", e.target.value)} className={input} />
+
+                <div className="flex gap-2">
+                  <input data-testid="admin-vps-path" placeholder="Path folder VPS (ex: /var/www/cartoons/tom)" value={form.vps_path} onChange={(e) => set("vps_path", e.target.value)} className={input} />
+                  <button type="button" data-testid="admin-detect" onClick={detectEpisodes} className="shrink-0 px-4 rounded-lg bg-white/10 hover:bg-white/20 transition-colors duration-200 flex items-center gap-1 text-sm font-semibold">
+                    <FolderSearch className="h-4 w-4" /> Detectează
+                  </button>
+                </div>
+                {detected && (
+                  <p data-testid="admin-detected" className="text-xs text-[#ffcc00]">{detected.length} episoade .mp4 detectate din folder</p>
+                )}
+
+                <button data-testid="admin-submit" type="submit" disabled={busy} className="w-full py-3 rounded-lg bg-[#ec1c24] font-bold hover:bg-[#ff2d36] transition-colors duration-200 disabled:opacity-60 flex items-center justify-center gap-2">
+                  <Plus className="h-5 w-5" /> {busy ? "Se salvează..." : "Adaugă desen"}
+                </button>
+              </form>
+
+              <div>
+                <h2 className="font-display text-2xl mb-3">Desene existente ({shows.length})</h2>
+                <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
+                  {shows.map((s) => (
+                    <div key={s.id} className="flex items-center gap-3 p-2 rounded-lg bg-[#141414] border border-white/5">
+                      <img src={s.thumbnail} alt={s.title} className="h-14 w-10 rounded object-cover" />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold truncate">{s.title}</p>
+                        <p className="text-xs text-white/50">{s.channel} · {s.episodes?.length || 0} ep.</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
+          </TabsContent>
+
+          <TabsContent value="suggestions">
+            <h2 className="font-display text-2xl mb-4">Sugestii de la utilizatori ({suggestions.length})</h2>
+            {suggestions.length === 0 ? (
+              <div className="text-center py-16 text-white/40">
+                <Lightbulb className="h-10 w-10 mx-auto mb-3 opacity-50" />
+                Nicio sugestie primită încă.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {suggestions.map((s) => (
+                  <div key={s.id} data-testid={`suggestion-${s.id}`} className="bg-[#141414] border border-white/10 rounded-xl p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <p className="font-semibold text-sm">{s.name}</p>
+                        <p className="text-xs text-white/40">{s.email} · {new Date(s.created_at).toLocaleString("ro-RO")}</p>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-full bg-[#22c55e]/15 text-[#22c55e] text-[10px] font-bold uppercase">{s.status}</span>
+                    </div>
+                    <p className="text-white/80 text-sm">{s.text}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
