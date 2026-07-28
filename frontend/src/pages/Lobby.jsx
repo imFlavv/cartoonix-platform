@@ -3,9 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { NavBar } from "@/components/NavBar";
 import { api } from "@/lib/api";
 import {
-  MessagesSquare,
-  Megaphone,
-  Gamepad2,
   Lightbulb,
   Sparkles,
   Lock,
@@ -37,7 +34,6 @@ const IMG = {
  */
 const LobbyCard = ({
   testid,
-  icon: Icon,
   title,
   desc,
   cta,
@@ -105,29 +101,13 @@ const LobbyCard = ({
 
       {/* --- Content --- */}
       <div className="relative z-10 flex flex-col p-6 sm:p-7 w-full">
-        <span
-          className="flex items-center justify-center h-12 w-12 sm:h-14 sm:w-14 rounded-2xl border shrink-0"
-          style={{
-            background: `linear-gradient(135deg, ${accent}33, ${accent}0f)`,
-            borderColor: `${accent}66`,
-            boxShadow: `0 0 22px ${accent}55`,
-            backdropFilter: "blur(6px)",
-          }}
-        >
-          <Icon
-            className="h-6 w-6 sm:h-7 sm:w-7"
-            style={{ color: accent }}
-            strokeWidth={2.2}
-          />
-        </span>
-
         <h3
-          className="font-display text-3xl sm:text-4xl leading-[1.05] mt-6 max-w-[55%]"
+          className="font-display italic text-3xl sm:text-4xl leading-[1.05] max-w-[55%]"
           style={{ textShadow: `0 2px 24px ${accent}70` }}
         >
           {title}
         </h3>
-        <p className="text-sm text-white/70 mt-2 max-w-[52%] leading-relaxed">
+        <p className="text-sm text-white/70 mt-3 max-w-[52%] leading-relaxed">
           {desc}
         </p>
 
@@ -243,7 +223,6 @@ const Lobby = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-5">
           <LobbyCard
             testid="lobby-chat"
-            icon={MessagesSquare}
             title="Chat"
             desc="Discută cu ceilalți fani Cartoonix"
             cta="Intră în chat"
@@ -254,7 +233,6 @@ const Lobby = () => {
           />
           <LobbyCard
             testid="lobby-announcements"
-            icon={Megaphone}
             title="Anunțuri importante"
             desc="Ultimele noutăți de la echipă"
             cta="Vezi anunțurile"
@@ -265,7 +243,6 @@ const Lobby = () => {
           />
           <LobbyCard
             testid="lobby-cartoonixland"
-            icon={Gamepad2}
             title="Cartoonix Land"
             desc="Zonă de joacă și distracție"
             cta="Explorează"
@@ -277,7 +254,6 @@ const Lobby = () => {
           />
           <LobbyCard
             testid="lobby-suggestions"
-            icon={Lightbulb}
             title="Cutia cu sugestii"
             desc="Trimite-ne ideile tale (o dată la 24h)"
             cta="Trimite o sugestie"
@@ -288,7 +264,6 @@ const Lobby = () => {
           />
           <LobbyCard
             testid="lobby-soon"
-            icon={Sparkles}
             title="Mai multe în curând"
             desc="Pregătim lucruri noi pentru tine"
             cta="Stai aproape"
