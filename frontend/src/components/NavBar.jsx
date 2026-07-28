@@ -8,7 +8,6 @@ import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api";
 import { LOGO_TRANSPARENT, FACEBOOK_URL } from "@/data/constants";
 import { PlusIcon } from "@/components/PlusIcon";
-import { UserBadges } from "@/components/UserBadges";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
@@ -181,8 +180,10 @@ export const NavBar = () => {
                       <p className="text-sm font-bold truncate">{user.name}</p>
                       <p className="text-xs text-white/50 truncate">{user.email}</p>
                     </div>
-                    {(user.role === "admin" || user.plus) ? (
-                      <UserBadges user={user} size="xs" showLabel />
+                    {user.plus ? (
+                      <span className="flex items-center gap-1 px-2 py-1 rounded-full bg-[#ffcc00]/15 text-[#ffcc00] text-[10px] font-bold shrink-0">
+                        <PlusIcon className="h-3 w-3" /> PLUS
+                      </span>
                     ) : (
                       <span className="px-2 py-1 rounded-full border border-white/20 text-white/60 text-[10px] font-bold shrink-0">FREE</span>
                     )}

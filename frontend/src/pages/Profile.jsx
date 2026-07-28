@@ -6,7 +6,6 @@ import { useLibrary } from "@/context/LibraryContext";
 import { api } from "@/lib/api";
 import { AVATAR_SEEDS, PREMIUM_AVATARS } from "@/data/constants";
 import { PlusIcon } from "@/components/PlusIcon";
-import { UserBadges } from "@/components/UserBadges";
 import { Check, Play, Heart, Trash2, ListMusic, Film, Clock, Lock, KeyRound, Eye, EyeOff } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
@@ -121,9 +120,12 @@ const Profile = () => {
             <div className="text-center sm:text-left flex-1">
               <h1 className="font-display text-4xl md:text-5xl">{user?.name}</h1>
               <p className="text-white/50">{user?.email}</p>
-              <div className="mt-2 flex items-center justify-center sm:justify-start gap-3 flex-wrap">
-                <UserBadges user={user} size="md" showLabel />
-                {!user?.plus && (
+              <div className="mt-2 flex items-center justify-center sm:justify-start gap-3">
+                {user?.plus ? (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#ffcc00]/15 text-[#ffcc00] text-xs font-bold">
+                    <PlusIcon className="h-4 w-4" /> Membru PLUS
+                  </span>
+                ) : (
                   <>
                     <span className="px-3 py-1 rounded-full border border-white/20 text-white/60 text-xs font-bold">Cont FREE</span>
                     <button onClick={() => navigate("/plus")} data-testid="profile-upgrade" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#ffcc00] text-black text-xs font-bold hover:brightness-110 transition-all duration-200">

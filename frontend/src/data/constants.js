@@ -35,7 +35,6 @@ export const PREMIUM_AVATARS = [
 export const CHANNELS = ["Cartoon Network", "Jetix", "Minimax", "Boomerang"];
 
 export const PLUS_ICON = "/plus-icon.png";
-export const FOUNDER_BADGE = "https://customer-assets-agu9un31.emergentagent.net/job_cartoon-redesign/artifacts/9h6zbw09_ChatGPT%20Image%20Jul%2029%2C%202026%2C%2002_20_50%20AM.png";
 
 export const FACEBOOK_URL = "https://www.facebook.com/cartoonixro";
 

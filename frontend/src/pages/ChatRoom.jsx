@@ -7,7 +7,6 @@ import { ArrowLeft, Send, Sparkles, Globe, Lock, Star, Megaphone, AlertTriangle,
 import { PlusIcon } from "@/components/PlusIcon";
 import { MessageText } from "@/components/MessageText";
 import { EmojiPicker } from "@/components/EmojiPicker";
-import { UserBadges } from "@/components/UserBadges";
 
 const ADMIN_COMMANDS = [
   { cmd: "important", label: "/important", desc: "Mesaj evidențiat auriu", icon: Star },
@@ -154,7 +153,7 @@ const ChatRoom = () => {
                     <div className="max-w-[75%]">
                       <p className="text-xs text-white/40 mb-0.5 px-1 flex items-center gap-1">
                         {m.name}
-                        <UserBadges user={{ plus: m.plus, role: m.role }} size="xs" />
+                        {m.plus && <PlusIcon className="h-3.5 w-3.5" />}
                       </p>
                       <div
                         data-testid={m.plus ? "chat-bubble-plus" : "chat-bubble"}
