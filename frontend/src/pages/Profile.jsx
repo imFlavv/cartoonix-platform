@@ -6,7 +6,8 @@ import { useLibrary } from "@/context/LibraryContext";
 import { api } from "@/lib/api";
 import { AVATAR_SEEDS, PREMIUM_AVATARS } from "@/data/constants";
 import { PlusIcon } from "@/components/PlusIcon";
-import { Check, Play, Heart, Trash2, ListMusic, Film, Clock, Lock } from "lucide-react";
+import { UserBadges } from "@/components/UserBadges";
+import { Check, Play, Heart, Trash2, ListMusic, Film, Clock, Lock, KeyRound, Eye, EyeOff } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 
@@ -71,6 +72,41 @@ const Profile = () => {
 
   const play = (i) => navigate(`/watch/${i.show_id}/${i.episode_number}`);
 
+  // password change
+  const [pwd, setPwd] = useState({ current: "", next: "", confirm: "" });
+  const [pwdBusy, setPwdBusy] = useState(false);
+  const [showPwd, setShowPwd] = useState({ current: false, next: false, confirm: false });
+
+  const changePassword = async (e) => {
+    e.preventDefault();
+    if (!pwd.current || !pwd.next || !pwd.confirm) {
+      toast.error("Completează toate câmpurile");
+      return;
+    }
+    if (pwd.next.length < 6) {
+      toast.error("Noua parolă trebuie să aibă minim 6 caractere");
+      return;
+    }
+    if (pwd.next !== pwd.confirm) {
+      toast.error("Noua parolă și confirmarea nu se potrivesc");
+      return;
+    }
+    if (pwd.current === pwd.next) {
+      toast.error("Noua parolă trebuie să fie diferită de cea actuală");
+      return;
+    }
+    setPwdBusy(true);
+    try {
+      await api.put("/auth/password", { current_password: pwd.current, new_password: pwd.next });
+      toast.success("Parola a fost actualizată!");
+      setPwd({ current: "", next: "", confirm: "" });
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Nu s-a putut actualiza parola");
+    } finally {
+      setPwdBusy(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
       <NavBar />
@@ -85,12 +121,9 @@ const Profile = () => {
             <div className="text-center sm:text-left flex-1">
               <h1 className="font-display text-4xl md:text-5xl">{user?.name}</h1>
               <p className="text-white/50">{user?.email}</p>
-              <div className="mt-2 flex items-center justify-center sm:justify-start gap-3">
-                {user?.plus ? (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#ffcc00]/15 text-[#ffcc00] text-xs font-bold">
-                    <PlusIcon className="h-4 w-4" /> Membru PLUS
-                  </span>
-                ) : (
+              <div className="mt-2 flex items-center justify-center sm:justify-start gap-3 flex-wrap">
+                <UserBadges user={user} size="md" showLabel />
+                {!user?.plus && (
                   <>
                     <span className="px-3 py-1 rounded-full border border-white/20 text-white/60 text-xs font-bold">Cont FREE</span>
                     <button onClick={() => navigate("/plus")} data-testid="profile-upgrade" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#ffcc00] text-black text-xs font-bold hover:brightness-110 transition-all duration-200">
@@ -260,6 +293,54 @@ const Profile = () => {
                     <PlusIcon className="h-4 w-4" /> Deblochează cu PLUS
                   </button>
                 )}
+              </div>
+
+              {/* -------- Change password -------- */}
+              <div className="mt-10 pt-8 border-t border-white/10 max-w-lg">
+                <h3 className="font-display text-2xl mb-1 flex items-center gap-2">
+                  <KeyRound className="h-5 w-5 text-[#ffcc00]" /> Schimbă parola
+                </h3>
+                <p className="text-sm text-white/50 mb-5">
+                  Introdu parola actuală și noua parolă (minim 6 caractere).
+                </p>
+
+                <form data-testid="password-form" onSubmit={changePassword} className="space-y-3">
+                  {[
+                    { key: "current", label: "Parola actuală", testid: "pwd-current" },
+                    { key: "next", label: "Parolă nouă", testid: "pwd-new" },
+                    { key: "confirm", label: "Confirmă parola nouă", testid: "pwd-confirm" },
+                  ].map((f) => (
+                    <div key={f.key} className="relative">
+                      <label className="block text-xs text-white/50 mb-1">{f.label}</label>
+                      <input
+                        data-testid={f.testid}
+                        type={showPwd[f.key] ? "text" : "password"}
+                        value={pwd[f.key]}
+                        onChange={(e) => setPwd({ ...pwd, [f.key]: e.target.value })}
+                        autoComplete={f.key === "current" ? "current-password" : "new-password"}
+                        className="w-full px-4 py-3 pr-11 rounded-lg bg-white/5 border border-white/10 focus:outline-none focus:ring-2 focus:ring-[#ffcc00] text-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPwd((s) => ({ ...s, [f.key]: !s[f.key] }))}
+                        tabIndex={-1}
+                        className="absolute right-2 top-[30px] h-9 w-9 flex items-center justify-center rounded-md text-white/50 hover:text-white/90 hover:bg-white/10 transition-colors"
+                        aria-label={showPwd[f.key] ? "Ascunde parola" : "Arată parola"}
+                      >
+                        {showPwd[f.key] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    data-testid="password-submit"
+                    type="submit"
+                    disabled={pwdBusy}
+                    className="mt-2 inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#ec1c24] font-bold hover:bg-[#ff2d36] transition-colors duration-200 disabled:opacity-60"
+                  >
+                    <KeyRound className="h-4 w-4" />
+                    {pwdBusy ? "Se actualizează..." : "Schimbă parola"}
+                  </button>
+                </form>
               </div>
             </TabsContent>
           </Tabs>

@@ -241,6 +241,24 @@ async def update_profile(data: ProfileInput, user: dict = Depends(get_current_us
     return serialize_user(user)
 
 
+class ChangePasswordInput(BaseModel):
+    current_password: str = Field(min_length=1, max_length=200)
+    new_password: str = Field(min_length=6, max_length=200)
+
+
+@api_router.put("/auth/password")
+async def change_password(data: ChangePasswordInput, user: dict = Depends(get_current_user)):
+    if not verify_password(data.current_password, user["password_hash"]):
+        raise HTTPException(status_code=400, detail="Parola actuală este incorectă")
+    if data.current_password == data.new_password:
+        raise HTTPException(status_code=400, detail="Noua parolă trebuie să fie diferită de cea actuală")
+    await db.users.update_one(
+        {"_id": user["_id"]},
+        {"$set": {"password_hash": hash_password(data.new_password)}},
+    )
+    return {"ok": True}
+
+
 @api_router.post("/auth/subscribe")
 async def subscribe(user: dict = Depends(get_current_user)):
     # Placeholder pentru Stripe - momentan doar marcheaza PLUS activ (UI demo)
