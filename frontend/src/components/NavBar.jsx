@@ -1,8 +1,9 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect, useCallback } from "react";
 import {
   Search, Menu, X, LogOut, Shield, HelpCircle, Bell,
   Facebook, Instagram, Youtube, Music2, MessageCircle, User, Settings, CheckCheck, Inbox,
+  Home, Clapperboard, Users, Gem,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api";
@@ -23,6 +24,7 @@ const timeAgo = (iso) => {
 export const NavBar = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [notifs, setNotifs] = useState({ items: [], unread: 0 });
@@ -45,46 +47,70 @@ export const NavBar = () => {
   };
 
   const links = [
-    { to: "/home", label: "Acasă" },
-    { to: "/browse", label: "Bibliotecă" },
-    { to: "/lobby", label: "Lobby" },
+    { to: "/home", label: "Acasă", icon: Home },
+    { to: "/browse", label: "Bibliotecă", icon: Clapperboard },
+    { to: "/lobby", label: "Lobby", icon: Users },
     { to: "/plus", label: "Cartoonix PLUS", plus: true },
   ];
 
-  const iconBtn = "relative flex items-center justify-center h-9 w-9 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors duration-200";
+  const isActive = (to) => location.pathname === to || location.pathname.startsWith(to + "/");
+  const coins = user?.coins ?? 0;
+
+  const iconBtn = "relative flex items-center justify-center h-10 w-10 rounded-xl text-white/60 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/5 transition-colors duration-200";
 
   return (
-    <header className="fixed top-0 inset-x-0 z-50 backdrop-blur-xl bg-black/80 border-b border-white/10">
-      <div className="flex items-center gap-6 px-4 md:px-8 h-16">
+    <header className="fixed top-0 inset-x-0 z-50 backdrop-blur-xl bg-[#0b0b0e]/95 border-b border-white/[0.06]">
+      <div className="flex items-center gap-3 px-4 md:px-6 h-16">
         <Link to="/home" data-testid="nav-logo" className="flex items-center shrink-0">
           <img src={LOGO_TRANSPARENT} alt="Cartoonix" className="h-9 md:h-10" />
         </Link>
 
-        <nav className="hidden md:flex items-center gap-6">
-          {links.map((l) => (
-            <Link
-              key={l.to}
-              to={l.to}
-              data-testid={`nav-${l.label}`}
-              className="flex items-center gap-1.5 text-sm font-semibold text-white/80 hover:text-white transition-colors duration-200"
-            >
-              {l.plus && <PlusIcon className="h-4 w-4" />}
-              {l.label}
-            </Link>
-          ))}
+        {/* vertical divider */}
+        <div className="hidden sm:block h-7 w-px bg-white/10 mx-1" />
+
+        {/* Search */}
+        <form onSubmit={submitSearch} className="hidden sm:flex items-center gap-2 pl-3.5 pr-3 py-2 rounded-xl bg-white/[0.04] border border-white/5 focus-within:border-white/20 focus-within:bg-white/[0.06] transition-all duration-200">
+          <Search className="h-4 w-4 text-white/40 shrink-0" />
+          <input
+            data-testid="nav-search-input"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Caută..."
+            className="w-24 md:w-40 bg-transparent text-sm text-white placeholder:text-white/40 focus:outline-none focus:w-52 transition-all duration-300"
+          />
+        </form>
+
+        {/* Category pills (centered) */}
+        <nav className="hidden lg:flex items-center gap-1.5 mx-auto">
+          {links.map((l) => {
+            const Icon = l.icon;
+            const active = isActive(l.to);
+            return (
+              <Link
+                key={l.to}
+                to={l.to}
+                data-testid={`nav-${l.label}`}
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium border transition-colors duration-200 ${
+                  active
+                    ? "text-white bg-white/[0.10] border-white/10"
+                    : "text-white/60 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border-white/5"
+                }`}
+              >
+                {l.plus ? <PlusIcon className="h-4 w-4" /> : Icon ? <Icon className="h-4 w-4" /> : null}
+                {l.label}
+              </Link>
+            );
+          })}
         </nav>
 
         <div className="ml-auto flex items-center gap-1.5 md:gap-2">
-          <form onSubmit={submitSearch} className="relative hidden sm:block mr-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
-            <input
-              data-testid="nav-search-input"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Caută desene..."
-              className="w-36 md:w-52 pl-9 pr-3 py-2 rounded-full bg-white/10 border border-white/10 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[#ffcc00] focus:w-60 transition-all duration-300"
-            />
-          </form>
+          {/* Currency */}
+          {user && (
+            <div data-testid="nav-currency" className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.04] border border-white/5">
+              <Gem className="h-4 w-4 text-[#a855f7]" />
+              <span className="text-sm font-bold text-white tabular-nums">{coins}</span>
+            </div>
+          )}
 
           {/* Help */}
           <Popover>
@@ -120,9 +146,7 @@ export const NavBar = () => {
                   <button data-testid="nav-notif-btn" className={iconBtn} aria-label="Notificări">
                     <Bell className="h-5 w-5" />
                     {notifs.unread > 0 && (
-                      <span data-testid="notif-badge" className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-[#ec1c24] text-[10px] font-bold flex items-center justify-center">
-                        {notifs.unread}
-                      </span>
+                      <span data-testid="notif-badge" className="absolute top-2 right-2 h-2 w-2 rounded-full bg-[#3b82f6] ring-2 ring-[#0b0b0e]" />
                     )}
                   </button>
                 </PopoverTrigger>
@@ -169,11 +193,11 @@ export const NavBar = () => {
               {/* Avatar */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button data-testid="nav-avatar-btn" className="rounded-full ring-2 ring-transparent hover:ring-[#ffcc00] transition-all duration-200 ml-1">
+                  <button data-testid="nav-avatar-btn" className="rounded-lg ring-1 ring-white/10 hover:ring-2 hover:ring-[#ffcc00] transition-all duration-200 ml-0.5 overflow-hidden">
                     <img
                       src={user.avatar || `https://api.dicebear.com/9.x/bottts/svg?seed=${user.email}`}
                       alt="avatar"
-                      className="h-7 w-7 rounded-full bg-[#141414] object-cover"
+                      className="h-9 w-9 rounded-lg bg-[#141414] object-cover"
                     />
                   </button>
                 </DropdownMenuTrigger>
@@ -226,21 +250,24 @@ export const NavBar = () => {
             <Facebook className="h-5 w-5" />
           </a>
 
-          <button data-testid="nav-mobile-toggle" className="md:hidden text-white ml-1" onClick={() => setOpen(!open)}>
+          <button data-testid="nav-mobile-toggle" className="lg:hidden text-white ml-1" onClick={() => setOpen(!open)}>
             {open ? <X /> : <Menu />}
           </button>
         </div>
       </div>
 
       {open && (
-        <div className="md:hidden px-4 pb-4 flex flex-col gap-3 border-t border-white/10 pt-3">
-          {links.map((l) => (
-            <Link key={l.to} to={l.to} onClick={() => setOpen(false)} className="flex items-center gap-2 text-sm font-semibold text-white/80">
-              {l.plus && <PlusIcon className="h-4 w-4" />} {l.label}
-            </Link>
-          ))}
+        <div className="lg:hidden px-4 pb-4 flex flex-col gap-2 border-t border-white/10 pt-3">
+          {links.map((l) => {
+            const Icon = l.icon;
+            return (
+              <Link key={l.to} to={l.to} onClick={() => setOpen(false)} className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-white/[0.04] text-sm font-semibold text-white/80 hover:text-white">
+                {l.plus ? <PlusIcon className="h-4 w-4" /> : Icon ? <Icon className="h-4 w-4" /> : null} {l.label}
+              </Link>
+            );
+          })}
           {!user && (
-            <Link to="/login" onClick={() => setOpen(false)} className="text-sm font-bold text-[#ec1c24]">
+            <Link to="/login" onClick={() => setOpen(false)} className="text-sm font-bold text-[#ec1c24] px-3 py-2">
               Conectare
             </Link>
           )}
