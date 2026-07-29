@@ -11,7 +11,7 @@ import string
 from typing import Optional
 
 # Backend URL from frontend/.env
-BASE_URL = "https://cartoon-redesign.preview.emergentagent.com/api"
+BASE_URL = "https://instant-preview-27.preview.emergentagent.com/api"
 
 # Admin credentials from /app/memory/test_credentials.md
 ADMIN_EMAIL = "admin@cartoonix.app"

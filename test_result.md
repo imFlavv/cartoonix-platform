@@ -153,7 +153,7 @@ backend:
         -comment: "Recreated missing .env files: backend has MONGO_URL, DB_NAME=cartoonix, JWT_SECRET, ADMIN_EMAIL=admin@cartoonix.app, ADMIN_PASSWORD=Admin1234!, CORS_ORIGINS=*. Frontend has REACT_APP_BACKEND_URL. Backend and frontend restarted and are running."
         -working: true
         -agent: "testing"
-        -comment: "✅ Environment verified. Backend URL https://cartoon-redesign.preview.emergentagent.com/api is accessible. Admin credentials work correctly. All API endpoints responding properly."
+        -comment: "✅ Environment verified. Backend URL https://instant-preview-27.preview.emergentagent.com/api is accessible. Admin credentials work correctly. All API endpoints responding properly."
 
 frontend:
   - task: "PLUS chat bubble redesign (darker, gold outline, subtle shine)"
