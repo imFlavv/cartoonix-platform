@@ -4,11 +4,9 @@ import { NavBar } from "@/components/NavBar";
 import { api } from "@/lib/api";
 import {
   Lightbulb,
-  Sparkles,
   Lock,
   Send,
   ChevronRight,
-  Heart,
 } from "lucide-react";
 import {
   Dialog,
@@ -194,31 +192,7 @@ const Lobby = () => {
     <div className="min-h-screen bg-[#0a0a0a] text-white relative overflow-hidden">
       <NavBar />
 
-      {/* Faint background TV silhouette */}
-      <div className="pointer-events-none absolute top-16 right-8 opacity-[0.04] hidden md:block">
-        <svg
-          width="360"
-          height="360"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="0.6"
-        >
-          <rect x="3" y="6" width="18" height="12" rx="2" />
-          <path d="M8 3l4 3 4-3" />
-          <circle cx="18" cy="20" r="0.5" fill="currentColor" />
-        </svg>
-      </div>
-
       <div className="pt-24 px-4 md:px-12 pb-16 max-w-7xl mx-auto relative">
-        <div className="flex items-center gap-3 mb-1">
-          <h1 className="font-display text-5xl md:text-6xl tracking-wider">
-            Lobby
-          </h1>
-          <Sparkles className="h-6 w-6 text-[#ffcc00] mt-2" />
-        </div>
-        <p className="text-white/50 mb-10">Alege unde vrei să intri</p>
-
         {/* 6-col grid → row 1: 3× (col-span-2), row 2: 2× (col-span-3) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-5">
           <LobbyCard
@@ -273,23 +247,6 @@ const Lobby = () => {
             locked
             badge="ÎN CURÂND!"
           />
-        </div>
-
-        {/* Footer strip */}
-        <div className="mt-12 flex justify-center">
-          <div className="flex items-center gap-3 text-sm text-white/60 bg-white/[0.03] border border-white/10 rounded-full px-5 py-2">
-            <Heart className="h-4 w-4 text-[#ec1c24] fill-[#ec1c24]" />
-            <span>Cartoonix este creat pentru voi.</span>
-            <span className="inline-flex items-center gap-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#8b5cf6]" /> Comunitate
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#ffcc00]" /> Distracție
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#22c55e]" /> Nostalgie
-            </span>
-          </div>
         </div>
       </div>
 
