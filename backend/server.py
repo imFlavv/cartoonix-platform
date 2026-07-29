@@ -692,7 +692,9 @@ async def get_download(show_id: str, episode_number: int, user: dict = Depends(g
 # ---------- notifications ----------
 @api_router.get("/notifications")
 async def get_notifications(user: dict = Depends(get_current_user)):
-    notifs = await db.notifications.find({}).sort("created_at", -1).to_list(100)
+    # broadcast notifications (no user_id / null) + notifications targeted to this user
+    query = {"$or": [{"user_id": None}, {"user_id": uid_of(user)}]}
+    notifs = await db.notifications.find(query).sort("created_at", -1).to_list(100)
     read_at = user.get("notifications_read_at", "")
     items = []
     for n in notifs:
@@ -1132,6 +1134,15 @@ async def admin_reply_ticket(tid: str, data: TicketReply, admin: dict = Depends(
     reply = {"from": "admin", "author": "Echipa Cartoonix", "text": data.text.strip(), "created_at": now}
     new_status = "in_progress" if ticket.get("status") == "open" else ticket.get("status")
     await db.support_tickets.update_one({"id": tid}, {"$push": {"replies": reply}, "$set": {"updated_at": now, "status": new_status}})
+    # notify the ticket owner (appears in the bell)
+    await db.notifications.insert_one({
+        "user_id": ticket.get("user_id"),
+        "title": "Răspuns la solicitarea ta",
+        "body": f"Echipa Cartoonix a răspuns la „{ticket.get('subject', 'solicitarea ta')}”.",
+        "cta_label": "Vezi solicitarea",
+        "cta_link": "/support",
+        "created_at": now,
+    })
     ticket = await db.support_tickets.find_one({"id": tid})
     return serialize_ticket(ticket)
 

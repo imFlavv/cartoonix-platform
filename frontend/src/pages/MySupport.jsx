@@ -25,6 +25,7 @@ const MySupport = () => {
   const [attachment, setAttachment] = useState(null); // data URL
   const [busy, setBusy] = useState(false);
   const [replyText, setReplyText] = useState("");
+  const [viewTicket, setViewTicket] = useState(null);
   const fileRef = useRef(null);
 
   const load = async () => {
@@ -184,15 +185,55 @@ const MySupport = () => {
             <h3 className="text-sm font-bold text-white/50 uppercase tracking-wide mb-3">Solicitări rezolvate</h3>
             <div className="space-y-2">
               {history.map((t) => (
-                <div key={t.id} className="bg-[#141414]/60 border border-white/10 rounded-xl p-4 flex items-center justify-between">
+                <button
+                  key={t.id}
+                  data-testid="resolved-ticket"
+                  onClick={() => setViewTicket(t)}
+                  className="w-full bg-[#141414]/60 border border-white/10 rounded-xl p-4 flex items-center justify-between gap-3 hover:bg-white/5 transition text-left"
+                >
                   <span className="font-semibold text-sm truncate">{t.subject}</span>
-                  <StatusBadge status={t.status} />
-                </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {t.replies?.length > 0 && (
+                      <span className="text-[11px] text-white/40">{t.replies.length} răspuns(uri)</span>
+                    )}
+                    <StatusBadge status={t.status} />
+                  </div>
+                </button>
               ))}
             </div>
           </div>
         )}
       </div>
+
+      {viewTicket && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setViewTicket(null)}>
+          <div className="relative w-full max-w-lg bg-[#141414] border border-white/10 rounded-2xl p-6 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setViewTicket(null)} className="absolute top-4 right-4 text-white/40 hover:text-white"><X className="h-5 w-5" /></button>
+            <div className="flex items-start justify-between gap-3 mb-3 pr-8">
+              <h2 className="text-lg font-bold">{viewTicket.subject}</h2>
+              <StatusBadge status={viewTicket.status} />
+            </div>
+            <p className="text-white/80 whitespace-pre-wrap mb-4">{viewTicket.message}</p>
+            {viewTicket.attachment && (
+              <img src={viewTicket.attachment} alt="atașament" className="max-h-64 rounded-lg border border-white/10 mb-4" />
+            )}
+            {viewTicket.replies?.length > 0 ? (
+              <div className="space-y-3 border-t border-white/10 pt-4">
+                {viewTicket.replies.map((r, i) => (
+                  <div key={i} className={`flex ${r.from === "admin" ? "justify-start" : "justify-end"}`}>
+                    <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${r.from === "admin" ? "bg-[#ec1c24]/15 border border-[#ec1c24]/30" : "bg-white/10"}`}>
+                      <p className="text-[11px] font-bold mb-1 opacity-70">{r.from === "admin" ? "Echipa Cartoonix" : "Tu"}</p>
+                      <p className="whitespace-pre-wrap">{r.text}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-white/40 text-sm border-t border-white/10 pt-4">Nu au existat răspunsuri.</p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
