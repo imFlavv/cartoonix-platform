@@ -16,6 +16,12 @@ from bson import ObjectId
 import logging
 import bcrypt
 import jwt
+from emergentintegrations.payments.stripe.checkout import (
+    StripeCheckout,
+    CheckoutSessionRequest,
+    CheckoutSessionResponse,
+    CheckoutStatusResponse,
+)
 
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
@@ -23,6 +29,11 @@ db = client[os.environ['DB_NAME']]
 
 JWT_SECRET = os.environ['JWT_SECRET']
 JWT_ALGORITHM = "HS256"
+
+# ---------- Stripe (BYOK - own key) config ----------
+STRIPE_API_KEY = os.environ.get("STRIPE_API_KEY", "")
+PLUS_PRICE_RON = float(os.environ.get("PLUS_PRICE_RON", "50"))
+PLUS_CURRENCY = os.environ.get("PLUS_CURRENCY", "ron").lower()
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
@@ -261,10 +272,111 @@ async def change_password(data: ChangePasswordInput, user: dict = Depends(get_cu
 
 @api_router.post("/auth/subscribe")
 async def subscribe(user: dict = Depends(get_current_user)):
-    # Placeholder pentru Stripe - momentan doar marcheaza PLUS activ (UI demo)
+    # Admin-only manual grant kept as fallback (nu se folosește în flow-ul de plată real)
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Folosește pagina de plată pentru a activa PLUS")
     await db.users.update_one({"_id": user["_id"]}, {"$set": {"plus": True}})
     user["plus"] = True
     return serialize_user(user)
+
+
+# ---------- Stripe payments (Cartoonix PLUS - plată unică lifetime) ----------
+class CheckoutRequest(BaseModel):
+    origin_url: str
+
+
+def _get_stripe_checkout(request: Request) -> StripeCheckout:
+    host_url = str(request.base_url)
+    webhook_url = f"{host_url}api/webhook/stripe"
+    return StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=webhook_url)
+
+
+async def _grant_plus_for_session(session_id: str):
+    """Idempotent: marchează tranzacția plătită și activează PLUS lifetime pentru user."""
+    record = await db.payment_transactions.find_one({"session_id": session_id})
+    if not record or record.get("payment_status") == "paid":
+        return
+    await db.payment_transactions.update_one(
+        {"session_id": session_id, "payment_status": {"$ne": "paid"}},
+        {"$set": {"status": "completed", "payment_status": "paid",
+                  "updated_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    user_id = record.get("user_id")
+    if user_id:
+        try:
+            await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"plus": True}})
+        except Exception as e:
+            logger.error(f"grant plus failed: {e}")
+
+
+@api_router.post("/payments/checkout")
+async def create_checkout(body: CheckoutRequest, request: Request, user: dict = Depends(get_current_user)):
+    if user.get("plus"):
+        raise HTTPException(status_code=400, detail="Ai deja Cartoonix PLUS activ")
+    if not STRIPE_API_KEY:
+        raise HTTPException(status_code=500, detail="Stripe nu este configurat")
+    origin = body.origin_url.rstrip("/")
+    success_url = f"{origin}/payment/success?session_id={{CHECKOUT_SESSION_ID}}"
+    cancel_url = f"{origin}/payment/cancel"
+    stripe_checkout = _get_stripe_checkout(request)
+    # Sumă definită SERVER-SIDE (niciodată din frontend)
+    checkout_req = CheckoutSessionRequest(
+        amount=PLUS_PRICE_RON,
+        currency=PLUS_CURRENCY,
+        success_url=success_url,
+        cancel_url=cancel_url,
+        metadata={"user_id": str(user["_id"]), "product": "cartoonix_plus_lifetime"},
+    )
+    session: CheckoutSessionResponse = await stripe_checkout.create_checkout_session(checkout_req)
+    await db.payment_transactions.insert_one({
+        "session_id": session.session_id,
+        "user_id": str(user["_id"]),
+        "email": user.get("email"),
+        "product": "cartoonix_plus_lifetime",
+        "amount": PLUS_PRICE_RON,
+        "currency": PLUS_CURRENCY,
+        "status": "initiated",
+        "payment_status": "pending",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    })
+    return {"checkout_url": session.url, "session_id": session.session_id}
+
+
+@api_router.get("/payments/status/{session_id}")
+async def payment_status(session_id: str, request: Request):
+    record = await db.payment_transactions.find_one({"session_id": session_id})
+    if not record:
+        raise HTTPException(status_code=404, detail="Tranzacție inexistentă")
+    if record.get("payment_status") != "paid":
+        try:
+            stripe_checkout = _get_stripe_checkout(request)
+            status: CheckoutStatusResponse = await stripe_checkout.get_checkout_status(session_id)
+            if status.payment_status == "paid" or status.status == "complete":
+                await _grant_plus_for_session(session_id)
+                record = await db.payment_transactions.find_one({"session_id": session_id})
+        except Exception as e:
+            logger.error(f"status poll error: {e}")
+    return {
+        "session_id": record["session_id"],
+        "status": record["status"],
+        "payment_status": record["payment_status"],
+    }
+
+
+@api_router.post("/webhook/stripe")
+async def stripe_webhook(request: Request):
+    body_bytes = await request.body()
+    sig = request.headers.get("Stripe-Signature", "")
+    try:
+        stripe_checkout = _get_stripe_checkout(request)
+        webhook_response = await stripe_checkout.handle_webhook(body_bytes, sig)
+    except Exception as e:
+        logger.error(f"webhook error: {e}")
+        raise HTTPException(status_code=400, detail="Webhook invalid")
+    if webhook_response.session_id and webhook_response.payment_status == "paid":
+        await _grant_plus_for_session(webhook_response.session_id)
+    return {"status": "ok"}
 
 
 # ---------- shows routes ----------

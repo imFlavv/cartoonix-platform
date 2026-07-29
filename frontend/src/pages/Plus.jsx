@@ -27,13 +27,17 @@ const Plus = () => {
     }
     setBusy(true);
     try {
-      // NOTĂ: Stripe se conectează în faza următoare — momentan activare demo
-      const { data } = await api.post("/auth/subscribe");
-      setUser(data);
-      toast.success("Cartoonix PLUS activat! (demo)");
-    } catch {
-      toast.error("Ceva n-a mers. Încearcă din nou.");
-    } finally {
+      const { data } = await api.post("/payments/checkout", {
+        origin_url: window.location.origin,
+      });
+      if (data?.checkout_url) {
+        window.location.href = data.checkout_url;
+      } else {
+        toast.error("Nu am putut iniția plata. Încearcă din nou.");
+        setBusy(false);
+      }
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || "Ceva n-a mers. Încearcă din nou.");
       setBusy(false);
     }
   };

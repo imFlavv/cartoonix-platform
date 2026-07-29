@@ -11,11 +11,13 @@ import string
 from typing import Optional
 
 # Backend URL from frontend/.env
-BASE_URL = "https://instant-preview-27.preview.emergentagent.com/api"
+BASE_URL = "https://5ca75171-ecc5-44a6-bfa9-dbe9e154e7b5.preview.emergentagent.com/api"
 
-# Admin credentials from /app/memory/test_credentials.md
-ADMIN_EMAIL = "admin@cartoonix.app"
-ADMIN_PASSWORD = "Admin1234!"
+# Credentials from /app/memory/test_credentials.md
+ADMIN_EMAIL = "admin@cartoonix.ro"
+ADMIN_PASSWORD = "admin1234"
+TEST_USER_EMAIL = "test@cartoonix.ro"
+TEST_USER_PASSWORD = "test1234"
 
 # Test results tracking
 test_results = {
@@ -410,6 +412,141 @@ if admin_token:
                     "No messages with command='important' found")
     else:
         log_test("B7: GET /api/chat returns message with command='important'", False, "Failed to get messages")
+
+
+# ============================================================================
+# C) STRIPE PAYMENT TESTS (Cartoonix PLUS lifetime)
+# ============================================================================
+
+print("\n" + "="*80)
+print("C) STRIPE PAYMENT TESTS (Cartoonix PLUS lifetime)")
+print("="*80 + "\n")
+
+# C1: Login as test user and create checkout session
+print("C1: Login as test user and POST /api/payments/checkout")
+test_user_data = login_user(TEST_USER_EMAIL, TEST_USER_PASSWORD)
+if test_user_data and "token" in test_user_data:
+    test_user_token = test_user_data["token"]
+    test_user_info = test_user_data.get("user", {})
+    log_test("C1a: Test user login", True, f"Email: {TEST_USER_EMAIL}, plus={test_user_info.get('plus')}")
+    
+    # Create checkout session
+    print("   Creating checkout session...")
+    try:
+        resp = requests.post(f"{BASE_URL}/payments/checkout",
+            json={"origin_url": "https://example.com"},
+            headers={"Authorization": f"Bearer {test_user_token}"},
+            timeout=10
+        )
+        print(f"   Response status: {resp.status_code}")
+        print(f"   Response body: {resp.text[:500]}")
+        
+        if resp.status_code == 200:
+            data = resp.json()
+            checkout_url = data.get("checkout_url", "")
+            session_id = data.get("session_id", "")
+            
+            # Check if checkout_url is a real Stripe URL
+            if "stripe.com" in checkout_url and session_id:
+                log_test("C1b: Checkout session created with real Stripe URL", True, 
+                        f"URL domain: {checkout_url.split('/')[2] if '/' in checkout_url else 'N/A'}, session_id: {session_id[:20]}...")
+                
+                # Store session_id for next test
+                test_session_id = session_id
+            else:
+                log_test("C1b: Checkout session created with real Stripe URL", False,
+                        f"checkout_url={checkout_url}, session_id={session_id}")
+                test_session_id = None
+        else:
+            log_test("C1b: Checkout session created with real Stripe URL", False,
+                    f"Status {resp.status_code}: {resp.text}")
+            test_session_id = None
+    except Exception as e:
+        log_test("C1b: Checkout session created with real Stripe URL", False, f"Error: {e}")
+        test_session_id = None
+else:
+    log_test("C1a: Test user login", False, "Could not login as test user")
+    test_user_token = None
+    test_session_id = None
+
+# C2: GET /api/payments/status/{session_id} without auth
+if test_session_id:
+    print("\nC2: GET /api/payments/status/{session_id} without auth header")
+    try:
+        resp = requests.get(f"{BASE_URL}/payments/status/{test_session_id}", timeout=10)
+        print(f"   Response status: {resp.status_code}")
+        print(f"   Response body: {resp.text}")
+        
+        if resp.status_code == 200:
+            data = resp.json()
+            payment_status = data.get("payment_status", "")
+            status = data.get("status", "")
+            
+            if payment_status == "pending":
+                log_test("C2: Payment status endpoint returns pending", True,
+                        f"status={status}, payment_status={payment_status}")
+            else:
+                log_test("C2: Payment status endpoint returns pending", False,
+                        f"Expected payment_status='pending', got '{payment_status}'")
+        else:
+            log_test("C2: Payment status endpoint returns pending", False,
+                    f"Status {resp.status_code}: {resp.text}")
+    except Exception as e:
+        log_test("C2: Payment status endpoint returns pending", False, f"Error: {e}")
+else:
+    print("\nC2: Skipping payment status test (no session_id from C1)")
+
+# C3: Admin user (already plus=true) tries to checkout
+print("\nC3: Admin user (plus=true) POST /api/payments/checkout")
+admin_data_c3 = login_user(ADMIN_EMAIL, ADMIN_PASSWORD)
+if admin_data_c3 and "token" in admin_data_c3:
+    admin_token_c3 = admin_data_c3["token"]
+    admin_info = admin_data_c3.get("user", {})
+    print(f"   Admin plus status: {admin_info.get('plus')}")
+    
+    try:
+        resp = requests.post(f"{BASE_URL}/payments/checkout",
+            json={"origin_url": "https://example.com"},
+            headers={"Authorization": f"Bearer {admin_token_c3}"},
+            timeout=10
+        )
+        print(f"   Response status: {resp.status_code}")
+        print(f"   Response body: {resp.text}")
+        
+        if resp.status_code == 400:
+            data = resp.json()
+            detail = data.get("detail", "")
+            if "Ai deja Cartoonix PLUS activ" in detail:
+                log_test("C3: Admin (plus=true) checkout → 400 with correct message", True,
+                        f"Detail: {detail}")
+            else:
+                log_test("C3: Admin (plus=true) checkout → 400 with correct message", False,
+                        f"Wrong detail: {detail}")
+        else:
+            log_test("C3: Admin (plus=true) checkout → 400 with correct message", False,
+                    f"Expected 400, got {resp.status_code}: {resp.text}")
+    except Exception as e:
+        log_test("C3: Admin (plus=true) checkout → 400 with correct message", False, f"Error: {e}")
+else:
+    log_test("C3: Admin (plus=true) checkout → 400 with correct message", False, "Could not login as admin")
+
+# C4: POST /api/payments/checkout without auth
+print("\nC4: POST /api/payments/checkout without auth header")
+try:
+    resp = requests.post(f"{BASE_URL}/payments/checkout",
+        json={"origin_url": "https://example.com"},
+        timeout=10
+    )
+    print(f"   Response status: {resp.status_code}")
+    print(f"   Response body: {resp.text}")
+    
+    if resp.status_code in [401, 403]:
+        log_test("C4: Checkout without auth → 401/403", True, f"Status: {resp.status_code}")
+    else:
+        log_test("C4: Checkout without auth → 401/403", False,
+                f"Expected 401/403, got {resp.status_code}: {resp.text}")
+except Exception as e:
+    log_test("C4: Checkout without auth → 401/403", False, f"Error: {e}")
 
 
 # ============================================================================
