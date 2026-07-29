@@ -630,6 +630,13 @@ async def get_playlists(user: dict = Depends(get_current_user)):
 
 @api_router.post("/playlists")
 async def create_playlist(data: PlaylistCreate, user: dict = Depends(get_current_user)):
+    if not user_is_plus(user):
+        count = await db.playlists.count_documents({"user_id": uid_of(user)})
+        if count >= 1:
+            raise HTTPException(
+                status_code=403,
+                detail="Planul gratuit permite un singur playlist. Treci la Cartoonix PLUS pentru playlisturi nelimitate.",
+            )
     doc = {
         "user_id": uid_of(user),
         "name": data.name,

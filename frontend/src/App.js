@@ -5,6 +5,7 @@ import { Toaster } from "sonner";
 import { AuthProvider } from "@/context/AuthContext";
 import { LibraryProvider } from "@/context/LibraryContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { AuthGate } from "@/components/AuthGate";
 import { MaintenanceGate } from "@/components/MaintenanceGate";
 import { SplashScreen } from "@/components/SplashScreen";
 import Home from "@/pages/Home";
@@ -44,6 +45,7 @@ function App() {
         <Toaster position="top-center" theme="dark" richColors />
         <BrowserRouter>
           <MaintenanceGate>
+            <AuthGate>
             <Routes>
             <Route path="/" element={<Navigate to="/home" replace />} />
             <Route path="/home" element={<Home />} />
@@ -64,6 +66,7 @@ function App() {
             <Route path="/admin" element={<ProtectedRoute adminOnly><Admin /></ProtectedRoute>} />
             <Route path="*" element={<Navigate to="/home" replace />} />
             </Routes>
+            </AuthGate>
           </MaintenanceGate>
         </BrowserRouter>
       </LibraryProvider>
