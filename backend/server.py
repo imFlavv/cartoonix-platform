@@ -19,6 +19,7 @@ import jwt
 import hmac
 import hashlib
 import secrets
+import uuid
 import httpx
 from emergentintegrations.payments.stripe.checkout import (
     StripeCheckout,
@@ -77,18 +78,53 @@ def create_access_token(user_id: str, email: str) -> str:
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 
+# ---------- user schema compatibility helpers ----------
+# Baza de producție folosește: id (UUID), nickname, avatar_url, subscription ("plus"/"free"),
+# email_verified, last_active, presence_seconds. Aceste helpere fac codul compatibil cu ambele.
+def uid_of(user: dict) -> str:
+    return user.get("id") or str(user.get("_id", ""))
+
+
+def user_name(user: dict) -> str:
+    return user.get("nickname") or user.get("name") or ""
+
+
+def user_avatar(user: dict) -> str:
+    return user.get("avatar_url") or user.get("avatar") or ""
+
+
+def user_is_plus(user: dict) -> bool:
+    sub = user.get("subscription")
+    if sub is not None:
+        return str(sub).lower() == "plus"
+    return bool(user.get("plus", False))
+
+
+async def find_user_by_id(uid: str):
+    if not uid:
+        return None
+    u = await db.users.find_one({"id": uid})
+    if u:
+        return u
+    try:
+        return await db.users.find_one({"_id": ObjectId(uid)})
+    except Exception:
+        return None
+
+
 def serialize_user(doc: dict) -> dict:
     return {
-        "id": str(doc["_id"]),
+        "id": uid_of(doc),
         "email": doc["email"],
-        "name": doc.get("name", ""),
-        "avatar": doc.get("avatar", ""),
+        "name": user_name(doc),
+        "avatar": user_avatar(doc),
         "role": doc.get("role", "user"),
-        "plus": doc.get("plus", False),
+        "plus": user_is_plus(doc),
+        "email_verified": doc.get("email_verified", True),
         "banned": doc.get("banned", False),
         "last_ip": doc.get("last_ip", ""),
-        "total_time_seconds": doc.get("total_time_seconds", 0),
-        "last_seen": doc.get("last_seen"),
+        "total_time_seconds": doc.get("presence_seconds", doc.get("total_time_seconds", 0)),
+        "last_seen": doc.get("last_active") or doc.get("last_seen"),
         "created_at": doc.get("created_at"),
     }
 
@@ -121,7 +157,7 @@ async def get_current_user(creds: Optional[HTTPAuthorizationCredentials] = Depen
     token = creds.credentials
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-        user = await db.users.find_one({"_id": ObjectId(payload["sub"])})
+        user = await find_user_by_id(payload["sub"])
         if not user:
             raise HTTPException(status_code=401, detail="Utilizator inexistent")
         if user.get("banned"):
@@ -314,21 +350,27 @@ async def register_verify(data: RegisterVerifyInput, request: Request):
         await db.otp_verifications.delete_one({"email": email})
         raise HTTPException(status_code=400, detail="Acest email este deja folosit")
     ip = get_client_ip(request)
+    now_iso = datetime.now(timezone.utc).isoformat()
+    new_id = str(uuid.uuid4())
     doc = {
+        "id": new_id,
         "email": email,
         "password_hash": record["password_hash"],
-        "name": record.get("name", ""),
-        "avatar": record.get("avatar", ""),
+        "nickname": record.get("name", ""),
+        "avatar_url": record.get("avatar", ""),
         "role": "user",
-        "plus": False,
+        "subscription": "free",
+        "email_verified": True,
         "banned": False,
         "last_ip": ip,
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "accepted_terms_at": now_iso,
+        "created_at": now_iso,
+        "last_active": now_iso,
     }
     res = await db.users.insert_one(doc)
     doc["_id"] = res.inserted_id
     await db.otp_verifications.delete_one({"email": email})
-    token = create_access_token(str(res.inserted_id), email)
+    token = create_access_token(new_id, email)
     return {"token": token, "user": serialize_user(doc)}
 
 
@@ -346,9 +388,10 @@ async def login(data: LoginInput, request: Request):
     settings = await db.settings.find_one({"key": "maintenance"})
     if settings and settings.get("enabled") and user.get("role") != "admin":
         raise HTTPException(status_code=503, detail="Platforma este momentan în mentenanță. Revenim curând!")
-    await db.users.update_one({"_id": user["_id"]}, {"$set": {"last_ip": ip}})
+    now_iso = datetime.now(timezone.utc).isoformat()
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {"last_ip": ip, "last_login": now_iso, "last_active": now_iso}})
     user["last_ip"] = ip
-    token = create_access_token(str(user["_id"]), email)
+    token = create_access_token(uid_of(user), email)
     return {"token": token, "user": serialize_user(user)}
 
 
@@ -359,17 +402,17 @@ async def me(user: dict = Depends(get_current_user)):
 
 @api_router.put("/auth/avatar")
 async def update_avatar(data: AvatarInput, user: dict = Depends(get_current_user)):
-    if data.avatar in PREMIUM_AVATARS and not user.get("plus"):
+    if data.avatar in PREMIUM_AVATARS and not user_is_plus(user):
         raise HTTPException(status_code=403, detail="Acest avatar este disponibil doar pentru membrii Cartoonix PLUS")
-    await db.users.update_one({"_id": user["_id"]}, {"$set": {"avatar": data.avatar}})
-    user["avatar"] = data.avatar
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {"avatar_url": data.avatar}})
+    user["avatar_url"] = data.avatar
     return serialize_user(user)
 
 
 @api_router.put("/auth/profile")
 async def update_profile(data: ProfileInput, user: dict = Depends(get_current_user)):
-    await db.users.update_one({"_id": user["_id"]}, {"$set": {"name": data.name}})
-    user["name"] = data.name
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {"nickname": data.name}})
+    user["nickname"] = data.name
     return serialize_user(user)
 
 
@@ -396,8 +439,8 @@ async def subscribe(user: dict = Depends(get_current_user)):
     # Admin-only manual grant kept as fallback (nu se folosește în flow-ul de plată real)
     if user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Folosește pagina de plată pentru a activa PLUS")
-    await db.users.update_one({"_id": user["_id"]}, {"$set": {"plus": True}})
-    user["plus"] = True
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {"subscription": "plus"}})
+    user["subscription"] = "plus"
     return serialize_user(user)
 
 
@@ -425,14 +468,16 @@ async def _grant_plus_for_session(session_id: str):
     user_id = record.get("user_id")
     if user_id:
         try:
-            await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"plus": True}})
+            target = await find_user_by_id(user_id)
+            if target:
+                await db.users.update_one({"_id": target["_id"]}, {"$set": {"subscription": "plus"}})
         except Exception as e:
             logger.error(f"grant plus failed: {e}")
 
 
 @api_router.post("/payments/checkout")
 async def create_checkout(body: CheckoutRequest, request: Request, user: dict = Depends(get_current_user)):
-    if user.get("plus"):
+    if user_is_plus(user):
         raise HTTPException(status_code=400, detail="Ai deja Cartoonix PLUS activ")
     if not STRIPE_API_KEY:
         raise HTTPException(status_code=500, detail="Stripe nu este configurat")
@@ -446,12 +491,12 @@ async def create_checkout(body: CheckoutRequest, request: Request, user: dict = 
         currency=PLUS_CURRENCY,
         success_url=success_url,
         cancel_url=cancel_url,
-        metadata={"user_id": str(user["_id"]), "product": "cartoonix_plus_lifetime"},
+        metadata={"user_id": uid_of(user), "product": "cartoonix_plus_lifetime"},
     )
     session: CheckoutSessionResponse = await stripe_checkout.create_checkout_session(checkout_req)
     await db.payment_transactions.insert_one({
         "session_id": session.session_id,
-        "user_id": str(user["_id"]),
+        "user_id": uid_of(user),
         "email": user.get("email"),
         "product": "cartoonix_plus_lifetime",
         "amount": PLUS_PRICE_RON,
@@ -547,7 +592,7 @@ def _item_key(show_id: str, ep: int) -> str:
 
 @api_router.get("/favorites")
 async def get_favorites(user: dict = Depends(get_current_user)):
-    favs = await db.favorites.find({"user_id": str(user["_id"])}).sort("added_at", -1).to_list(500)
+    favs = await db.favorites.find({"user_id": uid_of(user)}).sort("added_at", -1).to_list(500)
     for f in favs:
         f["id"] = str(f.pop("_id"))
     return favs
@@ -556,13 +601,13 @@ async def get_favorites(user: dict = Depends(get_current_user)):
 @api_router.post("/favorites/toggle")
 async def toggle_favorite(data: ItemRef, user: dict = Depends(get_current_user)):
     key = _item_key(data.show_id, data.episode_number)
-    existing = await db.favorites.find_one({"user_id": str(user["_id"]), "key": key})
+    existing = await db.favorites.find_one({"user_id": uid_of(user), "key": key})
     if existing:
         await db.favorites.delete_one({"_id": existing["_id"]})
         return {"favorited": False}
     doc = data.model_dump()
     doc.update({
-        "user_id": str(user["_id"]),
+        "user_id": uid_of(user),
         "key": key,
         "added_at": datetime.now(timezone.utc).isoformat(),
     })
@@ -577,7 +622,7 @@ class PlaylistCreate(BaseModel):
 
 @api_router.get("/playlists")
 async def get_playlists(user: dict = Depends(get_current_user)):
-    pls = await db.playlists.find({"user_id": str(user["_id"])}).sort("created_at", -1).to_list(200)
+    pls = await db.playlists.find({"user_id": uid_of(user)}).sort("created_at", -1).to_list(200)
     for p in pls:
         p["id"] = str(p.pop("_id"))
     return pls
@@ -586,7 +631,7 @@ async def get_playlists(user: dict = Depends(get_current_user)):
 @api_router.post("/playlists")
 async def create_playlist(data: PlaylistCreate, user: dict = Depends(get_current_user)):
     doc = {
-        "user_id": str(user["_id"]),
+        "user_id": uid_of(user),
         "name": data.name,
         "items": [],
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -599,13 +644,13 @@ async def create_playlist(data: PlaylistCreate, user: dict = Depends(get_current
 
 @api_router.delete("/playlists/{pid}")
 async def delete_playlist(pid: str, user: dict = Depends(get_current_user)):
-    await db.playlists.delete_one({"_id": ObjectId(pid), "user_id": str(user["_id"])})
+    await db.playlists.delete_one({"_id": ObjectId(pid), "user_id": uid_of(user)})
     return {"ok": True}
 
 
 @api_router.post("/playlists/{pid}/toggle")
 async def toggle_playlist_item(pid: str, data: ItemRef, user: dict = Depends(get_current_user)):
-    pl = await db.playlists.find_one({"_id": ObjectId(pid), "user_id": str(user["_id"])})
+    pl = await db.playlists.find_one({"_id": ObjectId(pid), "user_id": uid_of(user)})
     if not pl:
         raise HTTPException(status_code=404, detail="Playlist inexistent")
     key = _item_key(data.show_id, data.episode_number)
@@ -626,7 +671,7 @@ async def toggle_playlist_item(pid: str, data: ItemRef, user: dict = Depends(get
 # ---------- downloads (PLUS only) ----------
 @api_router.get("/download/{show_id}/{episode_number}")
 async def get_download(show_id: str, episode_number: int, user: dict = Depends(get_current_user)):
-    if not user.get("plus"):
+    if not user_is_plus(user):
         raise HTTPException(status_code=403, detail="Descărcarea este disponibilă doar pentru membrii Cartoonix PLUS")
     show = await db.shows.find_one({"_id": ObjectId(show_id)})
     if not show:
@@ -670,7 +715,7 @@ class ChatInput(BaseModel):
 async def get_chat(room: str = "global", after: Optional[str] = None, user: dict = Depends(get_current_user)):
     if room not in ("global", "plus"):
         room = "global"
-    if room == "plus" and not user.get("plus"):
+    if room == "plus" and not user_is_plus(user):
         raise HTTPException(status_code=403, detail="Camera PLUS este doar pentru membrii Cartoonix PLUS")
     query = {"room": room}
     if after:
@@ -690,7 +735,7 @@ ADMIN_CHAT_COMMANDS = {"important", "announce", "warn", "success", "info"}
 @api_router.post("/chat")
 async def post_chat(data: ChatInput, user: dict = Depends(get_current_user)):
     room = data.room if data.room in ("global", "plus") else "global"
-    if room == "plus" and not user.get("plus"):
+    if room == "plus" and not user_is_plus(user):
         raise HTTPException(status_code=403, detail="Camera PLUS este doar pentru membrii Cartoonix PLUS")
 
     raw = data.text.strip()
@@ -707,10 +752,10 @@ async def post_chat(data: ChatInput, user: dict = Depends(get_current_user)):
             text = body
 
     doc = {
-        "user_id": str(user["_id"]),
-        "name": user.get("name", "Anonim"),
-        "avatar": user.get("avatar", ""),
-        "plus": bool(user.get("plus", False)),
+        "user_id": uid_of(user),
+        "name": user_name(user) or "Anonim",
+        "avatar": user_avatar(user),
+        "plus": user_is_plus(user),
         "role": user.get("role", "user"),
         "room": room,
         "text": text,
@@ -734,7 +779,7 @@ async def _last_suggestion(user_id: str):
 
 @api_router.get("/suggestions/can")
 async def can_suggest(user: dict = Depends(get_current_user)):
-    last = await _last_suggestion(str(user["_id"]))
+    last = await _last_suggestion(uid_of(user))
     if not last:
         return {"can": True, "next_at": None}
     last_dt = datetime.fromisoformat(last["created_at"])
@@ -745,14 +790,14 @@ async def can_suggest(user: dict = Depends(get_current_user)):
 
 @api_router.post("/suggestions")
 async def create_suggestion(data: SuggestionInput, user: dict = Depends(get_current_user)):
-    last = await _last_suggestion(str(user["_id"]))
+    last = await _last_suggestion(uid_of(user))
     if last:
         last_dt = datetime.fromisoformat(last["created_at"])
         if datetime.now(timezone.utc) < last_dt + timedelta(hours=24):
             raise HTTPException(status_code=429, detail="Poți trimite o singură sugestie la 24 de ore. Revino mai târziu!")
     doc = {
-        "user_id": str(user["_id"]),
-        "name": user.get("name", ""),
+        "user_id": uid_of(user),
+        "name": user_name(user),
         "email": user.get("email", ""),
         "text": data.text.strip(),
         "status": "nou",
@@ -796,6 +841,7 @@ async def admin_list_users(q: Optional[str] = None, admin: dict = Depends(requir
     if q:
         query = {"$or": [
             {"email": {"$regex": q, "$options": "i"}},
+            {"nickname": {"$regex": q, "$options": "i"}},
             {"name": {"$regex": q, "$options": "i"}},
         ]}
     users = await db.users.find(query).sort("created_at", -1).to_list(1000)
@@ -804,31 +850,48 @@ async def admin_list_users(q: Optional[str] = None, admin: dict = Depends(requir
 
 @api_router.put("/admin/users/{uid}")
 async def admin_update_user(uid: str, data: AdminUserUpdate, admin: dict = Depends(require_admin)):
-    updates = {k: v for k, v in data.model_dump().items() if v is not None}
-    if "email" in updates:
-        updates["email"] = updates["email"].lower()
-        clash = await db.users.find_one({"email": updates["email"], "_id": {"$ne": ObjectId(uid)}})
+    raw = {k: v for k, v in data.model_dump().items() if v is not None}
+    target = await find_user_by_id(uid)
+    if not target:
+        raise HTTPException(status_code=404, detail="Utilizator inexistent")
+    updates = {}
+    if "email" in raw:
+        new_email = raw["email"].lower()
+        clash = await db.users.find_one({"email": new_email, "_id": {"$ne": target["_id"]}})
         if clash:
             raise HTTPException(status_code=400, detail="Email deja folosit de alt cont")
+        updates["email"] = new_email
+    if "name" in raw:
+        updates["nickname"] = raw["name"]
+    if "plus" in raw:
+        updates["subscription"] = "plus" if raw["plus"] else "free"
+    if "banned" in raw:
+        updates["banned"] = raw["banned"]
+    if "role" in raw:
+        updates["role"] = raw["role"]
     if updates:
-        await db.users.update_one({"_id": ObjectId(uid)}, {"$set": updates})
-    user = await db.users.find_one({"_id": ObjectId(uid)})
-    if not user:
-        raise HTTPException(status_code=404, detail="Utilizator inexistent")
+        await db.users.update_one({"_id": target["_id"]}, {"$set": updates})
+    user = await db.users.find_one({"_id": target["_id"]})
     return serialize_user(user)
 
 
 @api_router.put("/admin/users/{uid}/password")
 async def admin_reset_password(uid: str, data: PasswordReset, admin: dict = Depends(require_admin)):
-    await db.users.update_one({"_id": ObjectId(uid)}, {"$set": {"password_hash": hash_password(data.password)}})
+    target = await find_user_by_id(uid)
+    if not target:
+        raise HTTPException(status_code=404, detail="Utilizator inexistent")
+    await db.users.update_one({"_id": target["_id"]}, {"$set": {"password_hash": hash_password(data.password)}})
     return {"ok": True}
 
 
 @api_router.delete("/admin/users/{uid}")
 async def admin_delete_user(uid: str, admin: dict = Depends(require_admin)):
-    if str(admin["_id"]) == uid:
+    if uid_of(admin) == uid:
         raise HTTPException(status_code=400, detail="Nu te poți șterge pe tine")
-    await db.users.delete_one({"_id": ObjectId(uid)})
+    target = await find_user_by_id(uid)
+    if not target:
+        raise HTTPException(status_code=404, detail="Utilizator inexistent")
+    await db.users.delete_one({"_id": target["_id"]})
     return {"ok": True}
 
 
@@ -922,7 +985,7 @@ class ProgressInput(BaseModel):
 async def save_progress(data: ProgressInput, user: dict = Depends(get_current_user)):
     key = f"{data.show_id}:{data.episode_number}"
     doc = {
-        "user_id": str(user["_id"]),
+        "user_id": uid_of(user),
         "key": key,
         "show_id": data.show_id,
         "episode_number": data.episode_number,
@@ -932,7 +995,7 @@ async def save_progress(data: ProgressInput, user: dict = Depends(get_current_us
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
     await db.watch_progress.update_one(
-        {"user_id": str(user["_id"]), "key": key},
+        {"user_id": uid_of(user), "key": key},
         {"$set": doc},
         upsert=True,
     )
@@ -941,7 +1004,7 @@ async def save_progress(data: ProgressInput, user: dict = Depends(get_current_us
 
 @api_router.get("/progress/{show_id}")
 async def get_show_progress(show_id: str, user: dict = Depends(get_current_user)):
-    rows = await db.watch_progress.find({"user_id": str(user["_id"]), "show_id": show_id}).to_list(500)
+    rows = await db.watch_progress.find({"user_id": uid_of(user), "show_id": show_id}).to_list(500)
     result = {}
     for r in rows:
         result[str(r["episode_number"])] = {
@@ -957,7 +1020,7 @@ async def get_show_progress(show_id: str, user: dict = Depends(get_current_user)
 async def heartbeat(user: dict = Depends(get_current_user)):
     now = datetime.now(timezone.utc)
     add = 0
-    last = user.get("last_seen")
+    last = user.get("last_active") or user.get("last_seen")
     if last:
         try:
             delta = (now - datetime.fromisoformat(last)).total_seconds()
@@ -967,7 +1030,7 @@ async def heartbeat(user: dict = Depends(get_current_user)):
             add = 0
     await db.users.update_one(
         {"_id": user["_id"]},
-        {"$set": {"last_seen": now.isoformat()}, "$inc": {"total_time_seconds": add}},
+        {"$set": {"last_active": now.isoformat()}, "$inc": {"presence_seconds": add}},
     )
     return {"ok": True}
 
@@ -975,7 +1038,10 @@ async def heartbeat(user: dict = Depends(get_current_user)):
 @api_router.get("/presence/online")
 async def online_count():
     threshold = (datetime.now(timezone.utc) - timedelta(seconds=60)).isoformat()
-    count = await db.users.count_documents({"last_seen": {"$gte": threshold}})
+    count = await db.users.count_documents({"$or": [
+        {"last_active": {"$gte": threshold}},
+        {"last_seen": {"$gte": threshold}},
+    ]})
     return {"online": count}
 
 
@@ -1106,33 +1172,49 @@ async def startup():
     await db.users.create_index("email", unique=True)
     await db.otp_verifications.create_index("email", unique=True)
     await db.otp_verifications.create_index("expiresAt", expireAfterSeconds=0)
-    # seed admin
+    # seed admin (create-only, NON-destructive — never resets an existing admin password)
     admin_email = os.environ["ADMIN_EMAIL"].lower()
     admin_password = os.environ["ADMIN_PASSWORD"]
     existing = await db.users.find_one({"email": admin_email})
     if existing is None:
+        now_iso = datetime.now(timezone.utc).isoformat()
         await db.users.insert_one({
+            "id": str(uuid.uuid4()),
             "email": admin_email,
             "password_hash": hash_password(admin_password),
-            "name": "Admin",
-            "avatar": "https://api.dicebear.com/9.x/bottts/svg?seed=Admin",
+            "nickname": "Admin",
+            "avatar_url": "https://api.dicebear.com/9.x/bottts/svg?seed=Admin",
             "role": "admin",
-            "plus": True,
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "subscription": "plus",
+            "email_verified": True,
+            "created_at": now_iso,
+            "last_active": now_iso,
         })
-    elif not verify_password(admin_password, existing["password_hash"]):
-        await db.users.update_one({"email": admin_email}, {"$set": {"password_hash": hash_password(admin_password)}})
-    # seed test user
+    elif "id" not in existing:
+        # backfill UUID id for a legacy admin doc (local dev only)
+        await db.users.update_one({"_id": existing["_id"]}, {"$set": {"id": str(uuid.uuid4())}})
+
+    # Demo seeding runs ONLY in local/dev (guarded by SEED_DEMO) so it never pollutes production.
+    seed_demo = os.environ.get("SEED_DEMO", "false").lower() == "true"
+    if not seed_demo:
+        logger.info("Cartoonix startup complete (SEED_DEMO off)")
+        return
+
+    # seed test user (real schema)
     test_email = "test@cartoonix.ro"
     if await db.users.find_one({"email": test_email}) is None:
+        now_iso = datetime.now(timezone.utc).isoformat()
         await db.users.insert_one({
+            "id": str(uuid.uuid4()),
             "email": test_email,
             "password_hash": hash_password("test1234"),
-            "name": "Cont Test",
-            "avatar": "https://api.dicebear.com/9.x/fun-emoji/svg?seed=Ziggy",
+            "nickname": "Cont Test",
+            "avatar_url": "https://api.dicebear.com/9.x/fun-emoji/svg?seed=Ziggy",
             "role": "user",
-            "plus": False,
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "subscription": "free",
+            "email_verified": True,
+            "created_at": now_iso,
+            "last_active": now_iso,
         })
     # seed shows
     if await db.shows.count_documents({}) == 0:
