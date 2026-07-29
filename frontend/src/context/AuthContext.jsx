@@ -34,6 +34,20 @@ export const AuthProvider = ({ children }) => {
     return data.user;
   };
 
+  // Step 1: trimite codul de verificare pe email
+  const registerStart = async (payload) => {
+    const { data } = await api.post("/auth/register/start", payload);
+    return data;
+  };
+
+  // Step 2: verifică codul, creează contul și loghează automat
+  const registerVerify = async (email, code) => {
+    const { data } = await api.post("/auth/register/verify", { email, code });
+    localStorage.setItem("cx_token", data.token);
+    setUser(data.user);
+    return data.user;
+  };
+
   const logout = () => {
     localStorage.removeItem("cx_token");
     setUser(null);
@@ -56,7 +70,7 @@ export const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider
-      value={{ user, setUser, loading, login, register, logout, refreshUser }}
+      value={{ user, setUser, loading, login, register, registerStart, registerVerify, logout, refreshUser }}
     >
       {children}
     </AuthContext.Provider>

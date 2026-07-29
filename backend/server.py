@@ -16,6 +16,10 @@ from bson import ObjectId
 import logging
 import bcrypt
 import jwt
+import hmac
+import hashlib
+import secrets
+import httpx
 from emergentintegrations.payments.stripe.checkout import (
     StripeCheckout,
     CheckoutSessionRequest,
@@ -34,6 +38,14 @@ JWT_ALGORITHM = "HS256"
 STRIPE_API_KEY = os.environ.get("STRIPE_API_KEY", "")
 PLUS_PRICE_RON = float(os.environ.get("PLUS_PRICE_RON", "50"))
 PLUS_CURRENCY = os.environ.get("PLUS_CURRENCY", "ron").lower()
+
+# ---------- Brevo (email OTP) config ----------
+BREVO_API_KEY = os.environ.get("BREVO_API_KEY", "")
+BREVO_SENDER_EMAIL = os.environ.get("BREVO_SENDER_EMAIL", "")
+BREVO_SENDER_NAME = os.environ.get("BREVO_SENDER_NAME", "Cartoonix")
+OTP_TTL_MINUTES = int(os.environ.get("OTP_TTL_MINUTES", "10"))
+OTP_RESEND_COOLDOWN_SECONDS = 60
+OTP_MAX_ATTEMPTS = 5
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
@@ -139,6 +151,7 @@ class RegisterStartInput(BaseModel):
     name: str
     email: EmailStr
     password: str = Field(min_length=6)
+    avatar: Optional[str] = ""
 
 
 class RegisterVerifyInput(BaseModel):
@@ -185,20 +198,127 @@ def serialize_show(doc: dict) -> dict:
     return doc
 
 
+# ---------- OTP / Brevo email helpers ----------
+def _otp_hash(code: str) -> str:
+    return hmac.new(JWT_SECRET.encode(), code.encode(), hashlib.sha256).hexdigest()
+
+
+def _make_otp() -> str:
+    return f"{secrets.randbelow(1_000_000):06d}"
+
+
+async def send_otp_email(to_email: str, name: str, code: str):
+    if not BREVO_API_KEY or not BREVO_SENDER_EMAIL:
+        raise RuntimeError("Brevo nu este configurat")
+    display_name = (name or "").strip() or "acolo"
+    html = f"""
+    <div style="font-family:Arial,Helvetica,sans-serif;background:#0a0a0a;padding:32px;color:#ffffff;">
+      <div style="max-width:480px;margin:0 auto;background:#141414;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:32px;">
+        <h1 style="color:#ffcc00;margin:0 0 8px;font-size:24px;">Cartoonix</h1>
+        <p style="color:#cccccc;margin:0 0 24px;">Salut, {display_name}! Codul tău de verificare este:</p>
+        <div style="font-size:36px;font-weight:800;letter-spacing:10px;color:#ffffff;background:#0a0a0a;border:1px solid rgba(255,204,0,0.4);border-radius:12px;padding:18px;text-align:center;">
+          {code}
+        </div>
+        <p style="color:#888888;margin:24px 0 0;font-size:13px;">Codul expiră în {OTP_TTL_MINUTES} minute. Dacă nu ai cerut acest cod, ignoră acest email.</p>
+      </div>
+    </div>
+    """
+    payload = {
+        "sender": {"name": BREVO_SENDER_NAME, "email": BREVO_SENDER_EMAIL},
+        "to": [{"email": to_email}],
+        "subject": "Codul tău de verificare Cartoonix",
+        "htmlContent": html,
+    }
+    headers = {
+        "api-key": BREVO_API_KEY,
+        "accept": "application/json",
+        "content-type": "application/json",
+    }
+    async with httpx.AsyncClient(timeout=20) as http_client:
+        r = await http_client.post("https://api.brevo.com/v3/smtp/email", json=payload, headers=headers)
+        r.raise_for_status()
+
+
 # ---------- auth routes ----------
-@api_router.post("/auth/register")
-async def register(data: RegisterInput, request: Request):
+@api_router.post("/auth/register/start")
+async def register_start(data: RegisterStartInput, request: Request):
     email = data.email.lower()
     if await db.users.find_one({"email": email}):
         raise HTTPException(status_code=400, detail="Acest email este deja folosit")
     ip = get_client_ip(request)
     if await db.banned_ips.find_one({"ip": ip}):
         raise HTTPException(status_code=403, detail="Acces interzis")
+    now = datetime.now(timezone.utc)
+    existing = await db.otp_verifications.find_one({"email": email})
+    if existing and existing.get("last_sent_at"):
+        try:
+            last = datetime.fromisoformat(existing["last_sent_at"])
+            elapsed = (now - last).total_seconds()
+            if elapsed < OTP_RESEND_COOLDOWN_SECONDS:
+                wait = int(OTP_RESEND_COOLDOWN_SECONDS - elapsed)
+                raise HTTPException(status_code=429, detail=f"Așteaptă {wait}s înainte de a cere un cod nou")
+        except HTTPException:
+            raise
+        except Exception:
+            pass
+    code = _make_otp()
+    expires_dt = now + timedelta(minutes=OTP_TTL_MINUTES)
+    await db.otp_verifications.update_one(
+        {"email": email},
+        {"$set": {
+            "email": email,
+            "name": data.name,
+            "avatar": data.avatar or "",
+            "password_hash": hash_password(data.password),
+            "otp_hash": _otp_hash(code),
+            "expiresAt": expires_dt,          # BSON date -> used by TTL index
+            "expires_iso": expires_dt.isoformat(),
+            "last_sent_at": now.isoformat(),
+            "attempts": 0,
+            "created_at": now.isoformat(),
+        }},
+        upsert=True,
+    )
+    try:
+        await send_otp_email(email, data.name, code)
+    except httpx.HTTPStatusError as e:
+        logger.error(f"Brevo error {e.response.status_code}: {e.response.text}")
+        raise HTTPException(status_code=502, detail="Nu am putut trimite emailul de verificare. Verifică adresa și încearcă din nou.")
+    except Exception as e:
+        logger.error(f"Brevo send failed: {e}")
+        raise HTTPException(status_code=502, detail="Nu am putut trimite emailul de verificare. Încearcă din nou.")
+    return {"ok": True, "message": "Ți-am trimis un cod de verificare pe email", "email": email}
+
+
+@api_router.post("/auth/register/verify")
+async def register_verify(data: RegisterVerifyInput, request: Request):
+    email = data.email.lower()
+    record = await db.otp_verifications.find_one({"email": email})
+    if not record:
+        raise HTTPException(status_code=400, detail="Nu există o cerere de înregistrare pentru acest email. Reia procesul.")
+    now = datetime.now(timezone.utc)
+    try:
+        expired = datetime.fromisoformat(record["expires_iso"]) <= now
+    except Exception:
+        expired = True
+    if expired:
+        await db.otp_verifications.delete_one({"email": email})
+        raise HTTPException(status_code=400, detail="Codul a expirat. Cere unul nou.")
+    if record.get("attempts", 0) >= OTP_MAX_ATTEMPTS:
+        await db.otp_verifications.delete_one({"email": email})
+        raise HTTPException(status_code=429, detail="Prea multe încercări greșite. Reia procesul de înregistrare.")
+    if not hmac.compare_digest(record.get("otp_hash", ""), _otp_hash(data.code.strip())):
+        await db.otp_verifications.update_one({"email": email}, {"$inc": {"attempts": 1}})
+        raise HTTPException(status_code=400, detail="Cod incorect")
+    if await db.users.find_one({"email": email}):
+        await db.otp_verifications.delete_one({"email": email})
+        raise HTTPException(status_code=400, detail="Acest email este deja folosit")
+    ip = get_client_ip(request)
     doc = {
         "email": email,
-        "password_hash": hash_password(data.password),
-        "name": data.name,
-        "avatar": data.avatar or "",
+        "password_hash": record["password_hash"],
+        "name": record.get("name", ""),
+        "avatar": record.get("avatar", ""),
         "role": "user",
         "plus": False,
         "banned": False,
@@ -207,6 +327,7 @@ async def register(data: RegisterInput, request: Request):
     }
     res = await db.users.insert_one(doc)
     doc["_id"] = res.inserted_id
+    await db.otp_verifications.delete_one({"email": email})
     token = create_access_token(str(res.inserted_id), email)
     return {"token": token, "user": serialize_user(doc)}
 
@@ -983,6 +1104,8 @@ SAMPLE_VIDEOS = [
 @app.on_event("startup")
 async def startup():
     await db.users.create_index("email", unique=True)
+    await db.otp_verifications.create_index("email", unique=True)
+    await db.otp_verifications.create_index("expiresAt", expireAfterSeconds=0)
     # seed admin
     admin_email = os.environ["ADMIN_EMAIL"].lower()
     admin_password = os.environ["ADMIN_PASSWORD"]
