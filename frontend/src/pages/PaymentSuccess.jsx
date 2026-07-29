@@ -6,13 +6,17 @@ import { PlusIcon } from "@/components/PlusIcon";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 
-const MAX_ATTEMPTS = 8;
+const MAX_ATTEMPTS = 10;
 
 const PaymentSuccess = () => {
   const navigate = useNavigate();
   const { refreshUser } = useAuth();
   const [state, setState] = useState("checking"); // checking | success | error | timeout
   const attemptsRef = useRef(0);
+  const doneRef = useRef(false);
+  // keep latest refreshUser without re-triggering the polling effect
+  const refreshUserRef = useRef(refreshUser);
+  refreshUserRef.current = refreshUser;
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -24,7 +28,7 @@ const PaymentSuccess = () => {
 
     let cancelled = false;
     const poll = async () => {
-      if (cancelled) return;
+      if (cancelled || doneRef.current) return;
       if (attemptsRef.current >= MAX_ATTEMPTS) {
         setState("timeout");
         return;
@@ -32,17 +36,25 @@ const PaymentSuccess = () => {
       attemptsRef.current += 1;
       try {
         const { data } = await api.get(`/payments/status/${sessionId}`);
+        if (cancelled || doneRef.current) return;
         if (data.payment_status === "paid") {
-          await refreshUser();
+          doneRef.current = true;
           setState("success");
+          try {
+            await refreshUserRef.current();
+          } catch {
+            /* ignore refresh error, PLUS already granted server-side */
+          }
           return;
         }
         if (["expired", "failed"].includes(data.payment_status)) {
+          doneRef.current = true;
           setState("error");
           return;
         }
         setTimeout(poll, 2000);
       } catch {
+        if (cancelled || doneRef.current) return;
         setTimeout(poll, 2000);
       }
     };
@@ -50,7 +62,7 @@ const PaymentSuccess = () => {
     return () => {
       cancelled = true;
     };
-  }, [refreshUser]);
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
