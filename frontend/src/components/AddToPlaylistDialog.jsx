@@ -1,13 +1,18 @@
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useLibrary } from "@/context/LibraryContext";
-import { Check, Plus, ListMusic } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { Check, Plus, ListMusic, Lock } from "lucide-react";
 import { toast } from "sonner";
+import { formatApiErrorDetail } from "@/lib/api";
 
 export const AddToPlaylistDialog = ({ open, onOpenChange, itemRef }) => {
   const { playlists, createPlaylist, togglePlaylistItem } = useLibrary();
+  const { user } = useAuth();
   const [name, setName] = useState("");
   const [creating, setCreating] = useState(false);
+
+  const atLimit = !user?.plus && playlists.length >= 1;
 
   const inPlaylist = (pl) => pl.items?.some((i) => i.key === `${itemRef?.show_id}:${itemRef?.episode_number}`);
 
@@ -18,6 +23,11 @@ export const AddToPlaylistDialog = ({ open, onOpenChange, itemRef }) => {
       await createPlaylist(name.trim());
       setName("");
       toast.success("Playlist creat");
+    } catch (err) {
+      toast.error(
+        formatApiErrorDetail(err?.response?.data?.detail) ||
+          "Nu am putut crea playlist-ul. Încearcă din nou."
+      );
     } finally {
       setCreating(false);
     }
@@ -58,17 +68,26 @@ export const AddToPlaylistDialog = ({ open, onOpenChange, itemRef }) => {
           ))}
         </div>
 
-        <div className="flex gap-2 pt-2 border-t border-white/10">
-          <input
-            data-testid="new-playlist-name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Nume playlist nou"
-            className="flex-1 px-4 py-2.5 rounded-lg bg-white/5 border border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-[#ffcc00]"
-          />
-          <button data-testid="create-playlist-btn" onClick={create} disabled={creating} className="px-4 rounded-lg bg-[#ec1c24] font-bold hover:bg-[#ff2d36] transition-colors duration-200 disabled:opacity-60">
-            <Plus className="h-5 w-5" />
-          </button>
+        <div className="pt-2 border-t border-white/10">
+          {atLimit ? (
+            <div className="flex items-center gap-2 text-xs text-white/60 bg-[#ffcc00]/10 border border-[#ffcc00]/30 rounded-lg px-3 py-2.5">
+              <Lock className="h-4 w-4 text-[#ffcc00] shrink-0" />
+              <span>Planul gratuit permite un singur playlist. Treci la <span className="text-[#ffcc00] font-semibold">Cartoonix PLUS</span> pentru playlisturi nelimitate.</span>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <input
+                data-testid="new-playlist-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Nume playlist nou"
+                className="flex-1 px-4 py-2.5 rounded-lg bg-white/5 border border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-[#ffcc00]"
+              />
+              <button data-testid="create-playlist-btn" onClick={create} disabled={creating} className="px-4 rounded-lg bg-[#ec1c24] font-bold hover:bg-[#ff2d36] transition-colors duration-200 disabled:opacity-60">
+                <Plus className="h-5 w-5" />
+              </button>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>
