@@ -3,10 +3,11 @@ import { NavBar } from "@/components/NavBar";
 import { api } from "@/lib/api";
 import { CHANNELS } from "@/data/constants";
 import { toast } from "sonner";
-import { FolderSearch, Plus, Film, Lightbulb, Users, Pencil, ChevronUp, ChevronDown, ServerCog } from "lucide-react";
+import { FolderSearch, Plus, Film, Lightbulb, Users, Pencil, ChevronUp, ChevronDown, ServerCog, Inbox } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { AdminMembers } from "@/components/AdminMembers";
+import { AdminTickets } from "@/components/AdminTickets";
 import { AdminShowEditor } from "@/components/AdminShowEditor";
 
 const empty = {
@@ -122,6 +123,9 @@ const Admin = () => {
             <TabsTrigger value="members" data-testid="admin-tab-members" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
               <Users className="h-4 w-4 mr-2" /> Membri
             </TabsTrigger>
+            <TabsTrigger value="tickets" data-testid="admin-tab-tickets" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
+              <Inbox className="h-4 w-4 mr-2" /> Solicitări
+            </TabsTrigger>
             <TabsTrigger value="platform" data-testid="admin-tab-platform" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
               <ServerCog className="h-4 w-4 mr-2" /> Platformă
             </TabsTrigger>
@@ -212,6 +216,10 @@ const Admin = () => {
 
           <TabsContent value="members">
             <AdminMembers />
+          </TabsContent>
+
+          <TabsContent value="tickets">
+            <AdminTickets />
           </TabsContent>
 
           <TabsContent value="platform">

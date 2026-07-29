@@ -24,6 +24,7 @@ import Announcements from "@/pages/Announcements";
 import Admin from "@/pages/Admin";
 import PaymentSuccess from "@/pages/PaymentSuccess";
 import PaymentCancel from "@/pages/PaymentCancel";
+import MySupport from "@/pages/MySupport";
 
 function App() {
   const [showSplash, setShowSplash] = useState(() => !sessionStorage.getItem("cx_splash_seen"));
@@ -56,6 +57,7 @@ function App() {
             <Route path="/payment/success" element={<PaymentSuccess />} />
             <Route path="/payment/cancel" element={<PaymentCancel />} />
             <Route path="/help" element={<Help />} />
+            <Route path="/support" element={<ProtectedRoute><MySupport /></ProtectedRoute>} />
             <Route path="/show/:id" element={<ShowDetail />} />
             <Route path="/watch/:id/:ep" element={<ProtectedRoute><Watch /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />

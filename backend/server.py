@@ -1022,6 +1022,133 @@ async def get_show_progress(show_id: str, user: dict = Depends(get_current_user)
     return result
 
 
+# ---------- support tickets (Solicitările mele) ----------
+TICKET_STATUSES = ("open", "in_progress", "resolved")
+MAX_ATTACHMENT_CHARS = 4_800_000  # ~3.5MB image once base64-encoded
+
+
+class TicketCreate(BaseModel):
+    subject: str = Field(min_length=3, max_length=140)
+    message: str = Field(min_length=5, max_length=4000)
+    attachment: Optional[str] = None  # data URL "data:image/...;base64,..."
+
+
+class TicketReply(BaseModel):
+    text: str = Field(min_length=1, max_length=4000)
+
+
+class TicketStatusUpdate(BaseModel):
+    status: str
+
+
+def _validate_attachment(attachment: Optional[str]) -> Optional[str]:
+    if not attachment:
+        return None
+    if not attachment.startswith("data:image/"):
+        raise HTTPException(status_code=400, detail="Atașamentul trebuie să fie o imagine")
+    if len(attachment) > MAX_ATTACHMENT_CHARS:
+        raise HTTPException(status_code=400, detail="Imaginea este prea mare (max ~3MB)")
+    return attachment
+
+
+def serialize_ticket(doc: dict) -> dict:
+    return {
+        "id": doc.get("id"),
+        "user_id": doc.get("user_id"),
+        "user_name": doc.get("user_name", ""),
+        "user_email": doc.get("user_email", ""),
+        "subject": doc.get("subject", ""),
+        "message": doc.get("message", ""),
+        "attachment": doc.get("attachment"),
+        "status": doc.get("status", "open"),
+        "replies": doc.get("replies", []),
+        "created_at": doc.get("created_at"),
+        "updated_at": doc.get("updated_at"),
+    }
+
+
+@api_router.post("/tickets")
+async def create_ticket(data: TicketCreate, user: dict = Depends(get_current_user)):
+    open_existing = await db.support_tickets.find_one({
+        "user_id": uid_of(user),
+        "status": {"$ne": "resolved"},
+    })
+    if open_existing:
+        raise HTTPException(status_code=400, detail="Ai deja o solicitare deschisă. Poți deschide una nouă după ce cea curentă este rezolvată.")
+    attachment = _validate_attachment(data.attachment)
+    now = datetime.now(timezone.utc).isoformat()
+    doc = {
+        "id": str(uuid.uuid4()),
+        "user_id": uid_of(user),
+        "user_name": user_name(user),
+        "user_email": user.get("email", ""),
+        "subject": data.subject.strip(),
+        "message": data.message.strip(),
+        "attachment": attachment,
+        "status": "open",
+        "replies": [],
+        "created_at": now,
+        "updated_at": now,
+    }
+    await db.support_tickets.insert_one(doc)
+    return serialize_ticket(doc)
+
+
+@api_router.get("/tickets/my")
+async def my_tickets(user: dict = Depends(get_current_user)):
+    rows = await db.support_tickets.find({"user_id": uid_of(user)}).sort("created_at", -1).to_list(100)
+    return [serialize_ticket(t) for t in rows]
+
+
+@api_router.post("/tickets/{tid}/reply")
+async def user_reply_ticket(tid: str, data: TicketReply, user: dict = Depends(get_current_user)):
+    ticket = await db.support_tickets.find_one({"id": tid, "user_id": uid_of(user)})
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Solicitare inexistentă")
+    if ticket.get("status") == "resolved":
+        raise HTTPException(status_code=400, detail="Solicitarea este rezolvată. Deschide una nouă.")
+    now = datetime.now(timezone.utc).isoformat()
+    reply = {"from": "user", "author": user_name(user), "text": data.text.strip(), "created_at": now}
+    await db.support_tickets.update_one({"id": tid}, {"$push": {"replies": reply}, "$set": {"updated_at": now}})
+    ticket = await db.support_tickets.find_one({"id": tid})
+    return serialize_ticket(ticket)
+
+
+@api_router.get("/admin/tickets")
+async def admin_list_tickets(status: Optional[str] = None, admin: dict = Depends(require_admin)):
+    query = {}
+    if status and status in TICKET_STATUSES:
+        query["status"] = status
+    rows = await db.support_tickets.find(query).sort("updated_at", -1).to_list(500)
+    return [serialize_ticket(t) for t in rows]
+
+
+@api_router.post("/admin/tickets/{tid}/reply")
+async def admin_reply_ticket(tid: str, data: TicketReply, admin: dict = Depends(require_admin)):
+    ticket = await db.support_tickets.find_one({"id": tid})
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Solicitare inexistentă")
+    now = datetime.now(timezone.utc).isoformat()
+    reply = {"from": "admin", "author": "Echipa Cartoonix", "text": data.text.strip(), "created_at": now}
+    new_status = "in_progress" if ticket.get("status") == "open" else ticket.get("status")
+    await db.support_tickets.update_one({"id": tid}, {"$push": {"replies": reply}, "$set": {"updated_at": now, "status": new_status}})
+    ticket = await db.support_tickets.find_one({"id": tid})
+    return serialize_ticket(ticket)
+
+
+@api_router.put("/admin/tickets/{tid}/status")
+async def admin_update_ticket_status(tid: str, data: TicketStatusUpdate, admin: dict = Depends(require_admin)):
+    if data.status not in TICKET_STATUSES:
+        raise HTTPException(status_code=400, detail="Status invalid")
+    ticket = await db.support_tickets.find_one({"id": tid})
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Solicitare inexistentă")
+    now = datetime.now(timezone.utc).isoformat()
+    await db.support_tickets.update_one({"id": tid}, {"$set": {"status": data.status, "updated_at": now}})
+    ticket = await db.support_tickets.find_one({"id": tid})
+    return serialize_ticket(ticket)
+
+
 # ---------- presence & time tracking ----------
 @api_router.post("/presence")
 async def heartbeat(user: dict = Depends(get_current_user)):

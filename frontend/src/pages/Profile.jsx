@@ -6,7 +6,7 @@ import { useLibrary } from "@/context/LibraryContext";
 import { api } from "@/lib/api";
 import { AVATAR_SEEDS, PREMIUM_AVATARS } from "@/data/constants";
 import { PlusIcon } from "@/components/PlusIcon";
-import { Check, Play, Heart, Trash2, ListMusic, Film, Clock, Lock, KeyRound, Eye, EyeOff } from "lucide-react";
+import { Check, Play, Heart, Trash2, ListMusic, Film, Clock, Lock, KeyRound, Eye, EyeOff, User, Gift } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 
@@ -164,7 +164,10 @@ const Profile = () => {
                 <ListMusic className="h-4 w-4 mr-2" /> Playlist-uri
               </TabsTrigger>
               <TabsTrigger value="account" data-testid="tab-account" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
-                Contul meu
+                <User className="h-4 w-4 mr-2" /> Contul meu
+              </TabsTrigger>
+              <TabsTrigger value="rewards" data-testid="tab-rewards" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
+                <Gift className="h-4 w-4 mr-2" /> Recompense
               </TabsTrigger>
             </TabsList>
 
@@ -343,6 +346,19 @@ const Profile = () => {
                     {pwdBusy ? "Se actualizează..." : "Schimbă parola"}
                   </button>
                 </form>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="rewards" className="mt-6">
+              <div data-testid="rewards-wip" className="flex flex-col items-center justify-center py-20 text-center">
+                <div className="w-20 h-20 rounded-full bg-[#ffcc00]/15 border border-[#ffcc00]/40 flex items-center justify-center mb-5">
+                  <Gift className="h-9 w-9 text-[#ffcc00]" />
+                </div>
+                <h3 className="text-xl font-bold mb-2">Recompense</h3>
+                <p className="text-white/50 max-w-sm">
+                  Pagină în curs de lucru. În curând vei putea câștiga și revendica recompense
+                  pentru activitatea ta pe Cartoonix. Revino curând! 🎁
+                </p>
               </div>
             </TabsContent>
           </Tabs>

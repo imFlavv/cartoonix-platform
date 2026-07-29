@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Comprehensive backend API tests for Cartoonix
-Tests password change endpoint and admin chat commands
+Tests password change endpoint, admin chat commands, support tickets, and playlist limits
 """
 
 import requests
@@ -547,6 +547,568 @@ try:
                 f"Expected 401/403, got {resp.status_code}: {resp.text}")
 except Exception as e:
     log_test("C4: Checkout without auth → 401/403", False, f"Error: {e}")
+
+
+# ============================================================================
+# D) SUPPORT TICKETS TESTS
+# ============================================================================
+
+print("\n" + "="*80)
+print("D) SUPPORT TICKETS TESTS")
+print("="*80 + "\n")
+
+# Valid small base64 image for testing
+VALID_IMAGE_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+
+# D1: Test user creates a ticket with attachment
+print("D1: Test user POST /api/tickets with subject, message, and attachment")
+test_user_data_d = login_user(TEST_USER_EMAIL, TEST_USER_PASSWORD)
+if test_user_data_d and "token" in test_user_data_d:
+    test_token_d = test_user_data_d["token"]
+    test_user_id = test_user_data_d.get("user", {}).get("id", "")
+    
+    try:
+        resp = requests.post(f"{BASE_URL}/tickets",
+            json={
+                "subject": "Test subiect",
+                "message": "Am o problema cu un episod",
+                "attachment": VALID_IMAGE_DATA_URL
+            },
+            headers={"Authorization": f"Bearer {test_token_d}"},
+            timeout=10
+        )
+        print(f"   Response status: {resp.status_code}")
+        print(f"   Response body: {resp.text[:300]}")
+        
+        if resp.status_code == 200:
+            ticket_data = resp.json()
+            ticket_id = ticket_data.get("id", "")
+            status = ticket_data.get("status", "")
+            subject = ticket_data.get("subject", "")
+            message = ticket_data.get("message", "")
+            attachment = ticket_data.get("attachment", "")
+            replies = ticket_data.get("replies", [])
+            
+            # Check if ticket has UUID id, status=open, correct fields
+            if (len(ticket_id) == 36 and "-" in ticket_id and 
+                status == "open" and 
+                subject == "Test subiect" and
+                message == "Am o problema cu un episod" and
+                attachment and attachment.startswith("data:image/") and
+                isinstance(replies, list) and len(replies) == 0):
+                log_test("D1: Create ticket with attachment → 200 with correct fields", True,
+                        f"ticket_id={ticket_id[:20]}..., status={status}")
+                test_ticket_id = ticket_id
+            else:
+                log_test("D1: Create ticket with attachment → 200 with correct fields", False,
+                        f"id={ticket_id}, status={status}, attachment={bool(attachment)}, replies={len(replies)}")
+                test_ticket_id = ticket_id if ticket_id else None
+        else:
+            log_test("D1: Create ticket with attachment → 200 with correct fields", False,
+                    f"Status {resp.status_code}: {resp.text}")
+            test_ticket_id = None
+    except Exception as e:
+        log_test("D1: Create ticket with attachment → 200 with correct fields", False, f"Error: {e}")
+        test_ticket_id = None
+else:
+    log_test("D1: Create ticket with attachment → 200 with correct fields", False, "Could not login as test user")
+    test_token_d = None
+    test_ticket_id = None
+
+# D2: Test user tries to create another ticket while one is open
+if test_token_d and test_ticket_id:
+    print("\nD2: Test user POST /api/tickets again (should fail with 400)")
+    try:
+        resp = requests.post(f"{BASE_URL}/tickets",
+            json={
+                "subject": "Second ticket",
+                "message": "Another issue",
+                "attachment": None
+            },
+            headers={"Authorization": f"Bearer {test_token_d}"},
+            timeout=10
+        )
+        print(f"   Response status: {resp.status_code}")
+        print(f"   Response body: {resp.text}")
+        
+        if resp.status_code == 400:
+            data = resp.json()
+            detail = data.get("detail", "")
+            if "deja o solicitare deschisă" in detail:
+                log_test("D2: Second ticket while one open → 400 with correct message", True,
+                        f"Detail: {detail}")
+            else:
+                log_test("D2: Second ticket while one open → 400 with correct message", False,
+                        f"Wrong detail: {detail}")
+        else:
+            log_test("D2: Second ticket while one open → 400 with correct message", False,
+                    f"Expected 400, got {resp.status_code}: {resp.text}")
+    except Exception as e:
+        log_test("D2: Second ticket while one open → 400 with correct message", False, f"Error: {e}")
+else:
+    print("\nD2: Skipping (no ticket created in D1)")
+
+# D3: Test user GET /api/tickets/my
+if test_token_d and test_ticket_id:
+    print("\nD3: Test user GET /api/tickets/my")
+    try:
+        resp = requests.get(f"{BASE_URL}/tickets/my",
+            headers={"Authorization": f"Bearer {test_token_d}"},
+            timeout=10
+        )
+        print(f"   Response status: {resp.status_code}")
+        
+        if resp.status_code == 200:
+            tickets = resp.json()
+            if isinstance(tickets, list):
+                found = any(t.get("id") == test_ticket_id for t in tickets)
+                if found:
+                    log_test("D3: GET /api/tickets/my returns created ticket", True,
+                            f"Found ticket {test_ticket_id[:20]}... in list of {len(tickets)} tickets")
+                else:
+                    log_test("D3: GET /api/tickets/my returns created ticket", False,
+                            f"Ticket {test_ticket_id} not found in list")
+            else:
+                log_test("D3: GET /api/tickets/my returns created ticket", False,
+                        f"Response is not a list: {tickets}")
+        else:
+            log_test("D3: GET /api/tickets/my returns created ticket", False,
+                    f"Status {resp.status_code}: {resp.text}")
+    except Exception as e:
+        log_test("D3: GET /api/tickets/my returns created ticket", False, f"Error: {e}")
+else:
+    print("\nD3: Skipping (no ticket created in D1)")
+
+# D4: Test user replies to their ticket
+if test_token_d and test_ticket_id:
+    print("\nD4: Test user POST /api/tickets/{id}/reply")
+    try:
+        resp = requests.post(f"{BASE_URL}/tickets/{test_ticket_id}/reply",
+            json={"text": "Detalii suplimentare"},
+            headers={"Authorization": f"Bearer {test_token_d}"},
+            timeout=10
+        )
+        print(f"   Response status: {resp.status_code}")
+        
+        if resp.status_code == 200:
+            ticket_data = resp.json()
+            replies = ticket_data.get("replies", [])
+            if isinstance(replies, list) and len(replies) > 0:
+                last_reply = replies[-1]
+                if (last_reply.get("from") == "user" and 
+                    last_reply.get("text") == "Detalii suplimentare"):
+                    log_test("D4: User reply to ticket → 200 with reply from='user'", True,
+                            f"Reply added: {last_reply.get('text')}")
+                else:
+                    log_test("D4: User reply to ticket → 200 with reply from='user'", False,
+                            f"Reply: {last_reply}")
+            else:
+                log_test("D4: User reply to ticket → 200 with reply from='user'", False,
+                        f"No replies found: {replies}")
+        else:
+            log_test("D4: User reply to ticket → 200 with reply from='user'", False,
+                    f"Status {resp.status_code}: {resp.text}")
+    except Exception as e:
+        log_test("D4: User reply to ticket → 200 with reply from='user'", False, f"Error: {e}")
+else:
+    print("\nD4: Skipping (no ticket created in D1)")
+
+# D5: Admin lists tickets
+print("\nD5: Admin GET /api/admin/tickets")
+admin_data_d = login_user(ADMIN_EMAIL, ADMIN_PASSWORD)
+if admin_data_d and "token" in admin_data_d:
+    admin_token_d = admin_data_d["token"]
+    
+    try:
+        resp = requests.get(f"{BASE_URL}/admin/tickets",
+            headers={"Authorization": f"Bearer {admin_token_d}"},
+            timeout=10
+        )
+        print(f"   Response status: {resp.status_code}")
+        
+        if resp.status_code == 200:
+            tickets = resp.json()
+            if isinstance(tickets, list):
+                found = any(t.get("id") == test_ticket_id for t in tickets) if test_ticket_id else len(tickets) >= 0
+                if found or not test_ticket_id:
+                    log_test("D5a: Admin GET /api/admin/tickets → 200 with list", True,
+                            f"Found {len(tickets)} tickets")
+                else:
+                    log_test("D5a: Admin GET /api/admin/tickets → 200 with list", False,
+                            f"Ticket {test_ticket_id} not found")
+            else:
+                log_test("D5a: Admin GET /api/admin/tickets → 200 with list", False,
+                        f"Response is not a list")
+        else:
+            log_test("D5a: Admin GET /api/admin/tickets → 200 with list", False,
+                    f"Status {resp.status_code}: {resp.text}")
+    except Exception as e:
+        log_test("D5a: Admin GET /api/admin/tickets → 200 with list", False, f"Error: {e}")
+    
+    # D5b: Admin replies to ticket
+    if test_ticket_id:
+        print("\nD5b: Admin POST /api/admin/tickets/{id}/reply")
+        try:
+            resp = requests.post(f"{BASE_URL}/admin/tickets/{test_ticket_id}/reply",
+                json={"text": "Salut, verificăm"},
+                headers={"Authorization": f"Bearer {admin_token_d}"},
+                timeout=10
+            )
+            print(f"   Response status: {resp.status_code}")
+            
+            if resp.status_code == 200:
+                ticket_data = resp.json()
+                replies = ticket_data.get("replies", [])
+                status = ticket_data.get("status", "")
+                
+                # Find admin reply
+                admin_reply = None
+                for r in replies:
+                    if r.get("from") == "admin" and r.get("text") == "Salut, verificăm":
+                        admin_reply = r
+                        break
+                
+                if admin_reply and status == "in_progress":
+                    log_test("D5b: Admin reply → 200, reply from='admin', status auto-changed to 'in_progress'", True,
+                            f"Status: {status}, admin reply added")
+                else:
+                    log_test("D5b: Admin reply → 200, reply from='admin', status auto-changed to 'in_progress'", False,
+                            f"Status: {status}, admin_reply: {bool(admin_reply)}")
+            else:
+                log_test("D5b: Admin reply → 200, reply from='admin', status auto-changed to 'in_progress'", False,
+                        f"Status {resp.status_code}: {resp.text}")
+        except Exception as e:
+            log_test("D5b: Admin reply → 200, reply from='admin', status auto-changed to 'in_progress'", False, f"Error: {e}")
+    
+    # D5c: Admin updates ticket status to resolved
+    if test_ticket_id:
+        print("\nD5c: Admin PUT /api/admin/tickets/{id}/status to 'resolved'")
+        try:
+            resp = requests.put(f"{BASE_URL}/admin/tickets/{test_ticket_id}/status",
+                json={"status": "resolved"},
+                headers={"Authorization": f"Bearer {admin_token_d}"},
+                timeout=10
+            )
+            print(f"   Response status: {resp.status_code}")
+            
+            if resp.status_code == 200:
+                ticket_data = resp.json()
+                status = ticket_data.get("status", "")
+                if status == "resolved":
+                    log_test("D5c: Admin update status to 'resolved' → 200", True,
+                            f"Status: {status}")
+                else:
+                    log_test("D5c: Admin update status to 'resolved' → 200", False,
+                            f"Status: {status}")
+            else:
+                log_test("D5c: Admin update status to 'resolved' → 200", False,
+                        f"Status {resp.status_code}: {resp.text}")
+        except Exception as e:
+            log_test("D5c: Admin update status to 'resolved' → 200", False, f"Error: {e}")
+    
+    # D5d: Admin tries to update status to invalid value
+    if test_ticket_id:
+        print("\nD5d: Admin PUT /api/admin/tickets/{id}/status with invalid status 'foo'")
+        try:
+            resp = requests.put(f"{BASE_URL}/admin/tickets/{test_ticket_id}/status",
+                json={"status": "foo"},
+                headers={"Authorization": f"Bearer {admin_token_d}"},
+                timeout=10
+            )
+            print(f"   Response status: {resp.status_code}")
+            
+            if resp.status_code == 400:
+                log_test("D5d: Admin update status to invalid 'foo' → 400", True,
+                        f"Correctly rejected invalid status")
+            else:
+                log_test("D5d: Admin update status to invalid 'foo' → 400", False,
+                        f"Expected 400, got {resp.status_code}: {resp.text}")
+        except Exception as e:
+            log_test("D5d: Admin update status to invalid 'foo' → 400", False, f"Error: {e}")
+else:
+    log_test("D5a: Admin GET /api/admin/tickets → 200 with list", False, "Could not login as admin")
+    admin_token_d = None
+
+# D6: After ticket is resolved, test user can create a new ticket
+if test_token_d and test_ticket_id:
+    print("\nD6: Test user POST /api/tickets (new one after resolved)")
+    try:
+        resp = requests.post(f"{BASE_URL}/tickets",
+            json={
+                "subject": "New ticket after resolved",
+                "message": "This should work now",
+                "attachment": None
+            },
+            headers={"Authorization": f"Bearer {test_token_d}"},
+            timeout=10
+        )
+        print(f"   Response status: {resp.status_code}")
+        
+        if resp.status_code == 200:
+            ticket_data = resp.json()
+            new_ticket_id = ticket_data.get("id", "")
+            log_test("D6: Create new ticket after resolved → 200", True,
+                    f"New ticket_id={new_ticket_id[:20]}...")
+            second_ticket_id = new_ticket_id
+        else:
+            log_test("D6: Create new ticket after resolved → 200", False,
+                    f"Status {resp.status_code}: {resp.text}")
+            second_ticket_id = None
+    except Exception as e:
+        log_test("D6: Create new ticket after resolved → 200", False, f"Error: {e}")
+        second_ticket_id = None
+else:
+    print("\nD6: Skipping (no resolved ticket)")
+    second_ticket_id = None
+
+# D7: Attachment validation - invalid attachment
+if test_token_d:
+    # First resolve the second ticket if it exists
+    if second_ticket_id and admin_token_d:
+        print("\n   Resolving second ticket for D7 test...")
+        try:
+            requests.put(f"{BASE_URL}/admin/tickets/{second_ticket_id}/status",
+                json={"status": "resolved"},
+                headers={"Authorization": f"Bearer {admin_token_d}"},
+                timeout=10
+            )
+        except:
+            pass
+    
+    print("\nD7: Test user POST /api/tickets with invalid attachment")
+    try:
+        resp = requests.post(f"{BASE_URL}/tickets",
+            json={
+                "subject": "Test invalid attachment",
+                "message": "Testing attachment validation",
+                "attachment": "notanimage"
+            },
+            headers={"Authorization": f"Bearer {test_token_d}"},
+            timeout=10
+        )
+        print(f"   Response status: {resp.status_code}")
+        print(f"   Response body: {resp.text}")
+        
+        if resp.status_code == 400:
+            data = resp.json()
+            detail = data.get("detail", "")
+            if "imagine" in detail.lower():
+                log_test("D7: Invalid attachment → 400 with 'imagine' in detail", True,
+                        f"Detail: {detail}")
+                # Resolve this ticket for cleanup
+                if admin_token_d:
+                    try:
+                        # Get the ticket ID first
+                        resp_tickets = requests.get(f"{BASE_URL}/tickets/my",
+                            headers={"Authorization": f"Bearer {test_token_d}"},
+                            timeout=10
+                        )
+                        if resp_tickets.status_code == 200:
+                            tickets = resp_tickets.json()
+                            for t in tickets:
+                                if t.get("status") != "resolved":
+                                    requests.put(f"{BASE_URL}/admin/tickets/{t['id']}/status",
+                                        json={"status": "resolved"},
+                                        headers={"Authorization": f"Bearer {admin_token_d}"},
+                                        timeout=10
+                                    )
+                    except:
+                        pass
+            else:
+                log_test("D7: Invalid attachment → 400 with 'imagine' in detail", False,
+                        f"Wrong detail: {detail}")
+        else:
+            log_test("D7: Invalid attachment → 400 with 'imagine' in detail", False,
+                    f"Expected 400, got {resp.status_code}: {resp.text}")
+    except Exception as e:
+        log_test("D7: Invalid attachment → 400 with 'imagine' in detail", False, f"Error: {e}")
+else:
+    print("\nD7: Skipping (no test user token)")
+
+# D8: Auth tests for tickets
+print("\nD8a: POST /api/tickets without token → 401")
+try:
+    resp = requests.post(f"{BASE_URL}/tickets",
+        json={
+            "subject": "No auth",
+            "message": "Should fail"
+        },
+        timeout=10
+    )
+    print(f"   Response status: {resp.status_code}")
+    
+    if resp.status_code == 401:
+        log_test("D8a: POST /api/tickets without auth → 401", True)
+    else:
+        log_test("D8a: POST /api/tickets without auth → 401", False,
+                f"Expected 401, got {resp.status_code}")
+except Exception as e:
+    log_test("D8a: POST /api/tickets without auth → 401", False, f"Error: {e}")
+
+print("\nD8b: GET /api/admin/tickets as non-admin → 403")
+if test_token_d:
+    try:
+        resp = requests.get(f"{BASE_URL}/admin/tickets",
+            headers={"Authorization": f"Bearer {test_token_d}"},
+            timeout=10
+        )
+        print(f"   Response status: {resp.status_code}")
+        
+        if resp.status_code == 403:
+            log_test("D8b: GET /api/admin/tickets as non-admin → 403", True)
+        else:
+            log_test("D8b: GET /api/admin/tickets as non-admin → 403", False,
+                    f"Expected 403, got {resp.status_code}")
+    except Exception as e:
+        log_test("D8b: GET /api/admin/tickets as non-admin → 403", False, f"Error: {e}")
+else:
+    print("   Skipping (no test user token)")
+
+
+# ============================================================================
+# E) PLAYLIST LIMIT TESTS
+# ============================================================================
+
+print("\n" + "="*80)
+print("E) PLAYLIST LIMIT TESTS")
+print("="*80 + "\n")
+
+# E1: Test user (FREE) creates first playlist
+print("E1: Test user (FREE) POST /api/playlists first time")
+if test_token_d:
+    try:
+        resp = requests.post(f"{BASE_URL}/playlists",
+            json={"name": "Lista mea"},
+            headers={"Authorization": f"Bearer {test_token_d}"},
+            timeout=10
+        )
+        print(f"   Response status: {resp.status_code}")
+        print(f"   Response body: {resp.text[:200]}")
+        
+        if resp.status_code == 200:
+            playlist_data = resp.json()
+            playlist_id = playlist_data.get("id", "")
+            name = playlist_data.get("name", "")
+            if name == "Lista mea":
+                log_test("E1: FREE user create first playlist → 200", True,
+                        f"playlist_id={playlist_id}")
+                test_playlist_id = playlist_id
+            else:
+                log_test("E1: FREE user create first playlist → 200", False,
+                        f"Wrong name: {name}")
+                test_playlist_id = None
+        else:
+            log_test("E1: FREE user create first playlist → 200", False,
+                    f"Status {resp.status_code}: {resp.text}")
+            test_playlist_id = None
+    except Exception as e:
+        log_test("E1: FREE user create first playlist → 200", False, f"Error: {e}")
+        test_playlist_id = None
+else:
+    print("   Skipping (no test user token)")
+    test_playlist_id = None
+
+# E2: Test user (FREE) tries to create second playlist
+if test_token_d and test_playlist_id:
+    print("\nE2: Test user (FREE) POST /api/playlists second time → 403")
+    try:
+        resp = requests.post(f"{BASE_URL}/playlists",
+            json={"name": "A doua"},
+            headers={"Authorization": f"Bearer {test_token_d}"},
+            timeout=10
+        )
+        print(f"   Response status: {resp.status_code}")
+        print(f"   Response body: {resp.text}")
+        
+        if resp.status_code == 403:
+            data = resp.json()
+            detail = data.get("detail", "")
+            if "un singur playlist" in detail:
+                log_test("E2: FREE user create second playlist → 403 with correct message", True,
+                        f"Detail: {detail}")
+            else:
+                log_test("E2: FREE user create second playlist → 403 with correct message", False,
+                        f"Wrong detail: {detail}")
+        else:
+            log_test("E2: FREE user create second playlist → 403 with correct message", False,
+                    f"Expected 403, got {resp.status_code}: {resp.text}")
+    except Exception as e:
+        log_test("E2: FREE user create second playlist → 403 with correct message", False, f"Error: {e}")
+else:
+    print("\nE2: Skipping (no first playlist created)")
+
+# E3: Admin (PLUS) creates multiple playlists
+print("\nE3: Admin (PLUS) POST /api/playlists twice → both 200")
+if admin_token_d:
+    admin_playlist_ids = []
+    
+    # First playlist
+    try:
+        resp = requests.post(f"{BASE_URL}/playlists",
+            json={"name": "Admin Playlist 1"},
+            headers={"Authorization": f"Bearer {admin_token_d}"},
+            timeout=10
+        )
+        print(f"   First playlist response status: {resp.status_code}")
+        
+        if resp.status_code == 200:
+            playlist_data = resp.json()
+            playlist_id = playlist_data.get("id", "")
+            admin_playlist_ids.append(playlist_id)
+            log_test("E3a: PLUS user create first playlist → 200", True,
+                    f"playlist_id={playlist_id}")
+        else:
+            log_test("E3a: PLUS user create first playlist → 200", False,
+                    f"Status {resp.status_code}: {resp.text}")
+    except Exception as e:
+        log_test("E3a: PLUS user create first playlist → 200", False, f"Error: {e}")
+    
+    # Second playlist
+    try:
+        resp = requests.post(f"{BASE_URL}/playlists",
+            json={"name": "Admin Playlist 2"},
+            headers={"Authorization": f"Bearer {admin_token_d}"},
+            timeout=10
+        )
+        print(f"   Second playlist response status: {resp.status_code}")
+        
+        if resp.status_code == 200:
+            playlist_data = resp.json()
+            playlist_id = playlist_data.get("id", "")
+            admin_playlist_ids.append(playlist_id)
+            log_test("E3b: PLUS user create second playlist → 200 (unlimited)", True,
+                    f"playlist_id={playlist_id}")
+        else:
+            log_test("E3b: PLUS user create second playlist → 200 (unlimited)", False,
+                    f"Status {resp.status_code}: {resp.text}")
+    except Exception as e:
+        log_test("E3b: PLUS user create second playlist → 200 (unlimited)", False, f"Error: {e}")
+    
+    # Cleanup admin playlists
+    print("\n   Cleaning up admin playlists...")
+    for pid in admin_playlist_ids:
+        try:
+            requests.delete(f"{BASE_URL}/playlists/{pid}",
+                headers={"Authorization": f"Bearer {admin_token_d}"},
+                timeout=10
+            )
+        except:
+            pass
+else:
+    print("   Skipping (no admin token)")
+
+# Cleanup test user playlist
+if test_token_d and test_playlist_id:
+    print("\n   Cleaning up test user playlist...")
+    try:
+        resp = requests.delete(f"{BASE_URL}/playlists/{test_playlist_id}",
+            headers={"Authorization": f"Bearer {test_token_d}"},
+            timeout=10
+        )
+        if resp.status_code == 200:
+            print(f"   ✓ Deleted playlist {test_playlist_id}")
+    except Exception as e:
+        print(f"   ⚠ Error deleting playlist: {e}")
 
 
 # ============================================================================
