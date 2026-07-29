@@ -56,7 +56,7 @@ export const NavBar = () => {
   const isActive = (to) => location.pathname === to || location.pathname.startsWith(to + "/");
   const coins = user?.coins ?? 0;
 
-  const iconBtn = "relative flex items-center justify-center h-10 w-10 rounded-xl text-white/60 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/5 transition-colors duration-200";
+  const iconBtn = "relative flex items-center justify-center h-10 w-10 rounded-xl text-white/60 hover:text-white transition-colors duration-200";
 
   return (
     <header className="fixed top-0 inset-x-0 z-50 backdrop-blur-xl bg-[#0b0b0e]/95 border-b border-white/[0.06]">
@@ -68,8 +68,8 @@ export const NavBar = () => {
         {/* vertical divider */}
         <div className="hidden sm:block h-7 w-px bg-white/10 mx-1" />
 
-        {/* Search */}
-        <form onSubmit={submitSearch} className="hidden sm:flex items-center gap-2 pl-3.5 pr-3 py-2 rounded-xl bg-white/[0.04] border border-white/5 focus-within:border-white/20 focus-within:bg-white/[0.06] transition-all duration-200">
+        {/* Search (flat, no box) */}
+        <form onSubmit={submitSearch} className="hidden sm:flex items-center gap-2">
           <Search className="h-4 w-4 text-white/40 shrink-0" />
           <input
             data-testid="nav-search-input"
@@ -80,8 +80,8 @@ export const NavBar = () => {
           />
         </form>
 
-        {/* Category pills (centered) */}
-        <nav className="hidden lg:flex items-center gap-1.5 mx-auto">
+        {/* Category pills (flat, centered) */}
+        <nav className="hidden lg:flex items-center gap-1 mx-auto">
           {links.map((l) => {
             const Icon = l.icon;
             const active = isActive(l.to);
@@ -90,10 +90,8 @@ export const NavBar = () => {
                 key={l.to}
                 to={l.to}
                 data-testid={`nav-${l.label}`}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium border transition-colors duration-200 ${
-                  active
-                    ? "text-white bg-white/[0.10] border-white/10"
-                    : "text-white/60 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border-white/5"
+                className={`flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors duration-200 ${
+                  active ? "text-white" : "text-white/60 hover:text-white"
                 }`}
               >
                 {l.plus ? <PlusIcon className="h-4 w-4" /> : Icon ? <Icon className="h-4 w-4" /> : null}
@@ -104,9 +102,9 @@ export const NavBar = () => {
         </nav>
 
         <div className="ml-auto flex items-center gap-1.5 md:gap-2">
-          {/* Currency */}
+          {/* Currency (flat, no box) */}
           {user && (
-            <div data-testid="nav-currency" className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.04] border border-white/5">
+            <div data-testid="nav-currency" className="hidden sm:flex items-center gap-1.5 px-1">
               <Gem className="h-4 w-4 text-[#a855f7]" />
               <span className="text-sm font-bold text-white tabular-nums">{coins}</span>
             </div>
