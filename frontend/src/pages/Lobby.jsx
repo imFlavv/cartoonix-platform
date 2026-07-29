@@ -23,6 +23,7 @@ const IMG = {
   cartoonixland: "https://customer-assets-agu9un31.emergentagent.net/job_cartoon-redesign/artifacts/fr8dlxsa_ChatGPT%20Image%20Jul%2029%2C%202026%2C%2001_57_54%20AM.png",
   suggestions: "https://customer-assets-agu9un31.emergentagent.net/job_cartoon-redesign/artifacts/avepv8cx_ChatGPT%20Image%20Jul%2029%2C%202026%2C%2001_58_56%20AM.png",
   soon: "https://customer-assets-agu9un31.emergentagent.net/job_cartoon-redesign/artifacts/o2f2d6go_ChatGPT%20Image%20Jul%2029%2C%202026%2C%2001_59_48%20AM.png",
+  rewards: "/rewards-bg.png",
 };
 
 /**
@@ -233,8 +234,18 @@ const Lobby = () => {
             cta="Trimite o sugestie"
             accent="#22c55e"
             image={IMG.suggestions}
-            span="lg:col-span-3"
+            span="lg:col-span-2"
             onClick={() => setSugOpen(true)}
+          />
+          <LobbyCard
+            testid="lobby-rewards"
+            title="Recompense"
+            desc="Revendică-ți recompensele Cartoonix"
+            cta="Vezi recompensele"
+            accent="#ec4899"
+            image={IMG.rewards}
+            span="lg:col-span-2"
+            onClick={() => navigate("/profile?tab=rewards")}
           />
           <LobbyCard
             testid="lobby-soon"
@@ -243,7 +254,7 @@ const Lobby = () => {
             cta="Stai aproape"
             accent="#38bdf8"
             image={IMG.soon}
-            span="lg:col-span-3"
+            span="lg:col-span-2"
             locked
             badge="ÎN CURÂND!"
           />
