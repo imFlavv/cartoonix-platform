@@ -5,6 +5,7 @@ import { formatApiErrorDetail } from "@/lib/api";
 import { LOGO_TRANSPARENT, AVATAR_SEEDS } from "@/data/constants";
 import { Check, ArrowLeft, MailCheck } from "lucide-react";
 import { toast } from "sonner";
+import PlanChoiceModal from "@/components/PlanChoiceModal";
 
 const Register = () => {
   const { registerStart, registerVerify } = useAuth();
@@ -61,7 +62,7 @@ const Register = () => {
     try {
       await registerVerify(email, code.trim());
       toast.success("Cont creat! Bun venit la Cartoonix 🎉");
-      navigate("/home");
+      setStep("plan");
     } catch (err) {
       setError(formatApiErrorDetail(err.response?.data?.detail) || err.message);
     } finally {
@@ -89,6 +90,10 @@ const Register = () => {
       <div className="absolute inset-0 opacity-30" style={{
         background: "radial-gradient(circle at 70% 20%, rgba(255,204,0,0.3), transparent 55%), radial-gradient(circle at 20% 80%, rgba(236,28,36,0.35), transparent 55%)",
       }} />
+
+      {step === "plan" && (
+        <PlanChoiceModal onFree={() => navigate("/home")} />
+      )}
       <div className="relative w-full max-w-lg bg-[#141414]/90 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-[0_20px_60px_rgba(0,0,0,0.6)]">
         <Link to="/home" className="flex justify-center mb-5">
           <img src={LOGO_TRANSPARENT} alt="Cartoonix" className="h-14" />
