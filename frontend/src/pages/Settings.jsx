@@ -118,9 +118,7 @@ const Settings = () => {
                   <p className="text-xs text-white/40 mb-0.5 px-1 flex items-center gap-1">
                     {user?.name} <PlusIcon className="h-3.5 w-3.5" />
                   </p>
-                  <div className="cx-plus-bubble font-semibold inline-block px-4 py-2.5 rounded-2xl rounded-tl-sm text-sm">
-                    <Sparkles className="cx-sparkle h-3 w-3" style={{ top: 4, right: 6 }} />
-                    <Sparkles className="cx-sparkle h-2.5 w-2.5" style={{ bottom: 5, left: 8, animationDelay: "0.9s" }} />
+                  <div className="inline-block px-4 py-2.5 rounded-2xl rounded-tl-sm text-sm bg-[#2a2a2a] text-white/90">
                     <span className={`relative ${chatStyleClasses(chatStyle)}`}>Salut! Așa vor arăta mesajele mele în chat ✨</span>
                   </div>
                 </div>

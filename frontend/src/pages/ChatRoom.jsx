@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { NavBar } from "@/components/NavBar";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
-import { ArrowLeft, Send, Sparkles, Globe, Lock, Star, Megaphone, AlertTriangle, CheckCircle2, Info, HelpCircle } from "lucide-react";
+import { ArrowLeft, Send, Globe, Lock, Star, Megaphone, AlertTriangle, CheckCircle2, Info, HelpCircle } from "lucide-react";
 import { PlusIcon } from "@/components/PlusIcon";
 import { MessageText } from "@/components/MessageText";
 import { EmojiPicker } from "@/components/EmojiPicker";
@@ -158,16 +158,8 @@ const ChatRoom = () => {
                       </p>
                       <div
                         data-testid={m.plus ? "chat-bubble-plus" : "chat-bubble"}
-                        className={`inline-block px-4 py-2.5 rounded-2xl rounded-tl-sm text-sm break-words ${
-                          m.plus ? "cx-plus-bubble font-semibold" : "bg-[#2a2a2a] text-white/90"
-                        }`}
+                        className="inline-block px-4 py-2.5 rounded-2xl rounded-tl-sm text-sm break-words bg-[#2a2a2a] text-white/90"
                       >
-                        {m.plus && (
-                          <>
-                            <Sparkles className="cx-sparkle h-3 w-3" style={{ top: 4, right: 6, animationDelay: "0s" }} />
-                            <Sparkles className="cx-sparkle h-2.5 w-2.5" style={{ bottom: 5, left: 8, animationDelay: "0.9s" }} />
-                          </>
-                        )}
                         <span className={`relative ${m.plus ? chatStyleClasses(m.chat_style) : ""}`}><MessageText text={m.text} /></span>
                       </div>
                     </div>
