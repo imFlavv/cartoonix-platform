@@ -1211,6 +1211,33 @@ async def set_maintenance(data: MaintenanceInput, admin: dict = Depends(require_
     return {"enabled": data.enabled}
 
 
+# ---------- UI settings (avatar frames, etc.) ----------
+class UISettingsInput(BaseModel):
+    avatar_frames_enabled: bool
+
+
+@api_router.get("/settings/ui")
+async def get_ui_settings():
+    s = await db.settings.find_one({"key": "ui"})
+    # default: frames enabled (true) unless admin turned them off
+    enabled = True if not s else bool(s.get("avatar_frames_enabled", True))
+    return {"avatar_frames_enabled": enabled}
+
+
+@api_router.post("/admin/settings/ui")
+async def set_ui_settings(data: UISettingsInput, admin: dict = Depends(require_admin)):
+    await db.settings.update_one(
+        {"key": "ui"},
+        {"$set": {
+            "key": "ui",
+            "avatar_frames_enabled": data.avatar_frames_enabled,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }},
+        upsert=True,
+    )
+    return {"avatar_frames_enabled": data.avatar_frames_enabled}
+
+
 @api_router.get("/")
 async def root():
     return {"message": "Cartoonix API"}

@@ -3,7 +3,7 @@ import { NavBar } from "@/components/NavBar";
 import { api } from "@/lib/api";
 import { CHANNELS } from "@/data/constants";
 import { toast } from "sonner";
-import { FolderSearch, Plus, Film, Lightbulb, Users, Pencil, ChevronUp, ChevronDown, ServerCog, Inbox } from "lucide-react";
+import { FolderSearch, Plus, Film, Lightbulb, Users, Pencil, ChevronUp, ChevronDown, ServerCog, Inbox, ImageOff } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { AdminMembers } from "@/components/AdminMembers";
@@ -30,6 +30,7 @@ const Admin = () => {
   const [suggestions, setSuggestions] = useState([]);
   const [editingShow, setEditingShow] = useState(null);
   const [maintenance, setMaintenance] = useState(false);
+  const [avatarFrames, setAvatarFrames] = useState(true);
 
   const load = () => api.get("/shows").then((res) => setShows(res.data));
   const loadSuggestions = () => api.get("/admin/suggestions").then((res) => setSuggestions(res.data)).catch(() => {});
@@ -37,6 +38,7 @@ const Admin = () => {
     load();
     loadSuggestions();
     api.get("/settings/maintenance").then((res) => setMaintenance(res.data.enabled)).catch(() => {});
+    api.get("/settings/ui").then((res) => setAvatarFrames(res.data.avatar_frames_enabled !== false)).catch(() => {});
   }, []);
 
   const toggleMaintenance = async (val) => {
@@ -44,6 +46,18 @@ const Admin = () => {
       await api.post("/admin/maintenance", { enabled: val });
       setMaintenance(val);
       toast.success(val ? "Mentenanță ACTIVATĂ - platforma e blocată pentru utilizatori" : "Mentenanță dezactivată");
+    } catch {
+      toast.error("Eroare");
+    }
+  };
+
+  const toggleAvatarFrames = async (val) => {
+    try {
+      await api.post("/admin/settings/ui", { avatar_frames_enabled: val });
+      setAvatarFrames(val);
+      // Broadcast to App.js so it updates the <body> class instantly
+      window.dispatchEvent(new CustomEvent("cx-ui-settings-changed", { detail: { avatar_frames_enabled: val } }));
+      toast.success(val ? "Rame avatar activate" : "Rame avatar dezactivate");
     } catch {
       toast.error("Eroare");
     }
@@ -223,7 +237,7 @@ const Admin = () => {
           </TabsContent>
 
           <TabsContent value="platform">
-            <div className="max-w-xl">
+            <div className="max-w-xl space-y-6">
               <div className="bg-[#0f0f0f] border border-white/10 rounded-2xl p-6">
                 <h2 className="font-display text-2xl mb-1 flex items-center gap-2"><ServerCog className="h-5 w-5 text-[#ffcc00]" /> Mod mentenanță</h2>
                 <p className="text-sm text-white/50 mb-5">Când e activat, întreaga platformă este blocată pentru utilizatori. Doar adminii se pot loga și naviga.</p>
@@ -233,6 +247,18 @@ const Admin = () => {
                     <p className={`text-xs ${maintenance ? "text-[#ec1c24]" : "text-[#22c55e]"}`}>{maintenance ? "ACTIVĂ - utilizatorii nu au acces" : "Inactivă - platforma funcționează normal"}</p>
                   </div>
                   <Switch data-testid="maintenance-toggle" checked={maintenance} onCheckedChange={toggleMaintenance} />
+                </div>
+              </div>
+
+              <div className="bg-[#0f0f0f] border border-white/10 rounded-2xl p-6">
+                <h2 className="font-display text-2xl mb-1 flex items-center gap-2"><ImageOff className="h-5 w-5 text-[#ffcc00]" /> Rame avatar</h2>
+                <p className="text-sm text-white/50 mb-5">Controlează afișarea ramelor decorative de pe avatare (inelul auriu PLUS pe profil, etc.). Dezactivează dacă nu vrei să apară nicăieri în platformă.</p>
+                <div className="flex items-center justify-between p-4 rounded-xl bg-white/5">
+                  <div>
+                    <p className="font-semibold">Rame avatar active</p>
+                    <p className={`text-xs ${avatarFrames ? "text-[#22c55e]" : "text-white/50"}`}>{avatarFrames ? "Vizibile - ramele decorative apar pe toată platforma" : "Ascunse - avatarele apar fără rame decorative"}</p>
+                  </div>
+                  <Switch data-testid="avatar-frames-toggle" checked={avatarFrames} onCheckedChange={toggleAvatarFrames} />
                 </div>
               </div>
             </div>

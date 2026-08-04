@@ -8,6 +8,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AuthGate } from "@/components/AuthGate";
 import { MaintenanceGate } from "@/components/MaintenanceGate";
 import { SplashScreen } from "@/components/SplashScreen";
+import { api } from "@/lib/api";
 import Home from "@/pages/Home";
 import Browse from "@/pages/Browse";
 import Login from "@/pages/Login";
@@ -37,6 +38,23 @@ function App() {
     }, 2800);
     return () => clearTimeout(t);
   }, [showSplash]);
+
+  // Fetch UI settings (avatar frames on/off) and apply to <body>
+  useEffect(() => {
+    const applyUi = (framesEnabled) => {
+      if (framesEnabled) {
+        document.body.classList.remove("cx-no-avatar-frames");
+      } else {
+        document.body.classList.add("cx-no-avatar-frames");
+      }
+    };
+    api.get("/settings/ui")
+      .then((res) => applyUi(res.data?.avatar_frames_enabled !== false))
+      .catch(() => applyUi(true));
+    const onChange = (e) => applyUi(e.detail?.avatar_frames_enabled !== false);
+    window.addEventListener("cx-ui-settings-changed", onChange);
+    return () => window.removeEventListener("cx-ui-settings-changed", onChange);
+  }, []);
 
   if (showSplash) return <SplashScreen />;
 
