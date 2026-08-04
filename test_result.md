@@ -240,18 +240,33 @@ metadata:
   test_sequence: 3
   run_ui: false
 
+frontend:
+  - task: "Bug: Avatar dropdown in NavBar shifts header/removes scrollbar (Radix modal scroll lock)"
+    implemented: true
+    working: true
+    file: "frontend/src/components/NavBar.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "BUG FIX - When clicking the user avatar in the top NavBar, the Radix DropdownMenu was locking scroll (default modal=true), which removed the scrollbar and applied padding-right to <body>, causing the fixed NavBar and page content to visibly shift right/widen. Fix: added `modal={false}` on the avatar DropdownMenu component in /app/frontend/src/components/NavBar.jsx (line 192)."
+        -working: true
+        -agent: "testing"
+        -comment: "✅ BUG FIX VERIFIED - ALL TESTS PASSED (3/3). Tested on /home page (scrollable, 3038px height) with viewport 1920x800. (1) Horizontal shift test: PASSED - Search box position remained exactly the same (x=121.00px) before and after opening dropdown. Shift = 0.00px (well within ≤2px acceptable range). (2) Scrollbar preservation test: PASSED - Page remained scrollable, body overflow stayed 'visible', no padding-right added, no unwanted scrollbar removal. (3) Settings navigation test: PASSED - Clicking Settings menu item successfully navigated to /settings. (4) Dropdown functionality: PASSED - Dropdown opened correctly showing all expected menu items (My Profile, Settings, Admin, Log Out). The fix `modal={false}` is working correctly - no horizontal shift, no layout instability, no scrollbar removal. Bug is resolved."
+
 test_plan:
-  current_focus:
-    - "PLUS chat text style: PUT /api/auth/chat-style + embedded chat_style in POST /api/chat"
-    - "UI settings: GET /api/settings/ui + POST /api/admin/settings/ui (avatar frames toggle)"
-    - "Login credentials still working (admin@cartoonix.ro/admin1234, test@cartoonix.ro/test1234)"
+  current_focus: []
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
 agent_communication:
     -agent: "main"
-    -message: "NEW BACKEND FEATURES TO TEST (creds: admin admin@cartoonix.ro/admin1234 [PLUS], test test@cartoonix.ro/test1234 [FREE]). (A) LOGIN SANITY: verify both accounts still log in with 200 + token + user object (users existed in fresh DB after reseed). (B) UI SETTINGS (avatar frames): (1) GET /api/settings/ui as anonymous -> 200 {avatar_frames_enabled:true} by default. (2) POST /api/admin/settings/ui as admin body {avatar_frames_enabled:false} -> 200; then GET returns false. (3) POST /api/admin/settings/ui without auth -> 401. (4) POST as test (non-admin) -> 403. Restore back to true at the end. (C) PLUS CHAT STYLE: (1) GET /api/auth/me for admin -> user has chat_style object with default keys {font,glow,gradient,bold,italic,sparkle}. (2) PUT /api/auth/chat-style as FREE user with body {font:'cursive',glow:'pink',bold:true} -> 403 with message about PLUS. (3) PUT /api/auth/chat-style as admin (PLUS) with {font:'cursive',glow:'pink',gradient:'neon',bold:true,italic:false,sparkle:true} -> 200 returns full user with chat_style updated. Verify persisted via GET /api/auth/me. (4) PUT with invalid values {font:'HAX',glow:'ZZZ',gradient:'??'} as admin -> 200, values sanitized back to 'default'/'none'. (5) POST /api/chat as admin (PLUS) with text -> response includes chat_style snapshot matching current user style. (6) POST /api/chat as FREE user -> response has chat_style: null. (7) GET /api/chat returns messages with chat_style field (populated for plus messages, null for free). At the end, RESTORE admin chat_style to defaults: PUT with {font:'default',glow:'none',gradient:'none',bold:false,italic:false,sparkle:false}."
+    -message: "BUG FIX - Frontend only. When clicking the user avatar in the top NavBar (top-right of any authenticated page), the Radix DropdownMenu was locking scroll (default modal=true), which removed the scrollbar and applied padding-right to <body>, causing the fixed NavBar and page content to visibly shift right / widen. Fix: added `modal={false}` on the avatar DropdownMenu component in /app/frontend/src/components/NavBar.jsx (around line 192). Please verify: (1) Login as admin@cartoonix.ro / admin1234. (2) Ensure you are on a scrollable page (e.g. /home or /browse — scroll should be visible). (3) Note the width of the page/header before click. (4) Click the avatar button (data-testid='nav-avatar-btn') in the top-right of the NavBar. (5) Assert the dropdown opens showing 'My Profile', 'Settings', 'Admin', 'Log Out'. (6) Assert the page/NavBar does NOT shift horizontally — the header layout must remain identical before and after opening. (7) Assert the vertical scrollbar remains visible while the dropdown is open. (8) Click a menu item (e.g. Settings) — navigation still works. Use viewport 1920x800. Screenshot before/after. Do NOT test other unrelated pages. Do NOT change any credentials."
+    -agent: "testing"
+    -message: "✅ AVATAR DROPDOWN BUG FIX VERIFICATION COMPLETE - ALL TESTS PASSED. The bug has been successfully fixed. The avatar dropdown no longer causes horizontal shift or scrollbar removal when opened. Tested with admin@cartoonix.ro credentials on /home page (scrollable content, 3038px height). Key findings: (1) Zero horizontal shift (0.00px) when dropdown opened - search box position remained at x=121.00px. (2) Scrollbar state preserved - no unwanted removal, body overflow remained 'visible', no padding-right added. (3) Dropdown functionality works correctly - all menu items present (My Profile, Settings, Admin, Log Out). (4) Navigation works - Settings menu item successfully navigated to /settings. The fix `modal={false}` on the DropdownMenu component (line 192 in NavBar.jsx) is working as intended. No further action needed for this bug."
 
 agent_communication:
     -agent: "main"

@@ -189,7 +189,7 @@ export const NavBar = () => {
               </Popover>
 
               {/* Avatar */}
-              <DropdownMenu>
+              <DropdownMenu modal={false}>
                 <DropdownMenuTrigger asChild>
                   <button data-testid="nav-avatar-btn" className="rounded-lg ring-1 ring-white/10 hover:ring-2 hover:ring-[#ffcc00] transition-all duration-200 ml-0.5 overflow-hidden">
                     <img
