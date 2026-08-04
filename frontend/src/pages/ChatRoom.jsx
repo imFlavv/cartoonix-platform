@@ -7,6 +7,7 @@ import { ArrowLeft, Send, Sparkles, Globe, Lock, Star, Megaphone, AlertTriangle,
 import { PlusIcon } from "@/components/PlusIcon";
 import { MessageText } from "@/components/MessageText";
 import { EmojiPicker } from "@/components/EmojiPicker";
+import { chatStyleClasses } from "@/lib/chatStyle";
 
 const ADMIN_COMMANDS = [
   { cmd: "important", label: "/important", desc: "Mesaj evidențiat auriu", icon: Star },
@@ -167,7 +168,7 @@ const ChatRoom = () => {
                             <Sparkles className="cx-sparkle h-2.5 w-2.5" style={{ bottom: 5, left: 8, animationDelay: "0.9s" }} />
                           </>
                         )}
-                        <span className="relative"><MessageText text={m.text} /></span>
+                        <span className={`relative ${m.plus ? chatStyleClasses(m.chat_style) : ""}`}><MessageText text={m.text} /></span>
                       </div>
                     </div>
                   </div>

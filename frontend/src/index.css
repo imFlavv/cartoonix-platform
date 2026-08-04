@@ -283,3 +283,42 @@ body.cx-no-avatar-frames .cx-premium-ring::before {
   outline: 2px solid #ffcc00;
   outline-offset: 3px;
 }
+
+
+/* -------- PLUS chat text style presets (customizable via Settings) -------- */
+/* Fonts */
+.cx-txt-font-default    { font-family: "Nunito", -apple-system, BlinkMacSystemFont, sans-serif; }
+.cx-txt-font-serif      { font-family: "Georgia", "Times New Roman", serif; }
+.cx-txt-font-mono       { font-family: "JetBrains Mono", "Menlo", monospace; }
+.cx-txt-font-cursive    { font-family: "Pacifico", "Comic Sans MS", cursive; }
+.cx-txt-font-display    { font-family: "Bebas Neue", sans-serif; letter-spacing: 0.03em; }
+.cx-txt-font-handwritten{ font-family: "Caveat", "Comic Sans MS", cursive; letter-spacing: 0.01em; }
+
+/* Weight / italic */
+.cx-txt-bold   { font-weight: 900; }
+.cx-txt-italic { font-style: italic; }
+
+/* Gradients (text) */
+.cx-txt-grad-gold    { background: linear-gradient(90deg,#ffe27a,#ffcc00,#ff8a00); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.cx-txt-grad-sunset  { background: linear-gradient(90deg,#ff6a3d,#ff2d78,#a020f0); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.cx-txt-grad-ocean   { background: linear-gradient(90deg,#00e0ff,#0099ff,#5c34ff); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.cx-txt-grad-candy   { background: linear-gradient(90deg,#ff77e9,#c86cff,#67d2ff); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.cx-txt-grad-neon    { background: linear-gradient(90deg,#39ff14,#00ffcc,#00c8ff); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.cx-txt-grad-aurora  { background: linear-gradient(90deg,#66ff9d,#00d4ff,#a488ff,#ff8bcf); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.cx-txt-grad-fire    { background: linear-gradient(90deg,#ffdd57,#ff6a00,#ff1e56); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+/* Glows (text-shadow) — applied on the span itself; safe with gradient fallback */
+.cx-txt-glow-gold   { text-shadow: 0 0 6px rgba(255,204,0,.85), 0 0 14px rgba(255,204,0,.55); }
+.cx-txt-glow-cyan   { text-shadow: 0 0 6px rgba(0,224,255,.85), 0 0 14px rgba(0,224,255,.55); }
+.cx-txt-glow-pink   { text-shadow: 0 0 6px rgba(255,105,180,.85), 0 0 14px rgba(255,105,180,.55); }
+.cx-txt-glow-green  { text-shadow: 0 0 6px rgba(57,255,20,.85), 0 0 14px rgba(57,255,20,.55); }
+.cx-txt-glow-red    { text-shadow: 0 0 6px rgba(255,60,60,.9), 0 0 14px rgba(255,60,60,.55); }
+.cx-txt-glow-purple { text-shadow: 0 0 6px rgba(180,120,255,.9), 0 0 14px rgba(180,120,255,.55); }
+.cx-txt-glow-white  { text-shadow: 0 0 6px rgba(255,255,255,.9), 0 0 14px rgba(255,255,255,.6); }
+
+/* Sparkle animation on the text itself */
+@keyframes cx-txt-sparkle {
+  0%, 100% { filter: drop-shadow(0 0 0 rgba(255,255,255,0)); }
+  50%      { filter: drop-shadow(0 0 5px rgba(255,255,255,.9)) drop-shadow(0 0 10px rgba(255,204,0,.7)); }
+}
+.cx-txt-sparkle { animation: cx-txt-sparkle 2.4s ease-in-out infinite; }

@@ -183,7 +183,31 @@ backend:
         -comment: "Refactored backend to align with production DB schema. User identity is now UUID field `id` (not _id/ObjectId). User docs use `nickname` (not name), `avatar_url` (not avatar), `subscription` ('plus'/'free', not boolean plus), `email_verified`, `last_active`, `presence_seconds`. Added helper functions: uid_of(), user_name(), user_avatar(), user_is_plus(), serialize_user() to map DB fields to frontend-friendly keys (id, name, avatar, plus). Updated all endpoints: POST /api/auth/login, GET /api/auth/me, PUT /api/auth/profile (updates nickname), PUT /api/auth/avatar (updates avatar_url), PUT /api/admin/users/{id} (updates subscription), POST /api/presence (updates last_active/presence_seconds), POST /api/payments/checkout (checks subscription). Local DB reset and reseeded with new schema. Credentials: admin@cartoonix.ro / admin1234 (subscription=plus), test@cartoonix.ro / test1234 (subscription=free)."
         -working: true
         -agent: "testing"
-        -comment: "✅ ALL SCHEMA ALIGNMENT TESTS PASSED (26/26). Test 1: Login for both users returns correct UUID id (36 chars with dashes), role (admin/user), and plus field (true for admin, false for test user). Test 2: GET /api/auth/me returns UUID id for both users. Test 3: PUT /api/auth/profile updates DB field `nickname` (NOT `name`) - verified in MongoDB. Test 4: PUT /api/auth/avatar updates DB field `avatar_url` (NOT `avatar`) - verified in MongoDB. Premium avatar as free user correctly returns 403. Test 5: GET /api/admin/users returns users with UUID ids. PUT /api/admin/users/{id} with plus=true updates DB `subscription` to 'plus', plus=false updates to 'free' - verified in MongoDB. Test 6: POST /api/presence updates DB fields `last_active` (ISO timestamp) and `presence_seconds` (numeric). GET /api/presence/online returns online count >= 1. Test 7: POST /api/payments/checkout as free user returns 200 with checkout_url. As admin (subscription=plus) correctly returns 400 'Ai deja Cartoonix PLUS activ'. MongoDB verification confirms: admin has id=explore-platform-6, nickname='Admin', avatar_url, subscription='plus'. Test user has id=explore-platform-6, nickname='Cont Test', avatar_url, subscription='free'. All field names match production schema. Test user state restored after testing."
+        -comment: "✅ ALL SCHEMA ALIGNMENT TESTS PASSED (26/26). Verified in MongoDB. All field names match production schema. Test user state restored after testing."
+
+  - task: "UI settings toggle (avatar frames on/off)"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "New endpoints: GET /api/settings/ui (public, default {avatar_frames_enabled:true}) and POST /api/admin/settings/ui (admin only, body {avatar_frames_enabled:bool}). Persists in settings collection with key='ui'. Frontend App.js fetches on mount and toggles body class 'cx-no-avatar-frames' which hides .cx-premium-ring::before via CSS. Admin panel Platformă tab has a second card with Switch that dispatches 'cx-ui-settings-changed' custom event for instant apply."
+
+  - task: "PLUS chat text style (customizable font/glow/gradient/bold/italic/sparkle)"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "New endpoint PUT /api/auth/chat-style (PLUS only, else 403) validates against ALLOWED_FONTS/GLOWS/GRADIENTS and sanitizes unknown values. User doc stores 'chat_style' field {font, glow, gradient, bold, italic, sparkle}. serialize_user() returns chat_style (default when missing). POST /api/chat now embeds a snapshot of the sender's current chat_style in the message doc (None for non-PLUS users). GET /api/chat returns chat_style in each message. Frontend Settings.jsx has a new PLUS-only 'Stil chat PLUS' section with font dropdown, glow color chips, gradient chips, bold/italic/sparkle switches, live preview bubble, save + reset buttons. ChatRoom applies chatStyleClasses(m.chat_style) to plus bubbles."
 
 frontend:
   - task: "PLUS chat bubble redesign (darker, gold outline, subtle shine)"
@@ -218,10 +242,16 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Support tickets (create/list/reply + admin) and playlist limit (FREE=1)"
+    - "PLUS chat text style: PUT /api/auth/chat-style + embedded chat_style in POST /api/chat"
+    - "UI settings: GET /api/settings/ui + POST /api/admin/settings/ui (avatar frames toggle)"
+    - "Login credentials still working (admin@cartoonix.ro/admin1234, test@cartoonix.ro/test1234)"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
+
+agent_communication:
+    -agent: "main"
+    -message: "NEW BACKEND FEATURES TO TEST (creds: admin admin@cartoonix.ro/admin1234 [PLUS], test test@cartoonix.ro/test1234 [FREE]). (A) LOGIN SANITY: verify both accounts still log in with 200 + token + user object (users existed in fresh DB after reseed). (B) UI SETTINGS (avatar frames): (1) GET /api/settings/ui as anonymous -> 200 {avatar_frames_enabled:true} by default. (2) POST /api/admin/settings/ui as admin body {avatar_frames_enabled:false} -> 200; then GET returns false. (3) POST /api/admin/settings/ui without auth -> 401. (4) POST as test (non-admin) -> 403. Restore back to true at the end. (C) PLUS CHAT STYLE: (1) GET /api/auth/me for admin -> user has chat_style object with default keys {font,glow,gradient,bold,italic,sparkle}. (2) PUT /api/auth/chat-style as FREE user with body {font:'cursive',glow:'pink',bold:true} -> 403 with message about PLUS. (3) PUT /api/auth/chat-style as admin (PLUS) with {font:'cursive',glow:'pink',gradient:'neon',bold:true,italic:false,sparkle:true} -> 200 returns full user with chat_style updated. Verify persisted via GET /api/auth/me. (4) PUT with invalid values {font:'HAX',glow:'ZZZ',gradient:'??'} as admin -> 200, values sanitized back to 'default'/'none'. (5) POST /api/chat as admin (PLUS) with text -> response includes chat_style snapshot matching current user style. (6) POST /api/chat as FREE user -> response has chat_style: null. (7) GET /api/chat returns messages with chat_style field (populated for plus messages, null for free). At the end, RESTORE admin chat_style to defaults: PUT with {font:'default',glow:'none',gradient:'none',bold:false,italic:false,sparkle:false}."
 
 agent_communication:
     -agent: "main"

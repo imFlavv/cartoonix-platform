@@ -126,6 +126,41 @@ def serialize_user(doc: dict) -> dict:
         "total_time_seconds": doc.get("presence_seconds", doc.get("total_time_seconds", 0)),
         "last_seen": doc.get("last_active") or doc.get("last_seen"),
         "created_at": doc.get("created_at"),
+        "chat_style": doc.get("chat_style") or default_chat_style(),
+    }
+
+
+# ---------- chat style (PLUS only cosmetic) ----------
+ALLOWED_FONTS = {"default", "serif", "mono", "cursive", "display", "handwritten"}
+ALLOWED_GLOWS = {"none", "gold", "cyan", "pink", "green", "red", "purple", "white"}
+ALLOWED_GRADIENTS = {"none", "gold", "sunset", "ocean", "candy", "neon", "aurora", "fire"}
+
+
+def default_chat_style() -> dict:
+    return {
+        "font": "default",
+        "glow": "none",
+        "bold": False,
+        "italic": False,
+        "sparkle": False,
+        "gradient": "none",
+    }
+
+
+def sanitize_chat_style(style: Optional[dict]) -> dict:
+    base = default_chat_style()
+    if not isinstance(style, dict):
+        return base
+    font = style.get("font")
+    glow = style.get("glow")
+    grad = style.get("gradient")
+    return {
+        "font": font if font in ALLOWED_FONTS else "default",
+        "glow": glow if glow in ALLOWED_GLOWS else "none",
+        "gradient": grad if grad in ALLOWED_GRADIENTS else "none",
+        "bold": bool(style.get("bold", False)),
+        "italic": bool(style.get("italic", False)),
+        "sparkle": bool(style.get("sparkle", False)),
     }
 
 
@@ -432,6 +467,25 @@ async def change_password(data: ChangePasswordInput, user: dict = Depends(get_cu
         {"$set": {"password_hash": hash_password(data.new_password)}},
     )
     return {"ok": True}
+
+
+class ChatStyleInput(BaseModel):
+    font: Optional[str] = None
+    glow: Optional[str] = None
+    gradient: Optional[str] = None
+    bold: Optional[bool] = False
+    italic: Optional[bool] = False
+    sparkle: Optional[bool] = False
+
+
+@api_router.put("/auth/chat-style")
+async def update_chat_style(data: ChatStyleInput, user: dict = Depends(get_current_user)):
+    if not user_is_plus(user):
+        raise HTTPException(status_code=403, detail="Stilul de chat personalizat este disponibil doar pentru membrii Cartoonix PLUS")
+    style = sanitize_chat_style(data.model_dump())
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {"chat_style": style}})
+    user["chat_style"] = style
+    return serialize_user(user)
 
 
 @api_router.post("/auth/subscribe")
@@ -769,6 +823,7 @@ async def post_chat(data: ChatInput, user: dict = Depends(get_current_user)):
         "room": room,
         "text": text,
         "command": command,
+        "chat_style": sanitize_chat_style(user.get("chat_style")) if user_is_plus(user) else None,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     res = await db.chat_messages.insert_one(doc)
