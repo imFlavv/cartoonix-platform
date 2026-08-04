@@ -127,6 +127,7 @@ def serialize_user(doc: dict) -> dict:
         "last_seen": doc.get("last_active") or doc.get("last_seen"),
         "created_at": doc.get("created_at"),
         "chat_style": doc.get("chat_style") or default_chat_style(),
+        "nickname_updated_at": doc.get("nickname_updated_at"),
     }
 
 
@@ -446,8 +447,33 @@ async def update_avatar(data: AvatarInput, user: dict = Depends(get_current_user
 
 @api_router.put("/auth/profile")
 async def update_profile(data: ProfileInput, user: dict = Depends(get_current_user)):
-    await db.users.update_one({"_id": user["_id"]}, {"$set": {"nickname": data.name}})
-    user["nickname"] = data.name
+    new_name = (data.name or "").strip()
+    if not new_name:
+        raise HTTPException(status_code=400, detail="Numele nu poate fi gol")
+    current_name = user_name(user)
+    # If unchanged, no-op (no cooldown enforced)
+    if new_name != current_name:
+        # Cooldown: allow rename only once every 30 days (admins bypass)
+        last = user.get("nickname_updated_at")
+        if last and user.get("role") != "admin":
+            try:
+                last_dt = datetime.fromisoformat(last)
+            except Exception:
+                last_dt = None
+            if last_dt:
+                next_dt = last_dt + timedelta(days=30)
+                if datetime.now(timezone.utc) < next_dt:
+                    remaining_days = max(1, (next_dt - datetime.now(timezone.utc)).days)
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Numele poate fi schimbat o dată la 30 de zile. Reîncearcă în {remaining_days} zile.",
+                    )
+        await db.users.update_one(
+            {"_id": user["_id"]},
+            {"$set": {"nickname": new_name, "nickname_updated_at": datetime.now(timezone.utc).isoformat()}},
+        )
+        user["nickname"] = new_name
+        user["nickname_updated_at"] = datetime.now(timezone.utc).isoformat()
     return serialize_user(user)
 
 
