@@ -135,7 +135,7 @@ def serialize_user(doc: dict) -> dict:
 ALLOWED_FONTS = {"default", "serif", "mono", "cursive", "display", "handwritten"}
 ALLOWED_GLOWS = {"none", "gold", "cyan", "pink", "green", "red", "purple", "white"}
 ALLOWED_GRADIENTS = {"none", "gold", "sunset", "ocean", "candy", "neon", "aurora", "fire"}
-ALLOWED_BUBBLES = {"none", "capybara"}
+ALLOWED_BUBBLES = {"none", "capybara", "ice"}
 
 
 def default_chat_style() -> dict:

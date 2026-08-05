@@ -385,4 +385,32 @@ body.cx-no-avatar-frames .cx-premium-ring::before {
   margin-left: -4px;
 }
 
+/* Ice skin — assets are 219x134 (left), 158x134 (center), 142x134 (right) */
+.cx-bubble-ice {
+  min-width: 100px;
+}
+.cx-bubble-ice .cx-bubble-cap-left {
+  /* left aspect 219/134 ≈ 1.634 */
+  width: calc(var(--cx-bubble-h) * 1.634);
+}
+.cx-bubble-ice .cx-bubble-cap-body {
+  padding: 4px 12px 4px 4px;
+  color: #0d3b66;
+  font-weight: 700;
+  text-shadow: 0 1px 0 rgba(255,255,255,0.6);
+}
+.cx-bubble-ice .cx-bubble-cap-body-text {
+  max-width: 340px;
+  padding: 0;
+  line-height: 1.15;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+.cx-bubble-ice .cx-bubble-cap-right {
+  /* right aspect 142/134 ≈ 1.06 */
+  width: calc(var(--cx-bubble-h) * 1.06);
+  margin-left: -4px;
+}
+
 .cx-txt-sparkle { animation: cx-txt-sparkle 2.4s ease-in-out infinite; }

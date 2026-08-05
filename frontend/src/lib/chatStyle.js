@@ -36,6 +36,7 @@ export const CHAT_STYLE_GRADIENTS = [
 export const CHAT_STYLE_BUBBLES = [
   { value: "none", label: "Clasică", thumb: null },
   { value: "capybara", label: "Capybara", thumb: "/chat/bubbles/capybara/left.png" },
+  { value: "ice", label: "Ice", thumb: "/chat/bubbles/ice/left.png" },
 ];
 
 export const DEFAULT_CHAT_STYLE = {
