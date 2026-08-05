@@ -323,13 +323,17 @@ body.cx-no-avatar-frames .cx-premium-ring::before {
 }
 
 /* -------- PLUS chat bubble skins (3-part images) -------- */
+/* Shared bubble height for ALL PLUS skins — keep uniform with the classic bubble. */
+:root { --cx-bubble-h: 40px; }
+
 .cx-bubble {
   display: inline-flex;
   align-items: stretch;
   max-width: 100%;
   vertical-align: bottom;
-  filter: drop-shadow(0 4px 10px rgba(0,0,0,0.35));
-  line-height: 0; /* prevent extra vertical space from inline whitespace */
+  filter: drop-shadow(0 3px 6px rgba(0,0,0,0.3));
+  line-height: 0;
+  height: var(--cx-bubble-h);
 }
 .cx-bubble-cap-left,
 .cx-bubble-cap-right,
@@ -353,35 +357,32 @@ body.cx-no-avatar-frames .cx-premium-ring::before {
   line-height: 1.15;
 }
 
-/* Capybara skin */
+/* Capybara skin — dimensions derived from shared --cx-bubble-h and asset aspect ratios */
 .cx-bubble-capybara {
-  height: 64px;
-  min-width: 140px;
+  min-width: 100px;
 }
 .cx-bubble-capybara .cx-bubble-cap-left {
-  /* left asset: 249x258 → aspect ~0.965 (w/h) → 64 * 0.965 ≈ 62 */
-  width: 62px;
+  /* left asset aspect ~0.965 → width ≈ h * 0.965 */
+  width: calc(var(--cx-bubble-h) * 0.965);
 }
 .cx-bubble-capybara .cx-bubble-cap-body {
-  /* Text area — keep clear of head (left) and tail (right) via padding. */
-  padding: 8px 20px 8px 6px;
+  padding: 4px 14px 4px 4px;
   color: #4a2a10;
   font-weight: 700;
   text-shadow: 0 1px 0 rgba(255,236,192,0.5);
 }
 .cx-bubble-capybara .cx-bubble-cap-body-text {
-  max-width: 360px;
+  max-width: 340px;
   padding: 0;
-  line-height: 1.2;
+  line-height: 1.15;
   word-break: break-word;
   overflow-wrap: anywhere;
-  font-size: 14px;
+  font-size: 13px;
 }
 .cx-bubble-capybara .cx-bubble-cap-right {
-  /* right asset: 146x259 → aspect ~0.564 → 64 * 0.564 ≈ 36 */
-  width: 36px;
-  /* Overlap slightly onto the body so the tail sits under the text edge cleanly. */
-  margin-left: -6px;
+  /* right asset aspect ~0.564 → width ≈ h * 0.564 */
+  width: calc(var(--cx-bubble-h) * 0.564);
+  margin-left: -4px;
 }
 
 .cx-txt-sparkle { animation: cx-txt-sparkle 2.4s ease-in-out infinite; }
