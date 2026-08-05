@@ -413,4 +413,32 @@ body.cx-no-avatar-frames .cx-premium-ring::before {
   margin-left: -4px;
 }
 
+/* Planet skin — assets are 287x143 (left), 228x143 (center), 196x143 (right) */
+.cx-bubble-planet {
+  min-width: 100px;
+}
+.cx-bubble-planet .cx-bubble-cap-left {
+  /* left aspect 287/143 ≈ 2.007 */
+  width: calc(var(--cx-bubble-h) * 2.007);
+}
+.cx-bubble-planet .cx-bubble-cap-body {
+  padding: 4px 12px 4px 4px;
+  color: #f4ecff;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(20,4,40,0.85);
+}
+.cx-bubble-planet .cx-bubble-cap-body-text {
+  max-width: 340px;
+  padding: 0;
+  line-height: 1.15;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+.cx-bubble-planet .cx-bubble-cap-right {
+  /* right aspect 196/143 ≈ 1.371 */
+  width: calc(var(--cx-bubble-h) * 1.371);
+  margin-left: -4px;
+}
+
 .cx-txt-sparkle { animation: cx-txt-sparkle 2.4s ease-in-out infinite; }

@@ -16,6 +16,12 @@ const SKIN_ASSETS = {
     center: "/chat/bubbles/ice/center.png",
     right: "/chat/bubbles/ice/right.png",
   },
+  planet: {
+    className: "cx-bubble-planet",
+    left: "/chat/bubbles/planet/left.png",
+    center: "/chat/bubbles/planet/center.png",
+    right: "/chat/bubbles/planet/right.png",
+  },
 };
 
 export function SkinnedBubble({ skin, textClasses = "", children, testId }) {

@@ -11,7 +11,7 @@ from pymongo import MongoClient
 from typing import Optional
 
 # Backend URL from frontend/.env
-BASE_URL = "https://explore-platform-6.preview.emergentagent.com/api"
+BASE_URL = "https://chat-widget-factory.preview.emergentagent.com/api"
 
 # MongoDB connection (from backend/.env)
 MONGO_URL = "mongodb://localhost:27017"
