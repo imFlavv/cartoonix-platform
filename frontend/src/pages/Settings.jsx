@@ -15,9 +15,11 @@ import {
   CHAT_STYLE_FONTS,
   CHAT_STYLE_GLOWS,
   CHAT_STYLE_GRADIENTS,
+  CHAT_STYLE_BUBBLES,
   DEFAULT_CHAT_STYLE,
   chatStyleClasses,
 } from "@/lib/chatStyle";
+import { SkinnedBubble } from "@/components/SkinnedBubble";
 
 const Card = ({ icon: Icon, title, subtitle, children }) => (
   <div className="bg-[#0f0f0f] border border-white/10 rounded-2xl p-6 mb-5">
@@ -243,15 +245,51 @@ const Settings = () => {
                   <p className="text-[11px] uppercase tracking-wider text-white/40 mb-2">Previzualizare</p>
                   <div className="flex items-start gap-2.5">
                     <img src={user?.avatar || `https://api.dicebear.com/9.x/bottts/svg?seed=${user?.email}`} alt="" className="h-8 w-8 rounded-full bg-[#141414] shrink-0" />
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-xs text-white/40 mb-0.5 px-1 flex items-center gap-1">
                         {user?.name} <PlusIcon className="h-3.5 w-3.5" />
                       </p>
-                      <div className="inline-block px-4 py-2.5 rounded-2xl rounded-tl-sm text-sm bg-[#2a2a2a] text-white/90">
-                        <span className={`relative ${chatStyleClasses(chatStyle)}`}>Salut! Așa vor arăta mesajele mele în chat ✨</span>
-                      </div>
+                      {chatStyle.bubble && chatStyle.bubble !== "none" ? (
+                        <SkinnedBubble
+                          testId="chat-style-preview-bubble"
+                          skin={chatStyle.bubble}
+                          textClasses={chatStyleClasses(chatStyle)}
+                        >
+                          Salut! Așa vor arăta mesajele mele ✨
+                        </SkinnedBubble>
+                      ) : (
+                        <div className="inline-block px-4 py-2.5 rounded-2xl rounded-tl-sm text-sm bg-[#2a2a2a] text-white/90">
+                          <span className={`relative ${chatStyleClasses(chatStyle)}`}>Salut! Așa vor arăta mesajele mele în chat ✨</span>
+                        </div>
+                      )}
                     </div>
                   </div>
+                </div>
+
+                {/* Bubble skin (casetă mesaj) */}
+                <label className="text-sm text-white/60">Casetă mesaj (Bubble)</label>
+                <div className="flex flex-wrap gap-2 mt-1.5 mb-4">
+                  {CHAT_STYLE_BUBBLES.map((b) => {
+                    const active = (chatStyle.bubble || "none") === b.value;
+                    return (
+                      <button
+                        type="button"
+                        key={b.value}
+                        data-testid={`chat-style-bubble-${b.value}`}
+                        onClick={() => updateStyle({ bubble: b.value })}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border transition ${
+                          active ? "border-[#ffcc00] bg-[#ffcc00]/10 text-[#ffcc00]" : "border-white/10 bg-white/5 text-white/70 hover:border-white/25"
+                        }`}
+                      >
+                        {b.thumb ? (
+                          <img src={b.thumb} alt="" className="h-8 w-8 object-contain" />
+                        ) : (
+                          <span className="h-8 w-12 rounded-lg bg-[#2a2a2a] border border-white/10 flex items-center justify-center text-[10px] text-white/50">abc</span>
+                        )}
+                        {b.label}
+                      </button>
+                    );
+                  })}
                 </div>
 
                 {/* Font */}

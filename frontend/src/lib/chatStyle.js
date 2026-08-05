@@ -32,10 +32,17 @@ export const CHAT_STYLE_GRADIENTS = [
   { value: "fire", label: "Fire", preview: "linear-gradient(90deg,#ffdd57,#ff6a00,#ff1e56)" },
 ];
 
+// PLUS-exclusive chat bubble skins. "none" = classic dark bubble (same as FREE).
+export const CHAT_STYLE_BUBBLES = [
+  { value: "none", label: "Clasică", thumb: null },
+  { value: "capybara", label: "Capybara", thumb: "/chat/bubbles/capybara/left.png" },
+];
+
 export const DEFAULT_CHAT_STYLE = {
   font: "default",
   glow: "none",
   gradient: "none",
+  bubble: "none",
   bold: false,
   italic: false,
   sparkle: false,

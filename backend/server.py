@@ -135,6 +135,7 @@ def serialize_user(doc: dict) -> dict:
 ALLOWED_FONTS = {"default", "serif", "mono", "cursive", "display", "handwritten"}
 ALLOWED_GLOWS = {"none", "gold", "cyan", "pink", "green", "red", "purple", "white"}
 ALLOWED_GRADIENTS = {"none", "gold", "sunset", "ocean", "candy", "neon", "aurora", "fire"}
+ALLOWED_BUBBLES = {"none", "capybara"}
 
 
 def default_chat_style() -> dict:
@@ -145,6 +146,7 @@ def default_chat_style() -> dict:
         "italic": False,
         "sparkle": False,
         "gradient": "none",
+        "bubble": "none",
     }
 
 
@@ -155,10 +157,12 @@ def sanitize_chat_style(style: Optional[dict]) -> dict:
     font = style.get("font")
     glow = style.get("glow")
     grad = style.get("gradient")
+    bubble = style.get("bubble")
     return {
         "font": font if font in ALLOWED_FONTS else "default",
         "glow": glow if glow in ALLOWED_GLOWS else "none",
         "gradient": grad if grad in ALLOWED_GRADIENTS else "none",
+        "bubble": bubble if bubble in ALLOWED_BUBBLES else "none",
         "bold": bool(style.get("bold", False)),
         "italic": bool(style.get("italic", False)),
         "sparkle": bool(style.get("sparkle", False)),
@@ -499,6 +503,7 @@ class ChatStyleInput(BaseModel):
     font: Optional[str] = None
     glow: Optional[str] = None
     gradient: Optional[str] = None
+    bubble: Optional[str] = None
     bold: Optional[bool] = False
     italic: Optional[bool] = False
     sparkle: Optional[bool] = False

@@ -8,6 +8,7 @@ import { PlusIcon } from "@/components/PlusIcon";
 import { MessageText } from "@/components/MessageText";
 import { EmojiPicker } from "@/components/EmojiPicker";
 import { chatStyleClasses } from "@/lib/chatStyle";
+import { SkinnedBubble } from "@/components/SkinnedBubble";
 
 const ADMIN_COMMANDS = [
   { cmd: "important", label: "/important", desc: "Mesaj evidențiat auriu", icon: Star },
@@ -156,12 +157,22 @@ const ChatRoom = () => {
                         {m.name}
                         {m.plus && <PlusIcon className="h-3.5 w-3.5" />}
                       </p>
-                      <div
-                        data-testid={m.plus ? "chat-bubble-plus" : "chat-bubble"}
-                        className="inline-block px-4 py-2.5 rounded-2xl rounded-tl-sm text-sm break-words bg-[#2a2a2a] text-white/90"
-                      >
-                        <span className={`relative ${m.plus ? chatStyleClasses(m.chat_style) : ""}`}><MessageText text={m.text} /></span>
-                      </div>
+                      {m.plus && m.chat_style?.bubble && m.chat_style.bubble !== "none" ? (
+                        <SkinnedBubble
+                          testId="chat-bubble-plus-skin"
+                          skin={m.chat_style.bubble}
+                          textClasses={chatStyleClasses(m.chat_style)}
+                        >
+                          <MessageText text={m.text} />
+                        </SkinnedBubble>
+                      ) : (
+                        <div
+                          data-testid={m.plus ? "chat-bubble-plus" : "chat-bubble"}
+                          className="inline-block px-4 py-2.5 rounded-2xl rounded-tl-sm text-sm break-words bg-[#2a2a2a] text-white/90"
+                        >
+                          <span className={`relative ${m.plus ? chatStyleClasses(m.chat_style) : ""}`}><MessageText text={m.text} /></span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );

@@ -321,4 +321,62 @@ body.cx-no-avatar-frames .cx-premium-ring::before {
   0%, 100% { filter: drop-shadow(0 0 0 rgba(255,255,255,0)); }
   50%      { filter: drop-shadow(0 0 5px rgba(255,255,255,.9)) drop-shadow(0 0 10px rgba(255,204,0,.7)); }
 }
+
+/* -------- PLUS chat bubble skins (3-part images) -------- */
+.cx-bubble {
+  display: inline-flex;
+  align-items: stretch;
+  max-width: 100%;
+  vertical-align: bottom;
+  filter: drop-shadow(0 4px 10px rgba(0,0,0,0.35));
+}
+.cx-bubble-cap-left,
+.cx-bubble-cap-right {
+  flex-shrink: 0;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 100% 100%;
+  align-self: stretch;
+}
+.cx-bubble-cap-body {
+  background-repeat: repeat-x;
+  background-position: center;
+  background-size: auto 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 100%;
+  min-width: 0;
+}
+
+/* Capybara skin — height ~ 60px keeps the head readable. */
+.cx-bubble-capybara {
+  height: 60px;
+  min-width: 130px;
+}
+.cx-bubble-capybara .cx-bubble-cap-left {
+  /* left asset: 249x258 → aspect ~0.965 (w/h) */
+  width: 58px;
+}
+.cx-bubble-capybara .cx-bubble-cap-body {
+  padding: 0 6px;
+  margin: 0 -6px; /* slight overlap to hide any seam */
+  color: #4a2a10;
+  font-weight: 700;
+  text-shadow: 0 1px 0 rgba(255,236,192,0.55);
+  min-height: 60px;
+}
+.cx-bubble-capybara .cx-bubble-cap-body-text {
+  max-width: 360px;
+  padding: 0 4px;
+  line-height: 1.15;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+}
+.cx-bubble-capybara .cx-bubble-cap-right {
+  /* right asset: 146x247 → aspect ~0.591 */
+  width: 36px;
+}
+
 .cx-txt-sparkle { animation: cx-txt-sparkle 2.4s ease-in-out infinite; }

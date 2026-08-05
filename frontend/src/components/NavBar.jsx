@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   Search, Menu, X, LogOut, Shield, HelpCircle, Bell,
   Facebook, Instagram, Youtube, Music2, MessageCircle, User, Settings, CheckCheck, Inbox,
-  Home, Clapperboard, Users, Gem,
+  Home, Clapperboard, Users,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api";
@@ -54,7 +54,6 @@ export const NavBar = () => {
   ];
 
   const isActive = (to) => location.pathname === to || location.pathname.startsWith(to + "/");
-  const coins = user?.coins ?? 0;
 
   const iconBtn = "relative flex items-center justify-center h-10 w-10 rounded-xl text-white/60 hover:text-white transition-colors duration-200";
 
@@ -102,14 +101,6 @@ export const NavBar = () => {
         </nav>
 
         <div className="ml-auto flex items-center gap-1.5 md:gap-2">
-          {/* Currency (flat, no box) */}
-          {user && (
-            <div data-testid="nav-currency" className="hidden sm:flex items-center gap-1.5 px-1">
-              <Gem className="h-4 w-4 text-[#a855f7]" />
-              <span className="text-sm font-bold text-white tabular-nums">{coins}</span>
-            </div>
-          )}
-
           {/* Help */}
           <Popover>
             <PopoverTrigger asChild>
