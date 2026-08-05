@@ -1,13 +1,11 @@
 """
-Build a seamless capybara chat bubble center.png by slicing the flat body area
-that touches the seam between center and right.png.
+Build a TRULY seamless capybara chat bubble center.png.
 
-Strategy: right.png is designed to start with a FLAT vertical left edge (that's where
-the tileable center is supposed to plug in). So we extract the leftmost `TILE_WIDTH`
-columns of right.png — those pixels are guaranteed flat body.
-
-The result: left.png ends with body → center.png (from right.png's left slice) → right.png
-starts with the exact same pixels the center ends with = ZERO seam by construction.
+Strategy: sample ONE representative column from right.png's flat body area
+(x=20, well past any left-edge anti-aliasing) and duplicate it N times.
+Because every column of the tile is identical, `background-repeat: repeat-x`
+cannot produce a visible seam — there is literally no pixel difference at any
+tile boundary.
 
 Run: python /app/scripts/build_capybara_center.py
 """
@@ -20,7 +18,12 @@ LEFT = ASSETS / "left.png"
 RIGHT = ASSETS / "right.png"
 CENTER_OUT = ASSETS / "center.png"
 
-TILE_WIDTH = 40  # pixels of flat body to sample from right.png
+# Width of the generated center tile (pixels). Any width works since all columns are identical.
+TILE_WIDTH = 40
+
+# Which column of right.png to sample. It must be inside the FLAT body region —
+# past any left-edge anti-aliasing but before the tail curvature starts.
+SAMPLE_X = 20
 
 
 def main() -> None:
@@ -32,12 +35,17 @@ def main() -> None:
     print(f"left.png:  {left.size}")
     print(f"right.png: {right.size}")
 
-    # Slice the LEFTMOST TILE_WIDTH columns of right.png — that's the flat body area.
-    tile = right.crop((0, 0, TILE_WIDTH, right.height))
-    print(f"tile size: {tile.size}")
+    # Extract ONE column, height = full image
+    column = right.crop((SAMPLE_X, 0, SAMPLE_X + 1, right.height))
+    print(f"sampled column x={SAMPLE_X}, size={column.size}")
+
+    # Duplicate that column TILE_WIDTH times
+    tile = Image.new("RGBA", (TILE_WIDTH, right.height), (0, 0, 0, 0))
+    for x in range(TILE_WIDTH):
+        tile.paste(column, (x, 0))
 
     tile.save(CENTER_OUT, "PNG")
-    print(f"saved -> {CENTER_OUT}")
+    print(f"saved -> {CENTER_OUT} ({tile.size})")
 
     print(f"\nheights → left={left.height}, center={tile.height}, right={right.height}")
 
