@@ -181,6 +181,14 @@ PREMIUM_AVATARS = {
     "https://api.dicebear.com/9.x/personas/svg?seed=Titan&backgroundColor=c0aede",
     "https://api.dicebear.com/9.x/lorelei/svg?seed=Galaxy&backgroundColor=ffdfbf",
     "https://api.dicebear.com/9.x/notionists/svg?seed=Cosmic&backgroundColor=d1d4f9",
+    "https://api.dicebear.com/9.x/notionists/svg?seed=Sable&backgroundColor=c0aede",
+    "https://api.dicebear.com/9.x/lorelei/svg?seed=Ivory&backgroundColor=ffd5dc",
+    "https://api.dicebear.com/9.x/personas/svg?seed=Onyx&backgroundColor=b6e3f4",
+    "https://api.dicebear.com/9.x/micah/svg?seed=Pearl&backgroundColor=d1d4f9",
+    "https://api.dicebear.com/9.x/notionists/svg?seed=Noir&backgroundColor=ffdfbf",
+    "https://api.dicebear.com/9.x/lorelei/svg?seed=Velvet&backgroundColor=c0aede",
+    "https://api.dicebear.com/9.x/personas/svg?seed=Azure&backgroundColor=ffd5dc",
+    "https://api.dicebear.com/9.x/micah/svg?seed=Sterling&backgroundColor=b6e3f4",
 }
 
 
