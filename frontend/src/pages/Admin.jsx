@@ -3,11 +3,13 @@ import { NavBar } from "@/components/NavBar";
 import { api } from "@/lib/api";
 import { CHANNELS } from "@/data/constants";
 import { toast } from "sonner";
-import { FolderSearch, Plus, Film, Lightbulb, Users, Pencil, ChevronUp, ChevronDown, ServerCog, Inbox, ImageOff } from "lucide-react";
+import { FolderSearch, Plus, Film, Lightbulb, Users, Pencil, ChevronUp, ChevronDown, ServerCog, Inbox, ImageOff, MessagesSquare, Megaphone } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { AdminMembers } from "@/components/AdminMembers";
 import { AdminTickets } from "@/components/AdminTickets";
+import { AdminChat } from "@/components/AdminChat";
+import { AdminAnnouncements } from "@/components/AdminAnnouncements";
 import { AdminShowEditor } from "@/components/AdminShowEditor";
 
 const empty = {
@@ -140,6 +142,12 @@ const Admin = () => {
             <TabsTrigger value="tickets" data-testid="admin-tab-tickets" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
               <Inbox className="h-4 w-4 mr-2" /> Solicitări
             </TabsTrigger>
+            <TabsTrigger value="chat" data-testid="admin-tab-chat" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
+              <MessagesSquare className="h-4 w-4 mr-2" /> Chat
+            </TabsTrigger>
+            <TabsTrigger value="announcements" data-testid="admin-tab-announcements" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
+              <Megaphone className="h-4 w-4 mr-2" /> Anunțuri
+            </TabsTrigger>
             <TabsTrigger value="platform" data-testid="admin-tab-platform" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
               <ServerCog className="h-4 w-4 mr-2" /> Platformă
             </TabsTrigger>
@@ -234,6 +242,14 @@ const Admin = () => {
 
           <TabsContent value="tickets">
             <AdminTickets />
+          </TabsContent>
+
+          <TabsContent value="chat">
+            <AdminChat />
+          </TabsContent>
+
+          <TabsContent value="announcements">
+            <AdminAnnouncements />
           </TabsContent>
 
           <TabsContent value="platform">

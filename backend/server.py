@@ -100,6 +100,28 @@ def user_is_plus(user: dict) -> bool:
     return bool(user.get("plus", False))
 
 
+MUTE_DURATIONS = {"5m": 5, "1h": 60, "24h": 60 * 24, "perm": None}
+
+
+def mute_remaining(user: dict):
+    """Return (is_muted, until_iso_or_None). Permanent uses year 9999 sentinel."""
+    mu = user.get("muted_until")
+    if not mu:
+        return False, None
+    try:
+        until = datetime.fromisoformat(mu)
+    except Exception:
+        return False, None
+    if until <= datetime.now(timezone.utc):
+        return False, None
+    return True, mu
+
+
+def user_is_muted(user: dict) -> bool:
+    is_muted, _ = mute_remaining(user)
+    return is_muted
+
+
 async def find_user_by_id(uid: str):
     if not uid:
         return None
@@ -122,6 +144,7 @@ def serialize_user(doc: dict) -> dict:
         "plus": user_is_plus(doc),
         "email_verified": doc.get("email_verified", True),
         "banned": doc.get("banned", False),
+        "muted_until": doc.get("muted_until"),
         "last_ip": doc.get("last_ip", ""),
         "total_time_seconds": doc.get("presence_seconds", doc.get("total_time_seconds", 0)),
         "last_seen": doc.get("last_active") or doc.get("last_seen"),
@@ -813,22 +836,82 @@ class ChatInput(BaseModel):
     room: str = "global"
 
 
+def serialize_msg(m: dict) -> dict:
+    m = dict(m)
+    m["id"] = str(m.pop("_id"))
+    if m.get("deleted"):
+        m["text"] = ""
+    return m
+
+
+async def maybe_send_bot_messages():
+    """Lazy CartoonixTV bot: posts the next message when the interval has elapsed.
+    Triggered on chat fetch; uses an atomic claim to avoid duplicate sends."""
+    cfg = await db.settings.find_one({"key": "chat_bot"})
+    if not cfg or not cfg.get("enabled"):
+        return
+    msgs = [m for m in (cfg.get("messages") or []) if str(m).strip()]
+    if not msgs:
+        return
+    interval = max(1, int(cfg.get("interval_minutes", 30) or 30))
+    now = datetime.now(timezone.utc)
+    last = cfg.get("last_sent_at")
+    if last:
+        try:
+            if (now - datetime.fromisoformat(last)).total_seconds() < interval * 60:
+                return
+        except Exception:
+            pass
+    # atomic claim: only proceed if last_sent_at is still what we read
+    claim = await db.settings.find_one_and_update(
+        {"key": "chat_bot", "last_sent_at": last},
+        {"$set": {"last_sent_at": now.isoformat()}},
+    )
+    if not claim:
+        return
+    idx = int(cfg.get("next_index", 0)) % len(msgs)
+    text = str(msgs[idx]).strip()
+    target = cfg.get("room", "global")
+    rooms = ["global", "plus"] if target == "both" else [target if target in ("global", "plus") else "global"]
+    for r in rooms:
+        await db.chat_messages.insert_one({
+            "is_bot": True,
+            "room": r,
+            "text": text,
+            "command": None,
+            "name": "CartoonixTV",
+            "deleted": False,
+            "created_at": now.isoformat(),
+        })
+    await db.settings.update_one({"key": "chat_bot"}, {"$set": {"next_index": (idx + 1) % len(msgs)}})
+
+
 @api_router.get("/chat")
-async def get_chat(room: str = "global", after: Optional[str] = None, user: dict = Depends(get_current_user)):
+async def get_chat(room: str = "global", after: Optional[str] = None, before: Optional[str] = None,
+                   limit: int = 50, user: dict = Depends(get_current_user)):
     if room not in ("global", "plus"):
         room = "global"
     if room == "plus" and not user_is_plus(user):
         raise HTTPException(status_code=403, detail="Camera PLUS este doar pentru membrii Cartoonix PLUS")
+    try:
+        await maybe_send_bot_messages()
+    except Exception as e:
+        logger.warning(f"bot send failed: {e}")
     query = {"room": room}
     if after:
+        # incremental poll: everything newer than `after`
         query["created_at"] = {"$gt": after}
         msgs = await db.chat_messages.find(query).sort("created_at", 1).limit(200).to_list(200)
-    else:
-        msgs = await db.chat_messages.find(query).sort("created_at", -1).limit(60).to_list(60)
-        msgs.reverse()
-    for m in msgs:
-        m["id"] = str(m.pop("_id"))
-    return msgs
+        return {"messages": [serialize_msg(m) for m in msgs], "has_more": False}
+    # historical page (initial = last `limit`, or older via `before`)
+    lim = max(1, min(int(limit or 50), 100))
+    if before:
+        query["created_at"] = {"$lt": before}
+    msgs = await db.chat_messages.find(query).sort("created_at", -1).limit(lim + 1).to_list(lim + 1)
+    has_more = len(msgs) > lim
+    msgs = msgs[:lim]
+    msgs.reverse()
+    return {"messages": [serialize_msg(m) for m in msgs], "has_more": has_more}
 
 
 ADMIN_CHAT_COMMANDS = {"important", "announce", "warn", "success", "info"}
@@ -839,6 +922,12 @@ async def post_chat(data: ChatInput, user: dict = Depends(get_current_user)):
     room = data.room if data.room in ("global", "plus") else "global"
     if room == "plus" and not user_is_plus(user):
         raise HTTPException(status_code=403, detail="Camera PLUS este doar pentru membrii Cartoonix PLUS")
+
+    # muted users (non-admin) cannot post
+    if user.get("role") != "admin" and user_is_muted(user):
+        _, until = mute_remaining(user)
+        detail = "Ai fost redus la tăcere de un moderator și nu poți trimite mesaje."
+        raise HTTPException(status_code=403, detail=detail)
 
     raw = data.text.strip()
     command = None
@@ -862,6 +951,8 @@ async def post_chat(data: ChatInput, user: dict = Depends(get_current_user)):
         "room": room,
         "text": text,
         "command": command,
+        "is_bot": False,
+        "deleted": False,
         "chat_style": sanitize_chat_style(user.get("chat_style")) if user_is_plus(user) else None,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -1330,6 +1421,233 @@ async def set_ui_settings(data: UISettingsInput, admin: dict = Depends(require_a
         upsert=True,
     )
     return {"avatar_frames_enabled": data.avatar_frames_enabled}
+
+
+# ==================== CHAT MODERATION (admin) ====================
+class MuteInput(BaseModel):
+    user_id: str
+    duration: str = "1h"  # one of MUTE_DURATIONS keys
+
+
+class ModUserInput(BaseModel):
+    user_id: str
+
+
+@api_router.post("/admin/chat/mute")
+async def admin_mute_user(data: MuteInput, admin: dict = Depends(require_admin)):
+    if data.duration not in MUTE_DURATIONS:
+        raise HTTPException(status_code=400, detail="Durată invalidă")
+    target = await find_user_by_id(data.user_id)
+    if not target:
+        raise HTTPException(status_code=404, detail="Utilizator inexistent")
+    if target.get("role") == "admin":
+        raise HTTPException(status_code=400, detail="Nu poți da mute unui administrator")
+    minutes = MUTE_DURATIONS[data.duration]
+    if minutes is None:
+        until = datetime(9999, 12, 31, tzinfo=timezone.utc)
+    else:
+        until = datetime.now(timezone.utc) + timedelta(minutes=minutes)
+    await db.users.update_one({"_id": target["_id"]}, {"$set": {"muted_until": until.isoformat()}})
+    return {"ok": True, "muted_until": until.isoformat()}
+
+
+@api_router.post("/admin/chat/unmute")
+async def admin_unmute_user(data: ModUserInput, admin: dict = Depends(require_admin)):
+    target = await find_user_by_id(data.user_id)
+    if not target:
+        raise HTTPException(status_code=404, detail="Utilizator inexistent")
+    await db.users.update_one({"_id": target["_id"]}, {"$set": {"muted_until": None}})
+    return {"ok": True}
+
+
+@api_router.post("/admin/chat/ban")
+async def admin_chat_ban(data: ModUserInput, admin: dict = Depends(require_admin)):
+    target = await find_user_by_id(data.user_id)
+    if not target:
+        raise HTTPException(status_code=404, detail="Utilizator inexistent")
+    if target.get("role") == "admin":
+        raise HTTPException(status_code=400, detail="Nu poți bana un administrator")
+    await db.users.update_one({"_id": target["_id"]}, {"$set": {"banned": True}})
+    return {"ok": True}
+
+
+@api_router.post("/admin/chat/unban")
+async def admin_chat_unban(data: ModUserInput, admin: dict = Depends(require_admin)):
+    target = await find_user_by_id(data.user_id)
+    if not target:
+        raise HTTPException(status_code=404, detail="Utilizator inexistent")
+    await db.users.update_one({"_id": target["_id"]}, {"$set": {"banned": False}})
+    return {"ok": True}
+
+
+@api_router.delete("/admin/chat/message/{msg_id}")
+async def admin_delete_message(msg_id: str, admin: dict = Depends(require_admin)):
+    try:
+        oid = ObjectId(msg_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="ID invalid")
+    res = await db.chat_messages.update_one(
+        {"_id": oid},
+        {"$set": {"deleted": True, "deleted_by": user_name(admin), "deleted_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Mesaj inexistent")
+    return {"ok": True}
+
+
+@api_router.get("/admin/chat/messages")
+async def admin_recent_messages(room: str = "global", admin: dict = Depends(require_admin)):
+    if room not in ("global", "plus"):
+        room = "global"
+    msgs = await db.chat_messages.find({"room": room}).sort("created_at", -1).limit(80).to_list(80)
+    out = []
+    for m in msgs:
+        d = dict(m)
+        d["id"] = str(d.pop("_id"))
+        out.append(d)
+    return out
+
+
+@api_router.get("/admin/chat/moderation")
+async def admin_moderation_lists(admin: dict = Depends(require_admin)):
+    now_iso = datetime.now(timezone.utc).isoformat()
+    muted = await db.users.find({"muted_until": {"$gt": now_iso}}).to_list(500)
+    banned = await db.users.find({"banned": True}).to_list(500)
+    return {
+        "muted": [serialize_user(u) for u in muted],
+        "banned": [serialize_user(u) for u in banned],
+    }
+
+
+# ==================== CartoonixTV BOT config ====================
+class BotConfigInput(BaseModel):
+    enabled: bool = False
+    interval_minutes: int = 30
+    messages: List[str] = []
+    room: str = "global"  # global | plus | both
+
+
+DEFAULT_BOT_CFG = {"enabled": False, "interval_minutes": 30, "messages": [], "room": "global"}
+
+
+@api_router.get("/admin/chat/bot")
+async def get_bot_config(admin: dict = Depends(require_admin)):
+    s = await db.settings.find_one({"key": "chat_bot"})
+    if not s:
+        return DEFAULT_BOT_CFG
+    return {
+        "enabled": bool(s.get("enabled", False)),
+        "interval_minutes": int(s.get("interval_minutes", 30)),
+        "messages": s.get("messages", []),
+        "room": s.get("room", "global"),
+    }
+
+
+@api_router.post("/admin/chat/bot")
+async def set_bot_config(data: BotConfigInput, admin: dict = Depends(require_admin)):
+    room = data.room if data.room in ("global", "plus", "both") else "global"
+    interval = max(1, int(data.interval_minutes or 30))
+    messages = [m.strip() for m in (data.messages or []) if m and m.strip()][:50]
+    await db.settings.update_one(
+        {"key": "chat_bot"},
+        {"$set": {
+            "key": "chat_bot",
+            "enabled": bool(data.enabled),
+            "interval_minutes": interval,
+            "messages": messages,
+            "room": room,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }},
+        upsert=True,
+    )
+    return {"enabled": bool(data.enabled), "interval_minutes": interval, "messages": messages, "room": room}
+
+
+# ==================== Announcement bar (homepage) ====================
+class AnnouncementInput(BaseModel):
+    enabled: bool = False
+    text: str = ""
+    link_url: Optional[str] = ""
+    bg_color: str = "#ec1c24"
+    text_color: str = "#ffffff"
+
+
+@api_router.get("/settings/announcement")
+async def get_announcement():
+    s = await db.settings.find_one({"key": "announcement"})
+    if not s:
+        return {"enabled": False, "text": "", "link_url": "", "bg_color": "#ec1c24", "text_color": "#ffffff"}
+    return {
+        "enabled": bool(s.get("enabled", False)),
+        "text": s.get("text", ""),
+        "link_url": s.get("link_url", ""),
+        "bg_color": s.get("bg_color", "#ec1c24"),
+        "text_color": s.get("text_color", "#ffffff"),
+    }
+
+
+@api_router.post("/admin/settings/announcement")
+async def set_announcement(data: AnnouncementInput, admin: dict = Depends(require_admin)):
+    await db.settings.update_one(
+        {"key": "announcement"},
+        {"$set": {
+            "key": "announcement",
+            "enabled": bool(data.enabled),
+            "text": data.text.strip(),
+            "link_url": (data.link_url or "").strip(),
+            "bg_color": data.bg_color or "#ec1c24",
+            "text_color": data.text_color or "#ffffff",
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }},
+        upsert=True,
+    )
+    return {"ok": True}
+
+
+# ==================== Popup announcement ====================
+class PopupInput(BaseModel):
+    enabled: bool = False
+    title: str = ""
+    body: str = ""
+    image_url: Optional[str] = ""
+    link_url: Optional[str] = ""
+    link_label: Optional[str] = ""
+
+
+@api_router.get("/settings/popup")
+async def get_popup():
+    s = await db.settings.find_one({"key": "popup"})
+    if not s:
+        return {"enabled": False, "id": "", "title": "", "body": "", "image_url": "", "link_url": "", "link_label": ""}
+    return {
+        "enabled": bool(s.get("enabled", False)),
+        "id": s.get("updated_at", ""),
+        "title": s.get("title", ""),
+        "body": s.get("body", ""),
+        "image_url": s.get("image_url", ""),
+        "link_url": s.get("link_url", ""),
+        "link_label": s.get("link_label", ""),
+    }
+
+
+@api_router.post("/admin/settings/popup")
+async def set_popup(data: PopupInput, admin: dict = Depends(require_admin)):
+    await db.settings.update_one(
+        {"key": "popup"},
+        {"$set": {
+            "key": "popup",
+            "enabled": bool(data.enabled),
+            "title": data.title.strip(),
+            "body": data.body.strip(),
+            "image_url": (data.image_url or "").strip(),
+            "link_url": (data.link_url or "").strip(),
+            "link_label": (data.link_label or "").strip(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }},
+        upsert=True,
+    )
+    return {"ok": True}
+
 
 
 @api_router.get("/")

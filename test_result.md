@@ -110,6 +110,66 @@ user_problem_statement: |
   Implemented commands: /important (gold), /announce (red), /warn (orange), /success (green), /info (blue).
 
 backend:
+  - task: "Chat pagination (last 50 + Afiseaza mai multe / before cursor)"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "GET /api/chat now returns {messages:[...], has_more:bool}. Params: initial last 50 (limit default 50), ?before=<created_at_iso>&limit=25 for older page, ?after=<iso> for incremental poll (has_more false). Messages include is_bot, deleted (text blanked when deleted)."
+        -working: true
+        -agent: "testing"
+        -comment: "✅ ALL TESTS PASSED (3/3). Seeded 65 messages in 'global' room. A1: GET /api/chat?room=global&limit=50 correctly returns {messages, has_more} object (NOT array) with exactly 50 messages and has_more=true. A2: GET with before=<oldest created_at>&limit=25 correctly returns 17 older messages. A3: GET with after=<newest created_at> correctly returns 0 newer messages with has_more=false. All message fields verified (id, is_bot, deleted). Pagination logic working perfectly."
+
+  - task: "Chat moderation: mute/unmute, ban/unban, soft-delete message, moderation lists"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "New admin endpoints: POST /api/admin/chat/mute {user_id,duration in 5m|1h|24h|perm}, /unmute {user_id}, /ban {user_id}, /unban {user_id}; DELETE /api/admin/chat/message/{msg_id} (soft delete -> deleted:true); GET /api/admin/chat/moderation -> {muted:[users],banned:[users]}; GET /api/admin/chat/messages?room -> recent 80 incl deleted. POST /api/chat rejects muted non-admins with 403. Mute perm = year 9999 sentinel. Admins cannot be muted/banned."
+        -working: true
+        -agent: "testing"
+        -comment: "✅ ALL TESTS PASSED (14/14). B1: Mute with duration '5m' works (200). B2: Muted user cannot post (403). B3-B4: Unmute restores posting ability (200). B5: All valid durations accepted (1h, 24h, perm). B6: Invalid duration '9x' correctly rejected (400). B7: Cannot mute admin user (400). B8: Ban test user works (200). B9: Banned user blocked with 403. B10: Unban works (200). B11: DELETE /api/admin/chat/message/{id} soft-deletes message (deleted=true, text=''). B12: GET /api/admin/chat/moderation returns {muted:[], banned:[]} lists. B13: GET /api/admin/chat/messages?room=global returns 68 messages including deleted. B14: Non-admin access to /api/admin/chat/* correctly blocked (403). All moderation features working correctly."
+
+  - task: "CartoonixTV BOT (lazy interval messages) config"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "GET/POST /api/admin/chat/bot {enabled,interval_minutes,messages[],room(global|plus|both)}. Bot posts next message (rotates in order) lazily when GET /api/chat is called and interval elapsed; uses atomic claim on settings doc to avoid duplicate sends. Bot messages stored with is_bot:true, name 'CartoonixTV', no user_id."
+        -working: true
+        -agent: "testing"
+        -comment: "✅ ALL TESTS PASSED (5/5). C1: POST /api/admin/chat/bot with enabled=true, interval_minutes=1, messages=['Reclama A','Reclama B'], room='global' works (200). C2: GET /api/admin/chat/bot returns same config values. C3: Bot sends message lazily on GET /api/chat - first message 'Reclama A' sent immediately (last_sent_at was null), verified is_bot=true, name='CartoonixTV', no user_id. C4: After 65 seconds, second GET /api/chat triggers next bot message 'Reclama B' - rotation working correctly. C5: POST bot config enabled=false stops bot (200). Bot lazy sending and message rotation working perfectly."
+
+  - task: "Announcement bar + Popup settings (public GET, admin POST)"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "GET /api/settings/announcement (public) + POST /api/admin/settings/announcement {enabled,text,link_url,bg_color,text_color}. GET /api/settings/popup (public, returns id=updated_at) + POST /api/admin/settings/popup {enabled,title,body,image_url,link_url,link_label}."
+        -working: true
+        -agent: "testing"
+        -comment: "✅ ALL TESTS PASSED (5/5). D1: POST /api/admin/settings/announcement with enabled=true, text='Salut', bg_color='#ec1c24', text_color='#ffffff' works (200). D2: GET /api/settings/announcement (no auth) returns correct data - public endpoint working. D3: POST /api/admin/settings/popup with enabled=true, title='T', body='B' works (200). D4: GET /api/settings/popup (no auth) returns correct data with non-empty id field (id='2026-08-06T13:17:59.590043+00:00') - public endpoint working. D5: Admin POST endpoints without auth correctly rejected (401). All announcement and popup features working correctly."
+
   - task: "Change-password endpoint PUT /api/auth/password"
     implemented: true
     working: true
@@ -237,7 +297,7 @@ frontend:
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 3
+  test_sequence: 4
   run_ui: false
 
 frontend:
@@ -283,3 +343,7 @@ agent_communication:
     -message: "✅ USERS SCHEMA ALIGNMENT TESTING COMPLETE - ALL TESTS PASSED (26/26). Comprehensive testing confirms the backend is fully aligned with production schema. All 7 test scenarios passed: (1) Login endpoints return UUID ids (36 chars with dashes) for both admin and test users, with correct role and plus fields. (2) GET /api/auth/me returns UUID ids. (3) PUT /api/auth/profile correctly updates DB field `nickname` (NOT `name`) - verified in MongoDB. (4) PUT /api/auth/avatar correctly updates DB field `avatar_url` (NOT `avatar`) - verified in MongoDB. Premium avatar restriction works (403 for free users). (5) Admin users endpoint works with UUID ids. PUT /api/admin/users/{id} correctly updates DB field `subscription` to 'plus'/'free' (NOT boolean) - verified in MongoDB. (6) Presence endpoint correctly updates DB fields `last_active` (ISO timestamp) and `presence_seconds` (numeric) - verified in MongoDB. Online count works. (7) Payment checkout guard correctly checks `subscription` field - free users can checkout, plus users get 400 error. MongoDB direct verification confirms correct schema: admin (id=explore-platform-6, nickname='Admin', avatar_url, subscription='plus'), test user (id=explore-platform-6, nickname='Cont Test', avatar_url, subscription='free'). Test user state restored after testing. All backend APIs working correctly with production schema."
     -agent: "main"
     -message: "NEW FEATURES TO TEST (backend only). Creds: admin admin@cartoonix.ro/admin1234 (subscription=plus), test test@cartoonix.ro/test1234 (subscription=free). (A) SUPPORT TICKETS: (1) As test user POST /api/tickets {subject,message,attachment optional data:image/png;base64,...} -> 201/200 returns ticket with status 'open', id (uuid). (2) POST /api/tickets again while one is unresolved -> 400 'deja o solicitare deschisă'. (3) GET /api/tickets/my -> list includes the ticket. (4) POST /api/tickets/{id}/reply {text} as owner -> ok, reply appended (from 'user'). (5) Admin: GET /api/admin/tickets -> list; POST /api/admin/tickets/{id}/reply {text} -> reply from 'admin', status auto-> 'in_progress'; PUT /api/admin/tickets/{id}/status {status:'resolved'} -> status resolved. (6) After resolved, test user POST /api/tickets again -> now allowed (200). (7) Attachment validation: POST with attachment not starting data:image/ -> 400; very large (>4.8M chars) -> 400. (B) PLAYLIST LIMIT: as FREE test user POST /api/playlists {name} -> 200 first time; second POST -> 403 'un singur playlist'. As admin (plus) create 2+ playlists -> all 200. Clean up any playlists you create for test user afterwards. Do NOT reset passwords."
+    -agent: "main"
+    -message: "NEW CHAT + ADMIN FEATURES TO TEST (backend only). Creds: admin admin@cartoonix.ro/admin1234 (plus), test test@cartoonix.ro/test1234 (free). (A) PAGINATION: GET /api/chat?room=global&limit=50 -> {messages,has_more}. Seed >60 messages then verify initial returns 50 and has_more true; GET with before=<oldest created_at>&limit=25 returns older 25; after=<newest created_at> returns only newer. (B) MODERATION: as admin POST /api/admin/chat/mute {user_id:<test uuid>,duration:'5m'} -> ok; then as test user POST /api/chat -> 403. POST /api/admin/chat/unmute -> test can post again. mute a duration '1h','24h','perm' all valid; invalid duration -> 400; muting an admin -> 400. POST /api/admin/chat/ban {user_id:<test>} -> ok, test login/requests -> 403 'Cont suspendat'; /unban restores. DELETE /api/admin/chat/message/{id} on a real message -> ok, GET /api/chat shows that message with deleted:true and text ''. GET /api/admin/chat/moderation -> {muted,banned} lists reflect state. GET /api/admin/chat/messages?room=global returns recent incl deleted. Non-admin calling any /admin/chat/* -> 403. (C) BOT: POST /api/admin/chat/bot {enabled:true,interval_minutes:1,messages:['A','B'],room:'global'}; GET returns same. To test lazy send: set interval to a tiny value is not possible (<1 clamped to 1). Instead verify config persists and that after POST, a GET /api/chat (as any user) with enabled bot + elapsed interval inserts an is_bot message rotating A then B (you may directly manipulate last_sent_at in settings if needed, or accept that first fetch sends immediately since last_sent_at is null). Confirm bot message has is_bot:true, no user_id, name 'CartoonixTV'. Then set enabled:false to stop. (D) ANNOUNCEMENT/POPUP: POST /api/admin/settings/announcement {enabled:true,text:'Salut',bg_color:'#ec1c24',text_color:'#fff'} -> GET /api/settings/announcement returns it. POST /api/admin/settings/popup {enabled:true,title:'T',body:'B'} -> GET /api/settings/popup returns it with non-empty id. Public GETs must work without auth; admin POSTs without auth -> 401/403. IMPORTANT: after tests, disable bot, announcement, popup (enabled:false) and unban/unmute the test user, and delete any chat messages you seeded. Do NOT reset passwords."
+    -agent: "testing"
+    -message: "✅ ALL NEW CHAT + ADMIN FEATURES TESTING COMPLETE - ALL TESTS PASSED (27/27). (A) CHAT PAGINATION (3/3): Seeded 65 messages. GET /api/chat returns {messages, has_more} object (NOT array). Initial fetch with limit=50 returns exactly 50 messages with has_more=true. Before cursor pagination returns 17 older messages. After cursor returns 0 newer messages with has_more=false. All message fields verified (id, is_bot, deleted). (B) MODERATION (14/14): Mute/unmute works with all durations (5m, 1h, 24h, perm). Invalid duration '9x' rejected (400). Cannot mute admin (400). Muted user blocked (403). Ban/unban works. Banned user blocked (403). Soft-delete message works (deleted=true, text=''). GET /api/admin/chat/moderation returns lists. GET /api/admin/chat/messages returns 68 messages. Non-admin blocked (403). (C) BOT (5/5): POST/GET /api/admin/chat/bot config works. Bot sends 'Reclama A' immediately on first GET /api/chat (last_sent_at was null). After 65 seconds, bot sends 'Reclama B' - rotation working. Bot message has is_bot=true, name='CartoonixTV', no user_id. Disable bot works. (D) ANNOUNCEMENT + POPUP (5/5): POST/GET announcement works. Public GET works without auth. POST/GET popup works with id field. Admin endpoints without auth rejected (401). CLEANUP COMPLETE: Bot, announcement, popup disabled. Test user unmuted and unbanned. All 65 seeded messages soft-deleted. All backend features working perfectly."

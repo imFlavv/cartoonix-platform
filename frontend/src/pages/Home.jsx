@@ -5,6 +5,7 @@ import { HeroBanner } from "@/components/HeroBanner";
 import { ContentCarousel } from "@/components/ContentCarousel";
 import { LOGO_TRANSPARENT, CHANNELS } from "@/data/constants";
 import { OnlineCounter } from "@/components/OnlineCounter";
+import { AnnouncementBar } from "@/components/AnnouncementBar";
 
 const Home = () => {
   const [shows, setShows] = useState([]);
@@ -37,6 +38,7 @@ const Home = () => {
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white overflow-x-hidden">
       <NavBar />
+      <AnnouncementBar />
       {loading ? (
         <div className="h-screen flex items-center justify-center text-white/40">Se încarcă...</div>
       ) : (
