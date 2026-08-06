@@ -1,13 +1,11 @@
-import glob, os, shutil
+import glob, os
 from PIL import Image
 
 DIR = "/app/frontend/public/avatars"
 BACKUP = os.path.join(DIR, "_orig_backup")
-os.makedirs(BACKUP, exist_ok=True)
 
-TOP_MARGIN = 0.05      # small even margin above the head
-BOTTOM_MARGIN = 0.02   # character bottom nearly touches the frame bottom
-THRESH_BOTTOM_GAP = 6.0  # only fix avatars whose bottom gap exceeds this (%)
+TOP_MARGIN = 0.05       # small even margin above the head
+BOTTOM_MARGIN = -0.04   # character bleeds slightly off the bottom edge (sits low, no gap)
 
 
 def content_bbox(im):
@@ -27,36 +25,27 @@ def content_bbox(im):
     return left, top, right, bottom, bg
 
 
-def normalize(path):
-    im = Image.open(path).convert("RGB")
+def normalize(src, dst):
+    im = Image.open(src).convert("RGB")
     w, h = im.size
     left, top, right, bottom, bg = content_bbox(im)
     cw = right - left
     ch = bottom - top
-    bottom_gap = (h - 1 - bottom) / h * 100
-    if bottom_gap <= THRESH_BOTTOM_GAP:
-        return f"skip {os.path.basename(path)} (bottom_gap={bottom_gap:.1f}%)"
 
-    # choose square crop size S so content fits with desired margins
+    # square crop size S so content fits with desired vertical margins
     S = max(ch / (1 - TOP_MARGIN - BOTTOM_MARGIN), cw / 0.9)
     S = int(round(S))
     bottom_margin_px = BOTTOM_MARGIN * S
-    # position of content inside the SxS output
     crop_left = int(round(left - (S - cw) / 2))
     crop_top = int(round(bottom - (S - bottom_margin_px)))
 
     canvas = Image.new("RGB", (S, S), bg)
     canvas.paste(im, (-crop_left, -crop_top))
     out = canvas.resize((1024, 1024), Image.LANCZOS)
-    out.save(path)
-    return f"FIXED {os.path.basename(path)} (was bottom_gap={bottom_gap:.1f}%, S={S})"
+    out.save(dst)
+    return f"done {os.path.basename(dst)} (S={S})"
 
 
-files = sorted(glob.glob(os.path.join(DIR, "*.png")))
-for f in files:
-    # backup once
-    b = os.path.join(BACKUP, os.path.basename(f))
-    if not os.path.exists(b):
-        shutil.copy2(f, b)
-for f in files:
-    print(normalize(f))
+for b in sorted(glob.glob(os.path.join(BACKUP, "*.png"))):
+    dst = os.path.join(DIR, os.path.basename(b))
+    print(normalize(b, dst))
