@@ -23,6 +23,7 @@ import Help from "@/pages/Help";
 import Lobby from "@/pages/Lobby";
 import ChatRoom from "@/pages/ChatRoom";
 import Announcements from "@/pages/Announcements";
+import Rewards from "@/pages/Rewards";
 import Admin from "@/pages/Admin";
 import PaymentSuccess from "@/pages/PaymentSuccess";
 import PaymentCancel from "@/pages/PaymentCancel";
@@ -84,6 +85,7 @@ function App() {
             <Route path="/lobby" element={<ProtectedRoute><Lobby /></ProtectedRoute>} />
             <Route path="/lobby/chat" element={<ProtectedRoute><ChatRoom /></ProtectedRoute>} />
             <Route path="/lobby/announcements" element={<ProtectedRoute><Announcements /></ProtectedRoute>} />
+            <Route path="/lobby/rewards" element={<ProtectedRoute><Rewards /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute adminOnly><Admin /></ProtectedRoute>} />
             <Route path="*" element={<Navigate to="/home" replace />} />
             </Routes>

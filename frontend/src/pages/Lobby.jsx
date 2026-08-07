@@ -245,7 +245,7 @@ const Lobby = () => {
             accent="#ec4899"
             image={IMG.rewards}
             span="lg:col-span-2"
-            onClick={() => navigate("/profile?tab=rewards")}
+            onClick={() => navigate("/lobby/rewards")}
           />
           <LobbyCard
             testid="lobby-soon"
