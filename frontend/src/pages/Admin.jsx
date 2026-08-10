@@ -82,21 +82,29 @@ const Admin = () => {
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
-  // Simulare detectare episoade din folder VPS (conectarea reala la VPS urmeaza)
-  const detectEpisodes = () => {
+  const [detecting, setDetecting] = useState(false);
+
+  // Detectare reală a episoadelor .mp4 dintr-un folder de pe VPS (VIDEO_DIR).
+  const detectEpisodes = async () => {
     if (!form.vps_path.trim()) {
       toast.error("Introdu path-ul folderului de pe VPS");
       return;
     }
-    const count = 6;
-    const eps = Array.from({ length: count }, (_, i) => ({
-      number: i + 1,
-      title: `Episodul ${i + 1}`,
-      video_url: `${form.vps_path.replace(/\/$/, "")}/ep${i + 1}.mp4`,
-      duration: "22 min",
-    }));
-    setDetected(eps);
-    toast.success(`${count} episoade .mp4 detectate (demo)`);
+    setDetecting(true);
+    try {
+      const { data } = await api.post("/admin/import-folder", { folder: form.vps_path.trim() });
+      if (!data.episodes?.length) {
+        setDetected([]);
+        toast.error("Niciun fișier video găsit în folder");
+        return;
+      }
+      setDetected(data.episodes);
+      toast.success(`${data.count} episoade detectate din ${data.folder}`);
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Eroare la detectarea episoadelor");
+    } finally {
+      setDetecting(false);
+    }
   };
 
   const submit = async (e) => {
@@ -171,13 +179,18 @@ const Admin = () => {
                 <input data-testid="admin-genres" placeholder="Genuri (separate prin virgulă)" value={form.genres} onChange={(e) => set("genres", e.target.value)} className={input} />
 
                 <div className="flex gap-2">
-                  <input data-testid="admin-vps-path" placeholder="Path folder VPS (ex: /var/www/cartoons/tom)" value={form.vps_path} onChange={(e) => set("vps_path", e.target.value)} className={input} />
-                  <button type="button" data-testid="admin-detect" onClick={detectEpisodes} className="shrink-0 px-4 rounded-lg bg-white/10 hover:bg-white/20 transition-colors duration-200 flex items-center gap-1 text-sm font-semibold">
-                    <FolderSearch className="h-4 w-4" /> Detectează
+                  <input data-testid="admin-vps-path" placeholder="Path folder VPS (ex: /media/videos/ATOM sau ATOM)" value={form.vps_path} onChange={(e) => set("vps_path", e.target.value)} className={input} />
+                  <button type="button" data-testid="admin-detect" onClick={detectEpisodes} disabled={detecting} className="shrink-0 px-4 rounded-lg bg-white/10 hover:bg-white/20 transition-colors duration-200 flex items-center gap-1 text-sm font-semibold disabled:opacity-60">
+                    <FolderSearch className="h-4 w-4" /> {detecting ? "Se scanează..." : "Detectează"}
                   </button>
                 </div>
-                {detected && (
-                  <p data-testid="admin-detected" className="text-xs text-[#ffcc00]">{detected.length} episoade .mp4 detectate din folder</p>
+                {detected && detected.length > 0 && (
+                  <div data-testid="admin-detected" className="text-xs text-[#ffcc00] space-y-1 max-h-40 overflow-y-auto pr-1">
+                    <p className="font-semibold">{detected.length} episoade detectate din folder:</p>
+                    {detected.map((ep, i) => (
+                      <p key={i} className="text-white/60 truncate">{ep.number}. {ep.title}</p>
+                    ))}
+                  </div>
                 )}
 
                 <button data-testid="admin-submit" type="submit" disabled={busy} className="w-full py-3 rounded-lg bg-[#ec1c24] font-bold hover:bg-[#ff2d36] transition-colors duration-200 disabled:opacity-60 flex items-center justify-center gap-2">

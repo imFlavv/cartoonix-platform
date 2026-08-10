@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { api } from "@/lib/api";
+import { api, resolveVideoUrl } from "@/lib/api";
 import { NavBar } from "@/components/NavBar";
 import { Play, Calendar, Tv, Heart, Plus, Download, CheckCircle2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
@@ -74,7 +74,7 @@ const ShowDetail = () => {
     try {
       const { data } = await api.get(`/download/${show.id}/${ep.number}`);
       const a = document.createElement("a");
-      a.href = data.url;
+      a.href = resolveVideoUrl(data.url);
       a.download = data.filename;
       a.target = "_blank";
       document.body.appendChild(a);

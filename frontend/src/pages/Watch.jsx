@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { api } from "@/lib/api";
+import { api, resolveVideoUrl } from "@/lib/api";
 import { ArrowLeft, ChevronRight, Download, Heart, Plus, Check } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useLibrary } from "@/context/LibraryContext";
@@ -109,7 +109,7 @@ const Watch = () => {
     try {
       const { data } = await api.get(`/download/${show.id}/${epNumber}`);
       const a = document.createElement("a");
-      a.href = data.url;
+      a.href = resolveVideoUrl(data.url);
       a.download = data.filename;
       a.target = "_blank";
       document.body.appendChild(a);
@@ -145,7 +145,7 @@ const Watch = () => {
             ref={videoRef}
             data-testid="video-player"
             key={episode?.video_url}
-            src={episode?.video_url}
+            src={resolveVideoUrl(episode?.video_url)}
             controls
             autoPlay
             onLoadedMetadata={onLoadedMeta}

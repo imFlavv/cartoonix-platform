@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CHANNELS } from "@/data/constants";
-import { Trash2, Film, GripVertical } from "lucide-react";
+import { Trash2, Film, GripVertical, FolderSearch } from "lucide-react";
 import { toast } from "sonner";
 
 const inputCls = "w-full px-4 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[#ffcc00]";
@@ -11,6 +11,7 @@ export const AdminShowEditor = ({ show, open, onOpenChange, onSaved }) => {
   const [form, setForm] = useState(null);
   const [dragIndex, setDragIndex] = useState(null);
   const [overIndex, setOverIndex] = useState(null);
+  const [reimporting, setReimporting] = useState(false);
 
   useEffect(() => {
     if (show) {
@@ -21,6 +22,7 @@ export const AdminShowEditor = ({ show, open, onOpenChange, onSaved }) => {
         channel: show.channel || CHANNELS[0],
         year: show.year || "",
         genres: (show.genres || []).join(", "),
+        vps_path: show.vps_path || "",
         episodes: (show.episodes || []).map((e) => ({ ...e })),
       });
     }
@@ -83,6 +85,28 @@ export const AdminShowEditor = ({ show, open, onOpenChange, onSaved }) => {
     setOverIndex(null);
   };
 
+  const reimport = async () => {
+    const folder = (form.vps_path || "").trim();
+    if (!folder) {
+      toast.error("Introdu path-ul folderului de pe VPS");
+      return;
+    }
+    setReimporting(true);
+    try {
+      const { data } = await api.post("/admin/import-folder", { folder });
+      if (!data.episodes?.length) {
+        toast.error("Niciun fișier video găsit în folder");
+        return;
+      }
+      setForm((f) => ({ ...f, episodes: data.episodes }));
+      toast.success(`${data.count} episoade reîncărcate. Nu uita să salvezi.`);
+    } catch (e) {
+      toast.error(e.response?.data?.detail || "Eroare la reimport");
+    } finally {
+      setReimporting(false);
+    }
+  };
+
   const save = async () => {
     try {
       await api.put(`/admin/shows/${show.id}`, {
@@ -92,6 +116,7 @@ export const AdminShowEditor = ({ show, open, onOpenChange, onSaved }) => {
         channel: form.channel,
         year: form.year,
         genres: form.genres.split(",").map((g) => g.trim()).filter(Boolean),
+        vps_path: form.vps_path,
         episodes: form.episodes,
       });
       toast.success("Desen actualizat");
@@ -128,6 +153,13 @@ export const AdminShowEditor = ({ show, open, onOpenChange, onSaved }) => {
             <input placeholder="An" value={form.year} onChange={(e) => set("year", e.target.value)} className={inputCls} />
           </div>
           <input placeholder="Genuri (virgulă)" value={form.genres} onChange={(e) => set("genres", e.target.value)} className={inputCls} />
+
+          <div className="flex gap-2">
+            <input placeholder="Path folder VPS (ex: /media/videos/ATOM sau ATOM)" value={form.vps_path} onChange={(e) => set("vps_path", e.target.value)} className={inputCls} />
+            <button type="button" onClick={reimport} disabled={reimporting} className="shrink-0 px-4 rounded-lg bg-white/10 hover:bg-white/20 transition-colors duration-200 flex items-center gap-1 text-sm font-semibold disabled:opacity-60">
+              <FolderSearch className="h-4 w-4" /> {reimporting ? "Se scanează..." : "Reimportă"}
+            </button>
+          </div>
 
           <div>
             <p className="font-display text-xl mt-2 mb-1 flex items-center gap-2"><Film className="h-5 w-5 text-[#ffcc00]" /> Episoade ({form.episodes.length})</p>

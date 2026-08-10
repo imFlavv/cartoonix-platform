@@ -13,6 +13,7 @@ from pydantic import BaseModel, EmailStr, Field
 from typing import List, Optional
 from datetime import datetime, timezone, timedelta
 from bson import ObjectId
+from fastapi.responses import StreamingResponse, Response
 import logging
 import bcrypt
 import jwt
@@ -21,6 +22,9 @@ import hashlib
 import secrets
 import uuid
 import httpx
+import mimetypes
+import re
+from urllib.parse import unquote
 from emergentintegrations.payments.stripe.checkout import (
     StripeCheckout,
     CheckoutSessionRequest,
@@ -39,6 +43,11 @@ JWT_ALGORITHM = "HS256"
 STRIPE_API_KEY = os.environ.get("STRIPE_API_KEY", "")
 PLUS_PRICE_RON = float(os.environ.get("PLUS_PRICE_RON", "50"))
 PLUS_CURRENCY = os.environ.get("PLUS_CURRENCY", "ron").lower()
+
+# ---------- Media (VPS video library) config ----------
+VIDEO_DIR = os.environ.get("VIDEO_DIR", "/media/videos")
+VIDEO_EXTENSIONS = {".mp4", ".mkv", ".webm", ".mov", ".m4v", ".avi", ".wmv", ".flv", ".mpeg", ".mpg", ".ts"}
+MEDIA_CHUNK_SIZE = 1024 * 1024  # 1 MB chunks for Range streaming
 
 # ---------- Brevo (email OTP) config ----------
 BREVO_API_KEY = os.environ.get("BREVO_API_KEY", "")
@@ -690,6 +699,139 @@ async def create_show(data: ShowInput, admin: dict = Depends(require_admin)):
     res = await db.shows.insert_one(doc)
     doc["_id"] = res.inserted_id
     return serialize_show(doc)
+
+
+# ---------- media library: stream video from VPS with Range (seek) support ----------
+def _safe_media_path(file_path: str) -> str:
+    """Resolve a request path safely under VIDEO_DIR (anti path-traversal)."""
+    rel = unquote(file_path).lstrip("/")
+    base = os.path.realpath(VIDEO_DIR)
+    full = os.path.realpath(os.path.join(base, rel))
+    if not (full == base or full.startswith(base + os.sep)):
+        raise HTTPException(status_code=403, detail="Acces interzis")
+    return full
+
+
+@api_router.get("/media/videos/{file_path:path}")
+async def serve_video(file_path: str, request: Request):
+    full = _safe_media_path(file_path)
+    if not os.path.isfile(full):
+        raise HTTPException(status_code=404, detail="Fișier inexistent")
+    file_size = os.path.getsize(full)
+    ctype = mimetypes.guess_type(full)[0] or "application/octet-stream"
+    range_header = request.headers.get("range") or request.headers.get("Range")
+
+    if range_header:
+        m = re.match(r"bytes=(\d+)-(\d*)", range_header.strip())
+        if not m:
+            return Response(status_code=416, headers={"Content-Range": f"bytes */{file_size}"})
+        start = int(m.group(1))
+        end = int(m.group(2)) if m.group(2) else file_size - 1
+        end = min(end, file_size - 1)
+        if start > end or start >= file_size:
+            return Response(status_code=416, headers={"Content-Range": f"bytes */{file_size}"})
+        length = end - start + 1
+
+        def iter_range():
+            with open(full, "rb") as f:
+                f.seek(start)
+                remaining = length
+                while remaining > 0:
+                    chunk = f.read(min(MEDIA_CHUNK_SIZE, remaining))
+                    if not chunk:
+                        break
+                    remaining -= len(chunk)
+                    yield chunk
+
+        headers = {
+            "Content-Range": f"bytes {start}-{end}/{file_size}",
+            "Accept-Ranges": "bytes",
+            "Content-Length": str(length),
+            "Content-Type": ctype,
+            "Cache-Control": "public, max-age=3600",
+        }
+        return StreamingResponse(iter_range(), status_code=206, headers=headers)
+
+    def iter_full():
+        with open(full, "rb") as f:
+            while True:
+                chunk = f.read(MEDIA_CHUNK_SIZE)
+                if not chunk:
+                    break
+                yield chunk
+
+    headers = {
+        "Accept-Ranges": "bytes",
+        "Content-Length": str(file_size),
+        "Content-Type": ctype,
+        "Cache-Control": "public, max-age=3600",
+    }
+    return StreamingResponse(iter_full(), headers=headers)
+
+
+# ---------- admin: import episodes from a real VPS folder ----------
+def _prettify_title(fname: str) -> str:
+    name = os.path.splitext(fname)[0]
+    # drop a trailing bracketed token, e.g. "... [WmJx123]"
+    name = re.sub(r"\s*\[[^\]]*\]\s*$", "", name)
+    name = re.sub(r"\s+", " ", name).strip()
+    return name or fname
+
+
+def _parse_ep_number(fname: str, fallback: int) -> int:
+    m = re.search(r"[Ss](\d{1,2})[\s._-]*[Ee](\d{1,3})", fname)
+    if m:
+        return int(m.group(2))
+    m2 = re.search(r"(\d{1,4})", os.path.splitext(fname)[0])
+    if m2:
+        return int(m2.group(1))
+    return fallback
+
+
+def _natural_key(s: str):
+    return [int(t) if t.isdigit() else t.lower() for t in re.split(r"(\d+)", s)]
+
+
+class ImportFolderInput(BaseModel):
+    folder: str
+
+
+@api_router.post("/admin/import-folder")
+async def admin_import_folder(data: ImportFolderInput, admin: dict = Depends(require_admin)):
+    """Scan a real folder under VIDEO_DIR and return detected episodes (non-destructive).
+    The admin previews them, then saves via create/update show endpoints."""
+    base = os.path.realpath(VIDEO_DIR)
+    raw = (data.folder or "").strip()
+    if not raw:
+        raise HTTPException(status_code=400, detail="Introdu path-ul folderului de pe VPS")
+    if os.path.isabs(raw):
+        full_dir = os.path.realpath(raw)
+    else:
+        full_dir = os.path.realpath(os.path.join(base, raw))
+    if not (full_dir == base or full_dir.startswith(base + os.sep)):
+        raise HTTPException(status_code=400, detail=f"Folderul trebuie să fie sub {VIDEO_DIR}")
+    if not os.path.isdir(full_dir):
+        raise HTTPException(status_code=404, detail=f"Folder inexistent pe server: {full_dir}")
+
+    files = [
+        entry for entry in os.listdir(full_dir)
+        if os.path.isfile(os.path.join(full_dir, entry))
+        and os.path.splitext(entry)[1].lower() in VIDEO_EXTENSIONS
+    ]
+    files.sort(key=_natural_key)
+
+    episodes = []
+    for i, fname in enumerate(files):
+        rel = os.path.relpath(os.path.join(full_dir, fname), base).replace(os.sep, "/")
+        episodes.append({
+            "number": _parse_ep_number(fname, i + 1),
+            "title": _prettify_title(fname),
+            "video_url": f"/media/videos/{rel}",
+            "duration": "",
+        })
+
+    return {"count": len(episodes), "episodes": episodes, "folder": full_dir}
+
 
 
 # ---------- favorites ----------
