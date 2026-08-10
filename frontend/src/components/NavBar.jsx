@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   Search, Menu, X, LogOut, Shield, HelpCircle, Bell,
   Facebook, Instagram, Youtube, Music2, MessageCircle, User, Settings, CheckCheck, Inbox,
-  Home, Clapperboard, Users,
+  Home, Clapperboard, Users, Film,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api";
@@ -50,6 +50,7 @@ export const NavBar = () => {
     { to: "/home", label: "Acasă", icon: Home },
     { to: "/browse", label: "Bibliotecă", icon: Clapperboard },
     { to: "/lobby", label: "Lobby", icon: Users },
+    { to: "/cinema", label: "Cinema", icon: Film },
     { to: "/plus", label: "Cartoonix PLUS", plus: true },
   ];
 
