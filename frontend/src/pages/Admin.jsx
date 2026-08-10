@@ -83,6 +83,30 @@ const Admin = () => {
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   const [detecting, setDetecting] = useState(false);
+  const [importAllPath, setImportAllPath] = useState("");
+  const [importingAll, setImportingAll] = useState(false);
+  const [importResult, setImportResult] = useState(null);
+
+  // Import în masă: fiecare subfolder din folderul părinte devine un desen.
+  const importAll = async () => {
+    if (!importAllPath.trim()) {
+      toast.error("Introdu path-ul folderului părinte (ex: /media/videos)");
+      return;
+    }
+    setImportingAll(true);
+    setImportResult(null);
+    try {
+      const { data } = await api.post("/admin/import-all", { folder: importAllPath.trim() });
+      setImportResult(data);
+      toast.success(`${data.created_count} desene create · ${data.total_episodes} episoade · ${data.skipped_count} sărite`);
+      load();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Eroare la importul în masă");
+    } finally {
+      setImportingAll(false);
+    }
+  };
+
 
   // Detectare reală a episoadelor .mp4 dintr-un folder de pe VPS (VIDEO_DIR).
   const detectEpisodes = async () => {
@@ -162,6 +186,42 @@ const Admin = () => {
           </TabsList>
 
           <TabsContent value="shows">
+            <div className="bg-[#141414] border border-[#ffcc00]/30 rounded-2xl p-6 mb-8">
+              <h2 className="font-display text-2xl mb-1 flex items-center gap-2"><FolderSearch className="h-6 w-6 text-[#ffcc00]" /> Import rapid (Importă tot)</h2>
+              <p className="text-sm text-white/50 mb-4">Introdu folderul <b>părinte</b> de pe VPS. Fiecare subfolder devine automat un desen, cu episoadele lui (inclusiv sezoane, dacă are subfoldere). Desenele care există deja (după titlu) sunt sărite.</p>
+              <div className="flex gap-2">
+                <input
+                  data-testid="admin-import-all-path"
+                  placeholder="Folder părinte (ex: /media/videos)"
+                  value={importAllPath}
+                  onChange={(e) => setImportAllPath(e.target.value)}
+                  className={input}
+                />
+                <button
+                  type="button"
+                  data-testid="admin-import-all-btn"
+                  onClick={importAll}
+                  disabled={importingAll}
+                  className="shrink-0 px-6 rounded-lg bg-[#ffcc00] text-black font-bold hover:bg-[#ffd633] transition-colors duration-200 flex items-center gap-2 disabled:opacity-60"
+                >
+                  <FolderSearch className="h-5 w-5" /> {importingAll ? "Se importă..." : "Importă tot"}
+                </button>
+              </div>
+              {importResult && (
+                <div data-testid="admin-import-all-result" className="mt-4 text-xs space-y-1 max-h-48 overflow-y-auto pr-1">
+                  <p className="text-[#22c55e] font-semibold">{importResult.created_count} desene create ({importResult.total_episodes} episoade)</p>
+                  {(importResult.created || []).map((c, i) => (
+                    <p key={`c-${i}`} className="text-white/70 truncate">
+                      ✓ {c.title} — {c.episodes} ep.{c.seasons?.length ? ` · sezoane: ${c.seasons.join(", ")}` : ""}
+                    </p>
+                  ))}
+                  {(importResult.skipped || []).map((s, i) => (
+                    <p key={`s-${i}`} className="text-white/40 truncate">• sărit: {s.title || s.folder} ({s.reason})</p>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div className="grid md:grid-cols-2 gap-8">
               <form onSubmit={submit} className="space-y-3 bg-[#141414] border border-white/10 rounded-2xl p-6">
                 <h2 className="font-display text-2xl mb-2">Adaugă desen</h2>
@@ -188,7 +248,10 @@ const Admin = () => {
                   <div data-testid="admin-detected" className="text-xs text-[#ffcc00] space-y-1 max-h-40 overflow-y-auto pr-1">
                     <p className="font-semibold">{detected.length} episoade detectate din folder:</p>
                     {detected.map((ep, i) => (
-                      <p key={i} className="text-white/60 truncate">{ep.number}. {ep.title}</p>
+                      <p key={i} className="text-white/60 truncate">
+                        {ep.season ? <span className="text-[#ffcc00]/70">[{ep.season}] </span> : null}
+                        {ep.number}. {ep.title}{ep.duration ? <span className="text-white/40"> · {ep.duration}</span> : null}
+                      </p>
                     ))}
                   </div>
                 )}

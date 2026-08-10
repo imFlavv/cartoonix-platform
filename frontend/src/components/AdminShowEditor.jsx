@@ -184,8 +184,12 @@ export const AdminShowEditor = ({ show, open, onOpenChange, onSaved }) => {
                     <GripVertical className="h-4 w-4" />
                   </span>
                   <span className="text-xs text-white/40 w-6 text-center shrink-0">{ep.number}</span>
+                  {ep.season ? (
+                    <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-[#ffcc00]/15 text-[#ffcc00] max-w-[90px] truncate" title={ep.season}>{ep.season}</span>
+                  ) : null}
                   <input value={ep.title} onChange={(e) => setEp(i, "title", e.target.value)} className="flex-1 px-3 py-1.5 rounded bg-white/5 border border-white/10 text-sm focus:outline-none focus:ring-1 focus:ring-[#ffcc00]" />
                   <input value={ep.video_url} onChange={(e) => setEp(i, "video_url", e.target.value)} placeholder="url .mp4" className="flex-1 px-3 py-1.5 rounded bg-white/5 border border-white/10 text-xs text-white/60 focus:outline-none focus:ring-1 focus:ring-[#ffcc00]" />
+                  {ep.duration ? <span className="shrink-0 text-[10px] text-white/40 w-10 text-right">{ep.duration}</span> : null}
                   <button onClick={() => removeEp(i)} className="h-7 w-7 flex items-center justify-center rounded hover:bg-[#ec1c24]/20 text-white/50 hover:text-[#ec1c24] shrink-0"><Trash2 className="h-4 w-4" /></button>
                 </div>
               ))}

@@ -24,6 +24,9 @@ import uuid
 import httpx
 import mimetypes
 import re
+import shutil
+import subprocess
+import asyncio
 from urllib.parse import unquote
 from emergentintegrations.payments.stripe.checkout import (
     StripeCheckout,
@@ -293,6 +296,7 @@ class Episode(BaseModel):
     title: str
     video_url: str
     duration: Optional[str] = ""
+    season: Optional[str] = None
 
 
 class ShowInput(BaseModel):
@@ -778,18 +782,126 @@ def _prettify_title(fname: str) -> str:
     return name or fname
 
 
-def _parse_ep_number(fname: str, fallback: int) -> int:
-    m = re.search(r"[Ss](\d{1,2})[\s._-]*[Ee](\d{1,3})", fname)
-    if m:
-        return int(m.group(2))
-    m2 = re.search(r"(\d{1,4})", os.path.splitext(fname)[0])
-    if m2:
-        return int(m2.group(1))
-    return fallback
+def _prettify_folder_name(name: str) -> str:
+    n = name.replace("_", " ").replace("-", " ")
+    n = re.sub(r"\s+", " ", n).strip()
+    return n or name
 
 
 def _natural_key(s: str):
     return [int(t) if t.isdigit() else t.lower() for t in re.split(r"(\d+)", s)]
+
+
+# ffprobe (duration detection) — best-effort, degrades gracefully if not installed
+FFPROBE_BIN = shutil.which("ffprobe")
+
+
+def _format_duration(seconds: float) -> str:
+    if not seconds or seconds <= 0:
+        return ""
+    s = int(round(seconds))
+    h, m, sec = s // 3600, (s % 3600) // 60, s % 60
+    return f"{h}:{m:02d}:{sec:02d}" if h else f"{m}:{sec:02d}"
+
+
+def _probe_duration_sync(path: str) -> str:
+    if not FFPROBE_BIN:
+        return ""
+    try:
+        out = subprocess.run(
+            [FFPROBE_BIN, "-v", "error", "-show_entries", "format=duration",
+             "-of", "default=noprint_wrappers=1:nokey=1", path],
+            capture_output=True, text=True, timeout=25,
+        )
+        val = (out.stdout or "").strip()
+        return _format_duration(float(val)) if val else ""
+    except Exception:
+        return ""
+
+
+async def _probe_durations(paths: List[str]) -> dict:
+    """Probe many files concurrently (bounded) via a thread pool."""
+    if not FFPROBE_BIN or not paths:
+        return {p: "" for p in paths}
+    loop = asyncio.get_event_loop()
+    sem = asyncio.Semaphore(6)
+
+    async def one(p):
+        async with sem:
+            return p, await loop.run_in_executor(None, _probe_duration_sync, p)
+
+    results = await asyncio.gather(*[one(p) for p in paths])
+    return dict(results)
+
+
+def _resolve_under_video_dir(raw: str):
+    """Return (base, full_dir) resolving raw as absolute-under-base or relative; raises on escape."""
+    base = os.path.realpath(VIDEO_DIR)
+    raw = (raw or "").strip()
+    if not raw:
+        raise HTTPException(status_code=400, detail="Introdu path-ul folderului de pe VPS")
+    full_dir = os.path.realpath(raw) if os.path.isabs(raw) else os.path.realpath(os.path.join(base, raw))
+    if not (full_dir == base or full_dir.startswith(base + os.sep)):
+        raise HTTPException(status_code=400, detail=f"Folderul trebuie să fie sub {VIDEO_DIR}")
+    return base, full_dir
+
+
+def _list_video_files(directory: str) -> List[str]:
+    return sorted(
+        [e for e in os.listdir(directory)
+         if os.path.isfile(os.path.join(directory, e))
+         and os.path.splitext(e)[1].lower() in VIDEO_EXTENSIONS],
+        key=_natural_key,
+    )
+
+
+def _list_subdirs(directory: str) -> List[str]:
+    return sorted(
+        [e for e in os.listdir(directory) if os.path.isdir(os.path.join(directory, e))],
+        key=_natural_key,
+    )
+
+
+def _scan_show_folder(full_dir: str, base: str) -> List[dict]:
+    """Scan a show folder. Direct .mp4 files -> no season. Subfolders -> each is a season
+    (scanned one level deep). Episodes get a globally-unique `number` (routing id) plus a
+    `season` label. Includes a temporary `_path` (absolute) for duration probing."""
+    groups = []  # (season_label_or_None, [(fname, fpath)])
+    direct = _list_video_files(full_dir)
+    if direct:
+        groups.append((None, [(f, os.path.join(full_dir, f)) for f in direct]))
+    for sub in _list_subdirs(full_dir):
+        sub_dir = os.path.join(full_dir, sub)
+        sub_files = _list_video_files(sub_dir)
+        if sub_files:
+            groups.append((_prettify_folder_name(sub), [(f, os.path.join(sub_dir, f)) for f in sub_files]))
+
+    episodes = []
+    n = 0
+    for season, files in groups:
+        for fname, fpath in files:
+            n += 1
+            rel = os.path.relpath(fpath, base).replace(os.sep, "/")
+            episodes.append({
+                "number": n,
+                "title": _prettify_title(fname),
+                "video_url": f"/media/videos/{rel}",
+                "duration": "",
+                "season": season,
+                "_path": fpath,
+            })
+    return episodes
+
+
+async def _finalize_episodes(episodes: List[dict], probe: bool = True) -> List[dict]:
+    """Fill durations (best-effort) and strip internal `_path` field."""
+    if probe:
+        durations = await _probe_durations([e["_path"] for e in episodes if e.get("_path")])
+        for e in episodes:
+            e["duration"] = durations.get(e.get("_path"), "") or ""
+    for e in episodes:
+        e.pop("_path", None)
+    return episodes
 
 
 class ImportFolderInput(BaseModel):
@@ -798,39 +910,78 @@ class ImportFolderInput(BaseModel):
 
 @api_router.post("/admin/import-folder")
 async def admin_import_folder(data: ImportFolderInput, admin: dict = Depends(require_admin)):
-    """Scan a real folder under VIDEO_DIR and return detected episodes (non-destructive).
-    The admin previews them, then saves via create/update show endpoints."""
-    base = os.path.realpath(VIDEO_DIR)
-    raw = (data.folder or "").strip()
-    if not raw:
-        raise HTTPException(status_code=400, detail="Introdu path-ul folderului de pe VPS")
-    if os.path.isabs(raw):
-        full_dir = os.path.realpath(raw)
-    else:
-        full_dir = os.path.realpath(os.path.join(base, raw))
-    if not (full_dir == base or full_dir.startswith(base + os.sep)):
-        raise HTTPException(status_code=400, detail=f"Folderul trebuie să fie sub {VIDEO_DIR}")
+    """Scan a real folder under VIDEO_DIR (with season subfolders + durations) and return
+    detected episodes (non-destructive). Admin previews, then saves via create/update endpoints."""
+    base, full_dir = _resolve_under_video_dir(data.folder)
     if not os.path.isdir(full_dir):
         raise HTTPException(status_code=404, detail=f"Folder inexistent pe server: {full_dir}")
 
-    files = [
-        entry for entry in os.listdir(full_dir)
-        if os.path.isfile(os.path.join(full_dir, entry))
-        and os.path.splitext(entry)[1].lower() in VIDEO_EXTENSIONS
-    ]
-    files.sort(key=_natural_key)
+    episodes = _scan_show_folder(full_dir, base)
+    episodes = await _finalize_episodes(episodes, probe=True)
+    seasons = [s for s in dict.fromkeys([e["season"] for e in episodes if e["season"]])]
+    return {"count": len(episodes), "episodes": episodes, "folder": full_dir, "seasons": seasons}
 
-    episodes = []
-    for i, fname in enumerate(files):
-        rel = os.path.relpath(os.path.join(full_dir, fname), base).replace(os.sep, "/")
-        episodes.append({
-            "number": _parse_ep_number(fname, i + 1),
-            "title": _prettify_title(fname),
-            "video_url": f"/media/videos/{rel}",
-            "duration": "",
-        })
 
-    return {"count": len(episodes), "episodes": episodes, "folder": full_dir}
+class ImportAllInput(BaseModel):
+    folder: str  # parent directory; each subfolder becomes a show
+    channel: Optional[str] = None
+    category: Optional[str] = "Nesortate"
+    probe_durations: bool = True
+
+
+@api_router.post("/admin/import-all")
+async def admin_import_all(data: ImportAllInput, admin: dict = Depends(require_admin)):
+    """Scan a PARENT folder: every subfolder becomes a show (desen) with its episodes
+    (season subfolders + durations). Skips subfolders that already exist as a show (by title)."""
+    base, parent_dir = _resolve_under_video_dir(data.folder)
+    if not os.path.isdir(parent_dir):
+        raise HTTPException(status_code=404, detail=f"Folder inexistent pe server: {parent_dir}")
+
+    subdirs = _list_subdirs(parent_dir)
+    if not subdirs:
+        raise HTTPException(status_code=400, detail="Folderul nu conține subfoldere (fiecare subfolder = un desen)")
+
+    created, skipped = [], []
+    total_files = 0
+    for sub in subdirs:
+        sub_dir = os.path.join(parent_dir, sub)
+        episodes = _scan_show_folder(sub_dir, base)
+        if not episodes:
+            skipped.append({"folder": sub, "reason": "fără fișiere video"})
+            continue
+        title = _prettify_folder_name(sub)
+        existing = await db.shows.find_one({"title": title})
+        if existing:
+            skipped.append({"folder": sub, "reason": "există deja", "title": title})
+            continue
+        episodes = await _finalize_episodes(episodes, probe=data.probe_durations)
+        total_files += len(episodes)
+        rel_parent = os.path.relpath(sub_dir, base).replace(os.sep, "/")
+        doc = {
+            "title": title,
+            "description": "",
+            "thumbnail": "",
+            "banner": "",
+            "category": data.category or "Nesortate",
+            "channel": data.channel or "Cartoon Network",
+            "year": "",
+            "genres": [],
+            "vps_path": f"/media/videos/{rel_parent}",
+            "episodes": episodes,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        await db.shows.insert_one(doc)
+        created.append({"title": title, "episodes": len(episodes),
+                        "seasons": [s for s in dict.fromkeys([e["season"] for e in episodes if e["season"]])]})
+
+    return {
+        "created_count": len(created),
+        "skipped_count": len(skipped),
+        "total_episodes": total_files,
+        "created": created,
+        "skipped": skipped,
+    }
+
 
 
 
