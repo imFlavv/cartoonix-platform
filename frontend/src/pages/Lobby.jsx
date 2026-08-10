@@ -22,7 +22,7 @@ const IMG = {
   announcements: "https://customer-assets-agu9un31.emergentagent.net/job_cartoon-redesign/artifacts/nx3w6e5h_ChatGPT%20Image%20Jul%2029%2C%202026%2C%2001_56_56%20AM.png",
   cartoonixland: "https://customer-assets-agu9un31.emergentagent.net/job_cartoon-redesign/artifacts/fr8dlxsa_ChatGPT%20Image%20Jul%2029%2C%202026%2C%2001_57_54%20AM.png",
   suggestions: "https://customer-assets-agu9un31.emergentagent.net/job_cartoon-redesign/artifacts/avepv8cx_ChatGPT%20Image%20Jul%2029%2C%202026%2C%2001_58_56%20AM.png",
-  soon: "https://customer-assets-agu9un31.emergentagent.net/job_cartoon-redesign/artifacts/o2f2d6go_ChatGPT%20Image%20Jul%2029%2C%202026%2C%2001_59_48%20AM.png",
+  soon: "/soon-card.png",
   rewards: "/rewards-bg.png",
   clasament: "/clasament-card.png",
   watchparty: "/watchparty-card.png",
@@ -279,8 +279,7 @@ const Lobby = () => {
             accent="#a855f7"
             image={IMG.concursuri}
             span="lg:col-span-1"
-            locked
-            badge="ÎN CURÂND!"
+            onClick={() => navigate("/concursuri")}
           />
           <LobbyCard
             testid="lobby-rewards"

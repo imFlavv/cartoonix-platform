@@ -27,6 +27,7 @@ import Rewards from "@/pages/Rewards";
 import Clasament from "@/pages/Clasament";
 import WatchParty from "@/pages/WatchParty";
 import Cinema from "@/pages/Cinema";
+import Concursuri from "@/pages/Concursuri";
 import Admin from "@/pages/Admin";
 import PaymentSuccess from "@/pages/PaymentSuccess";
 import PaymentCancel from "@/pages/PaymentCancel";
@@ -92,6 +93,7 @@ function App() {
             <Route path="/clasament" element={<ProtectedRoute><Clasament /></ProtectedRoute>} />
             <Route path="/watch-party" element={<ProtectedRoute><WatchParty /></ProtectedRoute>} />
             <Route path="/cinema" element={<ProtectedRoute><Cinema /></ProtectedRoute>} />
+            <Route path="/concursuri" element={<ProtectedRoute><Concursuri /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute adminOnly><Admin /></ProtectedRoute>} />
             <Route path="*" element={<Navigate to="/home" replace />} />
             </Routes>
