@@ -262,6 +262,16 @@ const Lobby = () => {
             onClick={() => navigate("/watch-party")}
           />
           <LobbyCard
+            testid="lobby-suggestions"
+            title="Cutia cu sugestii"
+            desc="Trimite-ne ideile tale (o dată la 24h)"
+            cta="Trimite o sugestie"
+            accent="#22c55e"
+            image={IMG.suggestions}
+            span="lg:col-span-1"
+            onClick={() => setSugOpen(true)}
+          />
+          <LobbyCard
             testid="lobby-concursuri"
             title="Concursuri"
             desc="Participă și câștigă premii Cartoonix"
@@ -271,16 +281,6 @@ const Lobby = () => {
             span="lg:col-span-1"
             locked
             badge="ÎN CURÂND!"
-          />
-          <LobbyCard
-            testid="lobby-suggestions"
-            title="Cutia cu sugestii"
-            desc="Trimite-ne ideile tale (o dată la 24h)"
-            cta="Trimite o sugestie"
-            accent="#22c55e"
-            image={IMG.suggestions}
-            span="lg:col-span-1"
-            onClick={() => setSugOpen(true)}
           />
           <LobbyCard
             testid="lobby-rewards"
