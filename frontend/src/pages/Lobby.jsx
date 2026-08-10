@@ -24,6 +24,8 @@ const IMG = {
   suggestions: "https://customer-assets-agu9un31.emergentagent.net/job_cartoon-redesign/artifacts/avepv8cx_ChatGPT%20Image%20Jul%2029%2C%202026%2C%2001_58_56%20AM.png",
   soon: "https://customer-assets-agu9un31.emergentagent.net/job_cartoon-redesign/artifacts/o2f2d6go_ChatGPT%20Image%20Jul%2029%2C%202026%2C%2001_59_48%20AM.png",
   rewards: "/rewards-bg.png",
+  clasament: "/clasament-card.png",
+  watchparty: "/watchparty-card.png",
 };
 
 /**
@@ -57,7 +59,7 @@ const LobbyCard = ({
           onClick?.();
         }
       }}
-      className={`cx-lobby-card group relative rounded-[28px] border overflow-hidden min-h-[260px] sm:min-h-[280px] flex transition-all duration-300 ${span} ${
+      className={`cx-lobby-card group relative rounded-[24px] border overflow-hidden min-h-[190px] sm:min-h-[205px] flex transition-all duration-300 ${span} ${
         disabled ? "cursor-not-allowed" : "cursor-pointer hover:-translate-y-1"
       }`}
       style={{
@@ -99,18 +101,18 @@ const LobbyCard = ({
       )}
 
       {/* --- Content --- */}
-      <div className="relative z-10 flex flex-col p-6 sm:p-7 w-full">
+      <div className="relative z-10 flex flex-col p-5 sm:p-6 w-full">
         <h3
-          className="font-display italic text-3xl sm:text-4xl leading-[1.05] max-w-[55%]"
+          className="font-display italic text-2xl sm:text-[27px] leading-[1.05] max-w-[68%]"
           style={{ textShadow: `0 2px 24px ${accent}70` }}
         >
           {title}
         </h3>
-        <p className="text-sm text-white/70 mt-3 max-w-[52%] leading-relaxed">
+        <p className="text-xs sm:text-[13px] text-white/70 mt-2 max-w-[62%] leading-relaxed">
           {desc}
         </p>
 
-        <div className="mt-auto pt-6">
+        <div className="mt-auto pt-4">
           <button
             type="button"
             disabled={disabled}
@@ -118,10 +120,10 @@ const LobbyCard = ({
               e.stopPropagation();
               if (!disabled) onClick?.();
             }}
-            className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-extrabold text-[13px] tracking-wide uppercase transition-all duration-200 ${
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl font-extrabold text-[12px] tracking-wide uppercase transition-all duration-200 ${
               disabled
                 ? "bg-white/10 text-white/40 cursor-not-allowed"
-                : "hover:brightness-110 hover:pl-6"
+                : "hover:brightness-110 hover:pl-5"
             }`}
             style={
               disabled
@@ -191,11 +193,22 @@ const Lobby = () => {
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white relative overflow-hidden">
+      {/* Page background illustration */}
+      <div
+        className="fixed inset-0 z-0 pointer-events-none"
+        style={{
+          backgroundImage: 'url("/lobby-bg.png")',
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+        }}
+      />
+      <div className="fixed inset-0 z-0 pointer-events-none bg-[#0a0a0a]/55" />
       <NavBar />
 
-      <div className="pt-24 px-4 md:px-12 pb-16 max-w-7xl mx-auto relative">
-        {/* 6-col grid → row 1: 3× (col-span-2), row 2: 2× (col-span-3) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-5">
+      <div className="pt-20 px-4 md:px-12 pb-8 max-w-7xl mx-auto relative z-10">
+        {/* 4-col grid → 8 compact cards in 2 rows (fits without scroll) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <LobbyCard
             testid="lobby-chat"
             title="Chat"
@@ -203,18 +216,38 @@ const Lobby = () => {
             cta="Intră în chat"
             accent="#ec1c24"
             image={IMG.chat}
-            span="lg:col-span-2"
+            span="lg:col-span-1"
             onClick={() => navigate("/lobby/chat")}
           />
           <LobbyCard
             testid="lobby-announcements"
-            title="Anunțuri importante"
+            title="Anunțuri"
             desc="Ultimele noutăți de la echipă"
             cta="Vezi anunțurile"
             accent="#ffcc00"
             image={IMG.announcements}
-            span="lg:col-span-2"
+            span="lg:col-span-1"
             onClick={() => navigate("/lobby/announcements")}
+          />
+          <LobbyCard
+            testid="lobby-clasament"
+            title="Clasament"
+            desc="Top utilizatori online din platformă"
+            cta="Vezi clasamentul"
+            accent="#f59e0b"
+            image={IMG.clasament}
+            span="lg:col-span-1"
+            onClick={() => navigate("/clasament")}
+          />
+          <LobbyCard
+            testid="lobby-watchparty"
+            title="Watch Party"
+            desc="Vizionați împreună, în timp real"
+            cta="Deschide"
+            accent="#06b6d4"
+            image={IMG.watchparty}
+            span="lg:col-span-1"
+            onClick={() => navigate("/watch-party")}
           />
           <LobbyCard
             testid="lobby-cartoonixland"
@@ -223,7 +256,7 @@ const Lobby = () => {
             cta="Explorează"
             accent="#8b5cf6"
             image={IMG.cartoonixland}
-            span="lg:col-span-2"
+            span="lg:col-span-1"
             locked
             badge="ÎN CURÂND!"
           />
@@ -234,7 +267,7 @@ const Lobby = () => {
             cta="Trimite o sugestie"
             accent="#22c55e"
             image={IMG.suggestions}
-            span="lg:col-span-2"
+            span="lg:col-span-1"
             onClick={() => setSugOpen(true)}
           />
           <LobbyCard
@@ -244,7 +277,7 @@ const Lobby = () => {
             cta="Vezi recompensele"
             accent="#ec4899"
             image={IMG.rewards}
-            span="lg:col-span-2"
+            span="lg:col-span-1"
             onClick={() => navigate("/lobby/rewards")}
           />
           <LobbyCard
@@ -254,7 +287,7 @@ const Lobby = () => {
             cta="Stai aproape"
             accent="#38bdf8"
             image={IMG.soon}
-            span="lg:col-span-2"
+            span="lg:col-span-1"
             locked
             badge="ÎN CURÂND!"
           />

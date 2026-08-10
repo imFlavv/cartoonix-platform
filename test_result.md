@@ -301,6 +301,17 @@ metadata:
   run_ui: false
 
 backend:
+  - task: "Leaderboard (Clasament) GET /api/leaderboard (top 10 + me + search)"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "New endpoint GET /api/leaderboard (auth required). Returns {top:[up to 10 users sorted by presence_seconds desc], me:{current user's rank + hours}, and results:[...] when ?q= provided (nickname regex, case-insensitive, limit 20)}. Each entry: {rank, id, name, avatar, plus, seconds, hours_label (e.g. '1h 29m'), online (last_active within 60s)}. Rank computed via count_documents(presence_seconds > x)+1. Verified via curl as admin: top has 2 users (Admin 1h29m rank1 online, Cont Test 0m rank2), me=Admin rank1, ?q=admin returns Admin. Unauthed should be 401/403."
   - task: "Media streaming from VPS library (GET /api/media/videos/{path} with Range/seek)"
     implemented: true
     working: true

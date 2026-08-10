@@ -1668,6 +1668,62 @@ async def online_count():
     return {"online": count}
 
 
+# ---------- leaderboard (Clasament) ----------
+def _hours_label(seconds) -> str:
+    s = int(seconds or 0)
+    h, m = s // 3600, (s % 3600) // 60
+    if h and m:
+        return f"{h}h {m}m"
+    if h:
+        return f"{h}h"
+    return f"{m}m"
+
+
+def _leaderboard_entry(u: dict, rank: int, threshold: str) -> dict:
+    secs = u.get("presence_seconds", u.get("total_time_seconds", 0)) or 0
+    la = u.get("last_active") or u.get("last_seen")
+    return {
+        "rank": rank,
+        "id": uid_of(u),
+        "name": user_name(u),
+        "avatar": user_avatar(u),
+        "plus": user_is_plus(u),
+        "seconds": int(secs),
+        "hours_label": _hours_label(secs),
+        "online": bool(la and str(la) >= threshold),
+    }
+
+
+@api_router.get("/leaderboard")
+async def leaderboard(q: Optional[str] = None, user: dict = Depends(get_current_user)):
+    now = datetime.now(timezone.utc)
+    threshold = (now - timedelta(seconds=60)).isoformat()
+
+    top_docs = await db.users.find({}).sort("presence_seconds", -1).to_list(10)
+    top = [_leaderboard_entry(u, i + 1, threshold) for i, u in enumerate(top_docs)]
+
+    my_secs = user.get("presence_seconds", user.get("total_time_seconds", 0)) or 0
+    my_rank = await db.users.count_documents({"presence_seconds": {"$gt": my_secs}}) + 1
+    me = _leaderboard_entry(user, my_rank, threshold)
+
+    resp = {"top": top, "me": me}
+
+    if q and q.strip():
+        docs = await db.users.find(
+            {"nickname": {"$regex": re.escape(q.strip()), "$options": "i"}}
+        ).sort("presence_seconds", -1).to_list(20)
+        results = []
+        for u in docs:
+            s = u.get("presence_seconds", u.get("total_time_seconds", 0)) or 0
+            r = await db.users.count_documents({"presence_seconds": {"$gt": s}}) + 1
+            results.append(_leaderboard_entry(u, r, threshold))
+        resp["results"] = results
+
+    return resp
+
+
+
+
 # ---------- maintenance ----------
 class MaintenanceInput(BaseModel):
     enabled: bool
