@@ -26,6 +26,7 @@ const IMG = {
   rewards: "/rewards-bg.png",
   clasament: "/clasament-card.png",
   watchparty: "/watchparty-card.png",
+  concursuri: "/concursuri-card.png",
 };
 
 /**
@@ -206,9 +207,9 @@ const Lobby = () => {
       <div className="fixed inset-0 z-0 pointer-events-none bg-[#0a0a0a]/55" />
       <NavBar />
 
-      <div className="pt-20 px-4 md:px-12 pb-8 max-w-7xl mx-auto relative z-10">
-        {/* 4-col grid → 8 compact cards in 2 rows (fits without scroll) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="relative z-10 min-h-screen flex items-center justify-center px-4 md:px-10 pt-20 pb-6">
+        {/* 3×3 grid → 9 compact cards, centered, no scroll */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full max-w-6xl">
           <LobbyCard
             testid="lobby-chat"
             title="Chat"
@@ -228,6 +229,17 @@ const Lobby = () => {
             image={IMG.announcements}
             span="lg:col-span-1"
             onClick={() => navigate("/lobby/announcements")}
+          />
+          <LobbyCard
+            testid="lobby-cartoonixland"
+            title="Cartoonix Land"
+            desc="Zonă de joacă și distracție"
+            cta="Explorează"
+            accent="#8b5cf6"
+            image={IMG.cartoonixland}
+            span="lg:col-span-1"
+            locked
+            badge="ÎN CURÂND!"
           />
           <LobbyCard
             testid="lobby-clasament"
@@ -250,12 +262,12 @@ const Lobby = () => {
             onClick={() => navigate("/watch-party")}
           />
           <LobbyCard
-            testid="lobby-cartoonixland"
-            title="Cartoonix Land"
-            desc="Zonă de joacă și distracție"
-            cta="Explorează"
-            accent="#8b5cf6"
-            image={IMG.cartoonixland}
+            testid="lobby-concursuri"
+            title="Concursuri"
+            desc="Participă și câștigă premii Cartoonix"
+            cta="Vezi concursurile"
+            accent="#a855f7"
+            image={IMG.concursuri}
             span="lg:col-span-1"
             locked
             badge="ÎN CURÂND!"
