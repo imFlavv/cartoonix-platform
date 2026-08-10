@@ -8,7 +8,7 @@ import time
 from datetime import datetime, timezone
 
 # Configuration
-BASE_URL = "https://chat-widget-factory.preview.emergentagent.com/api"
+BASE_URL = "https://admin-episode-sorter.preview.emergentagent.com/api"
 ADMIN_EMAIL = "admin@cartoonix.ro"
 ADMIN_PASSWORD = "admin1234"
 TEST_EMAIL = "test@cartoonix.ro"
