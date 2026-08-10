@@ -26,7 +26,7 @@ const IMG = {
   rewards: "/rewards-bg.png",
   clasament: "/clasament-card.png",
   watchparty: "/watchparty-card.png",
-  concursuri: "/concursuri-card.png",
+  concursuri: "/concursuri-card2.png",
 };
 
 /**
