@@ -49,7 +49,8 @@ if not JWT_SECRET:
 JWT_ALGORITHM = "HS256"
 
 # ---------- Stripe (BYOK - own key) config ----------
-STRIPE_API_KEY = os.environ.get("STRIPE_API_KEY", "")
+# Accept both STRIPE_API_KEY and STRIPE_SECRET_KEY env names for flexibility.
+STRIPE_API_KEY = os.environ.get("STRIPE_API_KEY") or os.environ.get("STRIPE_SECRET_KEY", "")
 PLUS_PRICE_RON = float(os.environ.get("PLUS_PRICE_RON", "50"))
 PLUS_CURRENCY = os.environ.get("PLUS_CURRENCY", "ron").lower()
 
