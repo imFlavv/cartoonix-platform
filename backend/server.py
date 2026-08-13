@@ -1722,6 +1722,311 @@ async def leaderboard(q: Optional[str] = None, user: dict = Depends(get_current_
     return resp
 
 
+# ---------- WatchParty ----------
+def _wp_max_others(user: dict) -> int:
+    return 4 if user_is_plus(user) else 1
+
+
+async def _wp_resolve_items(refs: List[dict]) -> List[dict]:
+    items = []
+    for r in refs or []:
+        sid = str(r.get("show_id") or "")
+        try:
+            num = int(r.get("episode_number"))
+        except Exception:
+            continue
+        try:
+            show = await db.shows.find_one({"_id": ObjectId(sid)})
+        except Exception:
+            show = None
+        if not show:
+            continue
+        ep = next((e for e in show.get("episodes", []) if int(e.get("number", -1)) == num), None)
+        if not ep:
+            continue
+        items.append({
+            "show_id": sid,
+            "show_title": show.get("title", ""),
+            "thumbnail": show.get("thumbnail", ""),
+            "episode_number": num,
+            "episode_title": ep.get("title", ""),
+            "video_url": ep.get("video_url", ""),
+        })
+    return items
+
+
+def _wp_serialize(room: dict, viewer_id: str) -> dict:
+    others_accepted = [p for p in room.get("participants", []) if p["id"] != room["owner_id"]]
+    pending = [i for i in room.get("invited", []) if i.get("status") == "pending"]
+    return {
+        "id": room["id"],
+        "owner_id": room["owner_id"],
+        "owner_name": room.get("owner_name", ""),
+        "owner_avatar": room.get("owner_avatar", ""),
+        "status": room.get("status", "active"),
+        "is_owner": viewer_id == room["owner_id"],
+        "max_others": room.get("max_others", 1),
+        "participants": room.get("participants", []),
+        "invited": room.get("invited", []),
+        "playlist": room.get("playlist", []),
+        "current_index": room.get("current_index", 0),
+        "is_playing": room.get("is_playing", False),
+        "position": room.get("position", 0),
+        "updated_at": room.get("updated_at"),
+        "server_time": datetime.now(timezone.utc).isoformat(),
+        "slots_used": len(others_accepted) + len(pending),
+    }
+
+
+async def _wp_get_room(room_id: str) -> dict:
+    room = await db.watchparties.find_one({"id": room_id})
+    if not room:
+        raise HTTPException(status_code=404, detail="Watch party inexistent")
+    return room
+
+
+def _wp_is_participant(room: dict, uid: str) -> bool:
+    return any(p["id"] == uid for p in room.get("participants", []))
+
+
+class WPRef(BaseModel):
+    show_id: str
+    episode_number: int
+
+
+class WPCreate(BaseModel):
+    playlist: Optional[List[WPRef]] = None
+
+
+class WPInvite(BaseModel):
+    username: str
+
+
+class WPRespond(BaseModel):
+    accept: bool
+
+
+class WPPlaylist(BaseModel):
+    action: str  # add | remove | reorder
+    show_id: Optional[str] = None
+    episode_number: Optional[int] = None
+    index: Optional[int] = None
+    order: Optional[List[int]] = None
+
+
+class WPControl(BaseModel):
+    action: str  # play | pause | seek | next | prev | select
+    position: Optional[float] = None
+    index: Optional[int] = None
+
+
+@api_router.post("/watchparty/create")
+async def wp_create(data: WPCreate, user: dict = Depends(get_current_user)):
+    uid = uid_of(user)
+    # End any previous active room owned by this user
+    await db.watchparties.update_many({"owner_id": uid, "status": "active"}, {"$set": {"status": "ended"}})
+    items = await _wp_resolve_items([r.model_dump() for r in (data.playlist or [])])
+    now = datetime.now(timezone.utc).isoformat()
+    room = {
+        "id": str(uuid.uuid4()),
+        "owner_id": uid,
+        "owner_name": user_name(user),
+        "owner_avatar": user_avatar(user),
+        "status": "active",
+        "max_others": _wp_max_others(user),
+        "participants": [{"id": uid, "name": user_name(user), "avatar": user_avatar(user), "joined_at": now}],
+        "invited": [],
+        "playlist": items,
+        "current_index": 0,
+        "is_playing": False,
+        "position": 0,
+        "updated_at": now,
+        "created_at": now,
+    }
+    await db.watchparties.insert_one(room)
+    return _wp_serialize(room, uid)
+
+
+@api_router.get("/watchparty/current")
+async def wp_current(user: dict = Depends(get_current_user)):
+    uid = uid_of(user)
+    room = await db.watchparties.find_one({"status": "active", "participants.id": uid})
+    return _wp_serialize(room, uid) if room else None
+
+
+@api_router.get("/watchparty/invitations")
+async def wp_invitations(user: dict = Depends(get_current_user)):
+    uid = uid_of(user)
+    rooms = await db.watchparties.find({"status": "active", "invited": {"$elemMatch": {"id": uid, "status": "pending"}}}).to_list(20)
+    return [
+        {"id": r["id"], "owner_name": r.get("owner_name", ""), "owner_avatar": r.get("owner_avatar", ""),
+         "playlist_count": len(r.get("playlist", []))}
+        for r in rooms
+    ]
+
+
+@api_router.get("/watchparty/{room_id}")
+async def wp_get(room_id: str, user: dict = Depends(get_current_user)):
+    uid = uid_of(user)
+    room = await _wp_get_room(room_id)
+    invited = any(i["id"] == uid and i.get("status") == "pending" for i in room.get("invited", []))
+    if not (_wp_is_participant(room, uid) or invited):
+        raise HTTPException(status_code=403, detail="Nu ai acces la acest watch party")
+    return _wp_serialize(room, uid)
+
+
+@api_router.post("/watchparty/{room_id}/invite")
+async def wp_invite(room_id: str, data: WPInvite, user: dict = Depends(get_current_user)):
+    uid = uid_of(user)
+    room = await _wp_get_room(room_id)
+    if room["owner_id"] != uid:
+        raise HTTPException(status_code=403, detail="Doar owner-ul poate invita")
+    if room.get("status") != "active":
+        raise HTTPException(status_code=400, detail="Watch party încheiat")
+    others = [p for p in room["participants"] if p["id"] != uid]
+    pending = [i for i in room["invited"] if i.get("status") == "pending"]
+    if len(others) + len(pending) >= room["max_others"]:
+        raise HTTPException(status_code=400, detail=f"Limită atinsă ({room['max_others']} invitați). Treci la PLUS pentru mai mulți.")
+    uname = data.username.strip()
+    target = await db.users.find_one({"nickname": {"$regex": f"^{re.escape(uname)}$", "$options": "i"}})
+    if not target:
+        raise HTTPException(status_code=404, detail=f"Utilizatorul „{uname}” nu există")
+    tid = uid_of(target)
+    if tid == uid:
+        raise HTTPException(status_code=400, detail="Nu te poți invita pe tine")
+    if _wp_is_participant(room, tid) or any(i["id"] == tid and i.get("status") == "pending" for i in room["invited"]):
+        raise HTTPException(status_code=400, detail="Utilizatorul e deja invitat sau în cameră")
+    now = datetime.now(timezone.utc).isoformat()
+    invite = {"id": tid, "name": user_name(target), "avatar": user_avatar(target), "status": "pending", "invited_at": now}
+    await db.watchparties.update_one({"id": room_id}, {"$push": {"invited": invite}})
+    await db.notifications.insert_one({
+        "user_id": tid,
+        "type": "watchparty_invite",
+        "room_id": room_id,
+        "title": "Invitație Watch Party",
+        "body": f"{user_name(user)} te-a invitat la un watch party.",
+        "created_at": now,
+    })
+    room = await _wp_get_room(room_id)
+    return _wp_serialize(room, uid)
+
+
+@api_router.post("/watchparty/{room_id}/respond")
+async def wp_respond(room_id: str, data: WPRespond, user: dict = Depends(get_current_user)):
+    uid = uid_of(user)
+    room = await _wp_get_room(room_id)
+    inv = next((i for i in room.get("invited", []) if i["id"] == uid and i.get("status") == "pending"), None)
+    if not inv:
+        raise HTTPException(status_code=404, detail="Nicio invitație în așteptare")
+    now = datetime.now(timezone.utc).isoformat()
+    if not data.accept:
+        await db.watchparties.update_one({"id": room_id, "invited.id": uid}, {"$set": {"invited.$.status": "declined"}})
+        return {"ok": True, "accepted": False}
+    if room.get("status") != "active":
+        raise HTTPException(status_code=400, detail="Watch party încheiat")
+    others = [p for p in room["participants"] if p["id"] != room["owner_id"]]
+    if len(others) >= room["max_others"]:
+        raise HTTPException(status_code=400, detail="Camera este plină")
+    await db.watchparties.update_one(
+        {"id": room_id, "invited.id": uid},
+        {"$set": {"invited.$.status": "accepted"},
+         "$push": {"participants": {"id": uid, "name": user_name(user), "avatar": user_avatar(user), "joined_at": now}}},
+    )
+    room = await _wp_get_room(room_id)
+    return _wp_serialize(room, uid)
+
+
+@api_router.post("/watchparty/{room_id}/playlist")
+async def wp_playlist(room_id: str, data: WPPlaylist, user: dict = Depends(get_current_user)):
+    uid = uid_of(user)
+    room = await _wp_get_room(room_id)
+    if room["owner_id"] != uid:
+        raise HTTPException(status_code=403, detail="Doar owner-ul poate modifica lista")
+    playlist = room.get("playlist", [])
+    if data.action == "add":
+        items = await _wp_resolve_items([{"show_id": data.show_id, "episode_number": data.episode_number}])
+        if not items:
+            raise HTTPException(status_code=404, detail="Episod inexistent")
+        playlist = playlist + items
+    elif data.action == "remove":
+        if data.index is None or not (0 <= data.index < len(playlist)):
+            raise HTTPException(status_code=400, detail="Index invalid")
+        playlist = [p for i, p in enumerate(playlist) if i != data.index]
+    elif data.action == "reorder":
+        if not data.order or sorted(data.order) != list(range(len(playlist))):
+            raise HTTPException(status_code=400, detail="Ordine invalidă")
+        playlist = [playlist[i] for i in data.order]
+    else:
+        raise HTTPException(status_code=400, detail="Acțiune necunoscută")
+    ci = min(room.get("current_index", 0), max(0, len(playlist) - 1))
+    await db.watchparties.update_one({"id": room_id}, {"$set": {"playlist": playlist, "current_index": ci}})
+    room = await _wp_get_room(room_id)
+    return _wp_serialize(room, uid)
+
+
+@api_router.post("/watchparty/{room_id}/control")
+async def wp_control(room_id: str, data: WPControl, user: dict = Depends(get_current_user)):
+    uid = uid_of(user)
+    room = await _wp_get_room(room_id)
+    if room["owner_id"] != uid:
+        raise HTTPException(status_code=403, detail="Doar owner-ul controlează redarea")
+    now = datetime.now(timezone.utc).isoformat()
+    updates = {"updated_at": now}
+    plen = len(room.get("playlist", []))
+    ci = room.get("current_index", 0)
+    if data.action == "play":
+        updates["is_playing"] = True
+        if data.position is not None:
+            updates["position"] = max(0, data.position)
+    elif data.action == "pause":
+        updates["is_playing"] = False
+        if data.position is not None:
+            updates["position"] = max(0, data.position)
+    elif data.action == "seek":
+        updates["position"] = max(0, data.position or 0)
+    elif data.action == "next":
+        updates["current_index"] = min(ci + 1, max(0, plen - 1))
+        updates["position"] = 0
+        updates["is_playing"] = True
+    elif data.action == "prev":
+        updates["current_index"] = max(ci - 1, 0)
+        updates["position"] = 0
+        updates["is_playing"] = True
+    elif data.action == "select":
+        if data.index is None or not (0 <= data.index < plen):
+            raise HTTPException(status_code=400, detail="Index invalid")
+        updates["current_index"] = data.index
+        updates["position"] = 0
+        updates["is_playing"] = True
+    else:
+        raise HTTPException(status_code=400, detail="Acțiune necunoscută")
+    await db.watchparties.update_one({"id": room_id}, {"$set": updates})
+    room = await _wp_get_room(room_id)
+    return _wp_serialize(room, uid)
+
+
+@api_router.post("/watchparty/{room_id}/leave")
+async def wp_leave(room_id: str, user: dict = Depends(get_current_user)):
+    uid = uid_of(user)
+    room = await _wp_get_room(room_id)
+    if room["owner_id"] == uid:
+        await db.watchparties.update_one({"id": room_id}, {"$set": {"status": "ended"}})
+        return {"ok": True, "ended": True}
+    await db.watchparties.update_one({"id": room_id}, {"$pull": {"participants": {"id": uid}}})
+    return {"ok": True, "ended": False}
+
+
+@api_router.post("/watchparty/{room_id}/end")
+async def wp_end(room_id: str, user: dict = Depends(get_current_user)):
+    uid = uid_of(user)
+    room = await _wp_get_room(room_id)
+    if room["owner_id"] != uid:
+        raise HTTPException(status_code=403, detail="Doar owner-ul poate încheia")
+    await db.watchparties.update_one({"id": room_id}, {"$set": {"status": "ended"}})
+    return {"ok": True, "ended": True}
+
+
+
 
 
 # ---------- maintenance ----------

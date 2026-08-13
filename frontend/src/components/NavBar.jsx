@@ -41,6 +41,16 @@ export const NavBar = () => {
     loadNotifs();
   };
 
+  const wpRespond = async (roomId, accept) => {
+    try {
+      await api.post(`/watchparty/${roomId}/respond`, { accept });
+      loadNotifs();
+      if (accept) navigate("/watch-party");
+    } catch (e) {
+      /* ignore */
+    }
+  };
+
   const submitSearch = (e) => {
     e.preventDefault();
     if (query.trim()) navigate(`/browse?q=${encodeURIComponent(query.trim())}`);
@@ -162,6 +172,12 @@ export const NavBar = () => {
                             <img src={n.image} alt="" className="mt-3 w-full h-36 object-cover rounded-lg" />
                           )}
                           <p className="text-sm text-white/70 mt-3 leading-relaxed">{n.body}</p>
+                          {n.type === "watchparty_invite" && n.room_id && (
+                            <div className="mt-3 flex gap-2" data-testid={`wp-notif-${n.room_id}`}>
+                              <button onClick={() => wpRespond(n.room_id, true)} className="flex-1 py-2 rounded-lg bg-[#22c55e] text-black text-sm font-bold">Acceptă</button>
+                              <button onClick={() => wpRespond(n.room_id, false)} className="flex-1 py-2 rounded-lg bg-white/10 text-sm font-bold hover:bg-white/20">Refuză</button>
+                            </div>
+                          )}
                           {n.cta_label && (
                             <button
                               onClick={() => navigate(n.cta_link || "/home")}
