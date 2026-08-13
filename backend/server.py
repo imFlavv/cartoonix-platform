@@ -35,11 +35,17 @@ from emergentintegrations.payments.stripe.checkout import (
     CheckoutStatusResponse,
 )
 
-mongo_url = os.environ['MONGO_URL']
+mongo_url = os.environ.get('MONGO_URL', 'mongodb://localhost:27017')
 client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+db = client[os.environ.get('DB_NAME', 'cartoonix')]
 
-JWT_SECRET = os.environ['JWT_SECRET']
+# JWT_SECRET must exist. If missing in the deploy .env, fall back to a generated one so the
+# backend still boots (instead of crashing on import -> Cloudflare 520). Set it in .env for
+# stable sessions across restarts.
+JWT_SECRET = os.environ.get('JWT_SECRET')
+if not JWT_SECRET:
+    JWT_SECRET = secrets.token_urlsafe(48)
+    logging.getLogger(__name__).warning("JWT_SECRET missing from environment — using a temporary one (sessions reset on restart). Set JWT_SECRET in .env!")
 JWT_ALGORITHM = "HS256"
 
 # ---------- Stripe (BYOK - own key) config ----------
@@ -73,9 +79,28 @@ def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
+# Legacy DBs (migrated from an older platform) may store the password hash under a
+# different key than "password_hash". Check common aliases so existing users can log in.
+LEGACY_HASH_FIELDS = ("password_hash", "password", "passwordHash", "hash", "pass", "senha", "parola")
+
+
+def get_stored_hash(user: dict) -> str:
+    for field in LEGACY_HASH_FIELDS:
+        val = user.get(field)
+        if val:
+            return str(val)
+    return ""
+
+
 def verify_password(plain: str, hashed: str) -> bool:
+    if not hashed:
+        return False
     try:
-        return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
+        h = hashed.strip()
+        # Normalize PHP bcrypt variants ($2y$ / $2x$) for python-bcrypt compatibility.
+        if h.startswith("$2y$") or h.startswith("$2x$"):
+            h = "$2b$" + h[4:]
+        return bcrypt.checkpw(plain.encode("utf-8"), h.encode("utf-8"))
     except Exception:
         return False
 
@@ -465,7 +490,7 @@ async def login(data: LoginInput, request: Request):
     if await db.banned_ips.find_one({"ip": ip}):
         raise HTTPException(status_code=403, detail="Acces interzis de pe această adresă IP")
     user = await db.users.find_one({"email": email})
-    if not user or not verify_password(data.password, user["password_hash"]):
+    if not user or not verify_password(data.password, get_stored_hash(user)):
         raise HTTPException(status_code=401, detail="Email sau parolă incorectă")
     if user.get("banned"):
         raise HTTPException(status_code=403, detail="Cont suspendat")
@@ -2440,30 +2465,51 @@ SAMPLE_VIDEOS = [
 
 @app.on_event("startup")
 async def startup():
-    await db.users.create_index("email", unique=True)
-    await db.otp_verifications.create_index("email", unique=True)
-    await db.otp_verifications.create_index("expiresAt", expireAfterSeconds=0)
-    # seed admin (create-only, NON-destructive — never resets an existing admin password)
-    admin_email = os.environ["ADMIN_EMAIL"].lower()
-    admin_password = os.environ["ADMIN_PASSWORD"]
-    existing = await db.users.find_one({"email": admin_email})
-    if existing is None:
-        now_iso = datetime.now(timezone.utc).isoformat()
-        await db.users.insert_one({
-            "id": str(uuid.uuid4()),
-            "email": admin_email,
-            "password_hash": hash_password(admin_password),
-            "nickname": "Admin",
-            "avatar_url": "https://api.dicebear.com/9.x/bottts/svg?seed=Admin",
-            "role": "admin",
-            "subscription": "plus",
-            "email_verified": True,
-            "created_at": now_iso,
-            "last_active": now_iso,
-        })
-    elif "id" not in existing:
-        # backfill UUID id for a legacy admin doc (local dev only)
-        await db.users.update_one({"_id": existing["_id"]}, {"$set": {"id": str(uuid.uuid4())}})
+    # Index creation is best-effort: on a large/imported production DB a unique index can fail
+    # (e.g. duplicate emails) — that must NOT crash startup and take the whole API down (520).
+    try:
+        await db.users.create_index("email", unique=True)
+    except Exception as e:
+        logger.warning(f"Could not create unique email index (falling back to non-unique): {e}")
+        try:
+            await db.users.create_index("email")
+        except Exception as e2:
+            logger.warning(f"Could not create email index at all: {e2}")
+    for idx in (("otp_verifications", "email", {"unique": True}),
+                ("otp_verifications", "expiresAt", {"expireAfterSeconds": 0})):
+        coll, field, opts = idx
+        try:
+            await db[coll].create_index(field, **opts)
+        except Exception as e:
+            logger.warning(f"Could not create index {coll}.{field}: {e}")
+
+    # seed admin (create-only, NON-destructive). Never crash startup if envs are missing.
+    try:
+        admin_email = (os.environ.get("ADMIN_EMAIL") or "").lower()
+        admin_password = os.environ.get("ADMIN_PASSWORD") or ""
+        if admin_email and admin_password:
+            existing = await db.users.find_one({"email": admin_email})
+            if existing is None:
+                now_iso = datetime.now(timezone.utc).isoformat()
+                await db.users.insert_one({
+                    "id": str(uuid.uuid4()),
+                    "email": admin_email,
+                    "password_hash": hash_password(admin_password),
+                    "nickname": "Admin",
+                    "avatar_url": "https://api.dicebear.com/9.x/bottts/svg?seed=Admin",
+                    "role": "admin",
+                    "subscription": "plus",
+                    "email_verified": True,
+                    "created_at": now_iso,
+                    "last_active": now_iso,
+                })
+            elif "id" not in existing:
+                # backfill UUID id for a legacy admin doc
+                await db.users.update_one({"_id": existing["_id"]}, {"$set": {"id": str(uuid.uuid4())}})
+        else:
+            logger.warning("ADMIN_EMAIL/ADMIN_PASSWORD not set — skipping admin seed.")
+    except Exception as e:
+        logger.warning(f"Admin seed skipped due to error: {e}")
 
     # Demo seeding runs ONLY in local/dev (guarded by SEED_DEMO) so it never pollutes production.
     seed_demo = os.environ.get("SEED_DEMO", "false").lower() == "true"
