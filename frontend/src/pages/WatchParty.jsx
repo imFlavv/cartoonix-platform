@@ -119,13 +119,19 @@ const WatchParty = () => {
     }
   };
 
+  const [responding, setResponding] = useState(false);
   const respond = async (roomId, accept) => {
+    if (responding) return;
+    setResponding(true);
     try {
       await api.post(`/watchparty/${roomId}/respond`, { accept });
       toast.success(accept ? "Te-ai alăturat!" : "Invitație refuzată");
-      loadRoom();
+      await loadRoom();
     } catch (e) {
       toast.error(e.response?.data?.detail || "Eroare");
+      await loadRoom();
+    } finally {
+      setResponding(false);
     }
   };
 
@@ -248,8 +254,8 @@ const WatchParty = () => {
                         <p className="font-semibold text-sm truncate">{inv.owner_name} te-a invitat</p>
                         <p className="text-xs text-white/40">{inv.playlist_count} desene în listă</p>
                       </div>
-                      <button onClick={() => respond(inv.id, true)} className="px-3 py-1.5 rounded-lg bg-[#22c55e] text-black text-xs font-bold">Acceptă</button>
-                      <button onClick={() => respond(inv.id, false)} className="px-3 py-1.5 rounded-lg bg-white/10 text-xs font-bold">Refuză</button>
+                      <button onClick={() => respond(inv.id, true)} disabled={responding} className="px-3 py-1.5 rounded-lg bg-[#22c55e] text-black text-xs font-bold disabled:opacity-50">Acceptă</button>
+                      <button onClick={() => respond(inv.id, false)} disabled={responding} className="px-3 py-1.5 rounded-lg bg-white/10 text-xs font-bold disabled:opacity-50">Refuză</button>
                     </div>
                   ))}
                 </div>

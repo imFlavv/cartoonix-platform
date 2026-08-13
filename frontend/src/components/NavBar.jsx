@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api";
+import { toast } from "sonner";
 import { LOGO_TRANSPARENT, FACEBOOK_URL } from "@/data/constants";
 import { PlusIcon } from "@/components/PlusIcon";
 import {
@@ -45,9 +46,15 @@ export const NavBar = () => {
     try {
       await api.post(`/watchparty/${roomId}/respond`, { accept });
       loadNotifs();
-      if (accept) navigate("/watch-party");
+      if (accept) {
+        toast.success("Te-ai alăturat watch party-ului!");
+        navigate("/watch-party");
+      } else {
+        toast.success("Invitație refuzată");
+      }
     } catch (e) {
-      /* ignore */
+      toast.error(e.response?.data?.detail || "Invitația nu mai este disponibilă");
+      loadNotifs();
     }
   };
 

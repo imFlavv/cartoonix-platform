@@ -1915,23 +1915,56 @@ async def wp_invite(room_id: str, data: WPInvite, user: dict = Depends(get_curre
 async def wp_respond(room_id: str, data: WPRespond, user: dict = Depends(get_current_user)):
     uid = uid_of(user)
     room = await _wp_get_room(room_id)
-    inv = next((i for i in room.get("invited", []) if i["id"] == uid and i.get("status") == "pending"), None)
-    if not inv:
-        raise HTTPException(status_code=404, detail="Nicio invitație în așteptare")
     now = datetime.now(timezone.utc).isoformat()
+
+    # Always clear the invite notification for this user+room (so it can't be re-clicked)
+    async def _clear_notif():
+        await db.notifications.delete_many({"user_id": uid, "type": "watchparty_invite", "room_id": room_id})
+
+    # Idempotency guard: if the user is already a participant, they've already accepted.
+    if _wp_is_participant(room, uid):
+        await _clear_notif()
+        raise HTTPException(status_code=400, detail="Ai acceptat deja invitația.")
+
+    # Must have a pending invite; otherwise it's no longer available.
+    has_pending = any(i["id"] == uid and i.get("status") == "pending" for i in room.get("invited", []))
+    if not has_pending or room.get("status") != "active":
+        await _clear_notif()
+        raise HTTPException(status_code=400, detail="Invitația nu mai este disponibilă sau watch party-ul s-a încheiat.")
+
     if not data.accept:
-        await db.watchparties.update_one({"id": room_id, "invited.id": uid}, {"$set": {"invited.$.status": "declined"}})
+        await db.watchparties.update_one(
+            {"id": room_id},
+            {"$set": {"invited.$[e].status": "declined"}},
+            array_filters=[{"e.id": uid, "e.status": "pending"}],
+        )
+        await _clear_notif()
         return {"ok": True, "accepted": False}
-    if room.get("status") != "active":
-        raise HTTPException(status_code=400, detail="Watch party încheiat")
+
+    # Capacity pre-check (best-effort)
     others = [p for p in room["participants"] if p["id"] != room["owner_id"]]
     if len(others) >= room["max_others"]:
+        await _clear_notif()
         raise HTTPException(status_code=400, detail="Camera este plină")
-    await db.watchparties.update_one(
-        {"id": room_id, "invited.id": uid},
-        {"$set": {"invited.$.status": "accepted"},
-         "$push": {"participants": {"id": uid, "name": user_name(user), "avatar": user_avatar(user), "joined_at": now}}},
+
+    # Atomic accept: only matches if still active, has a pending invite, and user is NOT already a participant.
+    res = await db.watchparties.update_one(
+        {
+            "id": room_id,
+            "status": "active",
+            "invited": {"$elemMatch": {"id": uid, "status": "pending"}},
+            "participants.id": {"$ne": uid},
+        },
+        {
+            "$set": {"invited.$[e].status": "accepted"},
+            "$push": {"participants": {"id": uid, "name": user_name(user), "avatar": user_avatar(user), "joined_at": now}},
+        },
+        array_filters=[{"e.id": uid, "e.status": "pending"}],
     )
+    await _clear_notif()
+    if res.modified_count == 0:
+        # Someone/something already handled it (concurrent accept, room ended, etc.)
+        raise HTTPException(status_code=400, detail="Ai acceptat deja invitația sau watch party-ul nu mai e disponibil.")
     room = await _wp_get_room(room_id)
     return _wp_serialize(room, uid)
 
