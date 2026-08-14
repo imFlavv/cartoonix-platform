@@ -26,7 +26,7 @@ const Watch = () => {
   }, [id]);
 
   const episode = show?.episodes?.find((e) => e.number === epNumber);
-  const locked = !user?.plus && epNumber > 2;
+  const locked = false;
   const next = show?.episodes?.find((e) => e.number === epNumber + 1);
   const fav = show ? isFavorite(show.id, epNumber) : false;
 

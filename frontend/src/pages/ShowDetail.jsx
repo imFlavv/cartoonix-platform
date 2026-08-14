@@ -87,7 +87,7 @@ const ShowDetail = () => {
   };
 
   const renderEpisodeRow = (ep, displayNo) => {
-    const locked = !user?.plus && ep.number > 2;
+    const locked = false;
     const fav = isFavorite(show.id, ep.number);
     const prog = progress[String(ep.number)];
     const watched = prog?.completed;

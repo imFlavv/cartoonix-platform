@@ -22,6 +22,8 @@ export const AdminTickets = () => {
   const [selected, setSelected] = useState(null);
   const [replyText, setReplyText] = useState("");
   const [busy, setBusy] = useState(false);
+  const [page, setPage] = useState(1);
+  const PER_PAGE = 10;
 
   const load = async (f = filter) => {
     try {
@@ -36,7 +38,12 @@ export const AdminTickets = () => {
     }
   };
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [filter]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); }, [filter]);
+  useEffect(() => { setPage(1); }, [filter]);
+
+  const totalPages = Math.max(1, Math.ceil(tickets.length / PER_PAGE));
+  const pageTickets = tickets.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
   const reply = async () => {
     if (!replyText.trim() || !selected) return;
@@ -87,7 +94,7 @@ export const AdminTickets = () => {
         </div>
         <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
           {tickets.length === 0 && <p className="text-white/40 text-sm py-6 text-center">Nicio solicitare.</p>}
-          {tickets.map((t) => {
+          {pageTickets.map((t) => {
             const m = STATUS_META[t.status] || STATUS_META.open;
             return (
               <button
@@ -105,6 +112,27 @@ export const AdminTickets = () => {
             );
           })}
         </div>
+        {tickets.length > PER_PAGE && (
+          <div className="flex items-center justify-between mt-3" data-testid="admin-tickets-pagination">
+            <button
+              data-testid="admin-tickets-prev"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="text-xs font-semibold px-3 py-1.5 rounded-full border border-white/15 text-white/70 hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              ← Înapoi
+            </button>
+            <span className="text-xs text-white/50">Pagina {page} din {totalPages}</span>
+            <button
+              data-testid="admin-tickets-next"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="text-xs font-semibold px-3 py-1.5 rounded-full border border-white/15 text-white/70 hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Înainte →
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Detail */}

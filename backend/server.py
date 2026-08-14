@@ -2259,6 +2259,14 @@ async def admin_delete_message(msg_id: str, admin: dict = Depends(require_admin)
     return {"ok": True}
 
 
+@api_router.delete("/admin/chat/clear")
+async def admin_clear_chat(room: str = "global", admin: dict = Depends(require_admin)):
+    if room not in ("global", "plus"):
+        room = "global"
+    res = await db.chat_messages.delete_many({"room": room})
+    return {"ok": True, "deleted": res.deleted_count, "room": room}
+
+
 @api_router.get("/admin/chat/messages")
 async def admin_recent_messages(room: str = "global", admin: dict = Depends(require_admin)):
     if room not in ("global", "plus"):

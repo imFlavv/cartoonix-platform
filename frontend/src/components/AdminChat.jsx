@@ -60,6 +60,14 @@ export function AdminChat() {
     try { await api.delete(`/admin/chat/message/${m.id}`); loadRecent(room); }
     catch (err) { toast.error(err.response?.data?.detail || "Eroare"); }
   };
+  const clearChat = async () => {
+    if (!window.confirm(`Sigur vrei să ștergi TOATE mesajele din camera ${room.toUpperCase()}? Acțiunea este ireversibilă.`)) return;
+    try {
+      const { data } = await api.delete("/admin/chat/clear", { params: { room } });
+      toast.success(`${data.deleted} mesaje șterse din camera ${room.toUpperCase()}`);
+      loadRecent(room);
+    } catch (err) { toast.error(err.response?.data?.detail || "Eroare la ștergerea chat-ului"); }
+  };
 
   const fmtMuted = (iso) => {
     if (!iso) return "";
@@ -155,11 +163,15 @@ export function AdminChat() {
       <div className="lg:col-span-2 bg-[#0f0f0f] border border-white/10 rounded-2xl p-6">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <h2 className="font-display text-2xl flex items-center gap-2"><MessageSquare className="h-5 w-5 text-[#ffcc00]" /> Mesaje recente</h2>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
             {["global", "plus"].map((r) => (
               <button key={r} data-testid={`recent-room-${r}`} onClick={() => setRoom(r)}
                 className={`px-4 py-1.5 rounded-full text-xs font-bold capitalize ${room === r ? "bg-[#ec1c24] text-white" : "bg-white/10 text-white/60 hover:bg-white/20"}`}>{r}</button>
             ))}
+            <button data-testid="clear-chat-btn" onClick={clearChat}
+              className="ml-1 px-4 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 bg-red-500/15 text-red-300 border border-red-400/40 hover:bg-red-500/25 transition-colors duration-200">
+              <Trash2 className="h-3.5 w-3.5" /> Clear Chat
+            </button>
           </div>
         </div>
         <div className="space-y-1.5 max-h-[400px] overflow-y-auto pr-1">
