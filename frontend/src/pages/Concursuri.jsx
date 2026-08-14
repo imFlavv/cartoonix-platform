@@ -8,7 +8,7 @@ const Concursuri = () => {
       <div className="pt-16 min-h-screen relative flex items-center justify-center">
         <div
           className="absolute inset-0 top-16 bg-center bg-cover"
-          style={{ backgroundImage: 'url("/concursuri-card2.png")' }}
+          style={{ backgroundImage: 'url("/concursuri-card2.webp")' }}
         />
         <div className="absolute inset-0 top-16 bg-gradient-to-b from-black/50 via-black/25 to-black/75" />
         <div className="relative z-10 text-center px-4">

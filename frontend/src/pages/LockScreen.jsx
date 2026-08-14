@@ -9,7 +9,7 @@ const LockScreen = () => {
       {/* Background room image */}
       <div
         className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: "url('/lock-bg.png')" }}
+        style={{ backgroundImage: "url('/lock-bg.webp')" }}
       />
       {/* Dark gradient overlay for readability */}
       <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/60 to-black/85" />

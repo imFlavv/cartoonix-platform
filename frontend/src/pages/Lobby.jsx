@@ -22,11 +22,11 @@ const IMG = {
   announcements: "https://customer-assets-agu9un31.emergentagent.net/job_cartoon-redesign/artifacts/nx3w6e5h_ChatGPT%20Image%20Jul%2029%2C%202026%2C%2001_56_56%20AM.png",
   cartoonixland: "https://customer-assets-agu9un31.emergentagent.net/job_cartoon-redesign/artifacts/fr8dlxsa_ChatGPT%20Image%20Jul%2029%2C%202026%2C%2001_57_54%20AM.png",
   suggestions: "https://customer-assets-agu9un31.emergentagent.net/job_cartoon-redesign/artifacts/avepv8cx_ChatGPT%20Image%20Jul%2029%2C%202026%2C%2001_58_56%20AM.png",
-  soon: "/soon-card.png",
-  rewards: "/rewards-bg.png",
-  clasament: "/clasament-card.png",
-  watchparty: "/watchparty-card.png",
-  concursuri: "/concursuri-card2.png",
+  soon: "/soon-card.webp",
+  rewards: "/rewards-bg.webp",
+  clasament: "/clasament-card.webp",
+  watchparty: "/watchparty-card.webp",
+  concursuri: "/concursuri-card2.webp",
 };
 
 /**
@@ -198,7 +198,7 @@ const Lobby = () => {
       <div
         className="fixed inset-0 z-0 pointer-events-none"
         style={{
-          backgroundImage: 'url("/lobby-bg.png")',
+          backgroundImage: 'url("/lobby-bg.webp")',
           backgroundSize: "cover",
           backgroundPosition: "center",
           backgroundRepeat: "no-repeat",

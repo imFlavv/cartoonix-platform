@@ -22,6 +22,7 @@ export const AdminShowEditor = ({ show, open, onOpenChange, onSaved }) => {
         channel: show.channel || CHANNELS[0],
         year: show.year || "",
         genres: (show.genres || []).join(", "),
+        thumbnail: show.thumbnail || "",
         vps_path: show.vps_path || "",
         episodes: (show.episodes || []).map((e) => ({ ...e })),
       });
@@ -116,6 +117,7 @@ export const AdminShowEditor = ({ show, open, onOpenChange, onSaved }) => {
         channel: form.channel,
         year: form.year,
         genres: form.genres.split(",").map((g) => g.trim()).filter(Boolean),
+        thumbnail: form.thumbnail,
         vps_path: form.vps_path,
         episodes: form.episodes,
       });
@@ -153,6 +155,21 @@ export const AdminShowEditor = ({ show, open, onOpenChange, onSaved }) => {
             <input placeholder="An" value={form.year} onChange={(e) => set("year", e.target.value)} className={inputCls} />
           </div>
           <input placeholder="Genuri (virgulă)" value={form.genres} onChange={(e) => set("genres", e.target.value)} className={inputCls} />
+
+          {/* Poster / imagine desen */}
+          <div className="flex gap-3 items-start">
+            <div className="shrink-0">
+              {form.thumbnail ? (
+                <img src={form.thumbnail} alt="poster" className="h-24 w-16 object-cover rounded-lg border border-white/10" onError={(e) => { e.currentTarget.style.opacity = 0.2; }} />
+              ) : (
+                <div className="h-24 w-16 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-[10px] text-white/30 text-center px-1">fără poster</div>
+              )}
+            </div>
+            <div className="flex-1">
+              <label className="text-xs text-white/50 mb-1 block">Poster (URL imagine) — apare pe pagina principală și în zona de desene</label>
+              <input placeholder="https://... sau /api/uploads/..." value={form.thumbnail} onChange={(e) => set("thumbnail", e.target.value)} className={inputCls} />
+            </div>
+          </div>
 
           <div className="flex gap-2">
             <input placeholder="Path folder VPS (ex: /media/videos/ATOM sau ATOM)" value={form.vps_path} onChange={(e) => set("vps_path", e.target.value)} className={inputCls} />

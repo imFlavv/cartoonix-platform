@@ -9,7 +9,7 @@ const Cinema = () => {
         {/* Attached illustration as background */}
         <div
           className="absolute inset-0 top-16 bg-center bg-cover"
-          style={{ backgroundImage: 'url("/cinema-bg.png")' }}
+          style={{ backgroundImage: 'url("/cinema-bg.webp")' }}
         />
         <div className="absolute inset-0 top-16 bg-gradient-to-b from-black/50 via-black/20 to-black/70" />
 

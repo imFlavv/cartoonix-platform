@@ -1,5 +1,5 @@
-export const LOGO = "/cartoonix-logo.png";
-export const LOGO_TRANSPARENT = "/cartoonix-logo.png";
+export const LOGO = "/cartoonix-logo.webp";
+export const LOGO_TRANSPARENT = "/cartoonix-logo.webp";
 
 export const AVATAR_SEEDS = [
   "/avatars/boy.png",
