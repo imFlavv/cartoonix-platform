@@ -28,7 +28,23 @@ export const NavBar = () => {
   const location = useLocation();
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
+  const [allShows, setAllShows] = useState([]);
+  const [searchFocused, setSearchFocused] = useState(false);
   const [notifs, setNotifs] = useState({ items: [], unread: 0 });
+
+  const ensureShows = () => {
+    if (allShows.length === 0) {
+      api.get("/shows").then((r) => setAllShows(r.data || [])).catch(() => {});
+    }
+  };
+  const searchResults = query.trim()
+    ? allShows.filter((s) => (s.title || "").toLowerCase().includes(query.trim().toLowerCase())).slice(0, 6)
+    : [];
+  const goToShow = (id) => {
+    setQuery("");
+    setSearchFocused(false);
+    navigate(`/show/${id}`);
+  };
 
   const loadNotifs = useCallback(() => {
     if (!user) return;
@@ -86,16 +102,46 @@ export const NavBar = () => {
         <div className="hidden sm:block h-7 w-px bg-white/10 mx-1" />
 
         {/* Search (flat, no box) */}
-        <form onSubmit={submitSearch} className="hidden sm:flex items-center gap-2">
-          <Search className="h-4 w-4 text-white/40 shrink-0" />
-          <input
-            data-testid="nav-search-input"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Caută..."
-            className="w-24 md:w-40 bg-transparent text-sm text-white placeholder:text-white/40 focus:outline-none focus:w-52 transition-all duration-300"
-          />
-        </form>
+        <div className="relative hidden sm:block">
+          <form onSubmit={submitSearch} className="flex items-center gap-2">
+            <Search className="h-4 w-4 text-white/40 shrink-0" />
+            <input
+              data-testid="nav-search-input"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onFocus={() => { ensureShows(); setSearchFocused(true); }}
+              onBlur={() => setTimeout(() => setSearchFocused(false), 180)}
+              placeholder="Caută..."
+              className="w-24 md:w-40 bg-transparent text-sm text-white placeholder:text-white/40 focus:outline-none focus:w-52 transition-all duration-300"
+            />
+          </form>
+          {searchFocused && query.trim() && (
+            <div data-testid="nav-search-results" className="absolute top-full mt-2 right-0 w-72 bg-[#141414] border border-white/10 rounded-xl shadow-2xl overflow-hidden z-[60]">
+              {searchResults.length === 0 ? (
+                <p className="px-4 py-3 text-sm text-white/40">Niciun desen găsit</p>
+              ) : (
+                searchResults.map((s) => (
+                  <button
+                    key={s.id}
+                    data-testid={`nav-search-result-${s.id}`}
+                    onMouseDown={(e) => { e.preventDefault(); goToShow(s.id); }}
+                    className="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/10 transition-colors duration-150 text-left"
+                  >
+                    {s.thumbnail ? (
+                      <img src={s.thumbnail} alt="" className="h-11 w-8 object-cover rounded shrink-0" />
+                    ) : (
+                      <div className="h-11 w-8 rounded bg-white/10 shrink-0" />
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold truncate">{s.title}</p>
+                      <p className="text-xs text-white/40 truncate">{s.channel}{s.episodes ? ` · ${s.episodes.length} ep.` : ""}</p>
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+        </div>
 
         {/* Category pills (flat, centered) */}
         <nav className="hidden lg:flex items-center gap-1 mx-auto">

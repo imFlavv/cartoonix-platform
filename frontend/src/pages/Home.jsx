@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { api } from "@/lib/api";
 import { NavBar } from "@/components/NavBar";
 import { HeroBanner } from "@/components/HeroBanner";
@@ -19,21 +19,31 @@ const Home = () => {
     });
   }, []);
 
+  // Hero: max 5 shows, randomized once per page load
+  const heroShows = useMemo(() => {
+    const arr = [...shows];
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr.slice(0, 5);
+  }, [shows]);
+
   // rotating hero (Netflix style)
   useEffect(() => {
-    if (shows.length < 2) return;
+    if (heroShows.length < 2) return;
     const t = setInterval(() => {
-      setHeroIndex((i) => (i + 1) % shows.length);
+      setHeroIndex((i) => (i + 1) % heroShows.length);
     }, 6000);
     return () => clearInterval(t);
-  }, [shows.length]);
+  }, [heroShows.length]);
 
   // Ultimele adaugate: sorted by created_at desc
   const latest = [...shows].sort((a, b) =>
     (b.created_at || "").localeCompare(a.created_at || "")
   );
 
-  const featured = shows[heroIndex];
+  const featured = heroShows[heroIndex];
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white overflow-x-hidden">
@@ -46,9 +56,9 @@ const Home = () => {
           <div className="relative">
             <HeroBanner key={featured?.id} show={featured} />
             {/* hero indicators */}
-            {shows.length > 1 && (
+            {heroShows.length > 1 && (
               <div className="absolute bottom-6 right-6 md:right-12 z-20 flex gap-2">
-                {shows.map((s, i) => (
+                {heroShows.map((s, i) => (
                   <button
                     key={s.id}
                     data-testid={`hero-dot-${i}`}
