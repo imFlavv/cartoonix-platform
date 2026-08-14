@@ -50,10 +50,13 @@ export const CHANNELS = ["Cartoon Network", "Jetix", "Minimax", "Boomerang"];
 export const PLUS_ICON = "/plus-icon.png";
 
 export const FACEBOOK_URL = "https://www.facebook.com/cartoonixro";
+export const TIKTOK_URL = "https://www.tiktok.com/@cartoonixro";
+export const INSTAGRAM_URL = "https://www.instagram.com/cartoonixro";
+export const YOUTUBE_URL = "https://www.youtube.com/@CartoonixRO";
 
 export const SOCIALS = [
   { key: "facebook", url: "https://www.facebook.com/cartoonixro" },
-  { key: "instagram", url: "https://www.instagram.com" },
-  { key: "youtube", url: "https://www.youtube.com" },
-  { key: "tiktok", url: "https://www.tiktok.com" },
+  { key: "instagram", url: "https://www.instagram.com/cartoonixro" },
+  { key: "youtube", url: "https://www.youtube.com/@CartoonixRO" },
+  { key: "tiktok", url: "https://www.tiktok.com/@cartoonixro" },
 ];

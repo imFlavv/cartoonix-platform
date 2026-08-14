@@ -6,6 +6,7 @@ import { ContentCarousel } from "@/components/ContentCarousel";
 import { LOGO_TRANSPARENT, CHANNELS } from "@/data/constants";
 import { OnlineCounter } from "@/components/OnlineCounter";
 import { AnnouncementBar } from "@/components/AnnouncementBar";
+import PromoPopup from "@/components/PromoPopup";
 
 const Home = () => {
   const [shows, setShows] = useState([]);
@@ -48,6 +49,7 @@ const Home = () => {
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white overflow-x-hidden">
       <NavBar />
+      <PromoPopup />
       <AnnouncementBar />
       {loading ? (
         <div className="h-screen flex items-center justify-center text-white/40">Se încarcă...</div>

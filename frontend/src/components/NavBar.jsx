@@ -8,7 +8,7 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-import { LOGO_TRANSPARENT, FACEBOOK_URL } from "@/data/constants";
+import { LOGO_TRANSPARENT, FACEBOOK_URL, TIKTOK_URL, INSTAGRAM_URL, YOUTUBE_URL } from "@/data/constants";
 import { PlusIcon } from "@/components/PlusIcon";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
@@ -184,9 +184,9 @@ export const NavBar = () => {
               </a>
               <div className="border-t border-white/10 mt-2 pt-3 flex items-center justify-around">
                 <a href={FACEBOOK_URL} target="_blank" rel="noreferrer" className={iconBtn} aria-label="Facebook"><Facebook className="h-4 w-4" /></a>
-                <a href="https://youtube.com" target="_blank" rel="noreferrer" className={iconBtn} aria-label="YouTube"><Youtube className="h-4 w-4" /></a>
-                <a href="https://instagram.com" target="_blank" rel="noreferrer" className={iconBtn} aria-label="Instagram"><Instagram className="h-4 w-4" /></a>
-                <a href="https://tiktok.com" target="_blank" rel="noreferrer" className={iconBtn} aria-label="TikTok"><Music2 className="h-4 w-4" /></a>
+                <a href={YOUTUBE_URL} target="_blank" rel="noreferrer" className={iconBtn} aria-label="YouTube"><Youtube className="h-4 w-4" /></a>
+                <a href={INSTAGRAM_URL} target="_blank" rel="noreferrer" className={iconBtn} aria-label="Instagram"><Instagram className="h-4 w-4" /></a>
+                <a href={TIKTOK_URL} target="_blank" rel="noreferrer" className={iconBtn} aria-label="TikTok"><Music2 className="h-4 w-4" /></a>
               </div>
             </PopoverContent>
           </Popover>

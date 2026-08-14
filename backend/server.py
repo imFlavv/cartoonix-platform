@@ -2088,6 +2088,43 @@ async def wp_end(room_id: str, user: dict = Depends(get_current_user)):
 
 
 
+# ---------- promo popup (editable from admin) ----------
+class PromoPopupInput(BaseModel):
+    enabled: bool = False
+    title: Optional[str] = ""
+    message: Optional[str] = ""
+    price_old: Optional[str] = ""
+    price_new: Optional[str] = ""
+    cta_label: Optional[str] = ""
+    cta_link: Optional[str] = ""
+
+
+PROMO_DEFAULT = {
+    "enabled": False,
+    "title": "Ofertă PLUS – acces și la aplicația TV!",
+    "message": "Abonează-te acum la Cartoonix PLUS și primești GRATUIT acces și la aplicația de TV! Plată unică, o singură dată.",
+    "price_old": "80 RON",
+    "price_new": "50 RON",
+    "cta_label": "Vreau PLUS",
+    "cta_link": "/plus",
+}
+
+
+@api_router.get("/settings/promo-popup")
+async def get_promo_popup():
+    s = await db.settings.find_one({"key": "promo_popup"})
+    if not s:
+        return PROMO_DEFAULT
+    return {k: s.get(k, PROMO_DEFAULT.get(k)) for k in PROMO_DEFAULT}
+
+
+@api_router.post("/admin/promo-popup")
+async def set_promo_popup(data: PromoPopupInput, admin: dict = Depends(require_admin)):
+    payload = {"key": "promo_popup", **data.model_dump(), "updated_at": datetime.now(timezone.utc).isoformat()}
+    await db.settings.update_one({"key": "promo_popup"}, {"$set": payload}, upsert=True)
+    return {k: data.model_dump().get(k) for k in PROMO_DEFAULT}
+
+
 # ---------- maintenance ----------
 class MaintenanceInput(BaseModel):
     enabled: bool

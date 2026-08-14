@@ -33,6 +33,8 @@ const Admin = () => {
   const [editingShow, setEditingShow] = useState(null);
   const [maintenance, setMaintenance] = useState(false);
   const [avatarFrames, setAvatarFrames] = useState(true);
+  const [promo, setPromo] = useState({ enabled: false, title: "", message: "", price_old: "", price_new: "", cta_label: "", cta_link: "/plus" });
+  const [savingPromo, setSavingPromo] = useState(false);
 
   const load = () => api.get("/shows").then((res) => setShows(res.data));
   const loadSuggestions = () => api.get("/admin/suggestions").then((res) => setSuggestions(res.data)).catch(() => {});
@@ -41,7 +43,23 @@ const Admin = () => {
     loadSuggestions();
     api.get("/settings/maintenance").then((res) => setMaintenance(res.data.enabled)).catch(() => {});
     api.get("/settings/ui").then((res) => setAvatarFrames(res.data.avatar_frames_enabled !== false)).catch(() => {});
+    api.get("/settings/promo-popup").then((res) => setPromo(res.data)).catch(() => {});
   }, []);
+
+  const savePromo = async (override) => {
+    const payload = { ...promo, ...(override || {}) };
+    setSavingPromo(true);
+    try {
+      await api.post("/admin/promo-popup", payload);
+      setPromo(payload);
+      toast.success("Popup salvat");
+    } catch {
+      toast.error("Eroare la salvarea popup-ului");
+    } finally {
+      setSavingPromo(false);
+    }
+  };
+  const setP = (k, v) => setPromo((p) => ({ ...p, [k]: v }));
 
   const toggleMaintenance = async (val) => {
     try {
@@ -351,6 +369,29 @@ const Admin = () => {
                     <p className={`text-xs ${avatarFrames ? "text-[#22c55e]" : "text-white/50"}`}>{avatarFrames ? "Vizibile - ramele decorative apar pe toată platforma" : "Ascunse - avatarele apar fără rame decorative"}</p>
                   </div>
                   <Switch data-testid="avatar-frames-toggle" checked={avatarFrames} onCheckedChange={toggleAvatarFrames} />
+                </div>
+              </div>
+
+              <div className="bg-[#0f0f0f] border border-white/10 rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-1">
+                  <h2 className="font-display text-2xl flex items-center gap-2"><ServerCog className="h-5 w-5 text-[#ffcc00]" /> Popup promoțional</h2>
+                  <Switch data-testid="promo-toggle" checked={!!promo.enabled} onCheckedChange={(v) => savePromo({ enabled: v })} />
+                </div>
+                <p className="text-sm text-white/50 mb-5">Apare pe pagina principală doar utilizatorilor care NU sunt PLUS. Comută switch-ul pentru a-l activa/dezactiva (dezactivat = șters de pe site).</p>
+                <div className="space-y-3">
+                  <input data-testid="promo-title" value={promo.title || ""} onChange={(e) => setP("title", e.target.value)} placeholder="Titlu" className={input} />
+                  <textarea value={promo.message || ""} onChange={(e) => setP("message", e.target.value)} placeholder="Mesaj (ex: abonează-te acum și primești gratuit aplicația TV...)" rows={3} className={`${input} resize-none`} />
+                  <div className="grid grid-cols-2 gap-3">
+                    <input data-testid="promo-price-old" value={promo.price_old || ""} onChange={(e) => setP("price_old", e.target.value)} placeholder="Preț vechi (ex: 80 RON)" className={input} />
+                    <input data-testid="promo-price-new" value={promo.price_new || ""} onChange={(e) => setP("price_new", e.target.value)} placeholder="Preț nou (ex: 50 RON)" className={input} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <input value={promo.cta_label || ""} onChange={(e) => setP("cta_label", e.target.value)} placeholder="Text buton (ex: Vreau PLUS)" className={input} />
+                    <input value={promo.cta_link || ""} onChange={(e) => setP("cta_link", e.target.value)} placeholder="Link buton (ex: /plus)" className={input} />
+                  </div>
+                  <button data-testid="promo-save" onClick={() => savePromo()} disabled={savingPromo} className="w-full py-2.5 rounded-lg bg-[#ffcc00] text-black font-bold hover:brightness-110 disabled:opacity-60">
+                    {savingPromo ? "Se salvează..." : "Salvează popup"}
+                  </button>
                 </div>
               </div>
             </div>
