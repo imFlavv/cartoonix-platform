@@ -10,14 +10,27 @@ const inputCls = "w-full px-4 py-2.5 rounded-lg bg-white/5 border border-white/1
 export const AdminMembers = () => {
   const [users, setUsers] = useState([]);
   const [q, setQ] = useState("");
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [stats, setStats] = useState({ total: 0, plus: 0, free: 0 });
   const [editing, setEditing] = useState(null);
   const [bannedIps, setBannedIps] = useState([]);
 
   const load = useCallback(() => {
-    api.get("/admin/users", { params: q ? { q } : {} }).then((res) => setUsers(res.data)).catch(() => {});
-  }, [q]);
+    api.get("/admin/users", { params: { ...(q ? { q } : {}), page, per_page: 20 } })
+      .then((res) => {
+        const d = res.data;
+        setUsers(d.users || []);
+        setPages(d.pages || 1);
+        setTotal(d.total || 0);
+        if (d.stats) setStats(d.stats);
+      })
+      .catch(() => {});
+  }, [q, page]);
   const loadIps = () => api.get("/admin/banned-ips").then((res) => setBannedIps(res.data)).catch(() => {});
 
+  useEffect(() => { setPage(1); }, [q]);
   useEffect(() => { load(); }, [load]);
   useEffect(() => { loadIps(); }, []);
 
@@ -53,6 +66,22 @@ export const AdminMembers = () => {
 
   return (
     <div>
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-3 mb-5">
+        <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+          <p className="text-xs text-white/50 uppercase tracking-wide">Total utilizatori</p>
+          <p data-testid="stat-total" className="font-display text-3xl mt-1">{stats.total.toLocaleString("ro-RO")}</p>
+        </div>
+        <div className="rounded-xl border border-[#ffcc00]/30 bg-[#ffcc00]/10 p-4">
+          <p className="text-xs text-[#ffcc00] uppercase tracking-wide flex items-center gap-1"><PlusIcon className="h-3.5 w-3.5" /> PLUS</p>
+          <p data-testid="stat-plus" className="font-display text-3xl mt-1 text-[#ffcc00]">{stats.plus.toLocaleString("ro-RO")}</p>
+        </div>
+        <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+          <p className="text-xs text-white/50 uppercase tracking-wide">FREE</p>
+          <p data-testid="stat-free" className="font-display text-3xl mt-1">{stats.free.toLocaleString("ro-RO")}</p>
+        </div>
+      </div>
+
       <div className="relative mb-4 max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
         <input data-testid="members-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Caută după nume sau email..." className={`${inputCls} pl-9`} />
@@ -104,6 +133,31 @@ export const AdminMembers = () => {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Pagination */}
+      <div className="flex items-center justify-between mt-4 text-sm">
+        <p className="text-white/50">
+          {total.toLocaleString("ro-RO")} rezultate · pagina {page} din {pages}
+        </p>
+        <div className="flex items-center gap-2">
+          <button
+            data-testid="members-prev"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page <= 1}
+            className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-40 font-semibold"
+          >
+            ← Înapoi
+          </button>
+          <button
+            data-testid="members-next"
+            onClick={() => setPage((p) => Math.min(pages, p + 1))}
+            disabled={page >= pages}
+            className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-40 font-semibold"
+          >
+            Înainte →
+          </button>
+        </div>
       </div>
 
       {/* banned IPs */}

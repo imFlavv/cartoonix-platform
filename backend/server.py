@@ -1349,7 +1349,7 @@ class BanIpInput(BaseModel):
 
 
 @api_router.get("/admin/users")
-async def admin_list_users(q: Optional[str] = None, admin: dict = Depends(require_admin)):
+async def admin_list_users(q: Optional[str] = None, page: int = 1, per_page: int = 20, admin: dict = Depends(require_admin)):
     query = {}
     if q:
         query = {"$or": [
@@ -1357,8 +1357,22 @@ async def admin_list_users(q: Optional[str] = None, admin: dict = Depends(requir
             {"nickname": {"$regex": q, "$options": "i"}},
             {"name": {"$regex": q, "$options": "i"}},
         ]}
-    users = await db.users.find(query).sort("created_at", -1).to_list(1000)
-    return [serialize_user(u) for u in users]
+    per_page = max(1, min(per_page, 100))
+    page = max(1, page)
+    total = await db.users.count_documents(query)
+    skip = (page - 1) * per_page
+    users = await db.users.find(query).sort("created_at", -1).skip(skip).limit(per_page).to_list(per_page)
+    total_all = await db.users.count_documents({})
+    plus = await db.users.count_documents({"$or": [{"subscription": "plus"}, {"plus": True}]})
+    free = total_all - plus
+    return {
+        "users": [serialize_user(u) for u in users],
+        "total": total,
+        "page": page,
+        "pages": max(1, (total + per_page - 1) // per_page),
+        "per_page": per_page,
+        "stats": {"total": total_all, "plus": plus, "free": free},
+    }
 
 
 @api_router.put("/admin/users/{uid}")
