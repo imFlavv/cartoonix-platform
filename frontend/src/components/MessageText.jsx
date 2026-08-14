@@ -2,7 +2,7 @@ import { EMOTICON_SET, emoticonUrl } from "@/data/emoticons";
 
 // Renders chat text, replacing :name: shortcodes with emoticon images
 export const MessageText = ({ text }) => {
-  const parts = text.split(/(:[a-z0-9_]+:)/gi);
+  const parts = String(text ?? "").split(/(:[a-z0-9_]+:)/gi);
   return (
     <span className="inline">
       {parts.map((p, i) => {

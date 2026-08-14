@@ -294,6 +294,21 @@ frontend:
         -agent: "main"
         -comment: "Command messages render centered without avatar/name — only the highlighted framed content with icon. Added helper button (HelpCircle) visible to admins that toggles a palette of the 5 commands. Placeholder text also hints commands to admins."
 
+  - task: "Bug fix: Chat page crash with 'Cannot read properties of undefined (reading 'split')' in MessageText.jsx"
+    implemented: true
+    working: true
+    file: "frontend/src/components/MessageText.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "CRITICAL BUG FIX - Chat page was crashing with blank screen due to 'Uncaught TypeError: Cannot read properties of undefined (reading 'split')' in MessageText.jsx. Fixed by changing line 5 from text.split() to String(text ?? '').split() to safely handle null/undefined text values before calling .split(). This prevents the crash when messages have null or undefined text fields."
+        -working: true
+        -agent: "testing"
+        -comment: "✅ BUG FIX VERIFIED - ALL TESTS PASSED (5/5). The critical chat crash bug has been successfully fixed. Test results: (1) Login successful with admin@cartoonix.ro/admin1234. (2) Chat page at /lobby/chat renders correctly - page title 'Chat', room tabs (Global/PLUS), and chat input all visible. NO BLANK SCREEN observed. (3) CRITICAL: NO 'Cannot read properties of undefined (reading 'split')' error found in console - the fix String(text ?? '') in MessageText.jsx line 5 is working correctly. (4) Existing messages displayed correctly - found 2 messages (1 regular + 1 command message) rendering without errors. (5) Send message functionality works - test message sent successfully and appeared in chat immediately. Minor console warnings: 3 React warnings about empty src attributes (NOT critical, do not affect functionality). Screenshots captured showing chat page fully functional with messages visible. The MessageText.jsx fix successfully prevents the crash and chat is fully operational."
+
 metadata:
   created_by: "main_agent"
   version: "1.0"
@@ -455,3 +470,9 @@ agent_communication:
     -message: "NEW TESTING REQUEST: Verify the Cartoonix login endpoint robustness after a fix. Test cases: (1) NORMAL login regression for admin@cartoonix.ro/admin1234 and test@cartoonix.ro/test1234 -> 200 with token and user. (2) PHP-style bcrypt hash compatibility: user legacy2y@test.ro (password_hash starts with $2y$) with password 'parola123' -> 200 (backend normalizes $2y$ to $2b$), wrong password -> 401 (NOT 500). (3) Missing password_hash field: user nohash@test.ro (no password_hash field) with any password -> 401 (NOT 500, no server crash). (4) Wrong password for admin -> 401. (5) Non-existent email -> 401. Confirm backend health (GET /api/shows returns 200). Report pass/fail with observed status codes for each case. Do NOT modify credentials."
     -agent: "testing"
     -message: "✅ LOGIN ENDPOINT ROBUSTNESS TESTING COMPLETE - ALL TESTS PASSED (8/8). The login endpoint is now fully robust and handles all edge cases correctly. Key findings: (1) Normal login regression: Both admin and test user logins work correctly (200 with token and user object). (2) PHP bcrypt compatibility: The backend correctly normalizes $2y$ hashes to $2b$ for python-bcrypt compatibility. User legacy2y@test.ro can login with correct password (200), wrong password returns 401 (NOT 500). (3) Missing password_hash handling: CRITICAL BUG FIXED - User nohash@test.ro (no password_hash field) now returns 401 with clean error message instead of crashing with 500/KeyError. The fix was to change line 493 in server.py from user['password_hash'] to get_stored_hash(user). (4) Wrong password validation: Works correctly (401). (5) Non-existent email: Works correctly (401). Backend health: GET /api/shows returns 200. All login scenarios are working correctly with proper error handling and no server crashes."
+
+agent_communication:
+    -agent: "main"
+    -message: "BUG FIX VERIFICATION REQUEST: Test the Cartoonix chat page after a bug fix. The critical bug was: 'Uncaught TypeError: Cannot read properties of undefined (reading 'split')' in MessageText.jsx that caused the chat page to crash with a blank screen. Fix applied: MessageText.jsx line 5 now uses String(text ?? '') to safely handle null/undefined text values before calling .split(). Test steps: (1) Login at /login with admin@cartoonix.ro/admin1234 (wait for splash screen, click 'Conectează-te' if needed, use data-testid selectors). (2) Navigate to /lobby/chat. (3) Verify page renders WITHOUT blank screen and WITHOUT console error containing 'Cannot read properties of undefined (reading 'split')'. (4) Verify existing messages are displayed. (5) Send a new test message and verify it appears. (6) Report all console errors observed."
+    -agent: "testing"
+    -message: "✅ CHAT BUG FIX VERIFICATION COMPLETE - ALL TESTS PASSED (5/5). The critical bug has been successfully fixed. Test results: (1) Login successful - Admin login worked correctly, redirected to /home. (2) Chat page rendered correctly - Page title 'Chat', room tabs (Global/PLUS), and chat input all present and visible. NO BLANK SCREEN. (3) NO 'split' error found - The critical error 'Cannot read properties of undefined (reading 'split')' was NOT present in console logs. The fix String(text ?? '') in MessageText.jsx line 5 is working correctly. (4) Existing messages displayed - Found 2 messages (1 regular message + 1 command message) rendering correctly. (5) Send message works - Successfully sent test message 'Test message from automated test - 391882.452659518' and it appeared in chat immediately. Console errors: Found 3 minor React warnings about empty string ('') passed to src attribute - these are NOT critical and do NOT affect functionality. Screenshots captured showing chat page rendering correctly with messages visible. BUG FIX VERIFIED: The MessageText.jsx fix prevents the crash and the chat page is fully functional."
