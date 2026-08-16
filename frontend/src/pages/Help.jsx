@@ -80,13 +80,6 @@ const TvSetup = () => (
             </div>
           </div>
         </li>
-
-        <li className="flex gap-3">
-          <span className="shrink-0 h-6 w-6 rounded-full bg-[#22c55e] text-white text-xs font-bold flex items-center justify-center">✓</span>
-          <div className="text-sm">
-            <span className="font-bold text-white">După ce te-ai autentificat cu succes, îți recomandăm să îți schimbi parola</span> dintr-un cont mai sigur, pe care doar tu îl știi.
-          </div>
-        </li>
       </ol>
     </div>
 
