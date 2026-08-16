@@ -16,7 +16,8 @@ UI language: Romanian only.
 ## Implemented (2026-06)
 - Legal & community pages (card layout, public routes, linked in Home footer):
   `/termeni` (Terms.jsx, text oficial complet), `/confidentialitate` (Privacy.jsx),
-  `/regulament` (Rules.jsx — Regulamentul Comunității, text oficial complet).
+  `/regulament` (Rules.jsx — Regulamentul Comunității, text oficial complet),
+  `/cookies` (Cookies.jsx — Politică Cookie-uri, text oficial complet).
 - Register: checkbox obligatoriu „Am citit Termenii și sunt de acord cu Regulamentul" cu linkuri;
   butonul Continuă e blocat până e bifat (`Register.jsx`).
 - Legal pages: `Terms.jsx` (/termeni) + `Privacy.jsx` (/confidentialitate), public routes (added to AuthGate PUBLIC_PATHS),

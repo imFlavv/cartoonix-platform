@@ -23,6 +23,7 @@ import Help from "@/pages/Help";
 import Terms from "@/pages/Terms";
 import Privacy from "@/pages/Privacy";
 import Rules from "@/pages/Rules";
+import Cookies from "@/pages/Cookies";
 import Lobby from "@/pages/Lobby";
 import ChatRoom from "@/pages/ChatRoom";
 import Announcements from "@/pages/Announcements";
@@ -87,6 +88,7 @@ function App() {
             <Route path="/termeni" element={<Terms />} />
             <Route path="/confidentialitate" element={<Privacy />} />
             <Route path="/regulament" element={<Rules />} />
+            <Route path="/cookies" element={<Cookies />} />
             <Route path="/support" element={<ProtectedRoute><MySupport /></ProtectedRoute>} />
             <Route path="/show/:id" element={<ShowDetail />} />
             <Route path="/watch/:id/:ep" element={<ProtectedRoute><Watch /></ProtectedRoute>} />
