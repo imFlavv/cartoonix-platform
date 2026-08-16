@@ -36,6 +36,7 @@ import Admin from "@/pages/Admin";
 import PaymentSuccess from "@/pages/PaymentSuccess";
 import PaymentCancel from "@/pages/PaymentCancel";
 import MySupport from "@/pages/MySupport";
+import TvAccount from "@/pages/TvAccount";
 
 function App() {
   const [showSplash, setShowSplash] = useState(() => !sessionStorage.getItem("cx_splash_seen"));
@@ -90,6 +91,7 @@ function App() {
             <Route path="/regulament" element={<Rules />} />
             <Route path="/cookies" element={<Cookies />} />
             <Route path="/support" element={<ProtectedRoute><MySupport /></ProtectedRoute>} />
+            <Route path="/cont-tv" element={<ProtectedRoute><TvAccount /></ProtectedRoute>} />
             <Route path="/show/:id" element={<ShowDetail />} />
             <Route path="/watch/:id/:ep" element={<ProtectedRoute><Watch /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />

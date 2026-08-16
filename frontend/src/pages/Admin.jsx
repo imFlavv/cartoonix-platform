@@ -3,7 +3,7 @@ import { NavBar } from "@/components/NavBar";
 import { api } from "@/lib/api";
 import { CHANNELS } from "@/data/constants";
 import { toast } from "sonner";
-import { FolderSearch, Plus, Film, Lightbulb, Users, Pencil, ChevronUp, ChevronDown, ServerCog, Inbox, ImageOff, MessagesSquare, Megaphone } from "lucide-react";
+import { FolderSearch, Plus, Film, Lightbulb, Users, Pencil, ChevronUp, ChevronDown, ServerCog, Inbox, ImageOff, MessagesSquare, Megaphone, RotateCcw } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { AdminMembers } from "@/components/AdminMembers";
@@ -35,6 +35,20 @@ const Admin = () => {
   const [avatarFrames, setAvatarFrames] = useState(true);
   const [promo, setPromo] = useState({ enabled: false, title: "", message: "", price_old: "", price_new: "", cta_label: "", cta_link: "/plus" });
   const [savingPromo, setSavingPromo] = useState(false);
+  const [resettingAvatars, setResettingAvatars] = useState(false);
+
+  const resetAvatars = async () => {
+    if (!window.confirm("Sigur vrei să resetezi avatarul TUTUROR utilizatorilor la cel default? Acțiunea este ireversibilă.")) return;
+    setResettingAvatars(true);
+    try {
+      const { data } = await api.post("/admin/reset-avatars");
+      toast.success(`${data.updated} avatare resetate la cel default`);
+    } catch {
+      toast.error("Eroare la resetarea avatarelor");
+    } finally {
+      setResettingAvatars(false);
+    }
+  };
 
   const load = () => api.get("/shows").then((res) => setShows(res.data));
   const loadSuggestions = () => api.get("/admin/suggestions").then((res) => setSuggestions(res.data)).catch(() => {});
@@ -369,6 +383,28 @@ const Admin = () => {
                     <p className={`text-xs ${avatarFrames ? "text-[#22c55e]" : "text-white/50"}`}>{avatarFrames ? "Vizibile - ramele decorative apar pe toată platforma" : "Ascunse - avatarele apar fără rame decorative"}</p>
                   </div>
                   <Switch data-testid="avatar-frames-toggle" checked={avatarFrames} onCheckedChange={toggleAvatarFrames} />
+                </div>
+              </div>
+
+              <div className="bg-[#0f0f0f] border border-white/10 rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-1">
+                  <h2 className="font-display text-2xl flex items-center gap-2"><RotateCcw className="h-5 w-5 text-[#ffcc00]" /> Resetare avatare</h2>
+                </div>
+                <p className="text-sm text-white/50 mb-5">Resetează avatarul <b>tuturor</b> utilizatorilor la imaginea default (silueta generică). Fiecare utilizator își poate schimba apoi avatarul din nou din profil.</p>
+                <div className="flex items-center gap-4 p-4 rounded-xl bg-white/5">
+                  <img src="/avatars/default-user.jpg" alt="avatar default" className="h-12 w-12 rounded-full object-cover bg-white/10 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold">Avatar global (default)</p>
+                    <p className="text-xs text-white/50">Se aplică la toți utilizatorii deodată.</p>
+                  </div>
+                  <button
+                    data-testid="reset-avatars-btn"
+                    onClick={resetAvatars}
+                    disabled={resettingAvatars}
+                    className="shrink-0 px-5 py-2.5 rounded-lg bg-[#ec1c24] text-white font-bold hover:bg-[#ff2d36] transition-colors duration-200 disabled:opacity-60 flex items-center gap-2"
+                  >
+                    <RotateCcw className="h-4 w-4" /> {resettingAvatars ? "Se resetează..." : "Resetează global"}
+                  </button>
                 </div>
               </div>
 

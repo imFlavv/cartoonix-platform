@@ -14,6 +14,13 @@ UI language: Romanian only.
 - Media: `GET /api/media/videos/{path}` range streaming from VIDEO_DIR.
 
 ## Implemented (2026-06)
+- Admin: global avatar reset button (Platformă tab) → `POST /api/admin/reset-avatars` sets all users'
+  avatar to `/avatars/default-user.jpg`. Verified (updated N users).
+- Cartoonix TV (Jellyfin) account provisioning — PLUS only. Page `/cont-tv` (`TvAccount.jsx`):
+  email locked = username, password + confirm → `POST /api/jellyfin/register` (Jellyfin `POST /Users/New`).
+  `GET /api/jellyfin/status` checks existing. NavBar dropdown link for PLUS users. Uses
+  JELLYFIN_URL + JELLYFIN_API_KEY from backend/.env (user must add same on live). Auth header:
+  `Authorization: MediaBrowser Token="..."`. Live connectivity verified via status call.
 - Legal & community pages (card layout, public routes, linked in Home footer):
   `/termeni` (Terms.jsx, text oficial complet), `/confidentialitate` (Privacy.jsx),
   `/regulament` (Rules.jsx — Regulamentul Comunității, text oficial complet),

@@ -54,6 +54,13 @@ STRIPE_API_KEY = os.environ.get("STRIPE_API_KEY") or os.environ.get("STRIPE_SECR
 PLUS_PRICE_RON = float(os.environ.get("PLUS_PRICE_RON", "50"))
 PLUS_CURRENCY = os.environ.get("PLUS_CURRENCY", "ron").lower()
 
+# ---------- Default avatar (used by admin global reset) ----------
+DEFAULT_AVATAR = os.environ.get("DEFAULT_AVATAR", "/avatars/default-user.jpg")
+
+# ---------- Jellyfin (Cartoonix TV) config ----------
+JELLYFIN_URL = os.environ.get("JELLYFIN_URL", "").rstrip("/")
+JELLYFIN_API_KEY = os.environ.get("JELLYFIN_API_KEY", "")
+
 # ---------- Media (VPS video library) config ----------
 VIDEO_DIR = os.environ.get("VIDEO_DIR", "/media/videos")
 VIDEO_EXTENSIONS = {".mp4", ".mkv", ".webm", ".mov", ".m4v", ".avi", ".wmv", ".flv", ".mpeg", ".mpg", ".ts"}
@@ -2425,6 +2432,83 @@ async def set_popup(data: PopupInput, admin: dict = Depends(require_admin)):
 @api_router.get("/")
 async def root():
     return {"message": "Cartoonix API"}
+
+
+# ---------- admin: global avatar reset ----------
+@api_router.post("/admin/reset-avatars")
+async def admin_reset_avatars(admin: dict = Depends(require_admin)):
+    """Reset ALL users' avatar to the default avatar."""
+    res = await db.users.update_many({}, {"$set": {"avatar_url": DEFAULT_AVATAR}})
+    return {"ok": True, "updated": res.modified_count, "default_avatar": DEFAULT_AVATAR}
+
+
+# ---------- Jellyfin (Cartoonix TV) account provisioning — PLUS only ----------
+def _jellyfin_client() -> httpx.AsyncClient:
+    if not JELLYFIN_URL or not JELLYFIN_API_KEY:
+        raise HTTPException(status_code=503, detail="Cartoonix TV nu este configurat momentan")
+    return httpx.AsyncClient(
+        base_url=JELLYFIN_URL,
+        headers={
+            "Authorization": f'MediaBrowser Token="{JELLYFIN_API_KEY}"',
+            "Accept": "application/json",
+        },
+        timeout=httpx.Timeout(20.0, connect=6.0),
+    )
+
+
+async def _jellyfin_find_user(http: httpx.AsyncClient, name: str):
+    r = await http.get("/Users")
+    if r.status_code != 200:
+        raise HTTPException(status_code=502, detail="Nu s-a putut contacta serverul Cartoonix TV")
+    wanted = name.strip().casefold()
+    for u in r.json():
+        if str(u.get("Name", "")).strip().casefold() == wanted:
+            return u
+    return None
+
+
+class JellyfinRegisterInput(BaseModel):
+    password: str = Field(min_length=6, max_length=200)
+
+
+@api_router.get("/jellyfin/status")
+async def jellyfin_status(user: dict = Depends(get_current_user)):
+    if not user_is_plus(user):
+        raise HTTPException(status_code=403, detail="Cartoonix TV este disponibil doar pentru membrii Cartoonix PLUS")
+    email = user.get("email", "")
+    async with _jellyfin_client() as http:
+        existing = await _jellyfin_find_user(http, email)
+    return {"exists": existing is not None, "username": email, "jellyfin_url": JELLYFIN_URL}
+
+
+@api_router.post("/jellyfin/register")
+async def jellyfin_register(data: JellyfinRegisterInput, user: dict = Depends(get_current_user)):
+    if not user_is_plus(user):
+        raise HTTPException(status_code=403, detail="Cartoonix TV este disponibil doar pentru membrii Cartoonix PLUS")
+    email = user.get("email", "")
+    if not email:
+        raise HTTPException(status_code=400, detail="Contul tău nu are o adresă de email validă")
+    async with _jellyfin_client() as http:
+        existing = await _jellyfin_find_user(http, email)
+        if existing:
+            raise HTTPException(status_code=409, detail="Ai deja un cont Cartoonix TV cu acest email. Folosește parola setată pentru a te conecta.")
+        r = await http.post("/Users/New", json={"Name": email, "Password": data.password})
+        if r.status_code == 401:
+            raise HTTPException(status_code=502, detail="Cheia serverului Cartoonix TV este invalidă")
+        if r.status_code == 403:
+            raise HTTPException(status_code=502, detail="Cheia serverului Cartoonix TV nu are drepturi suficiente")
+        if r.status_code not in (200, 204):
+            raise HTTPException(status_code=502, detail=f"Nu s-a putut crea contul Cartoonix TV ({r.status_code})")
+        created = {}
+        try:
+            created = r.json()
+        except Exception:
+            pass
+    await db.users.update_one(
+        {"_id": user["_id"]},
+        {"$set": {"jellyfin_username": email, "jellyfin_created_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    return {"ok": True, "username": email, "jellyfin_user_id": created.get("Id"), "jellyfin_url": JELLYFIN_URL}
 
 
 app.include_router(api_router)
