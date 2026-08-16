@@ -84,6 +84,10 @@ UI language: Romanian only.
   10s cooldown between messages for non-admins (backend 429; frontend countdown on send button). Admins exempt.
 - WatchParty: ShowPicker & PlaylistList extracted to module-level stable components → fixes scroll jumping
   to top during 2s polling; added title search field in the picker (WatchParty.jsx).
+- Chat reactions: one reaction per user per message (👍/❤️/😂), toggle-off, switch replaces.
+  Backend POST /api/chat/{id}/react + POST /api/chat/reactions (sync); GET /api/chat returns
+  reaction_counts + my_reaction. Frontend shows reaction row under each bubble (zero-count hidden until
+  hover), polls reactions every 4s. Verified e2e 100% (iteration_3.json).
 
 ## Credentials
 See `/app/memory/test_credentials.md` (admin@cartoonix.ro).

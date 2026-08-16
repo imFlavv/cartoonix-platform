@@ -40,6 +40,7 @@ const MUTE_OPTIONS = [
 
 const INITIAL_LIMIT = 25;
 const PAGE_SIZE = 25;
+const REACTIONS = ["👍", "❤️", "😂"];
 
 const ChatRoom = () => {
   const { user } = useAuth();
@@ -58,6 +59,7 @@ const ChatRoom = () => {
   const oldestTs = useRef(null);
   const autoScroll = useRef(true);
   const inputRef = useRef(null);
+  const msgIdsRef = useRef([]);
 
   const isAdmin = user?.role === "admin";
   const plusLocked = room === "plus" && !user?.plus;
@@ -107,6 +109,34 @@ const ChatRoom = () => {
       endRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages]);
+
+  // keep latest message ids for the reaction poller
+  useEffect(() => {
+    msgIdsRef.current = messages.map((m) => m.id).filter(Boolean);
+  }, [messages]);
+
+  // poll reactions for currently loaded messages
+  useEffect(() => {
+    if (plusLocked) return;
+    const t = setInterval(() => {
+      const ids = msgIdsRef.current;
+      if (!ids.length) return;
+      api.post("/chat/reactions", { ids }).then((res) => {
+        const map = res.data || {};
+        setMessages((prev) => prev.map((x) => (map[x.id] ? { ...x, reaction_counts: map[x.id].reaction_counts, my_reaction: map[x.id].my_reaction } : x)));
+      }).catch(() => {});
+    }, 4000);
+    return () => clearInterval(t);
+  }, [plusLocked, room]);
+
+  const toggleReaction = async (m, emoji) => {
+    try {
+      const { data } = await api.post(`/chat/${m.id}/react`, { emoji });
+      setMessages((prev) => prev.map((x) => (x.id === m.id ? { ...x, reaction_counts: data.reaction_counts, my_reaction: data.my_reaction } : x)));
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Nu s-a putut adăuga reacția");
+    }
+  };
 
   const loadMore = async () => {
     if (!oldestTs.current || loadingMore) return;
@@ -315,6 +345,29 @@ const ChatRoom = () => {
                           className="inline-block px-4 py-2.5 rounded-2xl rounded-tl-sm text-sm break-words bg-[#2a2a2a] text-white/90 cursor-pointer hover:bg-[#333] transition-colors"
                         >
                           <span className={`relative ${m.plus ? chatStyleClasses(m.chat_style) : ""}`}><MessageText text={m.text} /></span>
+                        </div>
+                      )}
+                      {!m.deleted && (
+                        <div className="flex items-center gap-1 mt-1 px-0.5">
+                          {REACTIONS.map((emo) => {
+                            const count = m.reaction_counts?.[emo] || 0;
+                            const mine = m.my_reaction === emo;
+                            return (
+                              <button
+                                key={emo}
+                                data-testid={`chat-react-${emo}`}
+                                onClick={() => toggleReaction(m, emo)}
+                                className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-xs leading-none transition-all duration-150 ${
+                                  mine
+                                    ? "bg-[#ffcc00]/20 ring-1 ring-[#ffcc00]/60"
+                                    : "bg-white/5 hover:bg-white/15"
+                                } ${count === 0 && !mine ? "opacity-0 group-hover:opacity-100" : "opacity-100"}`}
+                              >
+                                <span className="text-sm">{emo}</span>
+                                {count > 0 && <span className="text-white/60 tabular-nums">{count}</span>}
+                              </button>
+                            );
+                          })}
                         </div>
                       )}
                     </div>

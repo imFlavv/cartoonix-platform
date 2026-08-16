@@ -1225,11 +1225,25 @@ class ChatInput(BaseModel):
     quote: Optional[dict] = None
 
 
-def serialize_msg(m: dict) -> dict:
+ALLOWED_REACTIONS = {"👍", "❤️", "😂"}
+
+
+def reaction_summary(reactions: dict, uid: str) -> dict:
+    reactions = reactions or {}
+    counts = {}
+    for _u, emo in reactions.items():
+        counts[emo] = counts.get(emo, 0) + 1
+    return {"reaction_counts": counts, "my_reaction": reactions.get(uid)}
+
+
+def serialize_msg(m: dict, uid: Optional[str] = None) -> dict:
     m = dict(m)
     m["id"] = str(m.pop("_id"))
     if m.get("deleted"):
         m["text"] = ""
+    summ = reaction_summary(m.pop("reactions", None), uid)
+    m["reaction_counts"] = summ["reaction_counts"]
+    m["my_reaction"] = summ["my_reaction"]
     return m
 
 
@@ -1287,11 +1301,12 @@ async def get_chat(room: str = "global", after: Optional[str] = None, before: Op
     except Exception as e:
         logger.warning(f"bot send failed: {e}")
     query = {"room": room}
+    _uid = uid_of(user)
     if after:
         # incremental poll: everything newer than `after`
         query["created_at"] = {"$gt": after}
         msgs = await db.chat_messages.find(query).sort("created_at", 1).limit(200).to_list(200)
-        return {"messages": [serialize_msg(m) for m in msgs], "has_more": False}
+        return {"messages": [serialize_msg(m, _uid) for m in msgs], "has_more": False}
     # historical page (initial = last `limit`, or older via `before`)
     lim = max(1, min(int(limit or 50), 100))
     if before:
@@ -1300,7 +1315,61 @@ async def get_chat(room: str = "global", after: Optional[str] = None, before: Op
     has_more = len(msgs) > lim
     msgs = msgs[:lim]
     msgs.reverse()
-    return {"messages": [serialize_msg(m) for m in msgs], "has_more": has_more}
+    return {"messages": [serialize_msg(m, _uid) for m in msgs], "has_more": has_more}
+
+
+class ReactInput(BaseModel):
+    emoji: str
+
+
+def _chat_msg_query(msg_id: str) -> dict:
+    clauses = [{"id": msg_id}]
+    try:
+        clauses.append({"_id": ObjectId(msg_id)})
+    except Exception:
+        pass
+    return {"$or": clauses}
+
+
+@api_router.post("/chat/{msg_id}/react")
+async def react_chat(msg_id: str, data: ReactInput, user: dict = Depends(get_current_user)):
+    if data.emoji not in ALLOWED_REACTIONS:
+        raise HTTPException(status_code=400, detail="Reacție invalidă")
+    doc = await db.chat_messages.find_one(_chat_msg_query(msg_id))
+    if not doc or doc.get("deleted"):
+        raise HTTPException(status_code=404, detail="Mesaj inexistent")
+    uid = uid_of(user)
+    reactions = dict(doc.get("reactions") or {})
+    if reactions.get(uid) == data.emoji:
+        reactions.pop(uid, None)  # toggle off
+    else:
+        reactions[uid] = data.emoji  # single reaction per user
+    await db.chat_messages.update_one({"_id": doc["_id"]}, {"$set": {"reactions": reactions}})
+    return reaction_summary(reactions, uid)
+
+
+class ReactionSyncInput(BaseModel):
+    ids: List[str]
+
+
+@api_router.post("/chat/reactions")
+async def sync_reactions(data: ReactionSyncInput, user: dict = Depends(get_current_user)):
+    uid = uid_of(user)
+    ids = data.ids[:300]
+    clauses = [{"id": i} for i in ids]
+    for i in ids:
+        try:
+            clauses.append({"_id": ObjectId(i)})
+        except Exception:
+            pass
+    if not clauses:
+        return {}
+    docs = await db.chat_messages.find({"$or": clauses}).to_list(500)
+    result = {}
+    for d in docs:
+        did = d.get("id") or str(d["_id"])
+        result[did] = reaction_summary(d.get("reactions"), uid)
+    return result
 
 
 ADMIN_CHAT_COMMANDS = {"important", "announce", "warn", "success", "info"}
