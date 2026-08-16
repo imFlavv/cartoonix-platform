@@ -16,7 +16,9 @@ const Announcements = () => {
   const [items, setItems] = useState([]);
 
   useEffect(() => {
-    api.get("/notifications").then((res) => setItems(res.data.items)).catch(() => {});
+    api.get("/notifications")
+      .then((res) => setItems((res.data.items || []).filter((n) => !n.user_id)))
+      .catch(() => {});
   }, []);
 
   return (
