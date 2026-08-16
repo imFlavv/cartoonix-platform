@@ -17,6 +17,7 @@ const Register = () => {
   const [avatar, setAvatar] = useState(AVATAR_SEEDS[0]);
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
+  const [agreed, setAgreed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [resendIn, setResendIn] = useState(0);
   const timerRef = useRef(null);
@@ -42,6 +43,10 @@ const Register = () => {
   const submitForm = async (e) => {
     e.preventDefault();
     setError("");
+    if (!agreed) {
+      setError("Trebuie să accepți Termenii și Condițiile și Regulamentul Comunității pentru a continua.");
+      return;
+    }
     setBusy(true);
     try {
       await registerStart({ name, email, password, avatar });
@@ -162,11 +167,28 @@ const Register = () => {
                 </div>
               </div>
 
+              <label data-testid="register-agree-label" className="flex items-start gap-3 cursor-pointer select-none rounded-lg bg-white/5 border border-white/10 p-3">
+                <input
+                  data-testid="register-agree"
+                  type="checkbox"
+                  checked={agreed}
+                  onChange={(e) => setAgreed(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-[#ec1c24]"
+                />
+                <span className="text-xs text-white/70 leading-relaxed">
+                  Am citit și am înțeles{" "}
+                  <Link to="/termeni" target="_blank" className="text-[#ffcc00] font-semibold hover:underline">Termenii și Condițiile</Link>{" "}
+                  și sunt de acord cu{" "}
+                  <Link to="/regulament" target="_blank" className="text-[#ffcc00] font-semibold hover:underline">Regulamentul Comunității</Link>{" "}
+                  platformei.
+                </span>
+              </label>
+
               <button
                 data-testid="register-submit"
                 type="submit"
-                disabled={busy}
-                className="w-full py-3 rounded-lg bg-[#ec1c24] text-white font-bold hover:bg-[#ff2d36] transition-colors duration-200 disabled:opacity-60"
+                disabled={busy || !agreed}
+                className="w-full py-3 rounded-lg bg-[#ec1c24] text-white font-bold hover:bg-[#ff2d36] transition-colors duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {busy ? "Se trimite codul..." : "Continuă"}
               </button>

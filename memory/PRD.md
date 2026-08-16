@@ -14,6 +14,11 @@ UI language: Romanian only.
 - Media: `GET /api/media/videos/{path}` range streaming from VIDEO_DIR.
 
 ## Implemented (2026-06)
+- Legal & community pages (card layout, public routes, linked in Home footer):
+  `/termeni` (Terms.jsx, text oficial complet), `/confidentialitate` (Privacy.jsx),
+  `/regulament` (Rules.jsx — Regulamentul Comunității, text oficial complet).
+- Register: checkbox obligatoriu „Am citit Termenii și sunt de acord cu Regulamentul" cu linkuri;
+  butonul Continuă e blocat până e bifat (`Register.jsx`).
 - Legal pages: `Terms.jsx` (/termeni) + `Privacy.jsx` (/confidentialitate), public routes (added to AuthGate PUBLIC_PATHS),
   linked in Home footer. (No legal pages existed before.)
 - Verified working (no change needed): chat auto-refresh already polls every 4s in `ChatRoom.jsx`;

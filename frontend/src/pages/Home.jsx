@@ -94,6 +94,7 @@ const Home = () => {
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mt-5 text-sm">
           <Link data-testid="footer-terms-link" to="/termeni" className="text-white/60 hover:text-[#ffcc00] transition-colors duration-200">Termeni și Condiții</Link>
           <Link data-testid="footer-privacy-link" to="/confidentialitate" className="text-white/60 hover:text-[#ffcc00] transition-colors duration-200">Politica de Confidențialitate</Link>
+          <Link data-testid="footer-rules-link" to="/regulament" className="text-white/60 hover:text-[#ffcc00] transition-colors duration-200">Regulamentul Comunității</Link>
           <Link data-testid="footer-help-link" to="/help" className="text-white/60 hover:text-[#ffcc00] transition-colors duration-200">Suport</Link>
         </div>
         <p className="text-xs text-white/30 mt-4">© 2026 Cartoonix. Toate drepturile rezervate.</p>
