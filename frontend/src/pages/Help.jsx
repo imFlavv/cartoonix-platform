@@ -1,7 +1,7 @@
 import { NavBar } from "@/components/NavBar";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { FACEBOOK_URL } from "@/data/constants";
-import { Facebook, MessageCircle, Tv, Copy, ExternalLink } from "lucide-react";
+import { Facebook, MessageCircle, Tv, Copy, ExternalLink, Palette, Heart, Search, Users, Smile, Ticket, Trophy, UserCog, ListPlus, Download } from "lucide-react";
 import { toast } from "sonner";
 
 const copy = (val, label) => {
@@ -69,13 +69,13 @@ const TvSetup = () => (
         <li className="flex gap-3">
           <span className="shrink-0 h-6 w-6 rounded-full bg-[#ec1c24] text-white text-xs font-bold flex items-center justify-center">4</span>
           <div className="text-sm w-full">
-            Alege <span className="font-bold text-white">{"„Introduce-ți o parolă”"}</span> și autentifică-te folosind datele primite pe email după activarea abonamentului Cartoonix TV.
+            Alege <span className="font-bold text-white">{"„Introduce-ți o parolă”"}</span> și autentifică-te folosind emailul și parola setate la crearea contului Cartoonix TV în platformă (pagina <span className="font-semibold text-white">Cont Cartoonix TV</span>).
             <div className="mt-3 rounded-xl overflow-hidden border border-white/10">
               <div className="grid grid-cols-[110px_1fr] text-xs">
                 <div className="bg-white/5 px-3 py-2 font-semibold text-white/70 border-b border-white/10">Utilizator</div>
                 <div className="bg-[#0a0a0a] px-3 py-2 text-white/70 border-b border-white/10 font-mono">emailul tău Cartoonix</div>
                 <div className="bg-white/5 px-3 py-2 font-semibold text-white/70">Parolă</div>
-                <div className="bg-[#0a0a0a] px-3 py-2 text-white/70 font-mono">parola primită pe email</div>
+                <div className="bg-[#0a0a0a] px-3 py-2 text-white/70 font-mono">parola setată la crearea contului în platformă</div>
               </div>
             </div>
           </div>
@@ -110,10 +110,58 @@ const FAQ = [
     content: <TvSetup />,
   },
   { q: "Ce este Cartoonix?", a: "Cartoonix este platforma ta de streaming cu desenele copilăriei de pe Cartoon Network, Jetix, Minimax și Boomerang." },
-  { q: "Ce include Cartoonix PLUS?", a: "PLUS îți deblochează toate episoadele, streaming fără reclame, descărcări offline și avatare exclusive, la 50 RON lifetime." },
-  { q: "Cum descarc un episod?", a: "Membrii PLUS pot descărca orice episod apăsând pe iconița de descărcare din dreptul fiecărui episod." },
-  { q: "Cum îmi creez un playlist?", a: "Pe pagina unui desen, apasă butonul + din dreptul unui episod și alege sau creează un playlist." },
-  { q: "Pot anula abonamentul oricând?", a: "Da, abonamentul PLUS poate fi anulat oricând din pagina de Setări." },
+  { q: "Ce include Cartoonix PLUS?", a: "PLUS îți deblochează streaming fără reclame, descărcări offline, avatare exclusive, efecte și fonturi în chat, cameră de chat PLUS și playlisturi nelimitate — la o singură plată, pe viață." },
+  {
+    q: "Cum schimb fontul din chat?",
+    icon: Palette,
+    a: "Fonturile și stilul mesajelor din chat sunt o funcție PLUS. Intră în Setări (meniul din dreapta sus → Settings), mergi la secțiunea „Stil chat”, alege fontul dorit (de ex. serif, mono, cursive, handwritten) și apasă Salvează. Mesajele tale din chat vor apărea imediat cu noul font.",
+  },
+  {
+    q: "Cum adaug un episod la favorite?",
+    icon: Heart,
+    a: "Deschide pagina unui desen animat și apasă iconița inimă ❤️ din dreptul episodului dorit. Inima devine roșie când episodul e la favorite. Îl poți elimina apăsând din nou pe inimă. Găsești toate favoritele tale în bibliotecă.",
+  },
+  {
+    q: "Cum caut un desen animat?",
+    icon: Search,
+    a: "Folosește bara de căutare din meniul de sus (iconița lupă). Scrie numele desenului și rezultatele apar instant pe măsură ce tastezi — apasă pe cel dorit pentru a-l deschide.",
+  },
+  {
+    q: "Cum creez o vizionare în grup (Watch Party)?",
+    icon: Users,
+    a: "Intră în secțiunea Watch Party din Lobby și creează o cameră. Ca proprietar, controlezi redarea (play/pauză) pentru toți participanții și poți invita prieteni după numele lor. Membrii FREE pot invita 1 prieten, iar cei PLUS până la 5.",
+  },
+  {
+    q: "Cum folosesc emoji în chat?",
+    icon: Smile,
+    a: "În chat, apasă butonul cu fața zâmbitoare 🙂 de lângă câmpul de scris și alege emoji-ul dorit — se va insera automat în mesaj.",
+  },
+  {
+    q: "Cum îmi schimb numele afișat?",
+    icon: UserCog,
+    a: "Mergi în Setări → „Nume afișat”, scrie noul nume și salvează. Atenție: numele poate fi schimbat o singură dată la 30 de zile.",
+  },
+  {
+    q: "Cum folosesc un cod de reducere la PLUS?",
+    icon: Ticket,
+    a: "Pe pagina de plată (Cartoonix PLUS), apasă „Add promotion code” / „Adaugă cod promoțional”, introdu codul și aplică-l. Prețul se actualizează automat înainte de finalizarea plății.",
+  },
+  {
+    q: "Cum funcționează clasamentul (Leaderboard)?",
+    icon: Trophy,
+    a: "Clasamentul din Lobby afișează cei mai activi membri pe baza timpului petrecut pe platformă. Cu cât urmărești mai mult conținut, cu atât urci în clasament.",
+  },
+  {
+    q: "Cum îmi creez un playlist?",
+    icon: ListPlus,
+    a: "Pe pagina unui desen, apasă butonul + din dreptul unui episod și alege un playlist existent sau creează unul nou. Membrii PLUS au playlisturi nelimitate.",
+  },
+  {
+    q: "Cum descarc un episod?",
+    icon: Download,
+    a: "Membrii PLUS pot descărca orice episod apăsând pe iconița de descărcare din dreptul fiecărui episod, pentru vizionare offline.",
+  },
+  { q: "Pot anula abonamentul oricând?", a: "Cartoonix PLUS este o plată unică, pe viață — nu există o reînnoire lunară de anulat. Odată activat, accesul rămâne pe contul tău." },
 ];
 
 const Help = () => (
