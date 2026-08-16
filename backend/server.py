@@ -2504,7 +2504,8 @@ def _jellyfin_client() -> httpx.AsyncClient:
     url, key = _jellyfin_conf()
     if not url or not key:
         logger.error(f"[jellyfin] not configured (url_set={bool(url)}, key_set={bool(key)})")
-        raise HTTPException(status_code=503, detail="Cartoonix TV nu este configurat momentan")
+        missing = f"URL: {'OK' if url else 'LIPSĂ'}, Cheie: {'OK' if key else 'LIPSĂ'}"
+        raise HTTPException(status_code=503, detail=f"Cartoonix TV nu este configurat momentan ({missing}). Verifică backend/.env și repornește backend-ul.")
     return httpx.AsyncClient(
         base_url=url,
         headers={
