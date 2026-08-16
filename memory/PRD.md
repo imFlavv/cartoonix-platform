@@ -14,6 +14,11 @@ UI language: Romanian only.
 - Media: `GET /api/media/videos/{path}` range streaming from VIDEO_DIR.
 
 ## Implemented (2026-06)
+- Stripe Checkout: enabled promotion/discount codes (`allow_promotion_codes=True`) + custom message
+  (`custom_text.submit.message`, editable via env `PLUS_CHECKOUT_MESSAGE`) + product name/description +
+  prefilled email. Session now built directly with stripe SDK in `POST /api/payments/checkout`
+  (kept dynamic flow + auto PLUS activation). api_base routes via Emergent proxy for `sk_test_emergent`,
+  direct api.stripe.com for real live key. Verified: checkout page shows "Add promotion code" + message.
 - Admin: global avatar reset button (Platformă tab) → `POST /api/admin/reset-avatars` sets all users'
   avatar to `/avatars/default-user.jpg`. Verified (updated N users).
 - Cartoonix TV (Jellyfin) account provisioning — PLUS only. Page `/cont-tv` (`TvAccount.jsx`):

@@ -22,6 +22,7 @@ import hashlib
 import secrets
 import uuid
 import httpx
+import stripe
 import mimetypes
 import re
 import shutil
@@ -53,6 +54,11 @@ JWT_ALGORITHM = "HS256"
 STRIPE_API_KEY = os.environ.get("STRIPE_API_KEY") or os.environ.get("STRIPE_SECRET_KEY", "")
 PLUS_PRICE_RON = float(os.environ.get("PLUS_PRICE_RON", "50"))
 PLUS_CURRENCY = os.environ.get("PLUS_CURRENCY", "ron").lower()
+# Mesaj afișat pe pagina de plată Stripe (deasupra butonului de plată). Editabil din .env.
+PLUS_CHECKOUT_MESSAGE = os.environ.get(
+    "PLUS_CHECKOUT_MESSAGE",
+    "Plată unică — primești acces Cartoonix PLUS pe viață imediat după plată. 👑 Ai un cod? Adaugă-l mai sus.",
+)
 
 # ---------- Default avatar (used by admin global reset) ----------
 DEFAULT_AVATAR = os.environ.get("DEFAULT_AVATAR", "/avatars/default-user.jpg")
@@ -646,18 +652,44 @@ async def create_checkout(body: CheckoutRequest, request: Request, user: dict = 
     origin = body.origin_url.rstrip("/")
     success_url = f"{origin}/payment/success?session_id={{CHECKOUT_SESSION_ID}}"
     cancel_url = f"{origin}/payment/cancel"
-    stripe_checkout = _get_stripe_checkout(request)
-    # Sumă definită SERVER-SIDE (niciodată din frontend)
-    checkout_req = CheckoutSessionRequest(
-        amount=PLUS_PRICE_RON,
-        currency=PLUS_CURRENCY,
-        success_url=success_url,
-        cancel_url=cancel_url,
-        metadata={"user_id": uid_of(user), "product": "cartoonix_plus_lifetime"},
-    )
-    session: CheckoutSessionResponse = await stripe_checkout.create_checkout_session(checkout_req)
+    # Webhook URL kept in metadata so the emergentintegrations webhook parser still works.
+    host_url = str(request.base_url)
+    webhook_url = f"{host_url}api/webhook/stripe"
+    stripe.api_key = STRIPE_API_KEY
+    # Cheia de test Emergent rutează prin proxy-ul Emergent; cheia reală (pe live) merge direct.
+    if "sk_test_emergent" in STRIPE_API_KEY:
+        stripe.api_base = "https://integrations.emergentagent.com/stripe"
+    else:
+        stripe.api_base = "https://api.stripe.com"
+    # Sumă definită SERVER-SIDE (niciodată din frontend). allow_promotion_codes activează
+    # câmpul "Add promotion code" (codurile se creează în Stripe Dashboard).
+    try:
+        session = stripe.checkout.Session.create(
+            mode="payment",
+            payment_method_types=["card"],
+            line_items=[{
+                "price_data": {
+                    "currency": PLUS_CURRENCY,
+                    "product_data": {
+                        "name": "Cartoonix PLUS — acces pe viață",
+                        "description": "Deblochezi toate beneficiile PLUS pentru totdeauna. Plată unică.",
+                    },
+                    "unit_amount": int(round(PLUS_PRICE_RON * 100)),
+                },
+                "quantity": 1,
+            }],
+            allow_promotion_codes=True,
+            custom_text={"submit": {"message": PLUS_CHECKOUT_MESSAGE}},
+            customer_email=user.get("email") or None,
+            success_url=success_url,
+            cancel_url=cancel_url,
+            metadata={"user_id": uid_of(user), "product": "cartoonix_plus_lifetime", "webhook_url": webhook_url},
+        )
+    except Exception as e:
+        logger.error(f"stripe checkout create failed: {e}")
+        raise HTTPException(status_code=500, detail="Nu s-a putut iniția plata. Încearcă din nou.")
     await db.payment_transactions.insert_one({
-        "session_id": session.session_id,
+        "session_id": session.id,
         "user_id": uid_of(user),
         "email": user.get("email"),
         "product": "cartoonix_plus_lifetime",
@@ -668,7 +700,7 @@ async def create_checkout(body: CheckoutRequest, request: Request, user: dict = 
         "created_at": datetime.now(timezone.utc).isoformat(),
         "updated_at": datetime.now(timezone.utc).isoformat(),
     })
-    return {"checkout_url": session.url, "session_id": session.session_id}
+    return {"checkout_url": session.url, "session_id": session.id}
 
 
 @api_router.get("/payments/status/{session_id}")
