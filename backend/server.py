@@ -1345,8 +1345,10 @@ async def post_chat(data: ChatInput, user: dict = Depends(get_current_user)):
         "chat_style": sanitize_chat_style(user.get("chat_style")) if user_is_plus(user) else None,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
-    res = await db.chat_messages.insert_one(doc)
-    doc["id"] = str(res.inserted_id)
+    oid = ObjectId()
+    doc["_id"] = oid
+    doc["id"] = str(oid)  # set BEFORE insert to satisfy any legacy unique `id` index
+    await db.chat_messages.insert_one(doc)
     doc.pop("_id", None)
     return doc
   except HTTPException:
@@ -1354,7 +1356,7 @@ async def post_chat(data: ChatInput, user: dict = Depends(get_current_user)):
   except Exception as e:
     import traceback
     logger.error(f"[POST /chat] 500 for user={user.get('email')} id={user.get('id')}: {e}\n{traceback.format_exc()}")
-    raise HTTPException(status_code=500, detail=f"chat_error: {type(e).__name__}: {str(e)[:200]}")
+    raise HTTPException(status_code=500, detail="Nu s-a putut trimite mesajul. Încearcă din nou.")
 
 
 # ---------- suggestions ----------
@@ -2755,6 +2757,19 @@ async def startup():
             await db[coll].create_index(field, **opts)
         except Exception as e:
             logger.warning(f"Could not create index {coll}.{field}: {e}")
+
+    # Drop erroneous legacy unique `id_1` indexes (from PHP migration). Our schema derives `id`
+    # from Mongo `_id`, so a unique index on a (usually missing/null) `id` field breaks all inserts
+    # with "E11000 dup key { id: null }". Safe to drop across app collections.
+    for coll in ("chat_messages", "notifications", "suggestions", "watchparties",
+                 "payment_transactions", "shows", "settings"):
+        try:
+            existing = await db[coll].index_information()
+            if "id_1" in existing:
+                await db[coll].drop_index("id_1")
+                logger.warning(f"Dropped erroneous unique index id_1 on {coll}")
+        except Exception as e:
+            logger.warning(f"Could not check/drop id_1 index on {coll}: {e}")
 
     # seed admin (create-only, NON-destructive). Never crash startup if envs are missing.
     try:

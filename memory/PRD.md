@@ -14,6 +14,11 @@ UI language: Romanian only.
 - Media: `GET /api/media/videos/{path}` range streaming from VIDEO_DIR.
 
 ## Implemented (2026-06)
+- BUGFIX chat 500 (live) ROOT CAUSE: `chat_messages` had a leftover unique index `id_1` (PHP migration).
+  Inserts didn't set top-level `id` (derived from `_id` post-insert) → every doc `id:null` → E11000
+  DuplicateKeyError on 2nd+ message. Fix: (1) startup drops erroneous `id_1` index on chat_messages +
+  other app collections (best-effort); (2) `post_chat` pre-generates ObjectId and sets `id=str(oid)`
+  before insert. Also wrapped post_chat in try/except logging full traceback. Verified on preview.
 - BUGFIX chat 500 (live): `mute_remaining()` crashed with TypeError when `muted_until` was a
   timezone-naive ISO string (legacy PHP-imported users) — naive vs aware datetime comparison. Now
   parses robustly (assumes UTC for naive, handles non-datetime/parse errors, fail-safe → not muted).
