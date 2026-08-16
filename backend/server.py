@@ -734,7 +734,8 @@ async def stripe_webhook(request: Request):
     except Exception as e:
         logger.error(f"webhook error: {e}")
         raise HTTPException(status_code=400, detail="Webhook invalid")
-    if webhook_response.session_id and webhook_response.payment_status == "paid":
+    # "paid" = plată normală; "no_payment_required" = comandă gratuită (voucher 100% reducere).
+    if webhook_response.session_id and webhook_response.payment_status in ("paid", "no_payment_required"):
         await _grant_plus_for_session(webhook_response.session_id)
     return {"status": "ok"}
 

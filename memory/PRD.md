@@ -14,6 +14,9 @@ UI language: Romanian only.
 - Media: `GET /api/media/videos/{path}` range streaming from VIDEO_DIR.
 
 ## Implemented (2026-06)
+- Fix comenzi 0 RON (voucher 100%): la total 0, Stripe trimite `payment_status="no_payment_required"`
+  (nu "paid"). Webhook-ul `POST /api/webhook/stripe` acum activează PLUS și pentru `no_payment_required`.
+  Polling-ul deja acoperă `status=="complete"`. Verificat E2E cu webhook simulat → PLUS activat.
 - Stripe Checkout: enabled promotion/discount codes (`allow_promotion_codes=True`) + custom message
   (`custom_text.submit.message`, editable via env `PLUS_CHECKOUT_MESSAGE`) + product name/description +
   prefilled email. Session now built directly with stripe SDK in `POST /api/payments/checkout`
