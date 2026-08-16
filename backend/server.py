@@ -65,8 +65,12 @@ PLUS_CHECKOUT_MESSAGE = os.environ.get(
 DEFAULT_AVATAR = os.environ.get("DEFAULT_AVATAR", "/avatars/default-user.jpg")
 
 # ---------- Jellyfin (Cartoonix TV) config ----------
-JELLYFIN_URL = os.environ.get("JELLYFIN_URL", "").rstrip("/")
-JELLYFIN_API_KEY = os.environ.get("JELLYFIN_API_KEY", "")
+def _jellyfin_conf():
+    """Citește configul Jellyfin din environment la runtime (acceptă mai multe denumiri)."""
+    url = (os.environ.get("JELLYFIN_URL") or os.environ.get("JELLYFIN_SERVER_URL") or "").strip().rstrip("/")
+    key = (os.environ.get("JELLYFIN_API_KEY") or os.environ.get("JELLYFIN_SECRET_KEY")
+           or os.environ.get("JELLYFIN_KEY") or os.environ.get("JELLYFIN_TOKEN") or "").strip()
+    return url, key
 
 # ---------- Media (VPS video library) config ----------
 VIDEO_DIR = os.environ.get("VIDEO_DIR", "/media/videos")
@@ -2497,12 +2501,14 @@ async def admin_reset_avatars(admin: dict = Depends(require_admin)):
 
 # ---------- Jellyfin (Cartoonix TV) account provisioning — PLUS only ----------
 def _jellyfin_client() -> httpx.AsyncClient:
-    if not JELLYFIN_URL or not JELLYFIN_API_KEY:
+    url, key = _jellyfin_conf()
+    if not url or not key:
+        logger.error(f"[jellyfin] not configured (url_set={bool(url)}, key_set={bool(key)})")
         raise HTTPException(status_code=503, detail="Cartoonix TV nu este configurat momentan")
     return httpx.AsyncClient(
-        base_url=JELLYFIN_URL,
+        base_url=url,
         headers={
-            "Authorization": f'MediaBrowser Token="{JELLYFIN_API_KEY}"',
+            "Authorization": f'MediaBrowser Token="{key}"',
             "Accept": "application/json",
         },
         timeout=httpx.Timeout(20.0, connect=6.0),
@@ -2531,7 +2537,8 @@ async def jellyfin_status(user: dict = Depends(get_current_user)):
     email = user.get("email", "")
     async with _jellyfin_client() as http:
         existing = await _jellyfin_find_user(http, email)
-    return {"exists": existing is not None, "username": email, "jellyfin_url": JELLYFIN_URL}
+    jellyfin_url, _ = _jellyfin_conf()
+    return {"exists": existing is not None, "username": email, "jellyfin_url": jellyfin_url}
 
 
 @api_router.post("/jellyfin/register")
@@ -2561,7 +2568,8 @@ async def jellyfin_register(data: JellyfinRegisterInput, user: dict = Depends(ge
         {"_id": user["_id"]},
         {"$set": {"jellyfin_username": email, "jellyfin_created_at": datetime.now(timezone.utc).isoformat()}},
     )
-    return {"ok": True, "username": email, "jellyfin_user_id": created.get("Id"), "jellyfin_url": JELLYFIN_URL}
+    jellyfin_url, _ = _jellyfin_conf()
+    return {"ok": True, "username": email, "jellyfin_user_id": created.get("Id"), "jellyfin_url": jellyfin_url}
 
 
 app.include_router(api_router)

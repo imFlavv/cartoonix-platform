@@ -14,6 +14,9 @@ UI language: Romanian only.
 - Media: `GET /api/media/videos/{path}` range streaming from VIDEO_DIR.
 
 ## Implemented (2026-06)
+- Jellyfin config robustness: `_jellyfin_conf()` reads env at runtime and accepts multiple names —
+  URL: `JELLYFIN_URL` | `JELLYFIN_SERVER_URL`; KEY: `JELLYFIN_API_KEY` | `JELLYFIN_SECRET_KEY` |
+  `JELLYFIN_KEY` | `JELLYFIN_TOKEN`. Logs `[jellyfin] not configured (url_set=.., key_set=..)` when missing.
 - Payment robustness: rewrote `/payments/status` polling + `/webhook/stripe` to use direct stripe SDK
   (`stripe.checkout.Session.retrieve`) instead of the emergentintegrations wrapper, with logging
   (`[pay-poll]`, `[webhook]`). Grants PLUS when session `status=="complete"` OR
