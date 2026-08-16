@@ -1,6 +1,7 @@
 from dotenv import load_dotenv
 from pathlib import Path
 import os
+import json
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -623,6 +624,16 @@ def _get_stripe_checkout(request: Request) -> StripeCheckout:
     return StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=webhook_url)
 
 
+def _stripe_configure():
+    """Setează cheia și endpoint-ul Stripe. Cheia de test Emergent rutează prin proxy;
+    cheia reală (sk_live/sk_test real) merge direct la api.stripe.com."""
+    stripe.api_key = STRIPE_API_KEY
+    if "sk_test_emergent" in STRIPE_API_KEY:
+        stripe.api_base = "https://integrations.emergentagent.com/stripe"
+    else:
+        stripe.api_base = "https://api.stripe.com"
+
+
 async def _grant_plus_for_session(session_id: str):
     """Idempotent: marchează tranzacția plătită și activează PLUS lifetime pentru user."""
     record = await db.payment_transactions.find_one({"session_id": session_id})
@@ -710,13 +721,17 @@ async def payment_status(session_id: str, request: Request):
         raise HTTPException(status_code=404, detail="Tranzacție inexistentă")
     if record.get("payment_status") != "paid":
         try:
-            stripe_checkout = _get_stripe_checkout(request)
-            status: CheckoutStatusResponse = await stripe_checkout.get_checkout_status(session_id)
-            if status.payment_status == "paid" or status.status == "complete":
+            _stripe_configure()
+            session = stripe.checkout.Session.retrieve(session_id)
+            s_status = getattr(session, "status", None)
+            p_status = getattr(session, "payment_status", None)
+            logger.info(f"[pay-poll] {session_id} status={s_status} payment_status={p_status}")
+            # "complete" acoperă și comenzile gratuite (voucher 100% -> no_payment_required).
+            if s_status == "complete" or p_status in ("paid", "no_payment_required"):
                 await _grant_plus_for_session(session_id)
                 record = await db.payment_transactions.find_one({"session_id": session_id})
         except Exception as e:
-            logger.error(f"status poll error: {e}")
+            logger.error(f"[pay-poll] status error for {session_id}: {e}")
     return {
         "session_id": record["session_id"],
         "status": record["status"],
@@ -727,16 +742,21 @@ async def payment_status(session_id: str, request: Request):
 @api_router.post("/webhook/stripe")
 async def stripe_webhook(request: Request):
     body_bytes = await request.body()
-    sig = request.headers.get("Stripe-Signature", "")
     try:
-        stripe_checkout = _get_stripe_checkout(request)
-        webhook_response = await stripe_checkout.handle_webhook(body_bytes, sig)
+        event = json.loads(body_bytes.decode("utf-8"))
     except Exception as e:
-        logger.error(f"webhook error: {e}")
+        logger.error(f"[webhook] invalid payload: {e}")
         raise HTTPException(status_code=400, detail="Webhook invalid")
-    # "paid" = plată normală; "no_payment_required" = comandă gratuită (voucher 100% reducere).
-    if webhook_response.session_id and webhook_response.payment_status in ("paid", "no_payment_required"):
-        await _grant_plus_for_session(webhook_response.session_id)
+    etype = event.get("type")
+    obj = (event.get("data") or {}).get("object") or {}
+    if etype in ("checkout.session.completed", "checkout.session.async_payment_succeeded"):
+        sid = obj.get("id")
+        p_status = obj.get("payment_status")
+        s_status = obj.get("status")
+        logger.info(f"[webhook] {etype} sid={sid} status={s_status} payment_status={p_status}")
+        # "complete" / "no_payment_required" acoperă și comenzile cu voucher 100% (0 RON).
+        if sid and (s_status == "complete" or p_status in ("paid", "no_payment_required")):
+            await _grant_plus_for_session(sid)
     return {"status": "ok"}
 
 

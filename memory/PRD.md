@@ -14,6 +14,13 @@ UI language: Romanian only.
 - Media: `GET /api/media/videos/{path}` range streaming from VIDEO_DIR.
 
 ## Implemented (2026-06)
+- Payment robustness: rewrote `/payments/status` polling + `/webhook/stripe` to use direct stripe SDK
+  (`stripe.checkout.Session.retrieve`) instead of the emergentintegrations wrapper, with logging
+  (`[pay-poll]`, `[webhook]`). Grants PLUS when session `status=="complete"` OR
+  `payment_status in ("paid","no_payment_required")` → covers 0-RON voucher orders. Verified E2E paid
+  flow in preview (test card 4242 → status paid → PLUS granted) + simulated free-order webhook.
+  NOTE: amount_off coupons "invalid" = Stripe coupon currency mismatch (must be RON); percent_off is
+  currency-agnostic. This is user-side Stripe Dashboard config, not code.
 - Fix comenzi 0 RON (voucher 100%): la total 0, Stripe trimite `payment_status="no_payment_required"`
   (nu "paid"). Webhook-ul `POST /api/webhook/stripe` acum activează PLUS și pentru `no_payment_required`.
   Polling-ul deja acoperă `status=="complete"`. Verificat E2E cu webhook simulat → PLUS activat.
