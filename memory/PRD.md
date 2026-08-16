@@ -14,6 +14,10 @@ UI language: Romanian only.
 - Media: `GET /api/media/videos/{path}` range streaming from VIDEO_DIR.
 
 ## Implemented (2026-06)
+- BUGFIX chat 500 (live): `mute_remaining()` crashed with TypeError when `muted_until` was a
+  timezone-naive ISO string (legacy PHP-imported users) — naive vs aware datetime comparison. Now
+  parses robustly (assumes UTC for naive, handles non-datetime/parse errors, fail-safe → not muted).
+  Verified on preview: naive future date → 403 (correctly muted) instead of 500; null/past → 200.
 - Floating widget STACK (bottom-right): chat widget + PLUS widget (crown bg `/plus-widget-bg.webp`).
   `ChatWidget.jsx` fetches both `/settings/chat-widget` + `/settings/plus-widget`, stacks them (one front,
   one behind offset), auto-rotates front every 6s, closing the front reveals the other. Close is in-memory

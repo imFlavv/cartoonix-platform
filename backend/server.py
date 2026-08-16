@@ -160,15 +160,20 @@ MUTE_DURATIONS = {"5m": 5, "1h": 60, "24h": 60 * 24, "perm": None}
 
 
 def mute_remaining(user: dict):
-    """Return (is_muted, until_iso_or_None). Permanent uses year 9999 sentinel."""
+    """Return (is_muted, until_iso_or_None). Permanent uses year 9999 sentinel.
+    Robust față de valori legacy (date naive fără fus orar, timestamp, format PHP) — nu aruncă niciodată."""
     mu = user.get("muted_until")
     if not mu:
         return False, None
     try:
-        until = datetime.fromisoformat(mu)
+        until = datetime.fromisoformat(mu) if isinstance(mu, str) else mu
+        if not isinstance(until, datetime):
+            return False, None
+        if until.tzinfo is None:
+            until = until.replace(tzinfo=timezone.utc)
+        if until <= datetime.now(timezone.utc):
+            return False, None
     except Exception:
-        return False, None
-    if until <= datetime.now(timezone.utc):
         return False, None
     return True, mu
 
