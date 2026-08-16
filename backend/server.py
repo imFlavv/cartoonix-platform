@@ -2203,6 +2203,37 @@ async def set_promo_popup(data: PromoPopupInput, admin: dict = Depends(require_a
     return {k: data.model_dump().get(k) for k in PROMO_DEFAULT}
 
 
+# ---------- chat widget (floating CTA, editable from admin) ----------
+class ChatWidgetInput(BaseModel):
+    enabled: bool = False
+    text: Optional[str] = ""
+    image_url: Optional[str] = ""
+    link: Optional[str] = ""
+
+
+CHAT_WIDGET_DEFAULT = {
+    "enabled": True,
+    "text": "Hai la discuție, hai pe chat!",
+    "image_url": "/chat-widget-bg.webp",
+    "link": "/lobby/chat",
+}
+
+
+@api_router.get("/settings/chat-widget")
+async def get_chat_widget():
+    s = await db.settings.find_one({"key": "chat_widget"})
+    if not s:
+        return CHAT_WIDGET_DEFAULT
+    return {k: s.get(k, CHAT_WIDGET_DEFAULT.get(k)) for k in CHAT_WIDGET_DEFAULT}
+
+
+@api_router.post("/admin/chat-widget")
+async def set_chat_widget(data: ChatWidgetInput, admin: dict = Depends(require_admin)):
+    payload = {"key": "chat_widget", **data.model_dump(), "updated_at": datetime.now(timezone.utc).isoformat()}
+    await db.settings.update_one({"key": "chat_widget"}, {"$set": payload}, upsert=True)
+    return {k: data.model_dump().get(k) for k in CHAT_WIDGET_DEFAULT}
+
+
 # ---------- maintenance ----------
 class MaintenanceInput(BaseModel):
     enabled: bool

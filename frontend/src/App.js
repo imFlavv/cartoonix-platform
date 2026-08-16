@@ -9,6 +9,7 @@ import { AuthGate } from "@/components/AuthGate";
 import { MaintenanceGate } from "@/components/MaintenanceGate";
 import { SplashScreen } from "@/components/SplashScreen";
 import { AnnouncementPopup } from "@/components/AnnouncementPopup";
+import ChatWidget from "@/components/ChatWidget";
 import { api } from "@/lib/api";
 import Home from "@/pages/Home";
 import Browse from "@/pages/Browse";
@@ -110,6 +111,7 @@ function App() {
             </AuthGate>
           </MaintenanceGate>
           <AnnouncementPopup />
+          <ChatWidget />
         </BrowserRouter>
       </LibraryProvider>
     </AuthProvider>

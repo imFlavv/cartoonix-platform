@@ -35,6 +35,8 @@ const Admin = () => {
   const [avatarFrames, setAvatarFrames] = useState(true);
   const [promo, setPromo] = useState({ enabled: false, title: "", message: "", price_old: "", price_new: "", cta_label: "", cta_link: "/plus" });
   const [savingPromo, setSavingPromo] = useState(false);
+  const [chatWidget, setChatWidget] = useState({ enabled: false, text: "", image_url: "", link: "/lobby/chat" });
+  const [savingWidget, setSavingWidget] = useState(false);
   const [resettingAvatars, setResettingAvatars] = useState(false);
 
   const resetAvatars = async () => {
@@ -58,6 +60,7 @@ const Admin = () => {
     api.get("/settings/maintenance").then((res) => setMaintenance(res.data.enabled)).catch(() => {});
     api.get("/settings/ui").then((res) => setAvatarFrames(res.data.avatar_frames_enabled !== false)).catch(() => {});
     api.get("/settings/promo-popup").then((res) => setPromo(res.data)).catch(() => {});
+    api.get("/settings/chat-widget").then((res) => setChatWidget(res.data)).catch(() => {});
   }, []);
 
   const savePromo = async (override) => {
@@ -74,6 +77,21 @@ const Admin = () => {
     }
   };
   const setP = (k, v) => setPromo((p) => ({ ...p, [k]: v }));
+
+  const saveWidget = async (override) => {
+    const payload = { ...chatWidget, ...(override || {}) };
+    setSavingWidget(true);
+    try {
+      await api.post("/admin/chat-widget", payload);
+      setChatWidget(payload);
+      toast.success("Caseta chat salvată");
+    } catch {
+      toast.error("Eroare la salvarea casetei");
+    } finally {
+      setSavingWidget(false);
+    }
+  };
+  const setW = (k, v) => setChatWidget((w) => ({ ...w, [k]: v }));
 
   const toggleMaintenance = async (val) => {
     try {
@@ -427,6 +445,30 @@ const Admin = () => {
                   </div>
                   <button data-testid="promo-save" onClick={() => savePromo()} disabled={savingPromo} className="w-full py-2.5 rounded-lg bg-[#ffcc00] text-black font-bold hover:brightness-110 disabled:opacity-60">
                     {savingPromo ? "Se salvează..." : "Salvează popup"}
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-[#0f0f0f] border border-white/10 rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-1">
+                  <h2 className="font-display text-2xl flex items-center gap-2"><MessagesSquare className="h-5 w-5 text-[#ffcc00]" /> Caseta chat (colț dreapta-jos)</h2>
+                  <Switch data-testid="widget-toggle" checked={!!chatWidget.enabled} onCheckedChange={(v) => saveWidget({ enabled: v })} />
+                </div>
+                <p className="text-sm text-white/50 mb-5">O casetă mică flotantă în colțul din dreapta-jos care duce la chat. Comută switch-ul pentru a o activa/dezactiva pe tot site-ul.</p>
+                <div className="space-y-3">
+                  <input data-testid="widget-text" value={chatWidget.text || ""} onChange={(e) => setW("text", e.target.value)} placeholder="Text (ex: Hai la discuție, hai pe chat!)" className={input} />
+                  <input data-testid="widget-image" value={chatWidget.image_url || ""} onChange={(e) => setW("image_url", e.target.value)} placeholder="URL imagine fundal (ex: /chat-widget-bg.webp)" className={input} />
+                  <input data-testid="widget-link" value={chatWidget.link || ""} onChange={(e) => setW("link", e.target.value)} placeholder="Link la click (ex: /lobby/chat)" className={input} />
+                  {chatWidget.image_url && (
+                    <div className="rounded-xl overflow-hidden border border-white/10 h-24 w-64 relative" style={{ backgroundImage: `url(${chatWidget.image_url})`, backgroundSize: "cover", backgroundPosition: "center" }}>
+                      <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent" />
+                      <div className="relative h-full flex items-center px-4">
+                        <p className="text-white font-display text-lg leading-tight drop-shadow">{chatWidget.text || "Hai pe chat!"}</p>
+                      </div>
+                    </div>
+                  )}
+                  <button data-testid="widget-save" onClick={() => saveWidget()} disabled={savingWidget} className="w-full py-2.5 rounded-lg bg-[#ffcc00] text-black font-bold hover:brightness-110 disabled:opacity-60">
+                    {savingWidget ? "Se salvează..." : "Salvează caseta"}
                   </button>
                 </div>
               </div>
