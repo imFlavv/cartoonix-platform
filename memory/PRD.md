@@ -14,6 +14,10 @@ UI language: Romanian only.
 - Media: `GET /api/media/videos/{path}` range streaming from VIDEO_DIR.
 
 ## Implemented (2026-06)
+- Legal pages: `Terms.jsx` (/termeni) + `Privacy.jsx` (/confidentialitate), public routes (added to AuthGate PUBLIC_PATHS),
+  linked in Home footer. (No legal pages existed before.)
+- Verified working (no change needed): chat auto-refresh already polls every 4s in `ChatRoom.jsx`;
+  promo popup shows for FREE users on Home — admin doesn't see it because admin is subscription:plus.
 - Episodes: ALL episodes free — removed PLUS lock in `ShowDetail.jsx` & `Watch.jsx` (`locked = false`).
   Download remains PLUS-only (unchanged).
 - Admin tickets pagination: 10/page, client-side, prev/next in `AdminTickets.jsx`.

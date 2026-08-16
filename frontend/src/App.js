@@ -20,6 +20,8 @@ import Plus from "@/pages/Plus";
 import Profile from "@/pages/Profile";
 import Settings from "@/pages/Settings";
 import Help from "@/pages/Help";
+import Terms from "@/pages/Terms";
+import Privacy from "@/pages/Privacy";
 import Lobby from "@/pages/Lobby";
 import ChatRoom from "@/pages/ChatRoom";
 import Announcements from "@/pages/Announcements";
@@ -81,6 +83,8 @@ function App() {
             <Route path="/payment/success" element={<PaymentSuccess />} />
             <Route path="/payment/cancel" element={<PaymentCancel />} />
             <Route path="/help" element={<Help />} />
+            <Route path="/termeni" element={<Terms />} />
+            <Route path="/confidentialitate" element={<Privacy />} />
             <Route path="/support" element={<ProtectedRoute><MySupport /></ProtectedRoute>} />
             <Route path="/show/:id" element={<ShowDetail />} />
             <Route path="/watch/:id/:ep" element={<ProtectedRoute><Watch /></ProtectedRoute>} />
