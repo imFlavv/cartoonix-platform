@@ -1307,6 +1307,7 @@ ADMIN_CHAT_COMMANDS = {"important", "announce", "warn", "success", "info"}
 
 @api_router.post("/chat")
 async def post_chat(data: ChatInput, user: dict = Depends(get_current_user)):
+  try:
     room = data.room if data.room in ("global", "plus") else "global"
     if room == "plus" and not user_is_plus(user):
         raise HTTPException(status_code=403, detail="Camera PLUS este doar pentru membrii Cartoonix PLUS")
@@ -1348,6 +1349,12 @@ async def post_chat(data: ChatInput, user: dict = Depends(get_current_user)):
     doc["id"] = str(res.inserted_id)
     doc.pop("_id", None)
     return doc
+  except HTTPException:
+    raise
+  except Exception as e:
+    import traceback
+    logger.error(f"[POST /chat] 500 for user={user.get('email')} id={user.get('id')}: {e}\n{traceback.format_exc()}")
+    raise HTTPException(status_code=500, detail=f"chat_error: {type(e).__name__}: {str(e)[:200]}")
 
 
 # ---------- suggestions ----------
