@@ -4,10 +4,76 @@ import { api, resolveVideoUrl } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import {
-  Tv, Users, UserPlus, Play, SkipForward, SkipBack, Plus, X, LogOut, Crown, Trash2, ListVideo,
+  Tv, Users, UserPlus, Play, SkipForward, SkipBack, Plus, X, LogOut, Crown, Trash2, ListVideo, Search,
 } from "lucide-react";
 
 const POLL_MS = 2000;
+
+const ShowPicker = ({ shows, onClose, onAdd }) => {
+  const [q, setQ] = useState("");
+  const query = q.trim().toLowerCase();
+  const filtered = query
+    ? shows.filter((s) => (s.title || "").toLowerCase().includes(query))
+    : shows;
+  return (
+    <div className="fixed inset-0 z-[60] bg-black/70 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-[#141414] border border-white/10 rounded-2xl w-full max-w-2xl max-h-[80vh] flex flex-col p-5" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4 shrink-0">
+          <h3 className="font-display text-2xl flex items-center gap-2"><ListVideo className="h-6 w-6 text-[#06b6d4]" /> Alege un desen</h3>
+          <button onClick={onClose} className="text-white/50 hover:text-white"><X className="h-5 w-5" /></button>
+        </div>
+        <div className="relative mb-4 shrink-0">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
+          <input
+            data-testid="wp-picker-search"
+            autoFocus
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Caută un desen..."
+            className="w-full pl-9 pr-3 py-2.5 rounded-lg bg-white/5 border border-white/10 text-sm focus:outline-none focus:ring-1 focus:ring-[#06b6d4]"
+          />
+        </div>
+        <div className="space-y-4 overflow-y-auto min-h-0">
+          {filtered.map((s) => (
+            <div key={s.id}>
+              <p className="font-semibold mb-2">{s.title}</p>
+              <div className="flex flex-wrap gap-2">
+                {(s.episodes || []).map((ep) => (
+                  <button key={ep.number} onClick={() => onAdd(s, ep)} className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-[#06b6d4]/30 text-xs border border-white/10">
+                    {ep.season ? `${ep.season} · ` : ""}Ep {ep.number}
+                  </button>
+                ))}
+                {(!s.episodes || s.episodes.length === 0) && <span className="text-xs text-white/30">fără episoade</span>}
+              </div>
+            </div>
+          ))}
+          {filtered.length === 0 && <p className="text-white/40 text-sm text-center py-6">Niciun desen găsit.</p>}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const PlaylistList = ({ items, editable, room, isOwner, control, removePlaylist }) => (
+  <div className="space-y-2">
+    {items.map((p, i) => (
+      <div key={i} className={`flex items-center gap-3 p-2 rounded-lg border ${room && i === room.current_index ? "bg-[#06b6d4]/15 border-[#06b6d4]/40" : "bg-white/5 border-white/10"}`}>
+        {p.thumbnail ? <img src={p.thumbnail} alt="" className="h-9 w-14 object-cover rounded" /> : <div className="h-9 w-14 rounded bg-white/10" />}
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold truncate">{p.show_title}</p>
+          <p className="text-xs text-white/40 truncate">Ep {p.episode_number} · {p.episode_title}</p>
+        </div>
+        {room && isOwner && i !== room.current_index && (
+          <button onClick={() => control({ action: "select", index: i })} className="text-[10px] px-2 py-1 rounded bg-white/10 hover:bg-white/20 font-bold uppercase">Redă</button>
+        )}
+        {editable && (
+          <button onClick={() => removePlaylist(i)} className="h-7 w-7 flex items-center justify-center rounded hover:bg-[#ec1c24]/20 text-white/50 hover:text-[#ec1c24]"><Trash2 className="h-4 w-4" /></button>
+        )}
+      </div>
+    ))}
+    {items.length === 0 && <p className="text-white/40 text-sm">Lista e goală. Adaugă desene.</p>}
+  </div>
+);
 
 const WatchParty = () => {
   const { user } = useAuth();
@@ -177,53 +243,6 @@ const WatchParty = () => {
     </div>
   );
 
-  const ShowPicker = () => (
-    <div className="fixed inset-0 z-[60] bg-black/70 flex items-center justify-center p-4" onClick={() => setPickerOpen(false)}>
-      <div className="bg-[#141414] border border-white/10 rounded-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto p-5" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-display text-2xl flex items-center gap-2"><ListVideo className="h-6 w-6 text-[#06b6d4]" /> Alege un desen</h3>
-          <button onClick={() => setPickerOpen(false)} className="text-white/50 hover:text-white"><X className="h-5 w-5" /></button>
-        </div>
-        <div className="space-y-4">
-          {shows.map((s) => (
-            <div key={s.id}>
-              <p className="font-semibold mb-2">{s.title}</p>
-              <div className="flex flex-wrap gap-2">
-                {(s.episodes || []).map((ep) => (
-                  <button key={ep.number} onClick={() => addToPlaylist(s, ep)} className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-[#06b6d4]/30 text-xs border border-white/10">
-                    {ep.season ? `${ep.season} · ` : ""}Ep {ep.number}
-                  </button>
-                ))}
-                {(!s.episodes || s.episodes.length === 0) && <span className="text-xs text-white/30">fără episoade</span>}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-
-  const PlaylistList = ({ items, editable }) => (
-    <div className="space-y-2">
-      {items.map((p, i) => (
-        <div key={i} className={`flex items-center gap-3 p-2 rounded-lg border ${room && i === room.current_index ? "bg-[#06b6d4]/15 border-[#06b6d4]/40" : "bg-white/5 border-white/10"}`}>
-          {p.thumbnail ? <img src={p.thumbnail} alt="" className="h-9 w-14 object-cover rounded" /> : <div className="h-9 w-14 rounded bg-white/10" />}
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold truncate">{p.show_title}</p>
-            <p className="text-xs text-white/40 truncate">Ep {p.episode_number} · {p.episode_title}</p>
-          </div>
-          {room && isOwner && i !== room.current_index && (
-            <button onClick={() => control({ action: "select", index: i })} className="text-[10px] px-2 py-1 rounded bg-white/10 hover:bg-white/20 font-bold uppercase">Redă</button>
-          )}
-          {editable && (
-            <button onClick={() => removePlaylist(i)} className="h-7 w-7 flex items-center justify-center rounded hover:bg-[#ec1c24]/20 text-white/50 hover:text-[#ec1c24]"><Trash2 className="h-4 w-4" /></button>
-          )}
-        </div>
-      ))}
-      {items.length === 0 && <p className="text-white/40 text-sm">Lista e goală. Adaugă desene.</p>}
-    </div>
-  );
-
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] text-white"><NavBar /><div className="pt-24 text-center text-white/50">Se încarcă...</div></div>
@@ -233,7 +252,7 @@ const WatchParty = () => {
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
       <NavBar />
-      {pickerOpen && <ShowPicker />}
+      {pickerOpen && <ShowPicker shows={shows} onClose={() => setPickerOpen(false)} onAdd={addToPlaylist} />}
       <div className="pt-24 px-4 md:px-12 pb-16 max-w-6xl mx-auto">
         <Header />
 
@@ -271,7 +290,7 @@ const WatchParty = () => {
               <button onClick={() => setPickerOpen(true)} className="w-full py-2.5 rounded-lg bg-white/10 hover:bg-white/20 font-semibold flex items-center justify-center gap-2 mb-4">
                 <Plus className="h-4 w-4" /> Adaugă desene în listă
               </button>
-              <PlaylistList items={draftPlaylist} editable />
+              <PlaylistList items={draftPlaylist} editable room={room} isOwner={isOwner} control={control} removePlaylist={removePlaylist} />
               <button data-testid="wp-create" onClick={createRoom} disabled={creating || draftPlaylist.length === 0} className="mt-4 w-full py-3 rounded-lg bg-[#06b6d4] text-black font-bold hover:brightness-110 disabled:opacity-50">
                 {creating ? "Se creează..." : "Începe Watch Party"}
               </button>
@@ -348,7 +367,7 @@ const WatchParty = () => {
                   <h3 className="font-display text-xl flex items-center gap-2"><ListVideo className="h-5 w-5 text-[#06b6d4]" /> Listă</h3>
                   {isOwner && <button onClick={() => setPickerOpen(true)} className="text-xs px-2 py-1 rounded bg-white/10 hover:bg-white/20 flex items-center gap-1"><Plus className="h-3.5 w-3.5" /> Adaugă</button>}
                 </div>
-                <PlaylistList items={room.playlist} editable={isOwner} />
+                <PlaylistList items={room.playlist} editable={isOwner} room={room} isOwner={isOwner} control={control} removePlaylist={removePlaylist} />
               </div>
 
               {/* Actions */}

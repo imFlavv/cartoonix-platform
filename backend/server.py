@@ -1220,8 +1220,9 @@ async def read_all_notifications(user: dict = Depends(get_current_user)):
 
 # ---------- chat ----------
 class ChatInput(BaseModel):
-    text: str = Field(min_length=1, max_length=500)
+    text: str = Field(min_length=1, max_length=120)
     room: str = "global"
+    quote: Optional[dict] = None
 
 
 def serialize_msg(m: dict) -> dict:
@@ -1303,6 +1304,7 @@ async def get_chat(room: str = "global", after: Optional[str] = None, before: Op
 
 
 ADMIN_CHAT_COMMANDS = {"important", "announce", "warn", "success", "info"}
+CHAT_COOLDOWN_SECONDS = 10
 
 
 @api_router.post("/chat")
@@ -1318,6 +1320,23 @@ async def post_chat(data: ChatInput, user: dict = Depends(get_current_user)):
         detail = "Ai fost redus la tăcere de un moderator și nu poți trimite mesaje."
         raise HTTPException(status_code=403, detail=detail)
 
+    # rate limit: 10s cooldown between messages (non-admin)
+    if user.get("role") != "admin":
+        last = await db.chat_messages.find_one({"user_id": uid_of(user)}, sort=[("created_at", -1)])
+        if last and last.get("created_at"):
+            try:
+                last_dt = datetime.fromisoformat(str(last["created_at"]))
+                if last_dt.tzinfo is None:
+                    last_dt = last_dt.replace(tzinfo=timezone.utc)
+                elapsed = (datetime.now(timezone.utc) - last_dt).total_seconds()
+                if elapsed < CHAT_COOLDOWN_SECONDS:
+                    wait = max(1, int(CHAT_COOLDOWN_SECONDS - elapsed) + 1)
+                    raise HTTPException(status_code=429, detail=f"Așteaptă {wait}s înainte de a trimite alt mesaj.")
+            except HTTPException:
+                raise
+            except Exception:
+                pass
+
     raw = data.text.strip()
     command = None
     text = raw
@@ -1331,6 +1350,14 @@ async def post_chat(data: ChatInput, user: dict = Depends(get_current_user)):
             command = cmd
             text = body
 
+    # optional quote/reply (only name + text kept)
+    quote = None
+    if isinstance(data.quote, dict):
+        qn = str(data.quote.get("name") or "").strip()[:60]
+        qt = str(data.quote.get("text") or "").strip()[:200]
+        if qn and qt:
+            quote = {"name": qn, "text": qt}
+
     doc = {
         "user_id": uid_of(user),
         "name": user_name(user) or "Anonim",
@@ -1340,6 +1367,7 @@ async def post_chat(data: ChatInput, user: dict = Depends(get_current_user)):
         "room": room,
         "text": text,
         "command": command,
+        "quote": quote,
         "is_bot": False,
         "deleted": False,
         "chat_style": sanitize_chat_style(user.get("chat_style")) if user_is_plus(user) else None,

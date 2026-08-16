@@ -75,5 +75,15 @@ UI language: Romanian only.
 - P1: Watch Party WebSockets (replace polling); auto-play next episode for all participants.
 - P2: Upload poster from computer; filter members Only PLUS / Only FREE; promo popup start/end schedule.
 
+## Recent changes (Aug 2026)
+- Chat scroll: /lobby/chat now h-screen; only the messages container scrolls (flex-1 min-h-0 overflow-y-auto).
+  Initial load 25 messages + "Afișează mai multe" (ChatRoom.jsx).
+- Chat quote/reply: click any bubble → quote bar above input (X to cancel) → sent message renders quote
+  block above its bubble. Backend POST /api/chat accepts optional quote {name,text} (server.py).
+- Chat limits: max 120 chars per message (ChatInput max_length=120 + input maxLength=120 + 120 counter);
+  10s cooldown between messages for non-admins (backend 429; frontend countdown on send button). Admins exempt.
+- WatchParty: ShowPicker & PlaylistList extracted to module-level stable components → fixes scroll jumping
+  to top during 2s polling; added title search field in the picker (WatchParty.jsx).
+
 ## Credentials
 See `/app/memory/test_credentials.md` (admin@cartoonix.ro).

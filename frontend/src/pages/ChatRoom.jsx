@@ -4,7 +4,7 @@ import { NavBar } from "@/components/NavBar";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import { ArrowLeft, Send, Globe, Lock, Star, Megaphone, AlertTriangle, CheckCircle2, Info, HelpCircle, MoreVertical, Ban, VolumeX, Trash2, Tv } from "lucide-react";
+import { ArrowLeft, Send, Globe, Lock, Star, Megaphone, AlertTriangle, CheckCircle2, Info, HelpCircle, MoreVertical, Ban, VolumeX, Trash2, Tv, X } from "lucide-react";
 import { PlusIcon } from "@/components/PlusIcon";
 import { MessageText } from "@/components/MessageText";
 import { EmojiPicker } from "@/components/EmojiPicker";
@@ -38,7 +38,7 @@ const MUTE_OPTIONS = [
   { value: "perm", label: "Permanent" },
 ];
 
-const INITIAL_LIMIT = 50;
+const INITIAL_LIMIT = 25;
 const PAGE_SIZE = 25;
 
 const ChatRoom = () => {
@@ -50,6 +50,8 @@ const ChatRoom = () => {
   const [showCommands, setShowCommands] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [quoting, setQuoting] = useState(null);
+  const [cooldown, setCooldown] = useState(0);
   const endRef = useRef(null);
   const scrollRef = useRef(null);
   const lastTs = useRef(null);
@@ -132,17 +134,40 @@ const ChatRoom = () => {
     }
   };
 
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setInterval(() => setCooldown((c) => (c <= 1 ? 0 : c - 1)), 1000);
+    return () => clearInterval(t);
+  }, [cooldown]);
+
   const send = async (e) => {
     e.preventDefault();
-    if (!text.trim()) return;
+    if (!text.trim() || (!isAdmin && cooldown > 0)) return;
     const val = text.trim();
+    const q = quoting;
     setText("");
+    setQuoting(null);
     try {
-      const { data } = await api.post("/chat", { text: val, room });
+      const payload = { text: val, room };
+      if (q) payload.quote = { name: q.name, text: q.text };
+      const { data } = await api.post("/chat", payload);
       applyNew([data]);
+      if (!isAdmin) setCooldown(10);
     } catch (err) {
+      if (err.response?.status === 429) {
+        const m = /(\d+)/.exec(err.response?.data?.detail || "");
+        setCooldown(m ? parseInt(m[1], 10) : 10);
+      }
+      setText(val);
+      if (q) setQuoting(q);
       toast.error(err.response?.data?.detail || "Nu s-a putut trimite mesajul");
     }
+  };
+
+  const quoteMessage = (m) => {
+    if (m.deleted || m.is_bot || !m.text) return;
+    setQuoting({ id: m.id, name: m.name, text: m.text });
+    inputRef.current?.focus();
   };
 
   const insertEmoji = (name) => {
@@ -184,9 +209,9 @@ const ChatRoom = () => {
   );
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col">
+    <div className="h-screen overflow-hidden bg-[#0a0a0a] text-white flex flex-col">
       <NavBar />
-      <div className="pt-16 flex-1 flex flex-col max-w-3xl w-full mx-auto px-4">
+      <div className="pt-16 flex-1 min-h-0 flex flex-col max-w-3xl w-full mx-auto px-4">
         <div className="flex items-center gap-3 py-4 flex-wrap">
           <button data-testid="chat-back" onClick={() => navigate("/lobby")} className="flex items-center gap-2 text-white/70 hover:text-white transition-colors duration-200">
             <ArrowLeft className="h-5 w-5" /> Lobby
@@ -209,7 +234,7 @@ const ChatRoom = () => {
           </div>
         ) : (
           <>
-            <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-3 py-4 border-y border-white/10">
+            <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto space-y-3 py-4 border-y border-white/10">
               {hasMore && (
                 <div className="flex justify-center pb-1">
                   <button
@@ -262,22 +287,32 @@ const ChatRoom = () => {
                         {m.name}
                         {m.plus && <PlusIcon className="h-3.5 w-3.5" />}
                       </p>
+                      {m.quote && !m.deleted && (
+                        <div data-testid="chat-quote-preview" className="mb-1 pl-2.5 border-l-2 border-[#ffcc00]/70 bg-white/5 rounded-r-md px-2 py-1">
+                          <span className="block text-[11px] font-semibold text-[#ffcc00]/90 truncate">{m.quote.name}</span>
+                          <span className="block text-[11px] text-white/50 line-clamp-2 break-words">{m.quote.text}</span>
+                        </div>
+                      )}
                       {m.deleted ? (
                         <div data-testid="chat-message-deleted" className="inline-block px-4 py-2.5 rounded-2xl rounded-tl-sm text-sm bg-white/5 text-white/40 italic">
                           Acest mesaj a fost șters.
                         </div>
                       ) : m.plus && m.chat_style?.bubble && m.chat_style.bubble !== "none" ? (
-                        <SkinnedBubble
-                          testId="chat-bubble-plus-skin"
-                          skin={m.chat_style.bubble}
-                          textClasses={chatStyleClasses(m.chat_style)}
-                        >
-                          <MessageText text={m.text} />
-                        </SkinnedBubble>
+                        <div onClick={() => quoteMessage(m)} className="cursor-pointer" title="Click pentru a cita">
+                          <SkinnedBubble
+                            testId="chat-bubble-plus-skin"
+                            skin={m.chat_style.bubble}
+                            textClasses={chatStyleClasses(m.chat_style)}
+                          >
+                            <MessageText text={m.text} />
+                          </SkinnedBubble>
+                        </div>
                       ) : (
                         <div
                           data-testid={m.plus ? "chat-bubble-plus" : "chat-bubble"}
-                          className="inline-block px-4 py-2.5 rounded-2xl rounded-tl-sm text-sm break-words bg-[#2a2a2a] text-white/90"
+                          onClick={() => quoteMessage(m)}
+                          title="Click pentru a cita"
+                          className="inline-block px-4 py-2.5 rounded-2xl rounded-tl-sm text-sm break-words bg-[#2a2a2a] text-white/90 cursor-pointer hover:bg-[#333] transition-colors"
                         >
                           <span className={`relative ${m.plus ? chatStyleClasses(m.chat_style) : ""}`}><MessageText text={m.text} /></span>
                         </div>
@@ -350,31 +385,64 @@ const ChatRoom = () => {
               </div>
             )}
 
-            <form onSubmit={send} className="flex gap-2 py-4">
-              <EmojiPicker onSelect={insertEmoji} />
-              {isAdmin && (
-                <button
-                  type="button"
-                  data-testid="chat-cmd-toggle"
-                  onClick={() => setShowCommands((v) => !v)}
-                  title="Comenzi admin"
-                  className={`h-12 w-12 flex items-center justify-center rounded-full border border-white/10 transition-colors duration-200 ${showCommands ? "bg-[#ffcc00] text-black" : "bg-white/10 text-white/80 hover:bg-white/20"}`}
-                >
-                  <HelpCircle className="h-5 w-5" />
-                </button>
+            <form onSubmit={send} className="flex flex-col gap-2 py-4">
+              {quoting && (
+                <div data-testid="chat-quote-bar" className="flex items-center gap-2 rounded-xl bg-white/5 border border-white/10 pl-3 pr-2 py-2">
+                  <div className="w-1 self-stretch rounded-full bg-[#ffcc00]/80 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <span className="block text-xs font-semibold text-[#ffcc00]/90 truncate">Citezi pe {quoting.name}</span>
+                    <span className="block text-xs text-white/50 truncate">{quoting.text}</span>
+                  </div>
+                  <button
+                    type="button"
+                    data-testid="chat-quote-cancel"
+                    onClick={() => setQuoting(null)}
+                    className="h-7 w-7 flex items-center justify-center rounded-full text-white/50 hover:text-white hover:bg-white/10 shrink-0"
+                    title="Anulează citatul"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
               )}
-              <input
-                ref={inputRef}
-                data-testid="chat-input"
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                placeholder={isAdmin ? "Scrie un mesaj sau /important, /announce, /warn..." : (room === "plus" ? "Scrie în camera PLUS..." : "Scrie un mesaj...")}
-                maxLength={500}
-                className="flex-1 px-4 py-3 rounded-full bg-white/10 border border-white/10 focus:outline-none focus:ring-2 focus:ring-[#ffcc00] text-sm"
-              />
-              <button data-testid="chat-send" type="submit" className="h-12 w-12 flex items-center justify-center rounded-full bg-[#ec1c24] hover:bg-[#ff2d36] transition-colors duration-200">
-                <Send className="h-5 w-5" />
-              </button>
+              <div className="flex gap-2">
+                <EmojiPicker onSelect={insertEmoji} />
+                {isAdmin && (
+                  <button
+                    type="button"
+                    data-testid="chat-cmd-toggle"
+                    onClick={() => setShowCommands((v) => !v)}
+                    title="Comenzi admin"
+                    className={`h-12 w-12 flex items-center justify-center rounded-full border border-white/10 transition-colors duration-200 ${showCommands ? "bg-[#ffcc00] text-black" : "bg-white/10 text-white/80 hover:bg-white/20"}`}
+                  >
+                    <HelpCircle className="h-5 w-5" />
+                  </button>
+                )}
+                <input
+                  ref={inputRef}
+                  data-testid="chat-input"
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  placeholder={isAdmin ? "Scrie un mesaj sau /important, /announce, /warn..." : (room === "plus" ? "Scrie în camera PLUS..." : "Scrie un mesaj...")}
+                  maxLength={120}
+                  className="flex-1 px-4 py-3 rounded-full bg-white/10 border border-white/10 focus:outline-none focus:ring-2 focus:ring-[#ffcc00] text-sm"
+                />
+                <button
+                  data-testid="chat-send"
+                  type="submit"
+                  disabled={!isAdmin && cooldown > 0}
+                  title={!isAdmin && cooldown > 0 ? `Așteaptă ${cooldown}s` : "Trimite"}
+                  className="h-12 min-w-12 px-3 flex items-center justify-center rounded-full bg-[#ec1c24] hover:bg-[#ff2d36] transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {!isAdmin && cooldown > 0 ? (
+                    <span data-testid="chat-cooldown" className="text-sm font-bold tabular-nums">{cooldown}s</span>
+                  ) : (
+                    <Send className="h-5 w-5" />
+                  )}
+                </button>
+              </div>
+              <div className="flex justify-end px-2">
+                <span className="text-[11px] text-white/30 tabular-nums">{text.length}/120</span>
+              </div>
             </form>
           </>
         )}
