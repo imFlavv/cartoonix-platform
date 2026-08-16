@@ -3,7 +3,7 @@ import { NavBar } from "@/components/NavBar";
 import { api } from "@/lib/api";
 import { CHANNELS } from "@/data/constants";
 import { toast } from "sonner";
-import { FolderSearch, Plus, Film, Lightbulb, Users, Pencil, ChevronUp, ChevronDown, ServerCog, Inbox, ImageOff, MessagesSquare, Megaphone, RotateCcw } from "lucide-react";
+import { FolderSearch, Plus, Film, Lightbulb, Users, Pencil, ChevronUp, ChevronDown, ServerCog, Inbox, ImageOff, MessagesSquare, Megaphone, RotateCcw, Crown } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { AdminMembers } from "@/components/AdminMembers";
@@ -37,6 +37,8 @@ const Admin = () => {
   const [savingPromo, setSavingPromo] = useState(false);
   const [chatWidget, setChatWidget] = useState({ enabled: false, text: "", image_url: "", link: "/lobby/chat" });
   const [savingWidget, setSavingWidget] = useState(false);
+  const [plusWidget, setPlusWidget] = useState({ enabled: false, text: "", image_url: "", link: "/plus" });
+  const [savingPlusWidget, setSavingPlusWidget] = useState(false);
   const [resettingAvatars, setResettingAvatars] = useState(false);
 
   const resetAvatars = async () => {
@@ -61,6 +63,7 @@ const Admin = () => {
     api.get("/settings/ui").then((res) => setAvatarFrames(res.data.avatar_frames_enabled !== false)).catch(() => {});
     api.get("/settings/promo-popup").then((res) => setPromo(res.data)).catch(() => {});
     api.get("/settings/chat-widget").then((res) => setChatWidget(res.data)).catch(() => {});
+    api.get("/settings/plus-widget").then((res) => setPlusWidget(res.data)).catch(() => {});
   }, []);
 
   const savePromo = async (override) => {
@@ -92,6 +95,21 @@ const Admin = () => {
     }
   };
   const setW = (k, v) => setChatWidget((w) => ({ ...w, [k]: v }));
+
+  const savePlusWidget = async (override) => {
+    const payload = { ...plusWidget, ...(override || {}) };
+    setSavingPlusWidget(true);
+    try {
+      await api.post("/admin/plus-widget", payload);
+      setPlusWidget(payload);
+      toast.success("Caseta PLUS salvată");
+    } catch {
+      toast.error("Eroare la salvarea casetei PLUS");
+    } finally {
+      setSavingPlusWidget(false);
+    }
+  };
+  const setPW = (k, v) => setPlusWidget((w) => ({ ...w, [k]: v }));
 
   const toggleMaintenance = async (val) => {
     try {
@@ -469,6 +487,30 @@ const Admin = () => {
                   )}
                   <button data-testid="widget-save" onClick={() => saveWidget()} disabled={savingWidget} className="w-full py-2.5 rounded-lg bg-[#ffcc00] text-black font-bold hover:brightness-110 disabled:opacity-60">
                     {savingWidget ? "Se salvează..." : "Salvează caseta"}
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-[#0f0f0f] border border-white/10 rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-1">
+                  <h2 className="font-display text-2xl flex items-center gap-2"><Crown className="h-5 w-5 text-[#ffcc00]" /> Caseta PLUS (colț dreapta-jos)</h2>
+                  <Switch data-testid="pluswidget-toggle" checked={!!plusWidget.enabled} onCheckedChange={(v) => savePlusWidget({ enabled: v })} />
+                </div>
+                <p className="text-sm text-white/50 mb-5">A doua casetă flotantă, în spatele celei de chat. Cele două se rotesc automat între ele; când închizi una, apare cealaltă.</p>
+                <div className="space-y-3">
+                  <input data-testid="pluswidget-text" value={plusWidget.text || ""} onChange={(e) => setPW("text", e.target.value)} placeholder="Text (ex: Abonează-te la Cartoonix PLUS!)" className={input} />
+                  <input data-testid="pluswidget-image" value={plusWidget.image_url || ""} onChange={(e) => setPW("image_url", e.target.value)} placeholder="URL imagine fundal (ex: /plus-widget-bg.webp)" className={input} />
+                  <input data-testid="pluswidget-link" value={plusWidget.link || ""} onChange={(e) => setPW("link", e.target.value)} placeholder="Link la click (ex: /plus)" className={input} />
+                  {plusWidget.image_url && (
+                    <div className="rounded-xl overflow-hidden border border-white/10 h-24 w-64 relative" style={{ backgroundImage: `url(${plusWidget.image_url})`, backgroundSize: "cover", backgroundPosition: "center" }}>
+                      <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent" />
+                      <div className="relative h-full flex items-center px-4">
+                        <p className="text-white font-display text-lg leading-tight drop-shadow">{plusWidget.text || "Abonează-te la PLUS!"}</p>
+                      </div>
+                    </div>
+                  )}
+                  <button data-testid="pluswidget-save" onClick={() => savePlusWidget()} disabled={savingPlusWidget} className="w-full py-2.5 rounded-lg bg-[#ffcc00] text-black font-bold hover:brightness-110 disabled:opacity-60">
+                    {savingPlusWidget ? "Se salvează..." : "Salvează caseta PLUS"}
                   </button>
                 </div>
               </div>

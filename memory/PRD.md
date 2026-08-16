@@ -14,10 +14,11 @@ UI language: Romanian only.
 - Media: `GET /api/media/videos/{path}` range streaming from VIDEO_DIR.
 
 ## Implemented (2026-06)
-- Floating Chat Widget (bottom-right CTA): `ChatWidget.jsx` mounted globally in App. Background image +
-  text editable from Admin → Platformă → "Caseta chat" (enable/disable toggle). Click → `/lobby/chat`.
-  Backend: `GET /api/settings/chat-widget` + `POST /api/admin/chat-widget` (key `chat_widget`).
-  Default bg `/chat-widget-bg.webp`. Hidden on chat/login/legal pages, dismissible per session, shown only to logged-in users.
+- Floating widget STACK (bottom-right): chat widget + PLUS widget (crown bg `/plus-widget-bg.webp`).
+  `ChatWidget.jsx` fetches both `/settings/chat-widget` + `/settings/plus-widget`, stacks them (one front,
+  one behind offset), auto-rotates front every 6s, closing the front reveals the other. Close is in-memory
+  only → both reappear on refresh. Both editable + enable/disable from Admin → Platformă. Backend keys
+  `chat_widget` + `plus_widget` with GET `/settings/*-widget` + POST `/admin/*-widget`.
 - Jellyfin config robustness: `_jellyfin_conf()` reads env at runtime and accepts multiple names —
   URL: `JELLYFIN_URL` | `JELLYFIN_SERVER_URL`; KEY: `JELLYFIN_API_KEY` | `JELLYFIN_SECRET_KEY` |
   `JELLYFIN_KEY` | `JELLYFIN_TOKEN`. Logs `[jellyfin] not configured (url_set=.., key_set=..)` when missing.

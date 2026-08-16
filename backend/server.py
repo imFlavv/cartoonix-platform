@@ -2234,6 +2234,30 @@ async def set_chat_widget(data: ChatWidgetInput, admin: dict = Depends(require_a
     return {k: data.model_dump().get(k) for k in CHAT_WIDGET_DEFAULT}
 
 
+# ---------- plus widget (floating CTA, editable from admin) ----------
+PLUS_WIDGET_DEFAULT = {
+    "enabled": True,
+    "text": "Abonează-te la Cartoonix PLUS!",
+    "image_url": "/plus-widget-bg.webp",
+    "link": "/plus",
+}
+
+
+@api_router.get("/settings/plus-widget")
+async def get_plus_widget():
+    s = await db.settings.find_one({"key": "plus_widget"})
+    if not s:
+        return PLUS_WIDGET_DEFAULT
+    return {k: s.get(k, PLUS_WIDGET_DEFAULT.get(k)) for k in PLUS_WIDGET_DEFAULT}
+
+
+@api_router.post("/admin/plus-widget")
+async def set_plus_widget(data: ChatWidgetInput, admin: dict = Depends(require_admin)):
+    payload = {"key": "plus_widget", **data.model_dump(), "updated_at": datetime.now(timezone.utc).isoformat()}
+    await db.settings.update_one({"key": "plus_widget"}, {"$set": payload}, upsert=True)
+    return {k: data.model_dump().get(k) for k in PLUS_WIDGET_DEFAULT}
+
+
 # ---------- maintenance ----------
 class MaintenanceInput(BaseModel):
     enabled: bool
