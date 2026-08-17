@@ -438,13 +438,14 @@ const ChatRoom = () => {
                   return (
                     <div key={m.id} data-testid="chat-message" className="group flex items-start gap-3">
                       {/* left: avatar + online + count */}
-                      <div className="flex flex-col items-center gap-1 shrink-0 w-12 pt-5">
+                      <div className="flex flex-col items-center gap-2 shrink-0 w-12 pt-5">
                         <div className="relative">
                           <img src={m.avatar || `https://api.dicebear.com/9.x/bottts/svg?seed=${m.name}`} alt="" className="h-10 w-10 rounded-full bg-[#141414]" />
                           {m.sender_online && <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-[#22c55e] border-2 border-[#0a0a0a]" />}
                         </div>
-                        <span className="text-[11px] font-semibold text-white/45 flex items-center gap-1 leading-none" title="Total mesaje">
-                          <Hexagon className="h-2.5 w-2.5 text-white/35" fill="currentColor" />{compact(m.sender_msg_count)}
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-white/45 leading-none" title="Total mesaje">
+                          <Hexagon className="h-3 w-3 text-white/40 shrink-0" fill="currentColor" />
+                          <span>{compact(m.sender_msg_count)}</span>
                         </span>
                       </div>
 
