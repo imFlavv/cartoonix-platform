@@ -1289,6 +1289,59 @@ async def maybe_send_bot_messages():
     await db.settings.update_one({"key": "chat_bot"}, {"$set": {"next_index": (idx + 1) % len(msgs)}})
 
 
+CHAT_ONLINE_WINDOW = 45  # seconds a user is considered "on chat" after last chat heartbeat
+
+
+def _chat_online_threshold() -> str:
+    return (datetime.now(timezone.utc) - timedelta(seconds=CHAT_ONLINE_WINDOW)).isoformat()
+
+
+async def _sender_meta(user_ids: List[str]) -> dict:
+    """Return {user_id: {"count": int, "online": bool}} for given sender ids (best-effort)."""
+    ids = [u for u in {u for u in user_ids if u}]
+    if not ids:
+        return {}
+    counts = {}
+    try:
+        pipeline = [
+            {"$match": {"user_id": {"$in": ids}, "is_bot": {"$ne": True}}},
+            {"$group": {"_id": "$user_id", "c": {"$sum": 1}}},
+        ]
+        async for row in db.chat_messages.aggregate(pipeline):
+            counts[row["_id"]] = row["c"]
+    except Exception:
+        pass
+    online = set()
+    thr = _chat_online_threshold()
+    or_clauses = [{"id": {"$in": ids}}]
+    oid_list = []
+    for i in ids:
+        try:
+            oid_list.append(ObjectId(i))
+        except Exception:
+            pass
+    if oid_list:
+        or_clauses.append({"_id": {"$in": oid_list}})
+    try:
+        users = await db.users.find({"$or": or_clauses}, {"id": 1, "chat_last_seen": 1}).to_list(1000)
+        for u in users:
+            key = u.get("id") or str(u.get("_id", ""))
+            if u.get("chat_last_seen") and str(u["chat_last_seen"]) >= thr:
+                online.add(key)
+    except Exception:
+        pass
+    return {i: {"count": counts.get(i, 0), "online": i in online} for i in ids}
+
+
+async def _enrich_messages(msgs: List[dict]) -> List[dict]:
+    meta = await _sender_meta([m.get("user_id") for m in msgs if not m.get("is_bot")])
+    for m in msgs:
+        info = meta.get(m.get("user_id"))
+        m["sender_msg_count"] = info["count"] if info else 0
+        m["sender_online"] = info["online"] if info else False
+    return msgs
+
+
 @api_router.get("/chat")
 async def get_chat(room: str = "global", after: Optional[str] = None, before: Optional[str] = None,
                    limit: int = 50, user: dict = Depends(get_current_user)):
@@ -1306,7 +1359,7 @@ async def get_chat(room: str = "global", after: Optional[str] = None, before: Op
         # incremental poll: everything newer than `after`
         query["created_at"] = {"$gt": after}
         msgs = await db.chat_messages.find(query).sort("created_at", 1).limit(200).to_list(200)
-        return {"messages": [serialize_msg(m, _uid) for m in msgs], "has_more": False}
+        return {"messages": await _enrich_messages([serialize_msg(m, _uid) for m in msgs]), "has_more": False}
     # historical page (initial = last `limit`, or older via `before`)
     lim = max(1, min(int(limit or 50), 100))
     if before:
@@ -1315,7 +1368,7 @@ async def get_chat(room: str = "global", after: Optional[str] = None, before: Op
     has_more = len(msgs) > lim
     msgs = msgs[:lim]
     msgs.reverse()
-    return {"messages": [serialize_msg(m, _uid) for m in msgs], "has_more": has_more}
+    return {"messages": await _enrich_messages([serialize_msg(m, _uid) for m in msgs]), "has_more": has_more}
 
 
 class ReactInput(BaseModel):
@@ -1370,6 +1423,114 @@ async def sync_reactions(data: ReactionSyncInput, user: dict = Depends(get_curre
         did = d.get("id") or str(d["_id"])
         result[did] = reaction_summary(d.get("reactions"), uid)
     return result
+
+
+@api_router.post("/chat/heartbeat")
+async def chat_heartbeat(user: dict = Depends(get_current_user)):
+    now = datetime.now(timezone.utc).isoformat()
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {"chat_last_seen": now, "last_active": now}})
+    return {"ok": True}
+
+
+@api_router.get("/chat/stats")
+async def chat_stats(user: dict = Depends(get_current_user)):
+    now = datetime.now(timezone.utc)
+    chat_thr = _chat_online_threshold()
+    plat_thr = (now - timedelta(seconds=60)).isoformat()
+    day_ago = (now - timedelta(hours=24)).isoformat()
+    online_chat = await db.users.count_documents({"chat_last_seen": {"$gte": chat_thr}})
+    online_platform = await db.users.count_documents({"$or": [
+        {"last_active": {"$gte": plat_thr}}, {"last_seen": {"$gte": plat_thr}},
+    ]})
+    messages_today = await db.chat_messages.count_documents({"created_at": {"$gte": day_ago}, "is_bot": {"$ne": True}})
+    general_total = await db.chat_messages.count_documents({"room": "global", "is_bot": {"$ne": True}})
+    plus_total = await db.chat_messages.count_documents({"room": "plus", "is_bot": {"$ne": True}})
+    my_count = await db.chat_messages.count_documents({"user_id": uid_of(user), "is_bot": {"$ne": True}})
+    top_talker = None
+    async for row in db.chat_messages.aggregate([
+        {"$match": {"is_bot": {"$ne": True}, "user_id": {"$ne": None}}},
+        {"$group": {"_id": "$user_id", "c": {"$sum": 1}}},
+        {"$sort": {"c": -1}}, {"$limit": 1},
+    ]):
+        u = await find_user_by_id(row["_id"])
+        top_talker = {
+            "name": (user_name(u) if u else "") or "Anonim",
+            "avatar": user_avatar(u) if u else "",
+            "plus": user_is_plus(u) if u else False,
+            "count": row["c"],
+        }
+    return {
+        "online_chat": online_chat,
+        "online_platform": online_platform,
+        "messages_today": messages_today,
+        "general_total": general_total,
+        "plus_total": plus_total,
+        "my_count": my_count,
+        "top_talker": top_talker,
+    }
+
+
+@api_router.get("/chat/leaderboard")
+async def chat_leaderboard(user: dict = Depends(get_current_user)):
+    thr = _chat_online_threshold()
+    rows = []
+    async for row in db.chat_messages.aggregate([
+        {"$match": {"is_bot": {"$ne": True}, "user_id": {"$ne": None}}},
+        {"$group": {"_id": "$user_id", "c": {"$sum": 1}}},
+        {"$sort": {"c": -1}}, {"$limit": 10},
+    ]):
+        rows.append(row)
+    result = []
+    for i, row in enumerate(rows):
+        u = await find_user_by_id(row["_id"])
+        online = bool(u and u.get("chat_last_seen") and str(u["chat_last_seen"]) >= thr)
+        result.append({
+            "rank": i + 1,
+            "id": row["_id"],
+            "name": (user_name(u) if u else "") or "Anonim",
+            "avatar": user_avatar(u) if u else "",
+            "plus": user_is_plus(u) if u else False,
+            "role": (u.get("role") if u else "user") or "user",
+            "count": row["c"],
+            "online": online,
+        })
+    return {"top": result}
+
+
+class PinInput(BaseModel):
+    msg_id: str
+
+
+@api_router.post("/admin/chat/pin")
+async def admin_pin_message(data: PinInput, admin: dict = Depends(require_admin)):
+    doc = await db.chat_messages.find_one(_chat_msg_query(data.msg_id))
+    if not doc:
+        raise HTTPException(status_code=404, detail="Mesaj inexistent")
+    await db.chat_messages.update_one(
+        {"_id": doc["_id"]},
+        {"$set": {"pinned": True, "pinned_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    return {"ok": True}
+
+
+@api_router.post("/admin/chat/unpin")
+async def admin_unpin_message(data: PinInput, admin: dict = Depends(require_admin)):
+    doc = await db.chat_messages.find_one(_chat_msg_query(data.msg_id))
+    if doc:
+        await db.chat_messages.update_one({"_id": doc["_id"]}, {"$set": {"pinned": False}})
+    return {"ok": True}
+
+
+@api_router.get("/chat/pinned")
+async def get_pinned(room: str = "global", user: dict = Depends(get_current_user)):
+    if room not in ("global", "plus"):
+        room = "global"
+    if room == "plus" and not user_is_plus(user):
+        return {"pinned": []}
+    docs = await db.chat_messages.find(
+        {"room": room, "pinned": True, "deleted": {"$ne": True}}
+    ).sort("pinned_at", -1).limit(5).to_list(5)
+    return {"pinned": [serialize_msg(m, uid_of(user)) for m in docs]}
 
 
 ADMIN_CHAT_COMMANDS = {"important", "announce", "warn", "success", "info"}
@@ -1447,6 +1608,12 @@ async def post_chat(data: ChatInput, user: dict = Depends(get_current_user)):
     doc["id"] = str(oid)  # set BEFORE insert to satisfy any legacy unique `id` index
     await db.chat_messages.insert_one(doc)
     doc.pop("_id", None)
+    meta = await _sender_meta([doc["user_id"]])
+    info = meta.get(doc["user_id"])
+    doc["sender_msg_count"] = info["count"] if info else 1
+    doc["sender_online"] = True  # you just posted
+    doc["reaction_counts"] = {}
+    doc["my_reaction"] = None
     return doc
   except HTTPException:
     raise
@@ -2867,6 +3034,17 @@ async def startup():
                 logger.warning(f"Dropped erroneous unique index id_1 on {coll}")
         except Exception as e:
             logger.warning(f"Could not check/drop id_1 index on {coll}: {e}")
+
+    # chat_messages indexes for stats/leaderboard/presence performance (best-effort)
+    for field in ("user_id", "room", "created_at", "pinned"):
+        try:
+            await db.chat_messages.create_index(field)
+        except Exception as e:
+            logger.warning(f"Could not create chat_messages index {field}: {e}")
+    try:
+        await db.users.create_index("chat_last_seen")
+    except Exception as e:
+        logger.warning(f"Could not create users.chat_last_seen index: {e}")
 
     # seed admin (create-only, NON-destructive). Never crash startup if envs are missing.
     try:
