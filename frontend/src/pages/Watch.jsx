@@ -16,6 +16,7 @@ const Watch = () => {
   const [show, setShow] = useState(null);
   const [plDialog, setPlDialog] = useState(false);
   const [autoplay, setAutoplay] = useState(true);
+  const [progress, setProgress] = useState({});
   const epNumber = parseInt(ep, 10);
   const videoRef = useRef(null);
   const resumeRef = useRef(0);
@@ -41,6 +42,7 @@ const Watch = () => {
     resumeRef.current = 0;
     if (!show || locked) return;
     api.get(`/progress/${show.id}`).then((res) => {
+      setProgress(res.data || {});
       const p = res.data[String(epNumber)];
       if (p && !p.completed && p.position > 5) resumeRef.current = p.position;
     }).catch(() => {});
@@ -49,13 +51,16 @@ const Watch = () => {
   const saveProgress = useCallback((completed = false) => {
     const v = videoRef.current;
     if (!show || !v) return;
+    const pos = completed ? 0 : Math.floor(v.currentTime || 0);
+    const dur = Math.floor(v.duration || 0);
     api.post("/progress", {
       show_id: show.id,
       episode_number: epNumber,
-      position: completed ? 0 : Math.floor(v.currentTime || 0),
-      duration: Math.floor(v.duration || 0),
+      position: pos,
+      duration: dur,
       completed,
     }).catch(() => {});
+    setProgress((prev) => ({ ...prev, [String(epNumber)]: { position: pos, duration: dur, completed } }));
   }, [show, epNumber]);
 
   const onLoadedMeta = () => {
@@ -201,6 +206,9 @@ const Watch = () => {
             <div className="space-y-1.5 overflow-y-auto pr-1 max-h-[60vh] lg:max-h-none">
               {(show.episodes || []).map((e) => {
                 const active = e.number === epNumber;
+                const prog = progress[String(e.number)];
+                const watched = prog?.completed;
+                const pct = prog && prog.duration > 0 && !watched ? Math.min(100, (prog.position / prog.duration) * 100) : 0;
                 return (
                   <button
                     key={e.number}
@@ -211,14 +219,22 @@ const Watch = () => {
                       active ? "bg-[#ec1c24]/20 border-[#ec1c24]/70" : "bg-white/5 hover:bg-white/10 border-transparent"
                     }`}
                   >
-                    <span className={`h-8 w-8 shrink-0 flex items-center justify-center rounded-lg text-sm font-bold ${active ? "bg-[#ec1c24] text-white" : "bg-white/10 text-white/70"}`}>
-                      {active ? <Play className="h-4 w-4 fill-white" /> : e.number}
+                    <span className={`relative h-8 w-8 shrink-0 flex items-center justify-center rounded-lg text-sm font-bold ${active ? "bg-[#ec1c24] text-white" : watched ? "bg-[#22c55e]/20 text-[#22c55e]" : "bg-white/10 text-white/70"}`}>
+                      {active ? <Play className="h-4 w-4 fill-white" /> : watched ? <Check className="h-4 w-4" /> : e.number}
                     </span>
                     <span className="flex-1 min-w-0">
-                      <span className={`block text-sm font-semibold truncate ${active ? "text-white" : "text-white/80"}`}>
+                      <span className={`block text-sm font-semibold truncate flex items-center gap-1.5 ${active ? "text-white" : "text-white/80"}`}>
                         {e.season ? `${e.season} · ` : ""}Ep {e.number}
+                        {watched && !active && <span data-testid={`watch-ep-watched-${e.number}`} className="text-[9px] font-bold text-[#22c55e] uppercase tracking-wide">Vizionat</span>}
                       </span>
-                      <span className="block text-xs text-white/40 truncate">{e.title}{e.duration ? ` · ${e.duration}` : ""}</span>
+                      <span className="block text-xs text-white/40 truncate">
+                        {e.title}{e.duration ? ` · ${e.duration}` : ""}{pct > 0 ? ` · continuă ${Math.round(pct)}%` : ""}
+                      </span>
+                      {pct > 0 && (
+                        <span className="mt-1 block h-1 w-full rounded-full bg-white/10 overflow-hidden">
+                          <span className="block h-full bg-[#ec1c24]" style={{ width: `${pct}%` }} />
+                        </span>
+                      )}
                     </span>
                   </button>
                 );
