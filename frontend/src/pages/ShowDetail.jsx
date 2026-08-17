@@ -13,7 +13,7 @@ const ShowDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { isFavorite, toggleFavorite } = useLibrary();
+  const { isFavorite, isShowFavorite, toggleFavorite } = useLibrary();
   const [show, setShow] = useState(null);
   const [plDialog, setPlDialog] = useState(null);
   const [progress, setProgress] = useState({});
@@ -62,6 +62,20 @@ const ShowDetail = () => {
     if (requireLogin()) return;
     const fav = await toggleFavorite(makeRef(ep));
     toast.success(fav ? "Adăugat la favorite ❤️" : "Eliminat din favorite");
+  };
+
+  const showFav = isShowFavorite(show.id);
+  const onFavShow = async () => {
+    if (requireLogin()) return;
+    const fav = await toggleFavorite({
+      show_id: show.id,
+      episode_number: 0,
+      show_title: show.title,
+      episode_title: "",
+      thumbnail: show.thumbnail,
+      channel: show.channel,
+    });
+    toast.success(fav ? "Desen adăugat la favorite ❤️" : "Desen eliminat din favorite");
   };
 
   const onDownload = async (ep) => {
@@ -182,13 +196,25 @@ const ShowDetail = () => {
               ))}
             </div>
             <p className="text-white/80 max-w-2xl mb-6">{show.description}</p>
-            <button
-              data-testid="detail-play-first"
-              onClick={() => playEpisode(1)}
-              className="inline-flex items-center gap-2 px-7 py-3 rounded-full bg-[#ec1c24] text-white font-bold hover:bg-[#ff2d36] transition-colors duration-200"
-            >
-              <Play className="h-5 w-5 fill-white" /> Vizionează Ep. 1
-            </button>
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                data-testid="detail-play-first"
+                onClick={() => playEpisode(1)}
+                className="inline-flex items-center gap-2 px-7 py-3 rounded-full bg-[#ec1c24] text-white font-bold hover:bg-[#ff2d36] transition-colors duration-200"
+              >
+                <Play className="h-5 w-5 fill-white" /> Vizionează Ep. 1
+              </button>
+              <button
+                data-testid="detail-fav-show"
+                onClick={onFavShow}
+                className={`inline-flex items-center gap-2 px-6 py-3 rounded-full font-bold transition-colors duration-200 ${
+                  showFav ? "bg-[#ec1c24]/20 text-white border border-[#ec1c24]/60" : "bg-white/10 text-white hover:bg-white/20"
+                }`}
+              >
+                <Heart className={`h-5 w-5 ${showFav ? "fill-[#ec1c24] text-[#ec1c24]" : ""}`} />
+                {showFav ? "În favorite" : "Adaugă la favorite"}
+              </button>
+            </div>
           </div>
         </div>
 

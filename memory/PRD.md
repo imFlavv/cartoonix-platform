@@ -88,6 +88,13 @@ UI language: Romanian only.
   Backend POST /api/chat/{id}/react + POST /api/chat/reactions (sync); GET /api/chat returns
   reaction_counts + my_reaction. Frontend shows reaction row under each bubble (zero-count hidden until
   hover), polls reactions every 4s. Verified e2e 100% (iteration_3.json).
+- Chat scroll fix: onScroll handler binds auto-scroll to real scroll position (only sticks to bottom when
+  near bottom / on own send) → no more jump-to-bottom during the 4s reaction poll (iteration_4.json).
+- Watch page: right-side episode list sidebar (data-testid watch-episode-list / watch-ep-<n>), active
+  episode highlighted with border (fits box, not clipped by scroll) + Play icon, auto-scrolls into view.
+- Whole-show favorites: favorite an entire cartoon via episode_number=0 sentinel. ShowDetail header button
+  (detail-fav-show); Profile shows 'Serial complet' and links to /show/<id>. Episode favorites unchanged.
+  Verified e2e 100% (iteration_5.json).
 
 ## Credentials
 See `/app/memory/test_credentials.md` (admin@cartoonix.ro).

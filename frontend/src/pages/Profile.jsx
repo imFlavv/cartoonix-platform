@@ -29,7 +29,9 @@ const EpItem = ({ item, onPlay, right }) => (
     </div>
     <div className="flex-1 min-w-0 cursor-pointer" onClick={onPlay}>
       <p className="font-semibold text-sm truncate">{item.show_title}</p>
-      <p className="text-xs text-white/50 truncate">{item.episode_title} · {item.channel}</p>
+      <p className="text-xs text-white/50 truncate">
+        {item.episode_number === 0 ? "Serial complet" : item.episode_title} · {item.channel}
+      </p>
     </div>
     {right}
   </div>
@@ -69,7 +71,7 @@ const Profile = () => {
     setAvatar(a);
   };
 
-  const play = (i) => navigate(`/watch/${i.show_id}/${i.episode_number}`);
+  const play = (i) => navigate(i.episode_number === 0 ? `/show/${i.show_id}` : `/watch/${i.show_id}/${i.episode_number}`);
 
   // password change
   const [pwd, setPwd] = useState({ current: "", next: "", confirm: "" });
@@ -175,7 +177,7 @@ const Profile = () => {
               {favorites.length === 0 ? (
                 <div className="text-center py-16 text-white/40">
                   <Film className="h-10 w-10 mx-auto mb-3 opacity-50" />
-                  Niciun episod favorit încă. Apasă ❤️ pe episoade ca să le salvezi aici.
+                  Niciun favorit încă. Apasă ❤️ pe un desen sau pe episoade ca să le salvezi aici.
                 </div>
               ) : (
                 <div className="grid sm:grid-cols-2 gap-3">

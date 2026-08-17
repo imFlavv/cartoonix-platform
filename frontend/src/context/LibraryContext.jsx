@@ -27,6 +27,9 @@ export const LibraryProvider = ({ children }) => {
   const isFavorite = (showId, ep) =>
     favorites.some((f) => f.key === `${showId}:${ep}`);
 
+  const isShowFavorite = (showId) =>
+    favorites.some((f) => f.key === `${showId}:0`);
+
   const toggleFavorite = async (ref) => {
     const { data } = await api.post("/favorites/toggle", ref);
     await refresh();
@@ -56,6 +59,7 @@ export const LibraryProvider = ({ children }) => {
         playlists,
         refresh,
         isFavorite,
+        isShowFavorite,
         toggleFavorite,
         createPlaylist,
         deletePlaylist,
