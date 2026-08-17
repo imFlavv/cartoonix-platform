@@ -66,7 +66,6 @@ const ChatRoom = () => {
 
   const applyNew = useCallback((incoming) => {
     if (!incoming || !incoming.length) return;
-    autoScroll.current = true;
     setMessages((prev) => {
       const seen = new Set(prev.map((m) => m.id));
       const merged = [...prev, ...incoming.filter((m) => !seen.has(m.id))];
@@ -74,6 +73,13 @@ const ChatRoom = () => {
       return merged;
     });
   }, []);
+
+  const onScroll = () => {
+    const c = scrollRef.current;
+    if (!c) return;
+    const dist = c.scrollHeight - c.scrollTop - c.clientHeight;
+    autoScroll.current = dist < 80;
+  };
 
   // load on room change
   useEffect(() => {
@@ -181,6 +187,7 @@ const ChatRoom = () => {
       const payload = { text: val, room };
       if (q) payload.quote = { name: q.name, text: q.text };
       const { data } = await api.post("/chat", payload);
+      autoScroll.current = true;
       applyNew([data]);
       if (!isAdmin) setCooldown(10);
     } catch (err) {
@@ -264,7 +271,7 @@ const ChatRoom = () => {
           </div>
         ) : (
           <>
-            <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto space-y-3 py-4 border-y border-white/10">
+            <div ref={scrollRef} onScroll={onScroll} className="flex-1 min-h-0 overflow-y-auto space-y-3 py-4 border-y border-white/10">
               {hasMore && (
                 <div className="flex justify-center pb-1">
                   <button

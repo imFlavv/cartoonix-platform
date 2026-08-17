@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api, resolveVideoUrl } from "@/lib/api";
-import { ArrowLeft, ChevronRight, Download, Heart, Plus, Check } from "lucide-react";
+import { ArrowLeft, ChevronRight, Download, Heart, Plus, Check, Play, ListVideo } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useLibrary } from "@/context/LibraryContext";
 import { PlusIcon } from "@/components/PlusIcon";
@@ -20,10 +20,16 @@ const Watch = () => {
   const videoRef = useRef(null);
   const resumeRef = useRef(0);
   const lastSaveRef = useRef(0);
+  const activeEpRef = useRef(null);
 
   useEffect(() => {
     api.get(`/shows/${id}`).then((res) => setShow(res.data));
   }, [id]);
+
+  // scroll the active episode into view within its list
+  useEffect(() => {
+    activeEpRef.current?.scrollIntoView({ block: "nearest" });
+  }, [show, epNumber]);
 
   const episode = show?.episodes?.find((e) => e.number === epNumber);
   const locked = false;
@@ -130,7 +136,8 @@ const Watch = () => {
         <p className="font-semibold truncate">{show.title} — Ep. {epNumber}</p>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 md:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 grid lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
         {locked ? (
           <div className="aspect-video rounded-xl bg-[#141414] flex flex-col items-center justify-center text-center px-6 border border-[#ffcc00]/30">
             <PlusIcon className="h-14 w-14 mb-4" />
@@ -182,6 +189,46 @@ const Watch = () => {
             )}
           </div>
         </div>
+        </div>
+
+        {/* Episode list sidebar */}
+        <aside className="lg:col-span-1" data-testid="watch-episode-list">
+          <div className="bg-[#141414] border border-white/10 rounded-2xl p-4 lg:sticky lg:top-6 flex flex-col lg:max-h-[calc(100vh-3rem)]">
+            <h3 className="font-display text-xl flex items-center gap-2 mb-3 shrink-0">
+              <ListVideo className="h-5 w-5 text-[#ec1c24]" /> Episoade
+              <span className="ml-auto text-xs text-white/40 font-sans">{show.episodes?.length || 0}</span>
+            </h3>
+            <div className="space-y-1.5 overflow-y-auto pr-1 max-h-[60vh] lg:max-h-none">
+              {(show.episodes || []).map((e) => {
+                const active = e.number === epNumber;
+                return (
+                  <button
+                    key={e.number}
+                    ref={active ? activeEpRef : null}
+                    data-testid={`watch-ep-${e.number}`}
+                    onClick={() => navigate(`/watch/${id}/${e.number}`)}
+                    className={`w-full flex items-center gap-3 text-left px-3 py-2 rounded-xl border transition-colors duration-150 ${
+                      active ? "bg-[#ec1c24]/20 border-[#ec1c24]/70" : "bg-white/5 hover:bg-white/10 border-transparent"
+                    }`}
+                  >
+                    <span className={`h-8 w-8 shrink-0 flex items-center justify-center rounded-lg text-sm font-bold ${active ? "bg-[#ec1c24] text-white" : "bg-white/10 text-white/70"}`}>
+                      {active ? <Play className="h-4 w-4 fill-white" /> : e.number}
+                    </span>
+                    <span className="flex-1 min-w-0">
+                      <span className={`block text-sm font-semibold truncate ${active ? "text-white" : "text-white/80"}`}>
+                        {e.season ? `${e.season} · ` : ""}Ep {e.number}
+                      </span>
+                      <span className="block text-xs text-white/40 truncate">{e.title}{e.duration ? ` · ${e.duration}` : ""}</span>
+                    </span>
+                  </button>
+                );
+              })}
+              {(!show.episodes || show.episodes.length === 0) && (
+                <p className="text-white/40 text-sm py-4 text-center">Niciun episod disponibil.</p>
+              )}
+            </div>
+          </div>
+        </aside>
       </div>
 
       <AddToPlaylistDialog open={plDialog} onOpenChange={setPlDialog} itemRef={makeRef()} />
