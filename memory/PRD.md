@@ -95,6 +95,9 @@ UI language: Romanian only.
 - Whole-show favorites: favorite an entire cartoon via episode_number=0 sentinel. ShowDetail header button
   (detail-fav-show); Profile shows 'Serial complet' and links to /show/<id>. Episode favorites unchanged.
   Verified e2e 100% (iteration_5.json).
+- Chat verified badge: admins get a blue verified checkmark (VerifiedBadge.jsx, inline SVG) next to their
+  name in chat, shown BEFORE the PLUS badge; both can appear. Same size (h-3.5 w-3.5) and aligned via
+  flex items-center gap-1. Gated by m.role === "admin".
 
 ## Credentials
 See `/app/memory/test_credentials.md` (admin@cartoonix.ro).

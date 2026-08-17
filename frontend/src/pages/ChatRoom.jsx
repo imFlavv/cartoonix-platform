@@ -6,6 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { ArrowLeft, Send, Globe, Lock, Star, Megaphone, AlertTriangle, CheckCircle2, Info, HelpCircle, MoreVertical, Ban, VolumeX, Trash2, Tv, X } from "lucide-react";
 import { PlusIcon } from "@/components/PlusIcon";
+import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { MessageText } from "@/components/MessageText";
 import { EmojiPicker } from "@/components/EmojiPicker";
 import { chatStyleClasses } from "@/lib/chatStyle";
@@ -322,6 +323,7 @@ const ChatRoom = () => {
                     <div className="max-w-[75%]">
                       <p className="text-xs text-white/40 mb-0.5 px-1 flex items-center gap-1">
                         {m.name}
+                        {m.role === "admin" && <VerifiedBadge className="h-3.5 w-3.5" />}
                         {m.plus && <PlusIcon className="h-3.5 w-3.5" />}
                       </p>
                       {m.quote && !m.deleted && (
