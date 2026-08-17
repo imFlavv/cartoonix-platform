@@ -607,11 +607,6 @@ const ChatRoom = () => {
                     </p>
                     <p className="text-[11px] text-white/40">{roNum(u.count)} mesaje</p>
                   </div>
-                  {u.rank === 1 ? (
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#ffcc00]/20 text-[#ffcc00] shrink-0">OWNER</span>
-                  ) : u.plus ? (
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#ffcc00]/10 text-[#ffcc00]/80 shrink-0">PLUS</span>
-                  ) : null}
                 </div>
               ))}
               {board.length === 0 && <p className="text-xs text-white/30 px-2 py-3">Niciun mesaj încă.</p>}

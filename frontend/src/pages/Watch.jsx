@@ -22,6 +22,7 @@ const Watch = () => {
   const resumeRef = useRef(0);
   const lastSaveRef = useRef(0);
   const activeEpRef = useRef(null);
+  const completedRef = useRef(false);
 
   useEffect(() => {
     api.get(`/shows/${id}`).then((res) => setShow(res.data));
@@ -40,6 +41,7 @@ const Watch = () => {
   // fetch resume position
   useEffect(() => {
     resumeRef.current = 0;
+    completedRef.current = false;
     if (!show || locked) return;
     api.get(`/progress/${show.id}`).then((res) => {
       setProgress(res.data || {});
@@ -50,17 +52,17 @@ const Watch = () => {
 
   const saveProgress = useCallback((completed = false) => {
     const v = videoRef.current;
-    if (!show || !v) return;
+    if (!show || !v) return Promise.resolve();
     const pos = completed ? 0 : Math.floor(v.currentTime || 0);
     const dur = Math.floor(v.duration || 0);
-    api.post("/progress", {
+    setProgress((prev) => ({ ...prev, [String(epNumber)]: { position: pos, duration: dur, completed } }));
+    return api.post("/progress", {
       show_id: show.id,
       episode_number: epNumber,
       position: pos,
       duration: dur,
       completed,
     }).catch(() => {});
-    setProgress((prev) => ({ ...prev, [String(epNumber)]: { position: pos, duration: dur, completed } }));
   }, [show, epNumber]);
 
   const onLoadedMeta = () => {
@@ -80,17 +82,18 @@ const Watch = () => {
     }
   };
 
-  const onEnded = () => {
-    saveProgress(true);
+  const onEnded = async () => {
+    completedRef.current = true;
+    await saveProgress(true);
     if (autoplay && next) {
       toast.success("Trecem la episodul următor ▶");
       navigate(`/watch/${id}/${next.number}`);
     }
   };
 
-  // save on unmount / navigation
+  // save on unmount / navigation (skip if the episode was just completed)
   useEffect(() => {
-    return () => saveProgress(false);
+    return () => { if (!completedRef.current) saveProgress(false); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [epNumber, show]);
 
