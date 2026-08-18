@@ -4,7 +4,7 @@ import { api, resolveVideoUrl } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import {
-  Tv, Users, UserPlus, Play, SkipForward, SkipBack, Plus, X, LogOut, Crown, Trash2, ListVideo, Search,
+  Tv, Users, UserPlus, Play, SkipForward, SkipBack, Plus, X, LogOut, Crown, Trash2, ListVideo, Search, Volume2, VolumeX, Maximize,
 } from "lucide-react";
 
 const POLL_MS = 2000;
@@ -88,8 +88,28 @@ const WatchParty = () => {
   const [draftPlaylist, setDraftPlaylist] = useState([]);
 
   const videoRef = useRef(null);
+  const playerWrapRef = useRef(null);
   const applyingRemote = useRef(false);
+  const [volume, setVolume] = useState(1);
+  const [muted, setMuted] = useState(false);
   const isOwner = room && user && room.owner_id && (room.is_owner);
+
+  const onVolume = (e) => {
+    const val = parseFloat(e.target.value);
+    setVolume(val);
+    setMuted(val === 0);
+    if (videoRef.current) { videoRef.current.volume = val; videoRef.current.muted = val === 0; }
+  };
+  const toggleMute = () => {
+    const m = !muted;
+    setMuted(m);
+    if (videoRef.current) videoRef.current.muted = m;
+  };
+  const toggleFullscreen = () => {
+    const el = playerWrapRef.current;
+    if (!document.fullscreenElement) el?.requestFullscreen?.();
+    else document.exitFullscreen?.();
+  };
 
   const loadRoom = useCallback(async () => {
     try {
@@ -303,16 +323,29 @@ const WatchParty = () => {
           <div className="grid lg:grid-cols-3 gap-6">
             {/* Player */}
             <div className="lg:col-span-2">
-              <video
-                ref={videoRef}
-                controls={!!isOwner}
-                playsInline
-                onPlay={onVideoPlay}
-                onPause={onVideoPause}
-                onSeeked={onVideoSeeked}
-                onEnded={onVideoEnded}
-                className="w-full aspect-video rounded-xl bg-black"
-              />
+              <div ref={playerWrapRef} className="relative bg-black rounded-xl overflow-hidden">
+                <video
+                  ref={videoRef}
+                  controls={!!isOwner}
+                  playsInline
+                  onPlay={onVideoPlay}
+                  onPause={onVideoPause}
+                  onSeeked={onVideoSeeked}
+                  onEnded={onVideoEnded}
+                  className="w-full aspect-video bg-black"
+                />
+                {!isOwner && (
+                  <div className="absolute bottom-0 inset-x-0 flex items-center gap-3 px-4 py-2.5 bg-gradient-to-t from-black/85 to-transparent" data-testid="wp-guest-controls">
+                    <button type="button" onClick={toggleMute} data-testid="wp-guest-mute" title={muted ? "Activează sunetul" : "Dezactivează sunetul"} className="text-white/90 hover:text-white shrink-0">
+                      {muted || volume === 0 ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+                    </button>
+                    <input type="range" min="0" max="1" step="0.05" value={muted ? 0 : volume} onChange={onVolume} data-testid="wp-guest-volume" className="w-28 sm:w-36 accent-[#06b6d4] cursor-pointer" title="Volum" />
+                    <button type="button" onClick={toggleFullscreen} data-testid="wp-guest-fullscreen" title="Ecran complet" className="ml-auto text-white/90 hover:text-white shrink-0">
+                      <Maximize className="h-5 w-5" />
+                    </button>
+                  </div>
+                )}
+              </div>
               <div className="mt-3 flex items-center justify-between gap-2">
                 <div className="min-w-0">
                   <p className="font-semibold truncate">

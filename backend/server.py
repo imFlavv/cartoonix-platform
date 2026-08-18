@@ -1425,15 +1425,20 @@ async def sync_reactions(data: ReactionSyncInput, user: dict = Depends(get_curre
     return result
 
 
-@api_router.post("/chat/heartbeat")
-async def chat_heartbeat(user: dict = Depends(get_current_user)):
-    now = datetime.now(timezone.utc).isoformat()
-    await db.users.update_one({"_id": user["_id"]}, {"$set": {"chat_last_seen": now, "last_active": now}})
-    return {"ok": True}
+_chat_stats_cache = {"data": None, "ts": 0.0}
+_chat_board_cache = {"data": None, "ts": 0.0}
+CHAT_STATS_TTL = 30.0   # seconds
+CHAT_BOARD_TTL = 45.0   # seconds
 
 
-@api_router.get("/chat/stats")
-async def chat_stats(user: dict = Depends(get_current_user)):
+def _now_ts() -> float:
+    return datetime.now(timezone.utc).timestamp()
+
+
+async def _global_chat_stats() -> dict:
+    """Heavy, user-agnostic chat stats, cached across all users to protect the DB."""
+    if _chat_stats_cache["data"] is not None and (_now_ts() - _chat_stats_cache["ts"]) < CHAT_STATS_TTL:
+        return _chat_stats_cache["data"]
     now = datetime.now(timezone.utc)
     chat_thr = _chat_online_threshold()
     plat_thr = (now - timedelta(seconds=60)).isoformat()
@@ -1445,7 +1450,6 @@ async def chat_stats(user: dict = Depends(get_current_user)):
     messages_today = await db.chat_messages.count_documents({"created_at": {"$gte": day_ago}, "is_bot": {"$ne": True}})
     general_total = await db.chat_messages.count_documents({"room": "global", "is_bot": {"$ne": True}})
     plus_total = await db.chat_messages.count_documents({"room": "plus", "is_bot": {"$ne": True}})
-    my_count = await db.chat_messages.count_documents({"user_id": uid_of(user), "is_bot": {"$ne": True}})
     top_talker = None
     async for row in db.chat_messages.aggregate([
         {"$match": {"is_bot": {"$ne": True}, "user_id": {"$ne": None}}},
@@ -1459,19 +1463,37 @@ async def chat_stats(user: dict = Depends(get_current_user)):
             "plus": user_is_plus(u) if u else False,
             "count": row["c"],
         }
-    return {
+    data = {
         "online_chat": online_chat,
         "online_platform": online_platform,
         "messages_today": messages_today,
         "general_total": general_total,
         "plus_total": plus_total,
-        "my_count": my_count,
         "top_talker": top_talker,
     }
+    _chat_stats_cache["data"] = data
+    _chat_stats_cache["ts"] = _now_ts()
+    return data
+
+
+@api_router.post("/chat/heartbeat")
+async def chat_heartbeat(user: dict = Depends(get_current_user)):
+    now = datetime.now(timezone.utc).isoformat()
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {"chat_last_seen": now, "last_active": now}})
+    return {"ok": True}
+
+
+@api_router.get("/chat/stats")
+async def chat_stats(user: dict = Depends(get_current_user)):
+    g = await _global_chat_stats()
+    my_count = await db.chat_messages.count_documents({"user_id": uid_of(user), "is_bot": {"$ne": True}})
+    return {**g, "my_count": my_count}
 
 
 @api_router.get("/chat/leaderboard")
 async def chat_leaderboard(user: dict = Depends(get_current_user)):
+    if _chat_board_cache["data"] is not None and (_now_ts() - _chat_board_cache["ts"]) < CHAT_BOARD_TTL:
+        return _chat_board_cache["data"]
     thr = _chat_online_threshold()
     rows = []
     async for row in db.chat_messages.aggregate([
@@ -1494,7 +1516,10 @@ async def chat_leaderboard(user: dict = Depends(get_current_user)):
             "count": row["c"],
             "online": online,
         })
-    return {"top": result}
+    payload = {"top": result}
+    _chat_board_cache["data"] = payload
+    _chat_board_cache["ts"] = _now_ts()
+    return payload
 
 
 class PinInput(BaseModel):
