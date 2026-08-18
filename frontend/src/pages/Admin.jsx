@@ -54,7 +54,7 @@ const Admin = () => {
     }
   };
 
-  const load = () => api.get("/shows").then((res) => setShows(res.data));
+  const load = () => api.get("/shows", { params: { full: true } }).then((res) => setShows(res.data));
   const loadSuggestions = () => api.get("/admin/suggestions").then((res) => setSuggestions(res.data)).catch(() => {});
   useEffect(() => {
     load();

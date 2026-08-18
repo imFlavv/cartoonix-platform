@@ -95,6 +95,17 @@ UI language: Romanian only.
 - Whole-show favorites: favorite an entire cartoon via episode_number=0 sentinel. ShowDetail header button
   (detail-fav-show); Profile shows 'Serial complet' and links to /show/<id>. Episode favorites unchanged.
   Verified e2e 100% (iteration_5.json).
+- Chat perf: /chat/stats + /chat/leaderboard now use a global TTL cache (30s/45s) so the heavy
+  aggregations over chat_messages run at most once per interval across ALL users (was per-user-per-poll,
+  which loaded the live DB and slowed /shows). Leaderboard OWNER/PLUS text pills removed.
+- Watch progress: sidebar shows watched (green check + 'Vizionat') and 'continuă X%' + progress bar;
+  fixed vanishing green check after autoplay-next (unmount save no longer overwrites completed=true).
+  Verified e2e (iteration_7.json).
+- Watch Party guests (non-owner) get a custom control bar with ONLY volume + fullscreen (no play/pause/seek).
+- PERF FIX (/shows): the list endpoint used to embed ALL episodes per show (thousands on live → several MB,
+  ~4.3s response). Now GET /api/shows returns a LIGHT payload (episodes excluded, adds episode_count) via
+  aggregation; pass ?full=true for full episodes. Callers: Home/Browse/Cinema/NavBar use light (fast);
+  Admin.jsx and WatchParty.jsx pass full=true (need episodes). ShowDetail/Watch use /shows/{id} (unchanged).
 - Chat verified badge: admins get a blue verified checkmark (VerifiedBadge.jsx, inline SVG) next to their
   name in chat, shown BEFORE the PLUS badge; both can appear. Same size (h-3.5 w-3.5) and aligned via
   flex items-center gap-1. Gated by m.role === "admin".

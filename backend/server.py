@@ -771,14 +771,22 @@ async def stripe_webhook(request: Request):
 
 # ---------- shows routes ----------
 @api_router.get("/shows")
-async def get_shows(category: Optional[str] = None, q: Optional[str] = None):
+async def get_shows(category: Optional[str] = None, q: Optional[str] = None, full: bool = False):
     query = {}
     if category:
         query["category"] = category
     if q:
         query["title"] = {"$regex": q, "$options": "i"}
-    shows = await db.shows.find(query).to_list(500)
-    shows = [serialize_show(s) for s in shows]
+    if full:
+        docs = await db.shows.find(query).to_list(500)
+    else:
+        # light payload for lists/cards: drop heavy embedded episodes, keep a count
+        docs = await db.shows.aggregate([
+            {"$match": query},
+            {"$addFields": {"episode_count": {"$size": {"$ifNull": ["$episodes", []]}}}},
+            {"$project": {"episodes": 0}},
+        ]).to_list(500)
+    shows = [serialize_show(s) for s in docs]
     shows.sort(key=lambda s: (s.get("order", 9999), s.get("created_at", "")))
     return shows
 

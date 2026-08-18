@@ -135,7 +135,7 @@ const WatchParty = () => {
   }, [loadRoom]);
 
   useEffect(() => {
-    api.get("/shows").then((r) => setShows(r.data || [])).catch(() => {});
+    api.get("/shows", { params: { full: true } }).then((r) => setShows(r.data || [])).catch(() => {});
   }, []);
 
   // Apply remote room state to the <video> (sync for everyone)

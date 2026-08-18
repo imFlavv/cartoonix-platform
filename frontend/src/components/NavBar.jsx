@@ -134,7 +134,7 @@ export const NavBar = () => {
                     )}
                     <div className="min-w-0">
                       <p className="text-sm font-semibold truncate">{s.title}</p>
-                      <p className="text-xs text-white/40 truncate">{s.channel}{s.episodes ? ` · ${s.episodes.length} ep.` : ""}</p>
+                      <p className="text-xs text-white/40 truncate">{s.channel}{s.episode_count != null ? ` · ${s.episode_count} ep.` : (s.episodes ? ` · ${s.episodes.length} ep.` : "")}</p>
                     </div>
                   </button>
                 ))
