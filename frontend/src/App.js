@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import "@/App.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "sonner";
@@ -38,6 +38,9 @@ import PaymentSuccess from "@/pages/PaymentSuccess";
 import PaymentCancel from "@/pages/PaymentCancel";
 import MySupport from "@/pages/MySupport";
 import TvAccount from "@/pages/TvAccount";
+
+// Cartoonix Land is code-split so it never bloats the main streaming bundle
+const Land = lazy(() => import("@/pages/Land"));
 
 function App() {
   const [showSplash, setShowSplash] = useState(() => !sessionStorage.getItem("cx_splash_seen"));
@@ -93,6 +96,7 @@ function App() {
             <Route path="/cookies" element={<Cookies />} />
             <Route path="/support" element={<ProtectedRoute><MySupport /></ProtectedRoute>} />
             <Route path="/cont-tv" element={<ProtectedRoute><TvAccount /></ProtectedRoute>} />
+            <Route path="/land" element={<ProtectedRoute><Suspense fallback={<div className="h-screen flex items-center justify-center bg-[#63b7e4] text-white/80">Se încarcă Cartoonix Land...</div>}><Land /></Suspense></ProtectedRoute>} />
             <Route path="/show/:id" element={<ShowDetail />} />
             <Route path="/watch/:id/:ep" element={<ProtectedRoute><Watch /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
