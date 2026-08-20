@@ -89,7 +89,7 @@ const ChatWidget = () => {
   }, [visible.length]);
 
   if (!user || visible.length === 0) return null;
-  if (HIDDEN_PATHS.includes(location.pathname)) return null;
+  if (HIDDEN_PATHS.some((p) => location.pathname === p || location.pathname.startsWith(p + "/"))) return null;
 
   const frontIdx = active % visible.length;
   const frontW = visible[frontIdx];
