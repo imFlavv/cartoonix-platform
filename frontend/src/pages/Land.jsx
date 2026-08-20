@@ -38,7 +38,7 @@ const Land = () => {
           draggable={false}
           aria-hidden="true"
           className="absolute inset-0 w-full h-full object-fill select-none pointer-events-none transition-opacity duration-300 ease-out"
-          style={{ opacity: hoverBuilding ? 1 : 0 }}
+          style={{ opacity: hoverBuilding ? 0.5 : 0 }}
         />
         {/* clickable hotspot over the building */}
         <button
