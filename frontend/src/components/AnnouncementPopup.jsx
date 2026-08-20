@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { api } from "@/lib/api";
 import { X } from "lucide-react";
 
@@ -9,6 +10,7 @@ const todayStr = () => new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 export function AnnouncementPopup() {
   const [cfg, setCfg] = useState(null);
   const [open, setOpen] = useState(false);
+  const location = useLocation();
 
   useEffect(() => {
     api.get("/settings/popup")
@@ -29,7 +31,7 @@ export function AnnouncementPopup() {
     setOpen(false);
   };
 
-  if (!open || !cfg) return null;
+  if (!open || !cfg || location.pathname === "/land") return null;
 
   return (
     <div

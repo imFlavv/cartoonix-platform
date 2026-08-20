@@ -4,7 +4,7 @@ import { X, MessageCircle, Crown } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 
-const HIDDEN_PATHS = ["/login", "/register", "/lobby/chat", "/termeni", "/confidentialitate", "/regulament", "/cookies"];
+const HIDDEN_PATHS = ["/login", "/register", "/lobby/chat", "/land", "/termeni", "/confidentialitate", "/regulament", "/cookies"];
 
 const META = {
   chat: { label: "Live Chat", Icon: MessageCircle, accent: "#ec1c24", border: "rgba(236,28,36,0.4)", glow: "rgba(236,28,36,0.35)" },
