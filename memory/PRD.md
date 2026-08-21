@@ -112,3 +112,18 @@ UI language: Romanian only.
 
 ## Credentials
 See `/app/memory/test_credentials.md` (admin@cartoonix.ro).
+
+## Recent changes (Aug 2026, cont.)
+- Admin: creare manuală utilizator. Buton `create-user-btn` în tab Membri deschide dialog
+  (`create-name` / `create-email` / `create-password` / `create-plus` toggle / `save-new-user`) →
+  POST /api/admin/users (name,email,password,plus). Contul e creat `email_verified=true` (fără OTP),
+  se poate loga imediat. Duplicat → 400 "Acest email este deja folosit". Verificat e2e (iteration_8, 100%).
+- FIX "A apărut o eroare" la OTP (ROOT CAUSE): backend răspundea cu 5xx (502 Brevo eșuat / 500
+  register_verify), iar proxy-ul Cloudflare ÎNLOCUIA corpul JSON cu propria pagină "Bad gateway" →
+  frontend-ul nu primea `detail` → afișa mesajul generic. Fix: aceste erori user-facing întorc acum
+  status 400 (register/start Brevo fail + register/verify catch-all), deci `detail` ajunge la
+  `formatApiErrorDetail` și se afișează mesajul specific român. Verificat e2e (iteration_8).
+- Fullscreen la autoplay: Watch.jsx refolosește același element <video> (schimbă src la navigate,
+  fără remount/key) ca fullscreen-ul să persiste la trecerea la episodul următor. NU a putut fi
+  testat automat (fullscreen greu de automatizat) — necesită validare manuală de către user.
+

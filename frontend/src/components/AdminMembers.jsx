@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { api } from "@/lib/api";
 import { PlusIcon } from "@/components/PlusIcon";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Search, Ban, ShieldCheck, Pencil, Trash2, Globe, KeyRound } from "lucide-react";
+import { Search, Ban, ShieldCheck, Pencil, Trash2, Globe, KeyRound, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 
 const inputCls = "w-full px-4 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[#ffcc00]";
@@ -16,6 +16,9 @@ export const AdminMembers = () => {
   const [stats, setStats] = useState({ total: 0, plus: 0, free: 0 });
   const [editing, setEditing] = useState(null);
   const [bannedIps, setBannedIps] = useState([]);
+  const [creating, setCreating] = useState(false);
+  const [newUser, setNewUser] = useState({ name: "", email: "", password: "", plus: false });
+  const [savingNew, setSavingNew] = useState(false);
 
   const load = useCallback(() => {
     api.get("/admin/users", { params: { ...(q ? { q } : {}), page, per_page: 20 } })
@@ -64,6 +67,26 @@ export const AdminMembers = () => {
     load();
   };
 
+  const createUser = async () => {
+    const name = newUser.name.trim();
+    const email = newUser.email.trim().toLowerCase();
+    if (!name) return toast.error("Introdu un nume");
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return toast.error("Email invalid");
+    if (newUser.password.length < 6) return toast.error("Parola trebuie să aibă min. 6 caractere");
+    setSavingNew(true);
+    try {
+      await api.post("/admin/users", { name, email, password: newUser.password, plus: newUser.plus });
+      toast.success(`Cont creat pentru ${email}`);
+      setCreating(false);
+      setNewUser({ name: "", email: "", password: "", plus: false });
+      load();
+    } catch (e) {
+      toast.error(e.response?.data?.detail || "Nu am putut crea contul");
+    } finally {
+      setSavingNew(false);
+    }
+  };
+
   return (
     <div>
       {/* Stats */}
@@ -82,9 +105,18 @@ export const AdminMembers = () => {
         </div>
       </div>
 
-      <div className="relative mb-4 max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
-        <input data-testid="members-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Caută după nume sau email..." className={`${inputCls} pl-9`} />
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <div className="relative max-w-sm flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
+          <input data-testid="members-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Caută după nume sau email..." className={`${inputCls} pl-9`} />
+        </div>
+        <button
+          data-testid="create-user-btn"
+          onClick={() => setCreating(true)}
+          className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#ffcc00] text-black font-bold hover:brightness-110 transition-all duration-200"
+        >
+          <UserPlus className="h-4 w-4" /> Creează utilizator
+        </button>
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-white/10">
@@ -176,6 +208,40 @@ export const AdminMembers = () => {
           </div>
         )}
       </div>
+
+      {/* create dialog */}
+      <Dialog open={creating} onOpenChange={(o) => { if (!o) { setCreating(false); setNewUser({ name: "", email: "", password: "", plus: false }); } }}>
+        <DialogContent className="bg-[#141414] border-white/10 text-white max-w-md">
+          <DialogHeader><DialogTitle className="font-display text-2xl flex items-center gap-2"><UserPlus className="h-5 w-5 text-[#ffcc00]" /> Creează utilizator</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs text-white/50">Nume</label>
+              <input data-testid="create-name" value={newUser.name} onChange={(e) => setNewUser({ ...newUser, name: e.target.value })} placeholder="Nume afișat" className={inputCls} />
+            </div>
+            <div>
+              <label className="text-xs text-white/50">Email</label>
+              <input data-testid="create-email" type="email" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} placeholder="email@exemplu.ro" className={inputCls} />
+            </div>
+            <div>
+              <label className="text-xs text-white/50 flex items-center gap-1"><KeyRound className="h-3 w-3" /> Parolă (min. 6 caractere)</label>
+              <input data-testid="create-password" type="text" value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })} placeholder="Parolă cont" className={inputCls} />
+            </div>
+            <label className="flex items-center justify-between p-3 rounded-lg bg-white/5 cursor-pointer">
+              <span className="flex items-center gap-2 text-sm font-semibold"><PlusIcon className="h-4 w-4 text-[#ffcc00]" /> Activează PLUS din start</span>
+              <input data-testid="create-plus" type="checkbox" checked={newUser.plus} onChange={(e) => setNewUser({ ...newUser, plus: e.target.checked })} className="accent-[#ffcc00] h-4 w-4" />
+            </label>
+            <p className="text-xs text-white/40">Contul va fi creat verificat (fără email OTP). Utilizatorul se poate loga imediat cu aceste date.</p>
+            <button
+              data-testid="save-new-user"
+              onClick={createUser}
+              disabled={savingNew}
+              className="w-full py-3 rounded-lg bg-[#ec1c24] font-bold hover:bg-[#ff2d36] transition-colors duration-200 disabled:opacity-60"
+            >
+              {savingNew ? "Se creează..." : "Creează cont"}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* edit dialog */}
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>

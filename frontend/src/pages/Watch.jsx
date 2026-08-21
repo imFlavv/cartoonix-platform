@@ -159,7 +159,6 @@ const Watch = () => {
           <video
             ref={videoRef}
             data-testid="video-player"
-            key={episode?.video_url}
             src={resolveVideoUrl(episode?.video_url)}
             controls
             autoPlay

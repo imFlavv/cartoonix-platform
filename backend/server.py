@@ -452,10 +452,10 @@ async def register_start(data: RegisterStartInput, request: Request):
         await send_otp_email(email, data.name, code)
     except httpx.HTTPStatusError as e:
         logger.error(f"Brevo error {e.response.status_code}: {e.response.text}")
-        raise HTTPException(status_code=502, detail="Nu am putut trimite emailul de verificare. Verifică adresa și încearcă din nou.")
+        raise HTTPException(status_code=400, detail="Nu am putut trimite emailul de verificare. Verifică adresa și încearcă din nou.")
     except Exception as e:
         logger.error(f"Brevo send failed: {e}")
-        raise HTTPException(status_code=502, detail="Nu am putut trimite emailul de verificare. Încearcă din nou.")
+        raise HTTPException(status_code=400, detail="Nu am putut trimite emailul de verificare. Încearcă din nou.")
     return {"ok": True, "message": "Ți-am trimis un cod de verificare pe email", "email": email}
 
 
@@ -479,32 +479,74 @@ async def register_verify(data: RegisterVerifyInput, request: Request):
     if not hmac.compare_digest(record.get("otp_hash", ""), _otp_hash(data.code.strip())):
         await db.otp_verifications.update_one({"email": email}, {"$inc": {"attempts": 1}})
         raise HTTPException(status_code=400, detail="Cod incorect")
-    if await db.users.find_one({"email": email}):
+    try:
+        if await db.users.find_one({"email": email}):
+            await db.otp_verifications.delete_one({"email": email})
+            raise HTTPException(status_code=400, detail="Acest email este deja folosit")
+        ip = get_client_ip(request)
+        now_iso = datetime.now(timezone.utc).isoformat()
+        new_id = str(uuid.uuid4())
+        doc = {
+            "id": new_id,
+            "email": email,
+            "password_hash": record["password_hash"],
+            "nickname": record.get("name", ""),
+            "avatar_url": record.get("avatar", ""),
+            "role": "user",
+            "subscription": "free",
+            "email_verified": True,
+            "banned": False,
+            "last_ip": ip,
+            "accepted_terms_at": now_iso,
+            "created_at": now_iso,
+            "last_active": now_iso,
+        }
+        res = await db.users.insert_one(doc)
+        doc["_id"] = res.inserted_id
         await db.otp_verifications.delete_one({"email": email})
+        token = create_access_token(new_id, email)
+        return {"token": token, "user": serialize_user(doc)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"register_verify failed for {email}: {e}")
+        raise HTTPException(status_code=400, detail="Nu am putut finaliza înregistrarea. Încearcă din nou în câteva momente.")
+
+
+class AdminCreateUserInput(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=6)
+    name: str
+    plus: bool = False
+
+
+@api_router.post("/admin/users")
+async def admin_create_user(data: AdminCreateUserInput, admin: dict = Depends(require_admin)):
+    email = data.email.lower()
+    if await db.users.find_one({"email": email}):
         raise HTTPException(status_code=400, detail="Acest email este deja folosit")
-    ip = get_client_ip(request)
     now_iso = datetime.now(timezone.utc).isoformat()
     new_id = str(uuid.uuid4())
     doc = {
         "id": new_id,
         "email": email,
-        "password_hash": record["password_hash"],
-        "nickname": record.get("name", ""),
-        "avatar_url": record.get("avatar", ""),
+        "password_hash": hash_password(data.password),
+        "nickname": data.name,
+        "avatar_url": "",
         "role": "user",
-        "subscription": "free",
+        "subscription": "plus" if data.plus else "free",
         "email_verified": True,
         "banned": False,
-        "last_ip": ip,
         "accepted_terms_at": now_iso,
         "created_at": now_iso,
         "last_active": now_iso,
+        "created_by_admin": uid_of(admin),
     }
+    if data.plus:
+        doc["plus_since"] = now_iso
     res = await db.users.insert_one(doc)
     doc["_id"] = res.inserted_id
-    await db.otp_verifications.delete_one({"email": email})
-    token = create_access_token(new_id, email)
-    return {"token": token, "user": serialize_user(doc)}
+    return {"ok": True, "user": serialize_user(doc)}
 
 
 @api_router.post("/auth/login")

@@ -1,0 +1,30 @@
+{
+  "summary": "Frontend-only testing (Playwright, Chromium 1920x1080) of the 3 requested flows on the preview URL. FLUX 1 (admin creates user manually) PASS: login as admin@cartoonix.ro OK, /admin -> tab 'Membri' OK, dialog 'Creează utilizator' opens, fields create-name/create-email/create-password + create-plus checkbox work, save-new-user returns success toast 'Cont creat pentru qa_374957@cartoonix.ro', dialog closes, list refreshes and new user appears via members-search with the PLUS badge and 'Activ' status. FLUX 1b (duplicate) PASS: same email -> HTTP 400 and error toast 'Acest email este deja folosit', no duplicate row created (list still shows 1 result for that email, total stayed 5). FLUX 2 (OTP error message) PASS: /register submit -> POST /api/auth/register/start returns 400 and the page shows in data-testid='register-error' the SPECIFIC Romanian message 'Nu am putut trimite emailul de verificare. Încearcă din nou.'; generic 'A apărut o eroare' was NOT shown. No JS errors other than benign React warnings.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin > Membri (create dialog)", "issues": ["React a11y warning: DialogContent missing Description/aria-describedby (both create and edit dialogs) - minor accessibility gap", "create-password input uses type='text' (password shown in clear text) - intentional for admin convenience but worth confirming"]},
+      {"screen": "Global", "issues": ["Console error repeated: empty string passed to <img src> ('An empty string was passed to the src attribute') on home/admin pages - causes redundant page re-download"]}
+    ]
+  },
+  "test_report_links": ["/app/test_reports/iteration_8.json"],
+  "action_items": [
+    "Optional: add aria-describedby/DialogDescription to AdminMembers dialogs to silence a11y warnings",
+    "Optional: fix empty img src (pass null instead of \"\") to remove console errors",
+    "Cleanup leftover QA accounts in DB: qa_374957@cartoonix.ro, qareg_755874@cartoonix.ro (pending, unverified), plus older dup_23032@ / manualtest_29509@"
+  ],
+  "critical_code_review_comments": [
+    "AdminMembers.load() swallows API errors with .catch(() => {}) - a failing /admin/users request silently shows an empty table; surface an error state",
+    "Register.jsx error path is correct now (formatApiErrorDetail on detail); note that using HTTP 400 for a mail-provider failure is a semantic compromise (5xx would be correct) - documented workaround for the Cloudflare proxy masking 5xx bodies"
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "not tested (skipped per request)", "frontend": "100% (3/3 flows)" },
+  "seed_data_creation": "Created via admin UI: qa_374957@cartoonix.ro (Test Manual QA, PLUS, parola123). Register attempt created pending record for qareg_755874@cartoonix.ro (no email sent).",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "admin@cartoonix.ro / admin1234 (worked)",
+  "context_for_next_testing_agent": "All 3 flows of iteration 8 pass. Admin members tab testid = admin-tab-members; create dialog testids as documented. Register in preview always fails Brevo -> expect 400 + specific Romanian message; OTP verification step cannot be reached in preview (no email). Fullscreen not tested per instruction.",
+  "rca_of_the_issue": "Previously the register/start Brevo failure returned 5xx whose JSON body was replaced by the Cloudflare proxy, so the frontend fell back to the generic message. Backend now returns 400 with the detail string, which reaches formatApiErrorDetail and renders in data-testid='register-error'. Verified in browser."
+}
