@@ -186,9 +186,11 @@ const Watch = () => {
             <button data-testid="watch-playlist" onClick={() => setPlDialog(true)} className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/10 hover:bg-white/20 font-semibold transition-colors duration-200">
               <Plus className="h-4 w-4" /> Playlist
             </button>
-            <button data-testid="watch-download" onClick={onDownload} className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/10 hover:bg-white/20 font-semibold transition-colors duration-200">
-              <Download className="h-4 w-4" /> Descarcă {!user?.plus && <PlusIcon className="h-4 w-4" />}
-            </button>
+            {!show.download_disabled && (
+              <button data-testid="watch-download" onClick={onDownload} className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/10 hover:bg-white/20 font-semibold transition-colors duration-200">
+                <Download className="h-4 w-4" /> Descarcă {!user?.plus && <PlusIcon className="h-4 w-4" />}
+              </button>
+            )}
             {next && (
               <button data-testid="watch-next" onClick={() => navigate(`/watch/${id}/${next.number}`)} className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#ec1c24] hover:bg-[#ff2d36] font-semibold transition-colors duration-200">
                 Următorul <ChevronRight className="h-4 w-4" />

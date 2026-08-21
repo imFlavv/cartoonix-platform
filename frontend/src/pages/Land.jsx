@@ -13,10 +13,10 @@ const Land = () => {
 
   return (
     <div data-testid="land-page" className="fullscreen-image">
-      <img src="/land/ORIGINAL.png" alt="Cartoonix Land" draggable={false} />
+      <img src="/land-assets/ORIGINAL.png" alt="Cartoonix Land" draggable={false} />
       {/* glowing building overlay — same transform as the base image so it stays aligned */}
       <img
-        src="/land/building-glow.webp"
+        src="/land-assets/building-glow.webp"
         alt=""
         aria-hidden="true"
         draggable={false}

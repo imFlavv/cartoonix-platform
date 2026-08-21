@@ -126,4 +126,15 @@ See `/app/memory/test_credentials.md` (admin@cartoonix.ro).
 - Fullscreen la autoplay: Watch.jsx refolosește același element <video> (schimbă src la navigate,
   fără remount/key) ca fullscreen-ul să persiste la trecerea la episodul următor. NU a putut fi
   testat automat (fullscreen greu de automatizat) — necesită validare manuală de către user.
+- Download dezactivabil per desen: câmp `download_disabled` (bool) pe show. Toggle în AdminShowEditor
+  ("Dezactivează descărcarea", testid edit-show-download-disabled). Backend: ShowUpdate acceptă câmpul;
+  GET /api/download/{sid}/{ep} întoarce 403 "Descărcarea este dezactivată pentru acest desen" dacă e activ.
+  Frontend ascunde butonul Descarcă în ShowDetail.jsx + Watch.jsx când show.download_disabled. Verificat
+  backend cu curl (403) + toggle vizibil în UI.
+- FIX /land 403 pe LIVE (ROOT CAUSE): folderul de assets `frontend/public/land/` (ORIGINAL.png etc.)
+  se ciocnea cu ruta React `/land`. La accesarea `cartoonix.ro/land/` (cu slash final), serverul web
+  găsea directorul fizic `land/` (fără index, listare off) → 403 Forbidden. Fix: redenumit folderul în
+  `public/land-assets/` + actualizat căile în Land.jsx (`/land-assets/ORIGINAL.png`,
+  `/land-assets/building-glow.webp`). Verificat în preview la `/land/` (HD 4128px se încarcă). ⚠️ Necesită
+  REDEPLOY pe live ca fix-ul să ajungă pe cartoonix.ro.
 

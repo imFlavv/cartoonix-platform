@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CHANNELS } from "@/data/constants";
-import { Trash2, Film, GripVertical, FolderSearch } from "lucide-react";
+import { Trash2, Film, GripVertical, FolderSearch, Download } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 
 const inputCls = "w-full px-4 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[#ffcc00]";
@@ -24,6 +25,7 @@ export const AdminShowEditor = ({ show, open, onOpenChange, onSaved }) => {
         genres: (show.genres || []).join(", "),
         thumbnail: show.thumbnail || "",
         vps_path: show.vps_path || "",
+        download_disabled: !!show.download_disabled,
         episodes: (show.episodes || []).map((e) => ({ ...e })),
       });
     }
@@ -119,6 +121,7 @@ export const AdminShowEditor = ({ show, open, onOpenChange, onSaved }) => {
         genres: form.genres.split(",").map((g) => g.trim()).filter(Boolean),
         thumbnail: form.thumbnail,
         vps_path: form.vps_path,
+        download_disabled: form.download_disabled,
         episodes: form.episodes,
       });
       toast.success("Desen actualizat");
@@ -155,6 +158,18 @@ export const AdminShowEditor = ({ show, open, onOpenChange, onSaved }) => {
             <input placeholder="An" value={form.year} onChange={(e) => set("year", e.target.value)} className={inputCls} />
           </div>
           <input placeholder="Genuri (virgulă)" value={form.genres} onChange={(e) => set("genres", e.target.value)} className={inputCls} />
+
+          {/* Download toggle */}
+          <div className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/10">
+            <div className="flex items-start gap-2">
+              <Download className="h-4 w-4 text-[#ffcc00] mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold">Dezactivează descărcarea</p>
+                <p className="text-xs text-white/50">Când e activ, butonul „Descarcă" e ascuns pentru acest desen (util pentru conținut cu drepturi restricționate).</p>
+              </div>
+            </div>
+            <Switch data-testid="edit-show-download-disabled" checked={!!form.download_disabled} onCheckedChange={(v) => set("download_disabled", v)} />
+          </div>
 
           {/* Poster / imagine desen */}
           <div className="flex gap-3 items-start">

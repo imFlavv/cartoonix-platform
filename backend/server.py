@@ -1237,6 +1237,8 @@ async def get_download(show_id: str, episode_number: int, user: dict = Depends(g
     show = await db.shows.find_one({"_id": ObjectId(show_id)})
     if not show:
         raise HTTPException(status_code=404, detail="Desen inexistent")
+    if show.get("download_disabled"):
+        raise HTTPException(status_code=403, detail="Descărcarea este dezactivată pentru acest desen")
     ep = next((e for e in show.get("episodes", []) if e["number"] == episode_number), None)
     if not ep:
         raise HTTPException(status_code=404, detail="Episod inexistent")
@@ -1879,6 +1881,7 @@ class ShowUpdate(BaseModel):
     genres: Optional[List[str]] = None
     order: Optional[int] = None
     episodes: Optional[List[Episode]] = None
+    download_disabled: Optional[bool] = None
 
 
 @api_router.put("/admin/shows/{sid}")

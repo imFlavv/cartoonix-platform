@@ -143,10 +143,12 @@ const ShowDetail = () => {
           <button data-testid={`playlist-episode-${ep.number}`} onClick={() => (requireLogin() ? null : setPlDialog(makeRef(ep)))} className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors duration-200" title="Adaugă în playlist">
             <Plus className="h-4 w-4 text-white/70" />
           </button>
-          <button data-testid={`download-episode-${ep.number}`} onClick={() => onDownload(ep)} className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors duration-200 relative" title={user?.plus ? "Descarcă" : "Descărcare PLUS"}>
-            <Download className="h-4 w-4 text-white/70" />
-            {!user?.plus && <PlusIcon className="h-3 w-3 absolute -top-0.5 -right-0.5" />}
-          </button>
+          {!show.download_disabled && (
+            <button data-testid={`download-episode-${ep.number}`} onClick={() => onDownload(ep)} className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors duration-200 relative" title={user?.plus ? "Descarcă" : "Descărcare PLUS"}>
+              <Download className="h-4 w-4 text-white/70" />
+              {!user?.plus && <PlusIcon className="h-3 w-3 absolute -top-0.5 -right-0.5" />}
+            </button>
+          )}
         </div>
       </div>
     );
