@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { api, resolveVideoUrl } from "@/lib/api";
-import { ArrowLeft, ChevronRight, Download, Heart, Plus, Check, Play, ListVideo } from "lucide-react";
+import { getQueue, clearQueue } from "@/lib/queue";
+import { ArrowLeft, ChevronRight, Download, Heart, Plus, Check, Play, ListVideo, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useLibrary } from "@/context/LibraryContext";
 import { PlusIcon } from "@/components/PlusIcon";
@@ -11,12 +12,15 @@ import { toast } from "sonner";
 const Watch = () => {
   const { id, ep } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const queueMode = searchParams.get("queue") === "1";
   const { user } = useAuth();
   const { isFavorite, toggleFavorite } = useLibrary();
   const [show, setShow] = useState(null);
   const [plDialog, setPlDialog] = useState(false);
   const [autoplay, setAutoplay] = useState(true);
   const [progress, setProgress] = useState({});
+  const [queue, setQueueState] = useState(null);
   const epNumber = parseInt(ep, 10);
   const videoRef = useRef(null);
   const resumeRef = useRef(0);
@@ -28,6 +32,11 @@ const Watch = () => {
     api.get(`/shows/${id}`).then((res) => setShow(res.data));
   }, [id]);
 
+  // load the active playback queue (playlist / favorites) when in queue mode
+  useEffect(() => {
+    setQueueState(queueMode ? getQueue() : null);
+  }, [queueMode]);
+
   // scroll the active episode into view within its list
   useEffect(() => {
     activeEpRef.current?.scrollIntoView({ block: "nearest" });
@@ -37,6 +46,13 @@ const Watch = () => {
   const locked = false;
   const next = show?.episodes?.find((e) => e.number === epNumber + 1);
   const fav = show ? isFavorite(show.id, epNumber) : false;
+
+  // queue helpers (playlist / favorites continuous playback)
+  const queueItems = queue?.items || [];
+  const queueIndex = queueMode ? queueItems.findIndex((i) => i.show_id === id && i.episode_number === epNumber) : -1;
+  const queueNext = queueMode && queueIndex >= 0 ? queueItems[queueIndex + 1] : null;
+  const goToQueueItem = (it) => navigate(`/watch/${it.show_id}/${it.episode_number}?queue=1`);
+  const exitQueue = () => { clearQueue(); navigate(`/watch/${id}/${epNumber}`, { replace: true }); };
 
   // fetch resume position
   useEffect(() => {
@@ -85,7 +101,17 @@ const Watch = () => {
   const onEnded = async () => {
     completedRef.current = true;
     await saveProgress(true);
-    if (autoplay && next) {
+    if (!autoplay) return;
+    if (queueMode) {
+      if (queueNext) {
+        toast.success("Următorul din playlist ▶");
+        goToQueueItem(queueNext);
+      } else {
+        toast.info("Ai terminat playlistul 🎉");
+      }
+      return;
+    }
+    if (next) {
       toast.success("Trecem la episodul următor ▶");
       navigate(`/watch/${id}/${next.number}`);
     }
@@ -142,6 +168,11 @@ const Watch = () => {
           <ArrowLeft className="h-5 w-5" /> Înapoi
         </button>
         <p className="font-semibold truncate">{show.title} — Ep. {epNumber}</p>
+        {queueMode && queueItems.length > 0 && (
+          <span data-testid="watch-queue-badge" className="hidden sm:inline-flex items-center gap-1.5 shrink-0 ml-auto px-3 py-1 rounded-full bg-[#ec1c24]/15 text-[#ec1c24] text-xs font-bold">
+            <ListVideo className="h-3.5 w-3.5" /> {queue?.name || "Playlist"} · {queueIndex >= 0 ? queueIndex + 1 : 1}/{queueItems.length}
+          </span>
+        )}
       </div>
 
       <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 grid lg:grid-cols-3 gap-6">
@@ -191,16 +222,70 @@ const Watch = () => {
                 <Download className="h-4 w-4" /> Descarcă {!user?.plus && <PlusIcon className="h-4 w-4" />}
               </button>
             )}
-            {next && (
-              <button data-testid="watch-next" onClick={() => navigate(`/watch/${id}/${next.number}`)} className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#ec1c24] hover:bg-[#ff2d36] font-semibold transition-colors duration-200">
-                Următorul <ChevronRight className="h-4 w-4" />
-              </button>
+            {queueMode ? (
+              queueNext && (
+                <button data-testid="watch-next" onClick={() => goToQueueItem(queueNext)} className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#ec1c24] hover:bg-[#ff2d36] font-semibold transition-colors duration-200">
+                  Următorul <ChevronRight className="h-4 w-4" />
+                </button>
+              )
+            ) : (
+              next && (
+                <button data-testid="watch-next" onClick={() => navigate(`/watch/${id}/${next.number}`)} className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#ec1c24] hover:bg-[#ff2d36] font-semibold transition-colors duration-200">
+                  Următorul <ChevronRight className="h-4 w-4" />
+                </button>
+              )
             )}
           </div>
         </div>
         </div>
 
+        {/* Playlist queue sidebar (continuous playback of playlist / favorites) */}
+        {queueMode && queueItems.length > 0 && (
+          <aside className="lg:col-span-1" data-testid="watch-queue-list">
+            <div className="bg-[#141414] border border-[#ec1c24]/40 rounded-2xl p-4 lg:sticky lg:top-6 flex flex-col lg:max-h-[calc(100vh-3rem)]">
+              <div className="flex items-center gap-2 mb-1 shrink-0">
+                <ListVideo className="h-5 w-5 text-[#ec1c24]" />
+                <h3 className="font-display text-xl truncate">{queue?.name || "Playlist"}</h3>
+                <button data-testid="watch-queue-exit" onClick={exitQueue} title="Ieși din playlist" className="ml-auto h-7 w-7 flex items-center justify-center rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors duration-200">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <p className="text-xs text-white/40 mb-3 shrink-0">Redare continuă · {queueIndex >= 0 ? queueIndex + 1 : 1}/{queueItems.length}</p>
+              <div className="space-y-1.5 overflow-y-auto pr-1 max-h-[60vh] lg:max-h-none">
+                {queueItems.map((it, i) => {
+                  const active = it.show_id === id && it.episode_number === epNumber;
+                  return (
+                    <button
+                      key={it.key || `${it.show_id}:${it.episode_number}`}
+                      ref={active ? activeEpRef : null}
+                      data-testid={`watch-queue-item-${i}`}
+                      onClick={() => goToQueueItem(it)}
+                      className={`w-full flex items-center gap-3 text-left px-2.5 py-2 rounded-xl border transition-colors duration-150 ${
+                        active ? "bg-[#ec1c24]/20 border-[#ec1c24]/70" : "bg-white/5 hover:bg-white/10 border-transparent"
+                      }`}
+                    >
+                      <span className="relative shrink-0">
+                        <img src={it.thumbnail} alt="" className="h-12 w-9 rounded object-cover bg-white/10" />
+                        {active && (
+                          <span className="absolute inset-0 flex items-center justify-center bg-black/40 rounded">
+                            <Play className="h-3.5 w-3.5 fill-white" />
+                          </span>
+                        )}
+                      </span>
+                      <span className="flex-1 min-w-0">
+                        <span className={`block text-sm font-semibold truncate ${active ? "text-white" : "text-white/80"}`}>{it.show_title}</span>
+                        <span className="block text-xs text-white/40 truncate">{it.episode_title || `Ep ${it.episode_number}`}{it.channel ? ` · ${it.channel}` : ""}</span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </aside>
+        )}
+
         {/* Episode list sidebar */}
+        {!queueMode && (
         <aside className="lg:col-span-1" data-testid="watch-episode-list">
           <div className="bg-[#141414] border border-white/10 rounded-2xl p-4 lg:sticky lg:top-6 flex flex-col lg:max-h-[calc(100vh-3rem)]">
             <h3 className="font-display text-xl flex items-center gap-2 mb-3 shrink-0">
@@ -249,6 +334,7 @@ const Watch = () => {
             </div>
           </div>
         </aside>
+        )}
       </div>
 
       <AddToPlaylistDialog open={plDialog} onOpenChange={setPlDialog} itemRef={makeRef()} />

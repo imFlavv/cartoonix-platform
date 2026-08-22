@@ -113,6 +113,20 @@ UI language: Romanian only.
 ## Credentials
 See `/app/memory/test_credentials.md` (admin@cartoonix.ro).
 
+## Recent changes (Aug 2026, redare playlist)
+- Redare continuă din playlist / favorite ("queue mode"): user pornește redarea DOAR pentru episoadele
+  din playlist-ul lui sau din favorite, cu auto-advance între episoade (chiar din desene diferite).
+  - Profile.jsx: buton "Redă tot" (testid play-all-favorites + play-playlist-<id>) → funcția playQueue()
+    filtrează favoritele de tip serial complet (episode_number===0), salvează coada în sessionStorage
+    (lib/queue.js) și navighează la primul episod cu `?queue=1`.
+  - Watch.jsx: detectează `?queue=1`, încarcă coada din sessionStorage. onEnded + butonul "Următorul"
+    avansează la următorul item din coadă (nu la ep+1 al aceluiași desen). Sidebar dedicat
+    (watch-queue-list) cu itemii cozii + item activ evidențiat + buton X (watch-queue-exit) pentru a ieși.
+    Badge în bara de sus (watch-queue-badge) "Nume playlist · index/total". Când NU e queue mode,
+    rămâne sidebar-ul normal de episoade. Verificat vizual e2e: play-all favorite (filtrează ep0),
+    avans "Următorul" între desene diferite (Space Buddies Ep1 → Captain Nova Ep2), badge 2/2,
+    buton "Următorul" ascuns la ultimul item. Fără modificări backend (folosește /favorites + /playlists).
+
 ## Recent changes (Aug 2026, cont.)
 - Admin: creare manuală utilizator. Buton `create-user-btn` în tab Membri deschide dialog
   (`create-name` / `create-email` / `create-password` / `create-plus` toggle / `save-new-user`) →

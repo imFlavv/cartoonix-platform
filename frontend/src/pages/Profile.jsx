@@ -4,9 +4,10 @@ import { NavBar } from "@/components/NavBar";
 import { useAuth } from "@/context/AuthContext";
 import { useLibrary } from "@/context/LibraryContext";
 import { api } from "@/lib/api";
+import { setQueue } from "@/lib/queue";
 import { AVATAR_SEEDS, PREMIUM_AVATARS } from "@/data/constants";
 import { PlusIcon } from "@/components/PlusIcon";
-import { Check, Play, Heart, Trash2, ListMusic, Film, Clock, Lock, KeyRound, Eye, EyeOff, User, Gift } from "lucide-react";
+import { Check, Play, Heart, Trash2, ListMusic, Film, Clock, Lock, KeyRound, Eye, EyeOff, User, Gift, PlayCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 
@@ -72,6 +73,19 @@ const Profile = () => {
   };
 
   const play = (i) => navigate(i.episode_number === 0 ? `/show/${i.show_id}` : `/watch/${i.show_id}/${i.episode_number}`);
+
+  // Start continuous playback of only these items (skips whole-show favorites).
+  const playQueue = (rawItems, name) => {
+    const items = (rawItems || []).filter((i) => i.episode_number && i.episode_number !== 0);
+    if (!items.length) {
+      toast.error("Nu există episoade redabile în această listă");
+      return;
+    }
+    setQueue({ name, items });
+    const first = items[0];
+    navigate(`/watch/${first.show_id}/${first.episode_number}?queue=1`);
+    toast.success(`Redare: ${name} (${items.length} episoade)`);
+  };
 
   // password change
   const [pwd, setPwd] = useState({ current: "", next: "", confirm: "" });
@@ -180,20 +194,32 @@ const Profile = () => {
                   Niciun favorit încă. Apasă ❤️ pe un desen sau pe episoade ca să le salvezi aici.
                 </div>
               ) : (
-                <div className="grid sm:grid-cols-2 gap-3">
-                  {favorites.map((f) => (
-                    <EpItem
-                      key={f.id}
-                      item={f}
-                      onPlay={() => play(f)}
-                      right={
-                        <button data-testid={`remove-fav-${f.id}`} onClick={() => toggleFavorite(f)} className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors duration-200">
-                          <Heart className="h-4 w-4 fill-[#ec1c24] text-[#ec1c24]" />
-                        </button>
-                      }
-                    />
-                  ))}
-                </div>
+                <>
+                  <div className="flex items-center justify-between mb-4">
+                    <p className="text-sm text-white/50">{favorites.length} salvate</p>
+                    <button
+                      data-testid="play-all-favorites"
+                      onClick={() => playQueue(favorites, "Favoritele mele")}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#ec1c24] font-bold text-sm hover:bg-[#ff2d36] transition-colors duration-200"
+                    >
+                      <PlayCircle className="h-4 w-4" /> Redă tot
+                    </button>
+                  </div>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    {favorites.map((f) => (
+                      <EpItem
+                        key={f.id}
+                        item={f}
+                        onPlay={() => play(f)}
+                        right={
+                          <button data-testid={`remove-fav-${f.id}`} onClick={() => toggleFavorite(f)} className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors duration-200">
+                            <Heart className="h-4 w-4 fill-[#ec1c24] text-[#ec1c24]" />
+                          </button>
+                        }
+                      />
+                    ))}
+                  </div>
+                </>
               )}
             </TabsContent>
 
@@ -211,9 +237,20 @@ const Profile = () => {
                         <h3 className="font-display text-2xl">{pl.name}</h3>
                         <p className="text-xs text-white/50">{pl.items?.length || 0} episoade</p>
                       </div>
-                      <button data-testid={`delete-playlist-${pl.id}`} onClick={() => { deletePlaylist(pl.id); toast.success("Playlist șters"); }} className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-[#ec1c24]/20 text-white/60 hover:text-[#ec1c24] transition-colors duration-200">
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        {pl.items?.length ? (
+                          <button
+                            data-testid={`play-playlist-${pl.id}`}
+                            onClick={() => playQueue(pl.items, pl.name)}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#ec1c24] font-bold text-sm hover:bg-[#ff2d36] transition-colors duration-200"
+                          >
+                            <PlayCircle className="h-4 w-4" /> Redă tot
+                          </button>
+                        ) : null}
+                        <button data-testid={`delete-playlist-${pl.id}`} onClick={() => { deletePlaylist(pl.id); toast.success("Playlist șters"); }} className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-[#ec1c24]/20 text-white/60 hover:text-[#ec1c24] transition-colors duration-200">
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
                     {pl.items?.length ? (
                       <div className="grid sm:grid-cols-2 gap-3">
