@@ -895,6 +895,105 @@ async def live_playlist(count: int = 60, user: dict = Depends(get_current_user))
     return {"items": sample, "total": len(items)}
 
 
+# ---------- Live TV: SYNCHRONIZED broadcast (same stream for everyone) ----------
+# A deterministic schedule (fixed shuffled order + per-item duration) is derived from
+# a persisted {epoch, seed}. Any client computes the same "now playing" + offset from
+# the server clock, so every viewer sees the exact same episode at the same second.
+import bisect as _bisect
+
+_LIVE_SCHED = {"epoch": None, "seed": None, "n": -1, "items": [], "cum": [], "total": 1}
+_LIVE_SCHED_MAX_AGE = 24 * 3600  # rotate the shuffle once a day
+
+
+def _dur_to_seconds(s) -> int:
+    if not s:
+        return 1320
+    txt = str(s).strip().lower()
+    if ":" in txt:
+        parts = txt.split(":")
+        try:
+            nums = [int(p) for p in parts]
+            if len(nums) == 3:
+                return nums[0] * 3600 + nums[1] * 60 + nums[2]
+            if len(nums) == 2:
+                return nums[0] * 60 + nums[1]
+        except ValueError:
+            pass
+    m = re.search(r"(\d+)", txt)
+    if not m:
+        return 1320
+    val = int(m.group(1))
+    if "h" in txt:
+        return val * 3600
+    return val * 60  # "22 min" / bare number -> minutes
+
+
+async def _ensure_live_schedule():
+    now = _time.time()
+    doc = await db.settings.find_one({"key": "live_schedule"})
+    if not doc or (now - doc.get("epoch", 0)) > _LIVE_SCHED_MAX_AGE:
+        doc = {"key": "live_schedule", "epoch": now, "seed": secrets.randbelow(1_000_000_000)}
+        await db.settings.update_one({"key": "live_schedule"}, {"$set": doc}, upsert=True)
+    epoch = doc["epoch"]
+    seed = doc["seed"]
+    # keep the flat index fresh
+    if now - _LIVE_CACHE["at"] > _LIVE_TTL_SECONDS or not _LIVE_CACHE["items"]:
+        _LIVE_CACHE["items"] = await _build_live_index()
+        _LIVE_CACHE["at"] = now
+    idx_items = _LIVE_CACHE["items"]
+    # (re)build the in-memory schedule deterministically from the persisted seed
+    if (_LIVE_SCHED["seed"] != seed or _LIVE_SCHED["epoch"] != epoch
+            or _LIVE_SCHED["n"] != len(idx_items) or not _LIVE_SCHED["items"]):
+        order = list(idx_items)
+        _random.Random(seed).shuffle(order)
+        items, cum, t = [], [], 0
+        for it in order:
+            d = max(30, min(_dur_to_seconds(it.get("duration")), 7200))
+            item = dict(it)
+            item["duration_seconds"] = d
+            items.append(item)
+            cum.append(t)
+            t += d
+        _LIVE_SCHED.update({"seed": seed, "epoch": epoch, "n": len(idx_items),
+                            "items": items, "cum": cum, "total": max(1, t)})
+    return epoch
+
+
+def _slim_sched_item(x: dict) -> dict:
+    return {k: x.get(k) for k in ("show_id", "show_title", "channel", "thumbnail",
+                                  "episode_number", "episode_title", "duration_seconds")}
+
+
+@api_router.get("/live/now")
+async def live_now(user: dict = Depends(get_current_user)):
+    if not user_is_plus(user):
+        raise HTTPException(status_code=403, detail="Cartoonix TV este disponibil momentan doar pentru membrii PLUS (BETA)")
+    epoch = await _ensure_live_schedule()
+    items, cum, total = _LIVE_SCHED["items"], _LIVE_SCHED["cum"], _LIVE_SCHED["total"]
+    if not items:
+        return {"current": None, "next": [], "prev": None, "index": 0, "offset": 0}
+    now = _time.time()
+    pos = (now - epoch) % total
+    i = _bisect.bisect_right(cum, pos) - 1
+    if i < 0:
+        i = 0
+    offset = pos - cum[i]
+    n = len(items)
+    current = _slim_sched_item(items[i])
+    current["video_url"] = items[i]["video_url"]
+    return {
+        "server_time": now,
+        "index": i,
+        "offset": round(offset, 2),
+        "current": current,
+        "prev": _slim_sched_item(items[(i - 1) % n]),
+        "next": [_slim_sched_item(items[(i + k) % n]) for k in range(1, 5)],
+        "total_items": n,
+    }
+
+
+
+
 
 # ---------- media library: stream video from VPS with Range (seek) support ----------
 def _safe_media_path(file_path: str) -> str:

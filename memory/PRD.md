@@ -139,6 +139,18 @@ See `/app/memory/test_credentials.md` (admin@cartoonix.ro).
   player-ul. Logo-ul din colț (live-logo-bug) e acum imaginea oficială `/cartoonix-live-logo.png`
   (fundal făcut transparent prin flood-fill din colțuri, păstrând textul alb „LIVE TV"). Ambele stări
   verificate vizual (FREE→gate, PLUS→player cu logo).
+- Live TV SINCRONIZAT (aceeași transmisiune pentru toți): în loc de playlist random per-client, acum e
+  un „broadcast" real. Backend păstrează în db.settings `live_schedule` = {epoch, seed}; din seed se
+  reconstruiește DETERMINIST ordinea amestecată a episoadelor + durata fiecăruia (_dur_to_seconds).
+  `GET /api/live/now` (PLUS-only) calculează din ceasul serverului: pos=(now-epoch)%total → index curent
+  + offset în episod + prev + next[4]. Astfel orice utilizator/cont/dispozitiv vede exact același desen
+  la aceeași secundă; la reintrare NU mai pornește alt desen. Programul se rotește automat la 24h.
+  Frontend Live.jsx: nu mai ține coadă locală; face poll la /live/now la 8s, setează src pe current și
+  face seek la `offset % video.duration` (modulo → chiar și clipurile scurte se buclează în lockstep la
+  toți), corectează drift-ul >4s, iar la `ended` re-sincronizează. EPG afișează prev/ACUM/next[0..2].
+  Verificat: /live/now determinist (offset avansează cu timpul, index stabil), persistat în DB, ecranul
+  PLUS afișează exact currentul serverului (Ninja Force Ep1). Redarea efectivă nu se poate demonstra în
+  preview (404/ORB), dar pe live se va reda stream-ul sincronizat.
 
 ## Recent changes (Aug 2026, redare playlist)
 - Redare continuă din playlist / favorite ("queue mode"): user pornește redarea DOAR pentru episoadele

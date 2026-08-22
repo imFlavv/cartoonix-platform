@@ -6,85 +6,81 @@ import { NavBar } from "@/components/NavBar";
 import { PlusIcon } from "@/components/PlusIcon";
 import { Volume2, VolumeX, Maximize, Radio, Tv, Lock, Sparkles } from "lucide-react";
 
-const BATCH = 60;
-
-// EPG row offsets: previous (-1), NOW (0), and the next three.
-const OFFSETS = [-1, 0, 1, 2, 3];
+const POLL_MS = 8000;   // re-sync with the server every 8s
+const DRIFT_TOLERANCE = 4; // seconds
 
 const Live = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const isPlus = !!user?.plus;
-  const [queue, setQueue] = useState([]);
-  const [index, setIndex] = useState(0);
+
+  const [nowData, setNowData] = useState(null);
   const [volume, setVolume] = useState(1);
   const [muted, setMuted] = useState(true); // start muted so autoplay is allowed
+
   const videoRef = useRef(null);
   const playerRef = useRef(null);
-  const fetchingRef = useRef(false);
+  const nowRef = useRef(null);
+  const indexRef = useRef(-1);
+  const mutedRef = useRef(true);
 
-  const fetchBatch = useCallback(async () => {
-    if (fetchingRef.current) return;
-    fetchingRef.current = true;
+  useEffect(() => { nowRef.current = nowData; }, [nowData]);
+  useEffect(() => { mutedRef.current = muted; }, [muted]);
+
+  const fetchNow = useCallback(async () => {
     try {
-      const { data } = await api.get(`/live/playlist?count=${BATCH}`);
-      setQueue((q) => [...q, ...(data.items || [])]);
-    } catch (_) {
-      /* ignore */
-    } finally {
-      fetchingRef.current = false;
-    }
+      const { data } = await api.get("/live/now");
+      setNowData(data);
+    } catch (_) { /* ignore */ }
   }, []);
 
-  useEffect(() => { if (isPlus) fetchBatch(); }, [fetchBatch, isPlus]);
-
-  const current = queue[index];
-
-  // keep the queue topped up so playback never stops
   useEffect(() => {
-    if (queue.length && index >= queue.length - 4) fetchBatch();
-  }, [index, queue.length, fetchBatch]);
+    if (!isPlus) return;
+    fetchNow();
+    const t = setInterval(fetchNow, POLL_MS);
+    return () => clearInterval(t);
+  }, [isPlus, fetchNow]);
 
-  const skip = useCallback(() => setIndex((i) => i + 1), []);
-
-  // Robustness: auto-skip an episode that fails to start (broken / missing file)
-  // so the channel never gets stuck. Cleared as soon as playback actually begins.
-  useEffect(() => {
-    if (!current) return;
+  // Seek the element to the server-driven offset (modulo the real video length so
+  // that even short clips loop in perfect lockstep across every viewer).
+  const syncToServer = useCallback((force = false) => {
     const v = videoRef.current;
-    let started = false;
-    const onPlaying = () => { started = true; };
-    v?.addEventListener("playing", onPlaying);
-    const t = setTimeout(() => {
-      if (!started && (!v || v.readyState < 3)) skip();
-    }, 12000);
-    return () => { clearTimeout(t); v?.removeEventListener("playing", onPlaying); };
-  }, [current, skip]);
-
-  const onError = () => { setTimeout(skip, 400); };
-
-  // (re)start playback whenever the current source changes (same <video> element,
-  // so fullscreen state is preserved between episodes)
-  const handleLoaded = () => {
-    const v = videoRef.current;
-    if (!v) return;
-    v.muted = muted; // ensure muted flag is applied before autoplay
+    const nd = nowRef.current;
+    if (!v || !nd?.current) return;
+    const dur = v.duration;
+    if (!dur || !isFinite(dur) || dur <= 0) return;
+    const target = nd.offset % dur;
+    if (force || Math.abs(v.currentTime - target) > DRIFT_TOLERANCE) {
+      try { v.currentTime = target; } catch (_) { /* ignore */ }
+    }
+    v.muted = mutedRef.current;
     v.play().catch(() => {
       v.muted = true;
       setMuted(true);
       v.play().catch(() => {});
     });
-  };
+  }, []);
 
-  // apply volume / mute to the element
+  // React to schedule updates: switch source when the program changes, otherwise
+  // just correct any drift.
   useEffect(() => {
+    if (!nowData?.current) return;
+    const changed = indexRef.current !== nowData.index;
+    indexRef.current = nowData.index;
     const v = videoRef.current;
     if (!v) return;
-    v.volume = volume;
-    v.muted = muted;
-  }, [volume, muted, index]);
+    if (changed) {
+      // src prop change triggers a reload; onLoadedMetadata will force-sync
+      return;
+    }
+    if (v.readyState >= 1) syncToServer(false);
+  }, [nowData, syncToServer]);
 
-  const onEnded = () => { setIndex((i) => i + 1); };
+  const onLoadedMetadata = () => syncToServer(true);
+
+  // when a clip ends before its scheduled slot, re-sync (loops in lockstep)
+  const onEnded = () => { fetchNow(); syncToServer(true); };
+  const onError = () => { /* keep the schedule; try again on next poll */ };
 
   const onVolume = (e) => {
     const val = parseFloat(e.target.value);
@@ -125,8 +121,8 @@ const Live = () => {
               </div>
               <h1 className="font-display text-3xl md:text-4xl mb-3">Cartoonix TV este în BETA</h1>
               <p className="text-white/60 mb-2">
-                Canalul nostru non-stop care redă desene la întâmplare, ca la televizor, este momentan
-                disponibil <b className="text-white">exclusiv pentru membrii Cartoonix PLUS</b>.
+                Canalul nostru non-stop care redă desene ca la televizor, sincronizat pentru toți, este
+                momentan disponibil <b className="text-white">exclusiv pentru membrii Cartoonix PLUS</b>.
               </p>
               <p className="text-white/40 text-sm mb-7">
                 Testăm funcționalitatea și o vom deschide pentru toată lumea în curând. Mulțumim pentru răbdare! 📺
@@ -145,6 +141,17 @@ const Live = () => {
     );
   }
 
+  const current = nowData?.current;
+  const programRows = nowData
+    ? [
+        { item: nowData.prev, kind: "prev" },
+        { item: current, kind: "now" },
+        { item: nowData.next?.[0], kind: "next" },
+        { item: nowData.next?.[1], kind: "next" },
+        { item: nowData.next?.[2], kind: "next" },
+      ]
+    : [];
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white" data-testid="live-page">
       <NavBar />
@@ -154,7 +161,7 @@ const Live = () => {
             <Radio className="h-4 w-4 animate-pulse" /> Live
           </span>
           <h1 className="font-display text-3xl md:text-4xl">Cartoonix TV</h1>
-          <span className="hidden sm:block text-sm text-white/40">redare non-stop, aleatorie · nu poți schimba episodul</span>
+          <span className="hidden sm:block text-sm text-white/40">transmisiune sincronizată · aceeași pentru toți · nu poți schimba episodul</span>
         </div>
 
         <div className="grid lg:grid-cols-3 gap-6">
@@ -169,8 +176,7 @@ const Live = () => {
                   autoPlay
                   playsInline
                   muted={muted}
-                  onLoadedData={handleLoaded}
-                  onCanPlay={handleLoaded}
+                  onLoadedMetadata={onLoadedMetadata}
                   onEnded={onEnded}
                   onError={onError}
                   className="w-full h-full object-contain bg-black"
@@ -226,28 +232,26 @@ const Live = () => {
                 <Tv className="h-5 w-5 text-[#ec1c24]" /> Program
               </h3>
               <div className="space-y-2">
-                {OFFSETS.map((off) => {
-                  const item = queue[index + off];
-                  const isNow = off === 0;
-                  const key = `${index + off}`;
+                {programRows.map((row, ri) => {
+                  const item = row.item;
+                  const isNow = row.kind === "now";
+                  const isPrev = row.kind === "prev";
                   if (!item) {
                     return (
-                      <div key={key} className="flex items-center gap-3 p-2.5 rounded-xl bg-white/[0.02] border border-white/5 opacity-40">
+                      <div key={ri} className="flex items-center gap-3 p-2.5 rounded-xl bg-white/[0.02] border border-white/5 opacity-40">
                         <div className="h-12 w-9 rounded bg-white/5 shrink-0" />
-                        <div className="flex-1">
-                          <p className="text-xs text-white/30">{off < 0 ? "— început transmisiune —" : "se încarcă..."}</p>
-                        </div>
+                        <div className="flex-1"><p className="text-xs text-white/30">se încarcă...</p></div>
                       </div>
                     );
                   }
                   return (
                     <div
-                      key={key}
-                      data-testid={isNow ? "live-program-now" : `live-program-${off}`}
+                      key={ri}
+                      data-testid={isNow ? "live-program-now" : `live-program-${ri}`}
                       className={`flex items-center gap-3 p-2.5 rounded-xl border transition-all duration-300 ${
                         isNow
                           ? "bg-[#ec1c24]/15 border-[#ec1c24] ring-2 ring-[#ec1c24]/50 scale-[1.02] shadow-lg"
-                          : off < 0
+                          : isPrev
                           ? "bg-white/[0.03] border-white/5 opacity-60"
                           : "bg-white/5 border-transparent"
                       }`}
@@ -261,8 +265,8 @@ const Live = () => {
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className={`text-[10px] uppercase tracking-wide font-bold ${isNow ? "text-[#ec1c24]" : off < 0 ? "text-white/40" : "text-[#ffcc00]"}`}>
-                          {isNow ? "Acum" : off < 0 ? "A rulat" : "Urmează"}
+                        <p className={`text-[10px] uppercase tracking-wide font-bold ${isNow ? "text-[#ec1c24]" : isPrev ? "text-white/40" : "text-[#ffcc00]"}`}>
+                          {isNow ? "Acum" : isPrev ? "A rulat" : "Urmează"}
                         </p>
                         <p className={`text-sm font-semibold truncate ${isNow ? "text-white" : "text-white/80"}`}>{item.show_title}</p>
                         <p className="text-xs text-white/40 truncate">{item.episode_title || `Ep ${item.episode_number}`} · {item.channel}</p>
@@ -271,7 +275,7 @@ const Live = () => {
                   );
                 })}
               </div>
-              <p className="mt-4 text-[11px] text-white/30 text-center">Programul se derulează automat. Nu poți schimba manual episodul.</p>
+              <p className="mt-4 text-[11px] text-white/30 text-center">Transmisiune sincronizată pentru toți. Nu poți schimba manual episodul.</p>
             </div>
           </aside>
         </div>
