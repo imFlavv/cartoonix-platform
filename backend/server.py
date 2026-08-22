@@ -850,6 +850,50 @@ async def create_show(data: ShowInput, admin: dict = Depends(require_admin)):
     return serialize_show(doc)
 
 
+# ---------- Live TV: random continuous playback of the whole library ----------
+# Flattened lightweight episode index is cached in-memory with a TTL so the heavy
+# aggregation runs at most once per interval and never slows down /shows or /watch.
+import time as _time
+import random as _random
+
+_LIVE_CACHE = {"at": 0.0, "items": []}
+_LIVE_TTL_SECONDS = 300  # rebuild index at most once every 5 minutes
+
+
+async def _build_live_index():
+    pipeline = [
+        {"$unwind": "$episodes"},
+        {"$match": {"episodes.video_url": {"$nin": [None, ""]}}},
+        {"$project": {
+            "_id": 0,
+            "show_id": {"$toString": "$_id"},
+            "show_title": "$title",
+            "channel": "$channel",
+            "thumbnail": "$thumbnail",
+            "episode_number": "$episodes.number",
+            "episode_title": "$episodes.title",
+            "video_url": "$episodes.video_url",
+            "duration": "$episodes.duration",
+        }},
+    ]
+    return await db.shows.aggregate(pipeline, allowDiskUse=True).to_list(200000)
+
+
+@api_router.get("/live/playlist")
+async def live_playlist(count: int = 60, user: dict = Depends(get_current_user)):
+    now = _time.time()
+    if now - _LIVE_CACHE["at"] > _LIVE_TTL_SECONDS or not _LIVE_CACHE["items"]:
+        _LIVE_CACHE["items"] = await _build_live_index()
+        _LIVE_CACHE["at"] = now
+    items = _LIVE_CACHE["items"]
+    if not items:
+        return {"items": [], "total": 0}
+    count = max(1, min(int(count), 200))
+    sample = _random.sample(items, min(count, len(items)))
+    return {"items": sample, "total": len(items)}
+
+
+
 # ---------- media library: stream video from VPS with Range (seek) support ----------
 def _safe_media_path(file_path: str) -> str:
     """Resolve a request path safely under VIDEO_DIR (anti path-traversal)."""

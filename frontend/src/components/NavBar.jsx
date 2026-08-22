@@ -82,6 +82,7 @@ export const NavBar = () => {
   const links = [
     { to: "/home", label: "Acasă", icon: Home },
     { to: "/browse", label: "Bibliotecă", icon: Clapperboard },
+    { to: "/live", label: "Live TV", icon: Tv },
     { to: "/lobby", label: "Lobby", icon: Users },
     { to: "/cinema", label: "Cinema", icon: Film },
     { to: "/plus", label: "Cartoonix PLUS", plus: true },

@@ -41,6 +41,8 @@ import TvAccount from "@/pages/TvAccount";
 
 // Cartoonix Land is code-split so it never bloats the main streaming bundle
 const Land = lazy(() => import("@/pages/Land"));
+// Cartoonix TV (Live) is also code-split — isolated from the main app bundle
+const Live = lazy(() => import("@/pages/Live"));
 
 function App() {
   const [showSplash, setShowSplash] = useState(() => !sessionStorage.getItem("cx_splash_seen"));
@@ -97,6 +99,7 @@ function App() {
             <Route path="/support" element={<ProtectedRoute><MySupport /></ProtectedRoute>} />
             <Route path="/cont-tv" element={<ProtectedRoute><TvAccount /></ProtectedRoute>} />
             <Route path="/land" element={<ProtectedRoute><Suspense fallback={<div className="h-screen flex items-center justify-center bg-[#63b7e4] text-white/80">Se încarcă Cartoonix Land...</div>}><Land /></Suspense></ProtectedRoute>} />
+            <Route path="/live" element={<ProtectedRoute><Suspense fallback={<div className="h-screen flex items-center justify-center bg-[#0a0a0a] text-white/70">Se pornește Cartoonix TV...</div>}><Live /></Suspense></ProtectedRoute>} />
             <Route path="/show/:id" element={<ShowDetail />} />
             <Route path="/watch/:id/:ep" element={<ProtectedRoute><Watch /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />

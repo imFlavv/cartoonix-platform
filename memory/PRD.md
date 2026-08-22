@@ -113,6 +113,27 @@ UI language: Romanian only.
 ## Credentials
 See `/app/memory/test_credentials.md` (admin@cartoonix.ro).
 
+## Recent changes (Aug 2026, Live TV / Cartoonix TV)
+- Pagină nouă `/live` (Cartoonix TV): canal stil TV care redă TOATE desenele din platformă
+  aleator și non-stop, unul după altul, FĂRĂ posibilitatea de a schimba episodul (doar volum + fullscreen).
+  - Backend: `GET /api/live/playlist?count=N` (auth). Aplatizează episoadele (unwind + project lightweight:
+    show_id, show_title, channel, thumbnail, episode_number/title, video_url, duration) și întoarce un
+    eșantion RANDOM. Index-ul aplatizat e ținut într-un cache in-memory `_LIVE_CACHE` cu TTL 300s
+    (`allowDiskUse=True`) → agregarea grea rulează cel mult o dată la 5 min, NU atinge /shows sau /watch.
+  - Frontend: `pages/Live.jsx`, lazy-loaded în App.js (bundle separat, ca /land), rută ProtectedRoute
+    (doar logați). Link „Live TV" în NavBar (icon Tv). Player: `<video>` fără controale native, autoPlay,
+    start muted (pentru autoplay), custom bar DOAR volum + fullscreen (pattern de la WatchParty guest).
+    Același element `<video>` (schimbă doar src) → fullscreen persistă între episoade. onEnded → următorul.
+    Robustețe: `onError` + watchdog 12s → auto-skip episod stricat/lipsă ca stream-ul să nu se blocheze.
+    Prefetch alt lot când index >= len-4. "Bug" logo TV în colț dreapta-sus (placeholder CSS „Cartoonix ●LIVE",
+    de înlocuit cu logo-ul oficial). EPG „Program" în dreapta: 5 rânduri cu offset [-1,0,1,2,3] → poziția 2
+    e mereu „ACUM" (chenar roșu), poziția 1 „A rulat" (precedent), pozițiile 3-5 „Urmează"; la trecerea la
+    următorul, lista urcă automat (curentul rămâne pe poziția 2). NU e clickabil (nu poți schimba episodul).
+  - NOTĂ preview: redarea efectivă NU se poate demonstra în preview — URL-urile sample Google sunt blocate
+    de browser (ERR_BLOCKED_BY_ORB) și fișierele reale de bibliotecă (/api/media/videos/...) dau 404
+    (fișierele fizice sunt doar pe VPS-ul live). Pe live, fișierele reale se redau normal. Logica (autoplay,
+    auto-skip, derulare EPG, bara volum/fullscreen, link NavBar, endpoint random) verificată în preview.
+
 ## Recent changes (Aug 2026, redare playlist)
 - Redare continuă din playlist / favorite ("queue mode"): user pornește redarea DOAR pentru episoadele
   din playlist-ul lui sau din favorite, cu auto-advance între episoade (chiar din desene diferite).
