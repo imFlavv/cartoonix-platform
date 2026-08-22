@@ -188,7 +188,7 @@ const Live = () => {
                 src="/cartoonix-live-logo.png"
                 alt="Cartoonix Live TV"
                 draggable={false}
-                className="absolute top-3 right-3 h-14 md:h-20 w-auto select-none pointer-events-none drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]"
+                className="absolute top-3 right-3 h-9 md:h-12 w-auto select-none pointer-events-none drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]"
               />
 
               {/* Now playing label (bottom-left) */}
