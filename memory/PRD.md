@@ -133,6 +133,12 @@ See `/app/memory/test_credentials.md` (admin@cartoonix.ro).
     de browser (ERR_BLOCKED_BY_ORB) și fișierele reale de bibliotecă (/api/media/videos/...) dau 404
     (fișierele fizice sunt doar pe VPS-ul live). Pe live, fișierele reale se redau normal. Logica (autoplay,
     auto-skip, derulare EPG, bara volum/fullscreen, link NavBar, endpoint random) verificată în preview.
+- Live TV BETA gate + logo oficial: `/api/live/playlist` acum cere PLUS (403 pentru FREE). Frontend:
+  utilizatorii FREE văd un ecran BETA (data-testid live-beta-gate) cu badge LIVE+BETA, mesaj că e
+  disponibil doar pentru PLUS momentan, și buton spre /plus (live-beta-upsell). Utilizatorii PLUS văd
+  player-ul. Logo-ul din colț (live-logo-bug) e acum imaginea oficială `/cartoonix-live-logo.png`
+  (fundal făcut transparent prin flood-fill din colțuri, păstrând textul alb „LIVE TV"). Ambele stări
+  verificate vizual (FREE→gate, PLUS→player cu logo).
 
 ## Recent changes (Aug 2026, redare playlist)
 - Redare continuă din playlist / favorite ("queue mode"): user pornește redarea DOAR pentru episoadele

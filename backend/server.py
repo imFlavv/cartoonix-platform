@@ -881,6 +881,8 @@ async def _build_live_index():
 
 @api_router.get("/live/playlist")
 async def live_playlist(count: int = 60, user: dict = Depends(get_current_user)):
+    if not user_is_plus(user):
+        raise HTTPException(status_code=403, detail="Cartoonix TV este disponibil momentan doar pentru membrii PLUS (BETA)")
     now = _time.time()
     if now - _LIVE_CACHE["at"] > _LIVE_TTL_SECONDS or not _LIVE_CACHE["items"]:
         _LIVE_CACHE["items"] = await _build_live_index()

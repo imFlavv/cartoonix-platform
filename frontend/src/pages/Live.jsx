@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { api, resolveVideoUrl } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 import { NavBar } from "@/components/NavBar";
-import { Volume2, VolumeX, Maximize, Radio, Tv } from "lucide-react";
+import { PlusIcon } from "@/components/PlusIcon";
+import { Volume2, VolumeX, Maximize, Radio, Tv, Lock, Sparkles } from "lucide-react";
 
 const BATCH = 60;
 
@@ -9,6 +12,9 @@ const BATCH = 60;
 const OFFSETS = [-1, 0, 1, 2, 3];
 
 const Live = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const isPlus = !!user?.plus;
   const [queue, setQueue] = useState([]);
   const [index, setIndex] = useState(0);
   const [volume, setVolume] = useState(1);
@@ -30,7 +36,7 @@ const Live = () => {
     }
   }, []);
 
-  useEffect(() => { fetchBatch(); }, [fetchBatch]);
+  useEffect(() => { if (isPlus) fetchBatch(); }, [fetchBatch, isPlus]);
 
   const current = queue[index];
 
@@ -97,6 +103,48 @@ const Live = () => {
     else document.exitFullscreen?.();
   };
 
+  // BETA gate — Cartoonix TV is PLUS-only for now
+  if (!isPlus) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] text-white" data-testid="live-beta-gate">
+        <NavBar />
+        <div className="pt-20 min-h-screen flex items-center justify-center px-4">
+          <div className="relative max-w-lg w-full text-center">
+            <div className="absolute inset-0 -z-10 opacity-40 blur-3xl" style={{ background: "radial-gradient(circle at 30% 20%, rgba(236,28,36,0.5), transparent 60%), radial-gradient(circle at 80% 90%, rgba(255,204,0,0.35), transparent 60%)" }} />
+            <div className="bg-[#111] border border-white/10 rounded-3xl p-8 md:p-10 shadow-2xl">
+              <div className="flex items-center justify-center gap-2 mb-5">
+                <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#ec1c24] text-white text-xs font-bold uppercase tracking-wider">
+                  <Radio className="h-4 w-4 animate-pulse" /> Live
+                </span>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#ffcc00]/15 text-[#ffcc00] border border-[#ffcc00]/40 text-xs font-bold uppercase tracking-wider">
+                  <Sparkles className="h-4 w-4" /> Beta
+                </span>
+              </div>
+              <div className="mx-auto mb-5 h-16 w-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
+                <Lock className="h-8 w-8 text-[#ffcc00]" />
+              </div>
+              <h1 className="font-display text-3xl md:text-4xl mb-3">Cartoonix TV este în BETA</h1>
+              <p className="text-white/60 mb-2">
+                Canalul nostru non-stop care redă desene la întâmplare, ca la televizor, este momentan
+                disponibil <b className="text-white">exclusiv pentru membrii Cartoonix PLUS</b>.
+              </p>
+              <p className="text-white/40 text-sm mb-7">
+                Testăm funcționalitatea și o vom deschide pentru toată lumea în curând. Mulțumim pentru răbdare! 📺
+              </p>
+              <button
+                data-testid="live-beta-upsell"
+                onClick={() => navigate("/plus")}
+                className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full bg-[#ffcc00] text-black font-bold hover:brightness-110 transition-all duration-200"
+              >
+                <PlusIcon className="h-5 w-5" /> Deblochează cu Cartoonix PLUS
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white" data-testid="live-page">
       <NavBar />
@@ -134,15 +182,14 @@ const Live = () => {
                 </div>
               )}
 
-              {/* Corner channel bug (top-right) — replace with official logo when provided */}
-              <div data-testid="live-logo-bug" className="absolute top-3 right-3 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-black/45 backdrop-blur-sm border border-white/10 select-none pointer-events-none">
-                <span className="font-display text-lg leading-none tracking-tight">
-                  <span className="text-[#ffcc00]">Cartoo</span><span className="text-[#ec1c24]">nix</span>
-                </span>
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#ec1c24] text-white text-[10px] font-bold uppercase">
-                  <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" /> Live
-                </span>
-              </div>
+              {/* Corner channel bug (top-right) — official Cartoonix Live TV logo */}
+              <img
+                data-testid="live-logo-bug"
+                src="/cartoonix-live-logo.png"
+                alt="Cartoonix Live TV"
+                draggable={false}
+                className="absolute top-3 right-3 h-14 md:h-20 w-auto select-none pointer-events-none drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]"
+              />
 
               {/* Now playing label (bottom-left) */}
               {current && (
