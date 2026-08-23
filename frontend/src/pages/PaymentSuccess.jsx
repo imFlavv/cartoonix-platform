@@ -12,6 +12,7 @@ const PaymentSuccess = () => {
   const navigate = useNavigate();
   const { refreshUser } = useAuth();
   const [state, setState] = useState("checking"); // checking | success | error | timeout
+  const [info, setInfo] = useState(null); // { product, points }
   const attemptsRef = useRef(0);
   const doneRef = useRef(false);
   // keep latest refreshUser without re-triggering the polling effect
@@ -39,6 +40,7 @@ const PaymentSuccess = () => {
         if (cancelled || doneRef.current) return;
         if (data.payment_status === "paid") {
           doneRef.current = true;
+          setInfo({ product: data.product, points: data.points });
           setState("success");
           try {
             await refreshUserRef.current();
@@ -76,23 +78,48 @@ const PaymentSuccess = () => {
           </>
         )}
         {state === "success" && (
-          <>
-            <CheckCircle2 className="w-16 h-16 text-green-400 mb-6" />
-            <div className="flex items-center gap-2 mb-3">
-              <h1 className="text-3xl font-extrabold">Bine ai venit în</h1>
-              <PlusIcon className="h-8" />
-            </div>
-            <p className="text-white/70 mb-8 max-w-md">
-              Cartoonix PLUS este acum activ pe contul tău, pe viață. Bucură-te de acces
-              complet, fără reclame!
-            </p>
-            <button
-              onClick={() => navigate("/home")}
-              className="px-8 py-3 rounded-full bg-[#ffcc00] text-black font-bold hover:bg-[#ffd633] transition"
-            >
-              Începe să explorezi
-            </button>
-          </>
+          info?.product === "cartoonix_donation" ? (
+            <>
+              <CheckCircle2 className="w-16 h-16 text-green-400 mb-6" />
+              <h1 className="text-3xl font-extrabold mb-3">Mulțumim pentru donație! ❤️</h1>
+              <p className="text-white/70 mb-6 max-w-md">
+                Am adăugat <b className="text-[#ffcc00]">{info?.points ?? 0} puncte</b> în contul tău.
+                Susținerea ta ține Cartoonix viu!
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => navigate("/profile")}
+                  className="px-8 py-3 rounded-full bg-[#ffcc00] text-black font-bold hover:bg-[#ffd633] transition"
+                >
+                  Vezi punctele
+                </button>
+                <button
+                  onClick={() => navigate("/home")}
+                  className="px-8 py-3 rounded-full bg-white/10 border border-white/20 font-bold hover:bg-white/20 transition"
+                >
+                  Înapoi acasă
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <CheckCircle2 className="w-16 h-16 text-green-400 mb-6" />
+              <div className="flex items-center gap-2 mb-3">
+                <h1 className="text-3xl font-extrabold">Bine ai venit în</h1>
+                <PlusIcon className="h-8" />
+              </div>
+              <p className="text-white/70 mb-8 max-w-md">
+                Cartoonix PLUS este acum activ pe contul tău, pe viață. Bucură-te de acces
+                complet, fără reclame!
+              </p>
+              <button
+                onClick={() => navigate("/home")}
+                className="px-8 py-3 rounded-full bg-[#ffcc00] text-black font-bold hover:bg-[#ffd633] transition"
+              >
+                Începe să explorezi
+              </button>
+            </>
+          )
         )}
         {(state === "error" || state === "timeout") && (
           <>

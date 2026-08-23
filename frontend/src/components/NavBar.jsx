@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   Search, Menu, X, LogOut, Shield, HelpCircle, Bell,
   Facebook, Instagram, Youtube, Music2, MessageCircle, User, Settings, CheckCheck, Inbox,
-  Home, Clapperboard, Users, Film, Tv,
+  Home, Clapperboard, Users, Film, Tv, Coins, Heart,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api";
@@ -85,6 +85,7 @@ export const NavBar = () => {
     { to: "/live", label: "Live TV", icon: Tv },
     { to: "/lobby", label: "Lobby", icon: Users },
     { to: "/cinema", label: "Cinema", icon: Film },
+    { to: "/doneaza", label: "Donează", icon: Heart },
     { to: "/plus", label: "Cartoonix PLUS", plus: true },
   ];
 
@@ -249,6 +250,17 @@ export const NavBar = () => {
                   </button>
                 </PopoverContent>
               </Popover>
+
+              {/* Points wallet pill */}
+              <button
+                data-testid="nav-points-pill"
+                onClick={() => navigate("/profile")}
+                title="Punctele mele"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-[#ffcc00]/10 border border-[#ffcc00]/30 text-[#ffcc00] text-sm font-bold hover:bg-[#ffcc00]/20 transition-colors duration-200"
+              >
+                <Coins className="h-4 w-4" />
+                <span data-testid="nav-points-value">{user.points ?? 0}</span>
+              </button>
 
               {/* Avatar */}
               <DropdownMenu modal={false}>

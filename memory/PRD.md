@@ -113,6 +113,25 @@ UI language: Romanian only.
 ## Credentials
 See `/app/memory/test_credentials.md` (admin@cartoonix.ro).
 
+## Recent changes (Aug 2026, Donații + puncte)
+- Sistem de PUNCTE (wallet) + donații Stripe. 1 RON donat = 1 punct, creditat automat după confirmare.
+  - Backend: `POST /api/payments/donate` {amount, origin_url} (auth) — validează 10..5000 RON, creează
+    Stripe Checkout (raw SDK, același pattern ca PLUS: proxy Emergent pt. sk_test_emergent, webhook
+    /api/webhook/stripe), inserează payment_transactions cu product="cartoonix_donation" + points.
+    `_fulfill_session()` (generic, înlocuiește _grant_plus_for_session) e IDEMPOTENT prin garda pe
+    `modified_count` → creditează punctele exact o dată (webhook + polling nu dublează); scrie în
+    colecția `points_ledger` și `$inc users.points`. `GET /api/points/me` → {points, history}.
+    serialize_user întoarce acum `points`. Config: DONATION_MIN_RON=10, DONATION_MAX_RON=5000.
+  - Frontend: pagină `/doneaza` (Donate.jsx, ProtectedRoute) cu butoane fixe 10/25/50/100 + sumă liberă,
+    preview „vei primi X puncte", validare, redirect la Stripe. Link „Donează" în NavBar + pastilă de
+    puncte lângă avatar (nav-points-pill → /profile). Tab nou „Wallet" în Profil (total puncte + istoric
+    donații). PaymentSuccess.jsx e acum donation-aware (mesaj „Mulțumim! +X puncte" când
+    product=cartoonix_donation). Verificat cap-coadă: validări, creare checkout, webhook creditează 25p
+    + istoric, dublul webhook NU dublează (idempotent). Punctele deocamdată doar se acumulează.
+  - Stripe: refolosit setup-ul existent (Flow B / cheia platformei) — fără taxe/tax handling adăugat,
+    plată simplă one-time. Nu s-a cerut nicio cheie de la user.
+
+
 ## Recent changes (Aug 2026, Live TV / Cartoonix TV)
 - Pagină nouă `/live` (Cartoonix TV): canal stil TV care redă TOATE desenele din platformă
   aleator și non-stop, unul după altul, FĂRĂ posibilitatea de a schimba episodul (doar volum + fullscreen).

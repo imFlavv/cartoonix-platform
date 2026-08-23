@@ -203,6 +203,7 @@ def serialize_user(doc: dict) -> dict:
         "avatar": user_avatar(doc),
         "role": doc.get("role", "user"),
         "plus": user_is_plus(doc),
+        "points": int(doc.get("points", 0)),
         "email_verified": doc.get("email_verified", True),
         "banned": doc.get("banned", False),
         "muted_until": doc.get("muted_until"),
@@ -685,24 +686,49 @@ def _stripe_configure():
         stripe.api_base = "https://api.stripe.com"
 
 
-async def _grant_plus_for_session(session_id: str):
-    """Idempotent: marchează tranzacția plătită și activează PLUS lifetime pentru user."""
+async def _fulfill_session(session_id: str):
+    """Idempotent: marchează tranzacția plătită și acordă beneficiul (PLUS sau puncte)
+    exact o singură dată (garda pe modified_count previne dubla creditare)."""
     record = await db.payment_transactions.find_one({"session_id": session_id})
     if not record or record.get("payment_status") == "paid":
         return
-    await db.payment_transactions.update_one(
+    res = await db.payment_transactions.update_one(
         {"session_id": session_id, "payment_status": {"$ne": "paid"}},
         {"$set": {"status": "completed", "payment_status": "paid",
                   "updated_at": datetime.now(timezone.utc).isoformat()}},
     )
+    if res.modified_count == 0:
+        return  # altă cale (webhook/poll) a onorat deja tranzacția
     user_id = record.get("user_id")
-    if user_id:
-        try:
-            target = await find_user_by_id(user_id)
-            if target:
-                await db.users.update_one({"_id": target["_id"]}, {"$set": {"subscription": "plus"}})
-        except Exception as e:
-            logger.error(f"grant plus failed: {e}")
+    if not user_id:
+        return
+    try:
+        target = await find_user_by_id(user_id)
+        if not target:
+            return
+        product = record.get("product")
+        if product == "cartoonix_donation":
+            pts = int(record.get("points", 0))
+            if pts > 0:
+                await db.users.update_one({"_id": target["_id"]}, {"$inc": {"points": pts}})
+                await db.points_ledger.insert_one({
+                    "user_id": user_id,
+                    "type": "donation",
+                    "points": pts,
+                    "amount": record.get("amount"),
+                    "currency": record.get("currency"),
+                    "session_id": session_id,
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                })
+        else:
+            await db.users.update_one({"_id": target["_id"]}, {"$set": {"subscription": "plus"}})
+    except Exception as e:
+        logger.error(f"fulfill session failed: {e}")
+
+
+# backwards-compatible alias
+async def _grant_plus_for_session(session_id: str):
+    await _fulfill_session(session_id)
 
 
 @api_router.post("/payments/checkout")
@@ -787,6 +813,9 @@ async def payment_status(session_id: str, request: Request):
         "session_id": record["session_id"],
         "status": record["status"],
         "payment_status": record["payment_status"],
+        "product": record.get("product"),
+        "points": int(record.get("points", 0)),
+        "amount": record.get("amount"),
     }
 
 
@@ -809,6 +838,86 @@ async def stripe_webhook(request: Request):
         if sid and (s_status == "complete" or p_status in ("paid", "no_payment_required")):
             await _grant_plus_for_session(sid)
     return {"status": "ok"}
+
+
+# ---------- Donations (Stripe one-time, credits in-app points: 1 RON = 1 point) ----------
+DONATION_MIN_RON = float(os.environ.get("DONATION_MIN_RON", "10"))
+DONATION_MAX_RON = float(os.environ.get("DONATION_MAX_RON", "5000"))
+
+
+class DonationRequest(BaseModel):
+    amount: float
+    origin_url: str
+
+
+@api_router.post("/payments/donate")
+async def create_donation(body: DonationRequest, request: Request, user: dict = Depends(get_current_user)):
+    if not STRIPE_API_KEY:
+        raise HTTPException(status_code=500, detail="Stripe nu este configurat")
+    try:
+        amount = round(float(body.amount), 2)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Sumă invalidă")
+    if amount < DONATION_MIN_RON or amount > DONATION_MAX_RON:
+        raise HTTPException(status_code=400, detail=f"Suma trebuie să fie între {int(DONATION_MIN_RON)} și {int(DONATION_MAX_RON)} RON")
+    points = int(amount)  # 1 RON = 1 punct
+    origin = body.origin_url.rstrip("/")
+    success_url = f"{origin}/payment/success?session_id={{CHECKOUT_SESSION_ID}}"
+    cancel_url = f"{origin}/doneaza"
+    host_url = str(request.base_url)
+    webhook_url = f"{host_url}api/webhook/stripe"
+    stripe.api_key = STRIPE_API_KEY
+    if "sk_test_emergent" in STRIPE_API_KEY:
+        stripe.api_base = "https://integrations.emergentagent.com/stripe"
+    else:
+        stripe.api_base = "https://api.stripe.com"
+    try:
+        session = stripe.checkout.Session.create(
+            mode="payment",
+            payment_method_types=["card"],
+            line_items=[{
+                "price_data": {
+                    "currency": PLUS_CURRENCY,
+                    "product_data": {
+                        "name": "Donație Cartoonix",
+                        "description": f"Mulțumim pentru susținere! Primești {points} puncte în platformă.",
+                    },
+                    "unit_amount": int(round(amount * 100)),
+                },
+                "quantity": 1,
+            }],
+            customer_email=user.get("email") or None,
+            success_url=success_url,
+            cancel_url=cancel_url,
+            metadata={"user_id": uid_of(user), "product": "cartoonix_donation", "points": str(points), "webhook_url": webhook_url},
+        )
+    except Exception as e:
+        logger.error(f"stripe donation create failed: {e}")
+        raise HTTPException(status_code=500, detail="Nu s-a putut iniția donația. Încearcă din nou.")
+    await db.payment_transactions.insert_one({
+        "session_id": session.id,
+        "user_id": uid_of(user),
+        "email": user.get("email"),
+        "product": "cartoonix_donation",
+        "amount": amount,
+        "currency": PLUS_CURRENCY,
+        "points": points,
+        "status": "initiated",
+        "payment_status": "pending",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    })
+    return {"checkout_url": session.url, "session_id": session.id, "points": points}
+
+
+@api_router.get("/points/me")
+async def points_me(user: dict = Depends(get_current_user)):
+    fresh = await find_user_by_id(uid_of(user)) or user
+    history = await db.points_ledger.find({"user_id": uid_of(user)}).sort("created_at", -1).to_list(100)
+    for h in history:
+        h.pop("_id", None)
+    return {"points": int(fresh.get("points", 0)), "history": history}
+
 
 
 # ---------- shows routes ----------
