@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   Search, Menu, X, LogOut, Shield, HelpCircle, Bell,
   Facebook, Instagram, Youtube, Music2, MessageCircle, User, Settings, CheckCheck, Inbox,
-  Home, Clapperboard, Users, Film, Tv, Coins, Heart,
+  Home, Clapperboard, Users, Film, Tv, Coins, Heart, ShoppingBag,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api";
@@ -293,6 +293,9 @@ export const NavBar = () => {
                   </DropdownMenuItem>
                   <DropdownMenuItem data-testid="menu-settings" onClick={() => navigate("/settings")} className="cursor-pointer focus:bg-white/10">
                     <Settings className="h-4 w-4 mr-2" /> Settings
+                  </DropdownMenuItem>
+                  <DropdownMenuItem data-testid="menu-shop" onClick={() => navigate("/shop")} className="cursor-pointer focus:bg-white/10">
+                    <ShoppingBag className="h-4 w-4 mr-2" /> Magazin puncte
                   </DropdownMenuItem>
                   {user.plus && (
                     <DropdownMenuItem data-testid="menu-tv-account" onClick={() => navigate("/cont-tv")} className="cursor-pointer focus:bg-white/10 text-[#ffcc00]">

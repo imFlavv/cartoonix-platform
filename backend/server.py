@@ -156,6 +156,13 @@ def user_is_plus(user: dict) -> bool:
     return bool(user.get("plus", False))
 
 
+def user_is_donor(user: dict) -> bool:
+    try:
+        return int(user.get("points", 0) or 0) > 0
+    except (TypeError, ValueError):
+        return False
+
+
 MUTE_DURATIONS = {"5m": 5, "1h": 60, "24h": 60 * 24, "perm": None}
 
 
@@ -1671,14 +1678,20 @@ async def _sender_meta(user_ids: List[str]) -> dict:
     if oid_list:
         or_clauses.append({"_id": {"$in": oid_list}})
     try:
-        users = await db.users.find({"$or": or_clauses}, {"id": 1, "chat_last_seen": 1}).to_list(1000)
+        users = await db.users.find({"$or": or_clauses}, {"id": 1, "chat_last_seen": 1, "points": 1}).to_list(1000)
+        donors = set()
         for u in users:
             key = u.get("id") or str(u.get("_id", ""))
             if u.get("chat_last_seen") and str(u["chat_last_seen"]) >= thr:
                 online.add(key)
+            try:
+                if int(u.get("points", 0) or 0) > 0:
+                    donors.add(key)
+            except (TypeError, ValueError):
+                pass
     except Exception:
         pass
-    return {i: {"count": counts.get(i, 0), "online": i in online} for i in ids}
+    return {i: {"count": counts.get(i, 0), "online": i in online, "donor": i in donors} for i in ids}
 
 
 async def _enrich_messages(msgs: List[dict]) -> List[dict]:
@@ -1687,6 +1700,8 @@ async def _enrich_messages(msgs: List[dict]) -> List[dict]:
         info = meta.get(m.get("user_id"))
         m["sender_msg_count"] = info["count"] if info else 0
         m["sender_online"] = info["online"] if info else False
+        if info is not None:
+            m["donor"] = info["donor"]
     return msgs
 
 
@@ -1966,6 +1981,7 @@ async def post_chat(data: ChatInput, user: dict = Depends(get_current_user)):
         "name": user_name(user) or "Anonim",
         "avatar": user_avatar(user),
         "plus": user_is_plus(user),
+        "donor": user_is_donor(user),
         "role": user.get("role", "user"),
         "room": room,
         "text": text,

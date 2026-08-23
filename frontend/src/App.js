@@ -37,6 +37,7 @@ import Admin from "@/pages/Admin";
 import PaymentSuccess from "@/pages/PaymentSuccess";
 import PaymentCancel from "@/pages/PaymentCancel";
 import Donate from "@/pages/Donate";
+import Shop from "@/pages/Shop";
 import MySupport from "@/pages/MySupport";
 import TvAccount from "@/pages/TvAccount";
 
@@ -93,6 +94,7 @@ function App() {
             <Route path="/payment/success" element={<PaymentSuccess />} />
             <Route path="/payment/cancel" element={<PaymentCancel />} />
             <Route path="/doneaza" element={<ProtectedRoute><Donate /></ProtectedRoute>} />
+            <Route path="/shop" element={<ProtectedRoute><Shop /></ProtectedRoute>} />
             <Route path="/help" element={<Help />} />
             <Route path="/termeni" element={<Terms />} />
             <Route path="/confidentialitate" element={<Privacy />} />

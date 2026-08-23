@@ -130,6 +130,15 @@ See `/app/memory/test_credentials.md` (admin@cartoonix.ro).
     + istoric, dublul webhook NU dublează (idempotent). Punctele deocamdată doar se acumulează.
   - Stripe: refolosit setup-ul existent (Flow B / cheia platformei) — fără taxe/tax handling adăugat,
     plată simplă one-time. Nu s-a cerut nicio cheie de la user.
+- Badge DONATOR în chat + pagină /shop:
+  - Badge: imagine oficială `/badge-donator.png` (hexagon auriu cu stea, fundal transparent). Se afișează
+    în chat LA FINAL, după badge-urile existente (admin verified + PLUS), aceeași dimensiune (h-3.5 w-3.5),
+    în `NameBadges` din ChatRoom.jsx. Flag `donor` trimis de backend (live, bazat pe points>0):
+    `user_is_donor()`, adăugat în doc-ul mesajului la trimitere + îmbogățit în `_sender_meta`/
+    `_enrich_messages` (aplică și mesajelor istorice). Verificat: mesajul unui user cu puncte are donor=true,
+    fără puncte donor=false.
+  - Pagină `/shop` (Shop.jsx, ProtectedRoute): mesaj „în curând", arată punctele curente + CTA donație.
+    Link „Magazin puncte" în meniul avatarului (NavBar). Verificat vizual.
 
 
 ## Recent changes (Aug 2026, Live TV / Cartoonix TV)
