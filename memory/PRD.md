@@ -151,6 +151,15 @@ See `/app/memory/test_credentials.md` (admin@cartoonix.ro).
   Verificat: /live/now determinist (offset avansează cu timpul, index stabil), persistat în DB, ecranul
   PLUS afișează exact currentul serverului (Ninja Force Ep1). Redarea efectivă nu se poate demonstra în
   preview (404/ORB), dar pe live se va reda stream-ul sincronizat.
+- FIX Live TV repetări/tăieri: cauza = slotul din program folosea eticheta duratei ("22 min"=1320s),
+  care nu se potrivea cu lungimea reală a fișierului → dacă real > slot, episodul era tăiat; dacă
+  real < slot, clientul îl bucla (offset % durata) de 3-4 ori. Soluție: durate reale. Client raportează
+  `POST /api/live/report_duration` {show_id, episode_number, duration} la loadedmetadata (o dată/episod);
+  serverul salvează în colecția `live_durations`, bumpează `_LIVE_DUR_VER` și reconstruiește programul
+  folosind durata reală când e cunoscută (altfel eticheta). Clientul NU mai buclează (fără modulo, seek
+  direct la offset), iar la `ended` face poll scurt (600ms x8) până serverul trece la următorul → handoff
+  fără pauză. Se auto-corectează din prima redare. Verificat cap-coadă cu curl: raportarea persistă în DB
+  și slotul episodului trece de la 1320 la valoarea reală (ex. 95s), programul se recalculează corect.
 
 ## Recent changes (Aug 2026, redare playlist)
 - Redare continuă din playlist / favorite ("queue mode"): user pornește redarea DOAR pentru episoadele

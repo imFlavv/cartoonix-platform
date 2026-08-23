@@ -901,8 +901,11 @@ async def live_playlist(count: int = 60, user: dict = Depends(get_current_user))
 # the server clock, so every viewer sees the exact same episode at the same second.
 import bisect as _bisect
 
-_LIVE_SCHED = {"epoch": None, "seed": None, "n": -1, "items": [], "cum": [], "total": 1}
+_LIVE_SCHED = {"epoch": None, "seed": None, "n": -1, "items": [], "cum": [], "total": 1, "dver": -1}
 _LIVE_SCHED_MAX_AGE = 24 * 3600  # rotate the shuffle once a day
+_LIVE_DUR = {}            # measured real durations: "show_id:ep" -> seconds
+_LIVE_DUR_LOADED = False  # loaded the durations from DB into memory yet?
+_LIVE_DUR_VER = 0         # bumped whenever a new real duration is recorded
 
 
 def _dur_to_seconds(s) -> int:
@@ -929,6 +932,7 @@ def _dur_to_seconds(s) -> int:
 
 
 async def _ensure_live_schedule():
+    global _LIVE_DUR_LOADED
     now = _time.time()
     doc = await db.settings.find_one({"key": "live_schedule"})
     if not doc or (now - doc.get("epoch", 0)) > _LIVE_SCHED_MAX_AGE:
@@ -941,21 +945,31 @@ async def _ensure_live_schedule():
         _LIVE_CACHE["items"] = await _build_live_index()
         _LIVE_CACHE["at"] = now
     idx_items = _LIVE_CACHE["items"]
-    # (re)build the in-memory schedule deterministically from the persisted seed
+    # load measured real durations from DB once
+    if not _LIVE_DUR_LOADED:
+        async for d in db.live_durations.find({}):
+            _LIVE_DUR[d["_id"]] = d.get("seconds")
+        _LIVE_DUR_LOADED = True
+    # (re)build the in-memory schedule deterministically from the persisted seed.
+    # Slot length = measured real duration when known, else the label, else default.
     if (_LIVE_SCHED["seed"] != seed or _LIVE_SCHED["epoch"] != epoch
-            or _LIVE_SCHED["n"] != len(idx_items) or not _LIVE_SCHED["items"]):
+            or _LIVE_SCHED["n"] != len(idx_items) or _LIVE_SCHED["dver"] != _LIVE_DUR_VER
+            or not _LIVE_SCHED["items"]):
         order = list(idx_items)
         _random.Random(seed).shuffle(order)
         items, cum, t = [], [], 0
         for it in order:
-            d = max(30, min(_dur_to_seconds(it.get("duration")), 7200))
+            key = f"{it.get('show_id')}:{it.get('episode_number')}"
+            real = _LIVE_DUR.get(key)
+            d = real if real else _dur_to_seconds(it.get("duration"))
+            d = max(5, min(int(round(d)), 7200))
             item = dict(it)
             item["duration_seconds"] = d
             items.append(item)
             cum.append(t)
             t += d
         _LIVE_SCHED.update({"seed": seed, "epoch": epoch, "n": len(idx_items),
-                            "items": items, "cum": cum, "total": max(1, t)})
+                            "dver": _LIVE_DUR_VER, "items": items, "cum": cum, "total": max(1, t)})
     return epoch
 
 
@@ -990,6 +1004,34 @@ async def live_now(user: dict = Depends(get_current_user)):
         "next": [_slim_sched_item(items[(i + k) % n]) for k in range(1, 5)],
         "total_items": n,
     }
+
+
+class LiveDurationReport(BaseModel):
+    show_id: str
+    episode_number: int
+    duration: float  # measured real length in seconds
+
+
+@api_router.post("/live/report_duration")
+async def live_report_duration(body: LiveDurationReport, user: dict = Depends(get_current_user)):
+    if not user_is_plus(user):
+        raise HTTPException(status_code=403, detail="Doar PLUS")
+    global _LIVE_DUR_VER
+    secs = int(round(body.duration))
+    if secs < 5 or secs > 7200:
+        return {"ok": False, "reason": "out_of_range"}
+    key = f"{body.show_id}:{body.episode_number}"
+    prev = _LIVE_DUR.get(key)
+    # only record/rebuild when it meaningfully changes (avoids needless rebuilds)
+    if prev is None or abs(prev - secs) > 2:
+        _LIVE_DUR[key] = secs
+        _LIVE_DUR_VER += 1
+        await db.live_durations.update_one(
+            {"_id": key},
+            {"$set": {"seconds": secs, "at": datetime.now(timezone.utc).isoformat()}},
+            upsert=True,
+        )
+    return {"ok": True}
 
 
 

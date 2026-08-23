@@ -23,6 +23,7 @@ const Live = () => {
   const nowRef = useRef(null);
   const indexRef = useRef(-1);
   const mutedRef = useRef(true);
+  const reportedRef = useRef(new Set());
 
   useEffect(() => { nowRef.current = nowData; }, [nowData]);
   useEffect(() => { mutedRef.current = muted; }, [muted]);
@@ -31,7 +32,8 @@ const Live = () => {
     try {
       const { data } = await api.get("/live/now");
       setNowData(data);
-    } catch (_) { /* ignore */ }
+      return data;
+    } catch (_) { return null; }
   }, []);
 
   useEffect(() => {
@@ -41,15 +43,32 @@ const Live = () => {
     return () => clearInterval(t);
   }, [isPlus, fetchNow]);
 
-  // Seek the element to the server-driven offset (modulo the real video length so
-  // that even short clips loop in perfect lockstep across every viewer).
+  // Tell the server the real length of this clip so the schedule uses accurate
+  // slots (prevents cut-offs when the file is longer, and repeats when shorter).
+  const reportDuration = useCallback(() => {
+    const v = videoRef.current;
+    const cur = nowRef.current?.current;
+    if (!v || !cur) return;
+    const dur = v.duration;
+    if (!dur || !isFinite(dur) || dur < 5) return;
+    const key = `${cur.show_id}:${cur.episode_number}`;
+    if (reportedRef.current.has(key)) return;
+    if (Math.abs((cur.duration_seconds || 0) - dur) <= 2) { reportedRef.current.add(key); return; }
+    reportedRef.current.add(key);
+    api.post("/live/report_duration", { show_id: cur.show_id, episode_number: cur.episode_number, duration: dur })
+      .then(() => fetchNow())
+      .catch(() => {});
+  }, [fetchNow]);
+
+  // Seek the element to the server-driven offset (schedule slots now match the real
+  // clip length, so no modulo/looping — the clip plays straight through, in sync).
   const syncToServer = useCallback((force = false) => {
     const v = videoRef.current;
     const nd = nowRef.current;
     if (!v || !nd?.current) return;
     const dur = v.duration;
     if (!dur || !isFinite(dur) || dur <= 0) return;
-    const target = nd.offset % dur;
+    const target = Math.min(Math.max(0, nd.offset), dur - 0.3);
     if (force || Math.abs(v.currentTime - target) > DRIFT_TOLERANCE) {
       try { v.currentTime = target; } catch (_) { /* ignore */ }
     }
@@ -76,10 +95,20 @@ const Live = () => {
     if (v.readyState >= 1) syncToServer(false);
   }, [nowData, syncToServer]);
 
-  const onLoadedMetadata = () => syncToServer(true);
+  const onLoadedMetadata = () => { reportDuration(); syncToServer(true); };
 
-  // when a clip ends before its scheduled slot, re-sync (loops in lockstep)
-  const onEnded = () => { fetchNow(); syncToServer(true); };
+  // when a clip ends, poll briefly until the server advances to the next program
+  // (snappy handoff, no dead air and no looping)
+  const onEnded = () => {
+    const startIdx = nowRef.current?.index;
+    let tries = 0;
+    const tick = async () => {
+      const d = await fetchNow();
+      tries += 1;
+      if (d && d.index === startIdx && tries < 8) setTimeout(tick, 600);
+    };
+    tick();
+  };
   const onError = () => { /* keep the schedule; try again on next poll */ };
 
   const onVolume = (e) => {
