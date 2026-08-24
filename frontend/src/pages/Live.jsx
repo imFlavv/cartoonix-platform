@@ -50,7 +50,7 @@ const Live = () => {
     const cur = nowRef.current?.current;
     if (!v || !cur) return;
     const dur = v.duration;
-    if (!dur || !isFinite(dur) || dur < 5) return;
+    if (!dur || !isFinite(dur) || dur < 120) return; // ignore implausible/short values
     const key = `${cur.show_id}:${cur.episode_number}`;
     if (reportedRef.current.has(key)) return;
     if (Math.abs((cur.duration_seconds || 0) - dur) <= 2) { reportedRef.current.add(key); return; }

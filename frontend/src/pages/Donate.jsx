@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { NavBar } from "@/components/NavBar";
-import { Heart, Coins, Loader2, ShieldCheck } from "lucide-react";
+import { Heart, Coins, Loader2, ShieldCheck, Ban } from "lucide-react";
 import { toast } from "sonner";
 
 const PRESETS = [10, 25, 50, 100];
@@ -13,9 +13,15 @@ const MAX = 5000;
 const Donate = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const isAdmin = user?.role === "admin";
   const [amount, setAmount] = useState(25);
   const [custom, setCustom] = useState("");
   const [busy, setBusy] = useState(false);
+  const [enabled, setEnabled] = useState(true);
+
+  useEffect(() => {
+    api.get("/settings/donate").then((r) => setEnabled(r.data?.enabled !== false)).catch(() => {});
+  }, []);
 
   const effective = custom !== "" ? Number(custom) : amount;
   const valid = Number.isFinite(effective) && effective >= MIN && effective <= MAX;
@@ -47,8 +53,25 @@ const Donate = () => {
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white" data-testid="donate-page">
       <NavBar />
+      {!enabled && !isAdmin ? (
+        <div className="pt-24 pb-16 px-4">
+          <div className="max-w-md mx-auto text-center bg-[#111] border border-white/10 rounded-3xl p-8 sm:p-10 shadow-2xl" data-testid="donate-disabled">
+            <div className="mx-auto mb-5 h-16 w-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
+              <Ban className="h-8 w-8 text-white/50" />
+            </div>
+            <h1 className="font-display text-3xl mb-3">Donațiile sunt indisponibile</h1>
+            <p className="text-white/60 mb-6">Momentan nu se pot face donații. Revino mai târziu — mulțumim! ❤️</p>
+            <button onClick={() => navigate("/home")} className="px-7 py-3 rounded-full bg-white/10 border border-white/20 font-bold hover:bg-white/20 transition">Înapoi acasă</button>
+          </div>
+        </div>
+      ) : (
       <div className="pt-24 pb-16 px-4">
         <div className="max-w-xl mx-auto">
+          {!enabled && isAdmin && (
+            <div data-testid="donate-admin-banner" className="mb-5 flex items-center gap-2 rounded-xl bg-[#ec1c24]/15 border border-[#ec1c24]/40 px-4 py-3 text-sm text-[#ff8085]">
+              <Ban className="h-4 w-4 shrink-0" /> Donațiile sunt <b className="mx-1">dezactivate</b> pentru utilizatori. Doar tu (admin) vezi această pagină.
+            </div>
+          )}
           {/* Hero */}
           <div className="text-center mb-8">
             <div className="mx-auto mb-5 h-16 w-16 rounded-2xl bg-[#ec1c24]/15 border border-[#ec1c24]/40 flex items-center justify-center">
@@ -133,6 +156,7 @@ const Donate = () => {
           )}
         </div>
       </div>
+      )}
     </div>
   );
 };

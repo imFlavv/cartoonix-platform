@@ -861,6 +861,10 @@ class DonationRequest(BaseModel):
 async def create_donation(body: DonationRequest, request: Request, user: dict = Depends(get_current_user)):
     if not STRIPE_API_KEY:
         raise HTTPException(status_code=500, detail="Stripe nu este configurat")
+    ds = await db.settings.find_one({"key": "donate"})
+    donate_enabled = True if not ds else bool(ds.get("enabled", True))
+    if not donate_enabled and user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Donațiile sunt dezactivate momentan")
     try:
         amount = round(float(body.amount), 2)
     except (TypeError, ValueError):
@@ -1022,6 +1026,7 @@ _LIVE_SCHED_MAX_AGE = 24 * 3600  # rotate the shuffle once a day
 _LIVE_DUR = {}            # measured real durations: "show_id:ep" -> seconds
 _LIVE_DUR_LOADED = False  # loaded the durations from DB into memory yet?
 _LIVE_DUR_VER = 0         # bumped whenever a new real duration is recorded
+LIVE_MIN_DURATION = 120   # a real episode is never shorter than this; guards against corruption
 
 
 def _dur_to_seconds(s) -> int:
@@ -1061,13 +1066,20 @@ async def _ensure_live_schedule():
         _LIVE_CACHE["items"] = await _build_live_index()
         _LIVE_CACHE["at"] = now
     idx_items = _LIVE_CACHE["items"]
-    # load measured real durations from DB once
+    # load measured real durations from DB once (ignore/purge implausibly short values —
+    # a real episode is never a few seconds long; those corrupt the broadcast into rapid jumps)
     if not _LIVE_DUR_LOADED:
+        try:
+            await db.live_durations.delete_many({"seconds": {"$lt": LIVE_MIN_DURATION}})
+        except Exception:
+            pass
         async for d in db.live_durations.find({}):
-            _LIVE_DUR[d["_id"]] = d.get("seconds")
+            s = d.get("seconds")
+            if s and s >= LIVE_MIN_DURATION:
+                _LIVE_DUR[d["_id"]] = s
         _LIVE_DUR_LOADED = True
     # (re)build the in-memory schedule deterministically from the persisted seed.
-    # Slot length = measured real duration when known, else the label, else default.
+    # Slot length = measured real duration when known & plausible, else the label, else default.
     if (_LIVE_SCHED["seed"] != seed or _LIVE_SCHED["epoch"] != epoch
             or _LIVE_SCHED["n"] != len(idx_items) or _LIVE_SCHED["dver"] != _LIVE_DUR_VER
             or not _LIVE_SCHED["items"]):
@@ -1077,8 +1089,8 @@ async def _ensure_live_schedule():
         for it in order:
             key = f"{it.get('show_id')}:{it.get('episode_number')}"
             real = _LIVE_DUR.get(key)
-            d = real if real else _dur_to_seconds(it.get("duration"))
-            d = max(5, min(int(round(d)), 7200))
+            d = real if (real and real >= LIVE_MIN_DURATION) else _dur_to_seconds(it.get("duration"))
+            d = max(LIVE_MIN_DURATION, min(int(round(d)), 7200))
             item = dict(it)
             item["duration_seconds"] = d
             items.append(item)
@@ -1134,7 +1146,7 @@ async def live_report_duration(body: LiveDurationReport, user: dict = Depends(ge
         raise HTTPException(status_code=403, detail="Doar PLUS")
     global _LIVE_DUR_VER
     secs = int(round(body.duration))
-    if secs < 5 or secs > 7200:
+    if secs < LIVE_MIN_DURATION or secs > 7200:
         return {"ok": False, "reason": "out_of_range"}
     key = f"{body.show_id}:{body.episode_number}"
     prev = _LIVE_DUR.get(key)
@@ -2942,6 +2954,29 @@ async def set_maintenance(data: MaintenanceInput, admin: dict = Depends(require_
     await db.settings.update_one(
         {"key": "maintenance"},
         {"$set": {"key": "maintenance", "enabled": data.enabled, "updated_at": datetime.now(timezone.utc).isoformat()}},
+        upsert=True,
+    )
+    return {"enabled": data.enabled}
+
+
+# ---------- Donate feature toggle (admin can disable the Donate page/button) ----------
+class DonateToggleInput(BaseModel):
+    enabled: bool
+
+
+@api_router.get("/settings/donate")
+async def get_donate_setting():
+    s = await db.settings.find_one({"key": "donate"})
+    enabled = True if not s else bool(s.get("enabled", True))
+    return {"enabled": enabled}
+
+
+@api_router.post("/admin/settings/donate")
+async def set_donate_setting(data: DonateToggleInput, admin: dict = Depends(require_admin)):
+    await db.settings.update_one(
+        {"key": "donate"},
+        {"$set": {"key": "donate", "enabled": data.enabled,
+                  "updated_at": datetime.now(timezone.utc).isoformat()}},
         upsert=True,
     )
     return {"enabled": data.enabled}

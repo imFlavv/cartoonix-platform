@@ -139,6 +139,17 @@ See `/app/memory/test_credentials.md` (admin@cartoonix.ro).
     fără puncte donor=false.
   - Pagină `/shop` (Shop.jsx, ProtectedRoute): mesaj „în curând", arată punctele curente + CTA donație.
     Link „Magazin puncte" în meniul avatarului (NavBar). Verificat vizual.
+- FIX Live TV „sare la 3-4s": durate corupte (foarte mici, ~3-4s) fuseseră raportate și partajate global
+  → toate episoadele săreau rapid; în plus pragul minim de slot era doar 5s. Fix: `LIVE_MIN_DURATION=120`
+  — se acceptă/folosesc doar durate ≥120s (un episod real nu e de câteva secunde); la încărcarea din DB
+  se PURGE valorile <120 (`live_durations.delete_many seconds<120`) → auto-vindecă baza live; la build
+  slotul e `max(120, ...)`; `report_duration` respinge <120; clientul raportează doar `video.duration≥120`.
+  Verificat: sloturile revin la valori normale (1320s), fără sărituri.
+- Toggle Donații (admin): setting dedicat `donate` (db.settings). `GET /settings/donate` (public),
+  `POST /admin/settings/donate` {enabled}. Când e dezactivat: linkul „Donează" dispare din NavBar pentru
+  utilizatori (adminii îl văd cu „(inactiv)"), pagina /doneaza afișează „indisponibil" pentru non-admini
+  (admin vede banner + poate testa), iar `/payments/donate` întoarce 403 pentru non-admini. Toggle în
+  Admin (data-testid donate-toggle). Verificat cap-coadă (curl + screenshots).
 
 
 ## Recent changes (Aug 2026, Live TV / Cartoonix TV)

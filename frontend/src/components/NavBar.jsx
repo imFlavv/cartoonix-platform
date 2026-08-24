@@ -31,6 +31,15 @@ export const NavBar = () => {
   const [allShows, setAllShows] = useState([]);
   const [searchFocused, setSearchFocused] = useState(false);
   const [notifs, setNotifs] = useState({ items: [], unread: 0 });
+  const [donateEnabled, setDonateEnabled] = useState(true);
+  const isAdmin = user?.role === "admin";
+
+  useEffect(() => {
+    api.get("/settings/donate").then((r) => setDonateEnabled(r.data?.enabled !== false)).catch(() => {});
+    const onChange = (e) => setDonateEnabled(e.detail?.enabled !== false);
+    window.addEventListener("cx-donate-settings-changed", onChange);
+    return () => window.removeEventListener("cx-donate-settings-changed", onChange);
+  }, []);
 
   const ensureShows = () => {
     if (allShows.length === 0) {
@@ -85,7 +94,7 @@ export const NavBar = () => {
     { to: "/live", label: "Live TV", icon: Tv },
     { to: "/lobby", label: "Lobby", icon: Users },
     { to: "/cinema", label: "Cinema", icon: Film },
-    { to: "/doneaza", label: "Donează", icon: Heart },
+    ...((donateEnabled || isAdmin) ? [{ to: "/doneaza", label: donateEnabled ? "Donează" : "Donează (inactiv)", icon: Heart }] : []),
     { to: "/plus", label: "Cartoonix PLUS", plus: true },
   ];
 
