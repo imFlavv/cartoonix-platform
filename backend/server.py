@@ -1079,9 +1079,10 @@ async def _ensure_live_schedule():
                 _LIVE_DUR[d["_id"]] = s
         _LIVE_DUR_LOADED = True
     # (re)build the in-memory schedule deterministically from the persisted seed.
-    # Slot length = measured real duration when known & plausible, else the label, else default.
+    # The timeline is FROZEN during a broadcast (rebuild only on rotation/restart/library change),
+    # NOT on every duration report — otherwise offsets shift and playback jumps mid-episode.
     if (_LIVE_SCHED["seed"] != seed or _LIVE_SCHED["epoch"] != epoch
-            or _LIVE_SCHED["n"] != len(idx_items) or _LIVE_SCHED["dver"] != _LIVE_DUR_VER
+            or _LIVE_SCHED["n"] != len(idx_items)
             or not _LIVE_SCHED["items"]):
         order = list(idx_items)
         _random.Random(seed).shuffle(order)
@@ -1149,16 +1150,16 @@ async def live_report_duration(body: LiveDurationReport, user: dict = Depends(ge
     if secs < LIVE_MIN_DURATION or secs > 7200:
         return {"ok": False, "reason": "out_of_range"}
     key = f"{body.show_id}:{body.episode_number}"
-    prev = _LIVE_DUR.get(key)
-    # only record/rebuild when it meaningfully changes (avoids needless rebuilds)
-    if prev is None or abs(prev - secs) > 2:
-        _LIVE_DUR[key] = secs
-        _LIVE_DUR_VER += 1
-        await db.live_durations.update_one(
-            {"_id": key},
-            {"$set": {"seconds": secs, "at": datetime.now(timezone.utc).isoformat()}},
-            upsert=True,
-        )
+    # first report wins — keeps the timeline stable (applied at next rotation/restart)
+    if key in _LIVE_DUR:
+        return {"ok": True, "known": True}
+    _LIVE_DUR[key] = secs
+    _LIVE_DUR_VER += 1
+    await db.live_durations.update_one(
+        {"_id": key},
+        {"$set": {"seconds": secs, "at": datetime.now(timezone.utc).isoformat()}},
+        upsert=True,
+    )
     return {"ok": True}
 
 

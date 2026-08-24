@@ -21,9 +21,10 @@ const Live = () => {
   const videoRef = useRef(null);
   const playerRef = useRef(null);
   const nowRef = useRef(null);
-  const indexRef = useRef(-1);
+  const seekedSrcRef = useRef(null);
   const mutedRef = useRef(true);
   const reportedRef = useRef(new Set());
+  const [ended, setEnded] = useState(false);
 
   useEffect(() => { nowRef.current = nowData; }, [nowData]);
   useEffect(() => { mutedRef.current = muted; }, [muted]);
@@ -43,8 +44,8 @@ const Live = () => {
     return () => clearInterval(t);
   }, [isPlus, fetchNow]);
 
-  // Tell the server the real length of this clip so the schedule uses accurate
-  // slots (prevents cut-offs when the file is longer, and repeats when shorter).
+  // Report the real clip length (once/episode). Applied at the next daily rotation so
+  // the running broadcast timeline stays frozen (no mid-episode jumps).
   const reportDuration = useCallback(() => {
     const v = videoRef.current;
     const cur = nowRef.current?.current;
@@ -53,24 +54,27 @@ const Live = () => {
     if (!dur || !isFinite(dur) || dur < 120) return; // ignore implausible/short values
     const key = `${cur.show_id}:${cur.episode_number}`;
     if (reportedRef.current.has(key)) return;
-    if (Math.abs((cur.duration_seconds || 0) - dur) <= 2) { reportedRef.current.add(key); return; }
     reportedRef.current.add(key);
+    if (Math.abs((cur.duration_seconds || 0) - dur) <= 2) return;
     api.post("/live/report_duration", { show_id: cur.show_id, episode_number: cur.episode_number, duration: dur })
-      .then(() => fetchNow())
       .catch(() => {});
-  }, [fetchNow]);
+  }, []);
 
-  // Seek the element to the server-driven offset (schedule slots now match the real
-  // clip length, so no modulo/looping — the clip plays straight through, in sync).
-  const syncToServer = useCallback((force = false) => {
+  // Seek ONCE per source (i.e. only when the episode actually changes) to the
+  // server offset, then let it play straight through — never re-seek mid-episode.
+  const onLoadedMetadata = () => {
     const v = videoRef.current;
-    const nd = nowRef.current;
-    if (!v || !nd?.current) return;
-    const dur = v.duration;
-    if (!dur || !isFinite(dur) || dur <= 0) return;
-    const target = Math.min(Math.max(0, nd.offset), dur - 0.3);
-    if (force || Math.abs(v.currentTime - target) > DRIFT_TOLERANCE) {
-      try { v.currentTime = target; } catch (_) { /* ignore */ }
+    if (!v) return;
+    setEnded(false);
+    reportDuration();
+    const src = v.currentSrc || v.src;
+    if (seekedSrcRef.current !== src) {
+      seekedSrcRef.current = src;
+      const nd = nowRef.current;
+      if (isFinite(v.duration) && v.duration > 0 && nd?.current) {
+        const target = Math.min(Math.max(0, nd.offset || 0), v.duration - 0.3);
+        try { v.currentTime = target; } catch (_) { /* ignore */ }
+      }
     }
     v.muted = mutedRef.current;
     v.play().catch(() => {
@@ -78,38 +82,24 @@ const Live = () => {
       setMuted(true);
       v.play().catch(() => {});
     });
-  }, []);
+  };
 
-  // React to schedule updates: switch source when the program changes, otherwise
-  // just correct any drift.
-  useEffect(() => {
-    if (!nowData?.current) return;
-    const changed = indexRef.current !== nowData.index;
-    indexRef.current = nowData.index;
-    const v = videoRef.current;
-    if (!v) return;
-    if (changed) {
-      // src prop change triggers a reload; onLoadedMetadata will force-sync
-      return;
-    }
-    if (v.readyState >= 1) syncToServer(false);
-  }, [nowData, syncToServer]);
-
-  const onLoadedMetadata = () => { reportDuration(); syncToServer(true); };
-
-  // when a clip ends, poll briefly until the server advances to the next program
-  // (snappy handoff, no dead air and no looping)
+  // When a clip ends before its scheduled slot, wait for the schedule to advance
+  // (poll a bit faster). The src prop change then loads the next program smoothly.
   const onEnded = () => {
-    const startIdx = nowRef.current?.index;
+    setEnded(true);
+    const startKey = (() => { const c = nowRef.current?.current; return c ? `${c.show_id}:${c.episode_number}` : null; })();
     let tries = 0;
     const tick = async () => {
       const d = await fetchNow();
       tries += 1;
-      if (d && d.index === startIdx && tries < 8) setTimeout(tick, 600);
+      const k = d?.current ? `${d.current.show_id}:${d.current.episode_number}` : null;
+      if (k && k !== startKey) return; // advanced -> src changes -> onLoadedMetadata handles it
+      if (tries < 30) setTimeout(tick, 1000);
     };
     tick();
   };
-  const onError = () => { /* keep the schedule; try again on next poll */ };
+  const onError = () => { /* keep the schedule; next poll / rotation recovers */ };
 
   const onVolume = (e) => {
     const val = parseFloat(e.target.value);
@@ -225,6 +215,17 @@ const Live = () => {
                 draggable={false}
                 className="absolute top-3 right-3 h-9 md:h-12 w-auto select-none pointer-events-none drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]"
               />
+
+              {/* Brief "up next" overlay between programs (avoids a frozen frame) */}
+              {ended && current && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 backdrop-blur-sm gap-3" data-testid="live-upnext">
+                  <Tv className="h-10 w-10 text-[#ffcc00] animate-pulse" />
+                  <p className="text-sm uppercase tracking-widest text-white/50 font-bold">Urmează în scurt timp</p>
+                  {nowData?.next?.[0] && (
+                    <p className="font-display text-xl text-white">{nowData.next[0].show_title}</p>
+                  )}
+                </div>
+              )}
 
               {/* Now playing label (bottom-left) */}
               {current && (

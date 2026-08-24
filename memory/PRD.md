@@ -150,6 +150,15 @@ See `/app/memory/test_credentials.md` (admin@cartoonix.ro).
   utilizatori (adminii îl văd cu „(inactiv)"), pagina /doneaza afișează „indisponibil" pentru non-admini
   (admin vede banner + poate testa), iar `/payments/donate` întoarce 403 pentru non-admini. Toggle în
   Admin (data-testid donate-toggle). Verificat cap-coadă (curl + screenshots).
+- FIX Live TV „nu rulează fluent / revine la intro": cauza = la fiecare raportare de durată serverul
+  RECONSTRUIA programul, off-set-ul calculat se schimba, iar clientul făcea seek ÎNAPOI (drift-correct)
+  la fiecare poll → sărea înapoi la intro repetat. Fix: (1) timeline ÎNGHEȚAT în timpul transmisiunii —
+  programul se reconstruiește doar la rotație zilnică/restart/schimbare bibliotecă, NU la raportări
+  (scos `_LIVE_DUR_VER` din condiția de rebuild; report_duration = „first report wins", aplicat la
+  următoarea rotație). (2) Client: eliminat complet drift re-seek-ul din mijlocul episodului; face seek
+  o SINGURĂ dată per sursă (doar la schimbarea episodului), apoi rulează fluent până la final; overlay
+  „Urmează..." între programe. Verificat: o raportare NU schimbă episodul curent (timeline stabil),
+  pagina se randează fără erori.
 
 
 ## Recent changes (Aug 2026, Live TV / Cartoonix TV)
