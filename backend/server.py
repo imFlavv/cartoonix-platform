@@ -2235,15 +2235,18 @@ async def chat_leaderboard(user: dict = Depends(get_current_user)):
     async for row in db.chat_messages.aggregate([
         {"$match": {"is_bot": {"$ne": True}, "user_id": {"$ne": None}}},
         {"$group": {"_id": "$user_id", "c": {"$sum": 1}}},
-        {"$sort": {"c": -1}}, {"$limit": 10},
+        {"$sort": {"c": -1}}, {"$limit": 30},
     ]):
         rows.append(row)
     result = []
-    for i, row in enumerate(rows):
+    for row in rows:
         u = await find_user_by_id(row["_id"])
+        # Admins never appear in the chat top.
+        if u and str(u.get("role", "user")).lower() == "admin":
+            continue
         online = bool(u and u.get("chat_last_seen") and str(u["chat_last_seen"]) >= thr)
         result.append({
-            "rank": i + 1,
+            "rank": len(result) + 1,
             "id": row["_id"],
             "name": (user_name(u) if u else "") or "Anonim",
             "avatar": user_avatar(u) if u else "",
@@ -2252,6 +2255,8 @@ async def chat_leaderboard(user: dict = Depends(get_current_user)):
             "count": row["c"],
             "online": online,
         })
+        if len(result) >= 10:
+            break
     payload = {"top": result}
     _chat_board_cache["data"] = payload
     _chat_board_cache["ts"] = _now_ts()
@@ -2843,18 +2848,23 @@ def _leaderboard_entry(u: dict, rank: int, threshold: str) -> dict:
 async def leaderboard(q: Optional[str] = None, user: dict = Depends(get_current_user)):
     now = datetime.now(timezone.utc)
     threshold = (now - timedelta(seconds=60)).isoformat()
+    NOT_ADMIN = {"role": {"$ne": "admin"}}
 
-    top_docs = await db.users.find({}).sort("presence_seconds", -1).to_list(10)
+    top_docs = await db.users.find(NOT_ADMIN).sort("presence_seconds", -1).to_list(10)
     top = [_leaderboard_entry(u, i + 1, threshold) for i, u in enumerate(top_docs)]
 
-    my_secs = user.get("presence_seconds", user.get("total_time_seconds", 0)) or 0
-    my_rank = await db.users.count_documents({"presence_seconds": {"$gt": my_secs}}) + 1
-    me = _leaderboard_entry(user, my_rank, threshold)
+    # Admins never appear in the ranking (nor as "your position").
+    if str(user.get("role", "user")).lower() == "admin":
+        me = None
+    else:
+        my_secs = user.get("presence_seconds", user.get("total_time_seconds", 0)) or 0
+        my_rank = await db.users.count_documents({**NOT_ADMIN, "presence_seconds": {"$gt": my_secs}}) + 1
+        me = _leaderboard_entry(user, my_rank, threshold)
 
     resp = {"top": top, "me": me}
 
-    # Top 10 by points (donations/rewards wallet)
-    pts_docs = await db.users.find({"points": {"$gt": 0}}).sort("points", -1).to_list(10)
+    # Top 10 by points (donations/rewards wallet) — admins excluded
+    pts_docs = await db.users.find({"points": {"$gt": 0}, **NOT_ADMIN}).sort("points", -1).to_list(10)
     resp["top_points"] = [{
         "rank": i + 1,
         "id": uid_of(u),
@@ -2867,12 +2877,12 @@ async def leaderboard(q: Optional[str] = None, user: dict = Depends(get_current_
 
     if q and q.strip():
         docs = await db.users.find(
-            {"nickname": {"$regex": re.escape(q.strip()), "$options": "i"}}
+            {"nickname": {"$regex": re.escape(q.strip()), "$options": "i"}, **NOT_ADMIN}
         ).sort("presence_seconds", -1).to_list(20)
         results = []
         for u in docs:
             s = u.get("presence_seconds", u.get("total_time_seconds", 0)) or 0
-            r = await db.users.count_documents({"presence_seconds": {"$gt": s}}) + 1
+            r = await db.users.count_documents({**NOT_ADMIN, "presence_seconds": {"$gt": s}}) + 1
             results.append(_leaderboard_entry(u, r, threshold))
         resp["results"] = results
 

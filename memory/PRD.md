@@ -167,6 +167,14 @@ UI language: Romanian only.
   `lb-top-points`, componenta `PointsRow`). Backend `/leaderboard` întoarce acum și `top_points`
   (users cu points>0, sort desc, limit 10). Verificat vizual + curl.
 
+## Recent changes (2026-06, adminii excluși din clasamente + badge donator animat)
+- Adminii (role=="admin") nu mai apar în NICIUN clasament: `/leaderboard` (top timp online + top puncte +
+  rezultate căutare, toate filtrate cu `{"role": {"$ne": "admin"}}`, iar rangul „me" e null pentru admini) și
+  `/chat/leaderboard` (aggregation ia 30 rânduri, sare peste admini la rezolvarea userului, re-numerotează
+  top 10). Verificat: Admin dispărut din top/top_points/chat top; me=None pentru admin.
+- Badge DONATOR înlocuit cu unul ANIMAT: `/badge-donator.gif` (sac de bani cu $, hover-shake, 85KB) în locul
+  vechiului `/badge-donator.png`, aceeași dimensiune (h-3.5 w-3.5) în ChatRoom.jsx.
+
 ## Credentials
 See `/app/memory/test_credentials.md` (admin@cartoonix.ro).
 
