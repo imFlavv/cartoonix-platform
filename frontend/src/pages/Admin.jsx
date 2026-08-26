@@ -3,7 +3,7 @@ import { NavBar } from "@/components/NavBar";
 import { api } from "@/lib/api";
 import { CHANNELS } from "@/data/constants";
 import { toast } from "sonner";
-import { FolderSearch, Plus, Film, Lightbulb, Users, Pencil, ChevronUp, ChevronDown, ServerCog, Inbox, ImageOff, MessagesSquare, Megaphone, RotateCcw, Crown, Heart } from "lucide-react";
+import { FolderSearch, Plus, Film, Lightbulb, Users, Pencil, ChevronUp, ChevronDown, ServerCog, Inbox, ImageOff, MessagesSquare, Megaphone, RotateCcw, Crown, Heart, Tv } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { AdminMembers } from "@/components/AdminMembers";
@@ -146,6 +146,42 @@ const Admin = () => {
     }
   };
 
+
+  const [precalc, setPrecalc] = useState(null);
+  const [startingPrecalc, setStartingPrecalc] = useState(false);
+
+  const loadPrecalcStatus = async () => {
+    try {
+      const { data } = await api.get("/admin/live/precalc-durations/status");
+      setPrecalc(data);
+      return data;
+    } catch { return null; }
+  };
+
+  useEffect(() => {
+    loadPrecalcStatus();
+    const t = setInterval(() => {
+      setPrecalc((p) => {
+        if (p?.running) loadPrecalcStatus();
+        return p;
+      });
+    }, 2000);
+    return () => clearInterval(t);
+  }, []);
+
+  const startPrecalc = async () => {
+    setStartingPrecalc(true);
+    try {
+      const { data } = await api.post("/admin/live/precalc-durations");
+      setPrecalc(data.status || null);
+      if (data.already_running) toast.info("Recalcularea rulează deja");
+      else toast.success("Recalcularea duratelor a pornit");
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || "Eroare la pornirea recalculării");
+    } finally {
+      setStartingPrecalc(false);
+    }
+  };
 
   const move = async (index, dir) => {
     const arr = [...shows];
@@ -445,6 +481,42 @@ const Admin = () => {
                     <p className={`text-xs ${donateEnabled ? "text-[#22c55e]" : "text-[#ec1c24]"}`}>{donateEnabled ? "Vizibile - toți utilizatorii văd butonul „Donează”" : "Dezactivate - vizibile doar pentru admini"}</p>
                   </div>
                   <Switch data-testid="donate-toggle" checked={donateEnabled} onCheckedChange={toggleDonate} />
+                </div>
+              </div>
+
+              <div className="bg-[#0f0f0f] border border-white/10 rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-1">
+                  <h2 className="font-display text-2xl flex items-center gap-2"><Tv className="h-5 w-5 text-[#ec1c24]" /> Durate reale Live TV</h2>
+                </div>
+                <p className="text-sm text-white/50 mb-5">Recalculează durata reală (ffprobe) a tuturor episoadelor și o salvează în <code className="text-white/70">live_durations</code>, ca programul Live TV să nu mai sară/repete. Rulează în fundal, ușor (nu încetinește redarea). Necesită <b>ffprobe/ffmpeg instalat pe VPS</b>.</p>
+                <div className="p-4 rounded-xl bg-white/5 space-y-3">
+                  {precalc?.running ? (
+                    <div data-testid="precalc-progress">
+                      <div className="flex items-center justify-between text-sm mb-1">
+                        <span className="text-white/70">Se calculează... {precalc.done}/{precalc.total}</span>
+                        <span className="text-[#ffcc00] font-semibold">{precalc.updated} salvate</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+                        <div className="h-full bg-[#ec1c24] transition-all duration-500" style={{ width: `${precalc.total ? Math.round((precalc.done / precalc.total) * 100) : 0}%` }} />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-white/50">
+                      {precalc?.finished_at ? (
+                        <span data-testid="precalc-done">Ultima recalculare: {precalc.updated} durate salvate · {precalc.failed} eșuate · {precalc.skipped_short} prea scurte{precalc.error ? ` · eroare: ${precalc.error}` : ""}</span>
+                      ) : (
+                        <span>Nu a fost rulată încă în această sesiune.</span>
+                      )}
+                    </div>
+                  )}
+                  <button
+                    data-testid="precalc-start-btn"
+                    onClick={startPrecalc}
+                    disabled={startingPrecalc || precalc?.running}
+                    className="w-full py-2.5 rounded-lg bg-[#ec1c24] text-white font-bold hover:bg-[#ff2d36] transition-colors duration-200 disabled:opacity-60 flex items-center justify-center gap-2"
+                  >
+                    <Tv className="h-4 w-4" /> {precalc?.running ? "Se recalculează..." : "Recalculează durate Live TV"}
+                  </button>
                 </div>
               </div>
 

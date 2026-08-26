@@ -110,6 +110,24 @@ UI language: Romanian only.
   name in chat, shown BEFORE the PLUS badge; both can appear. Same size (h-3.5 w-3.5) and aligned via
   flex items-center gap-1. Gated by m.role === "admin".
 
+## Recent changes (2026-06, Live TV durate reale + fullscreen mobil)
+- Precalcul durate reale Live TV (ffprobe, job în fundal, admin). Buton nou în Admin → Platformă
+  „Recalculează durate Live TV" (`precalc-start-btn`) cu bară de progres/status (`precalc-progress`,
+  `precalc-done`). Backend: `POST /api/admin/live/precalc-durations` (pornește job async, 400 dacă lipsește
+  ffprobe), `GET /api/admin/live/precalc-durations/status` (poll la 2s din frontend cât timp rulează).
+  `_run_live_precalc()` aplatizează toate episoadele (`_build_live_index`), mapează video_url→path fizic
+  (`_video_url_to_path`, sub VIDEO_DIR), rulează ffprobe (`_probe_seconds_sync`) cu concurență limitată
+  (Semaphore=4, doar metadata → NU încetinește streaming/redarea), salvează în `live_durations`
+  {_id:"show:ep", seconds, source:"ffprobe"} prin bulk_write (batch 200) și forțează rebuild programul
+  (`_LIVE_SCHED.items=[]`). Programul folosește STRICT durata reală; dacă lipsește, revine la etichetă
+  ("22 min") — `_ensure_live_schedule` deja prefera `_LIVE_DUR`. Verificat e2e în preview: jobul rulează,
+  progres 53/53, status persistat; pe VPS (fișiere reale) va popula duratele corect (în preview toate „eșuate"
+  fiindcă fișierele fizice sunt doar pe VPS).
+- FIX fullscreen Live TV pe mobil (`Live.jsx` `toggleFullscreen`): încearcă fullscreen pe container cu
+  prefixe webkit (`webkitRequestFullscreen`/`webkitRequestFullScreen`), iar pe iOS Safari (fără Fullscreen
+  API pe <div>) apelează `video.webkitEnterFullscreen()` direct pe elementul <video>; exit cu
+  `exitFullscreen`/`webkitExitFullscreen`. Necesită validare manuală pe mobil real.
+
 ## Credentials
 See `/app/memory/test_credentials.md` (admin@cartoonix.ro).
 

@@ -1163,6 +1163,129 @@ async def live_report_duration(body: LiveDurationReport, user: dict = Depends(ge
     return {"ok": True}
 
 
+# ---------- Live TV: precalculate REAL durations via ffprobe (admin, background job) ----------
+# Runs light (bounded concurrency, metadata-only reads) so it doesn't slow streaming/playback.
+_LIVE_PRECALC = {
+    "running": False, "total": 0, "done": 0, "updated": 0, "failed": 0,
+    "skipped_short": 0, "started_at": None, "finished_at": None, "error": None,
+}
+
+
+def _probe_seconds_sync(path: str) -> float:
+    """Return the real media duration in seconds (0.0 on failure)."""
+    if not FFPROBE_BIN:
+        return 0.0
+    try:
+        out = subprocess.run(
+            [FFPROBE_BIN, "-v", "error", "-show_entries", "format=duration",
+             "-of", "default=noprint_wrappers=1:nokey=1", path],
+            capture_output=True, text=True, timeout=30,
+        )
+        val = (out.stdout or "").strip()
+        return float(val) if val else 0.0
+    except Exception:
+        return 0.0
+
+
+def _video_url_to_path(video_url: str):
+    """Map an episode video_url (/media/videos/<rel>) to a physical path under VIDEO_DIR."""
+    if not video_url:
+        return None
+    rel = str(video_url)
+    prefix = "/media/videos/"
+    idx = rel.find(prefix)
+    if idx >= 0:
+        rel = rel[idx + len(prefix):]
+    rel = unquote(rel).lstrip("/")
+    base = os.path.realpath(VIDEO_DIR)
+    full = os.path.realpath(os.path.join(base, rel))
+    if not (full == base or full.startswith(base + os.sep)):
+        return None
+    return full
+
+
+async def _run_live_precalc():
+    """Probe every episode's real duration with ffprobe and store it in `live_durations`."""
+    global _LIVE_DUR_LOADED, _LIVE_DUR_VER
+    from pymongo import UpdateOne
+    try:
+        items = await _build_live_index()
+        _LIVE_PRECALC.update({"total": len(items), "done": 0, "updated": 0,
+                              "failed": 0, "skipped_short": 0, "error": None})
+        loop = asyncio.get_event_loop()
+        sem = asyncio.Semaphore(4)  # keep it light so streaming isn't slowed
+        batch = []
+
+        async def flush():
+            nonlocal batch
+            if batch:
+                try:
+                    await db.live_durations.bulk_write(batch, ordered=False)
+                except Exception:
+                    pass
+                batch = []
+
+        async def one(it):
+            key = f"{it.get('show_id')}:{it.get('episode_number')}"
+            path = _video_url_to_path(it.get("video_url"))
+            secs = 0.0
+            async with sem:
+                if path and os.path.isfile(path):
+                    secs = await loop.run_in_executor(None, _probe_seconds_sync, path)
+            _LIVE_PRECALC["done"] += 1
+            if not secs:
+                _LIVE_PRECALC["failed"] += 1
+                return
+            s = int(round(secs))
+            if s < LIVE_MIN_DURATION:
+                _LIVE_PRECALC["skipped_short"] += 1
+                return
+            _LIVE_DUR[key] = s
+            batch.append(UpdateOne(
+                {"_id": key},
+                {"$set": {"seconds": s, "at": datetime.now(timezone.utc).isoformat(), "source": "ffprobe"}},
+                upsert=True))
+            _LIVE_PRECALC["updated"] += 1
+            if len(batch) >= 200:
+                await flush()
+
+        CHUNK = 200
+        for i in range(0, len(items), CHUNK):
+            await asyncio.gather(*[one(it) for it in items[i:i + CHUNK]])
+            await flush()
+        await flush()
+
+        # rebuild the broadcast schedule with the fresh real durations
+        _LIVE_DUR_LOADED = True
+        _LIVE_DUR_VER += 1
+        _LIVE_SCHED["items"] = []
+    except Exception as e:  # pragma: no cover
+        _LIVE_PRECALC["error"] = str(e)
+    finally:
+        _LIVE_PRECALC["running"] = False
+        _LIVE_PRECALC["finished_at"] = datetime.now(timezone.utc).isoformat()
+
+
+@api_router.post("/admin/live/precalc-durations")
+async def admin_live_precalc(admin: dict = Depends(require_admin)):
+    if not FFPROBE_BIN:
+        raise HTTPException(status_code=400, detail="ffprobe nu este instalat pe server. Instalează ffmpeg (include ffprobe) pe VPS.")
+    if _LIVE_PRECALC["running"]:
+        return {"ok": True, "already_running": True, "status": _LIVE_PRECALC}
+    _LIVE_PRECALC.update({"running": True, "total": 0, "done": 0, "updated": 0,
+                          "failed": 0, "skipped_short": 0, "error": None,
+                          "started_at": datetime.now(timezone.utc).isoformat(),
+                          "finished_at": None})
+    asyncio.create_task(_run_live_precalc())
+    return {"ok": True, "started": True, "status": _LIVE_PRECALC}
+
+
+@api_router.get("/admin/live/precalc-durations/status")
+async def admin_live_precalc_status(admin: dict = Depends(require_admin)):
+    return _LIVE_PRECALC
+
+
+
 
 
 

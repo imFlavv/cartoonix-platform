@@ -113,9 +113,21 @@ const Live = () => {
     if (videoRef.current) videoRef.current.muted = m;
   };
   const toggleFullscreen = () => {
-    const el = playerRef.current;
-    if (!document.fullscreenElement) el?.requestFullscreen?.();
-    else document.exitFullscreen?.();
+    const container = playerRef.current;
+    const v = videoRef.current;
+    const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+    if (fsEl) {
+      (document.exitFullscreen || document.webkitExitFullscreen)?.call(document);
+      return;
+    }
+    // Prefer fullscreen on the container (keeps our custom controls visible)
+    const req = container?.requestFullscreen || container?.webkitRequestFullscreen || container?.webkitRequestFullScreen;
+    if (req) {
+      try { req.call(container); return; } catch (_) { /* fall through */ }
+    }
+    // iOS Safari: no Fullscreen API on <div>; only the native <video> can go fullscreen
+    if (v?.webkitEnterFullscreen) { try { v.webkitEnterFullscreen(); return; } catch (_) { /* noop */ } }
+    if (v?.requestFullscreen) { try { v.requestFullscreen(); } catch (_) { /* noop */ } }
   };
 
   // BETA gate — Cartoonix TV is PLUS-only for now
