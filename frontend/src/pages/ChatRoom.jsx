@@ -284,7 +284,7 @@ const ChatRoom = () => {
     <>
       {m.role === "admin" && <VerifiedBadge className="h-3.5 w-3.5" />}
       {m.plus && <PlusIcon className="h-3.5 w-3.5" />}
-      {m.donor && <img src="/badge-donator.gif" alt="Donator" title="Susținător Cartoonix" className="h-3.5 w-3.5 object-contain" />}
+      {m.donor && <img src="/badge-donator.gif" alt="Donator" title="Susținător Cartoonix" className="h-5 w-5 object-contain -my-0.5" />}
     </>
   );
 
