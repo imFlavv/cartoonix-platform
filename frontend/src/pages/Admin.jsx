@@ -3,7 +3,7 @@ import { NavBar } from "@/components/NavBar";
 import { api } from "@/lib/api";
 import { CHANNELS } from "@/data/constants";
 import { toast } from "sonner";
-import { FolderSearch, Plus, Film, Lightbulb, Users, Pencil, ChevronUp, ChevronDown, ServerCog, Inbox, ImageOff, MessagesSquare, Megaphone, RotateCcw, Crown, Heart, Tv } from "lucide-react";
+import { FolderSearch, Plus, Film, Lightbulb, Users, Pencil, ChevronUp, ChevronDown, ServerCog, Inbox, ImageOff, MessagesSquare, Megaphone, RotateCcw, Crown, Heart, Tv, Gift } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { AdminMembers } from "@/components/AdminMembers";
@@ -11,6 +11,7 @@ import { AdminTickets } from "@/components/AdminTickets";
 import { AdminChat } from "@/components/AdminChat";
 import { AdminAnnouncements } from "@/components/AdminAnnouncements";
 import { AdminShowEditor } from "@/components/AdminShowEditor";
+import { AdminRewards } from "@/components/AdminRewards";
 
 const empty = {
   title: "",
@@ -297,6 +298,9 @@ const Admin = () => {
             </TabsTrigger>
             <TabsTrigger value="announcements" data-testid="admin-tab-announcements" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
               <Megaphone className="h-4 w-4 mr-2" /> Anunțuri
+            </TabsTrigger>
+            <TabsTrigger value="rewards" data-testid="admin-tab-rewards" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
+              <Gift className="h-4 w-4 mr-2" /> Recompense
             </TabsTrigger>
             <TabsTrigger value="platform" data-testid="admin-tab-platform" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
               <ServerCog className="h-4 w-4 mr-2" /> Platformă
@@ -613,6 +617,10 @@ const Admin = () => {
                 </div>
               </div>
             </div>
+          </TabsContent>
+
+          <TabsContent value="rewards">
+            <AdminRewards />
           </TabsContent>
         </Tabs>
       </div>

@@ -128,6 +128,31 @@ UI language: Romanian only.
   API pe <div>) apelează `video.webkitEnterFullscreen()` direct pe elementul <video>; exit cu
   `exitFullscreen`/`webkitExitFullscreen`. Necesită validare manuală pe mobil real.
 
+## Recent changes (2026-06, Recompense + vouchere)
+- Pagina „Recompensele tale" (`/lobby/rewards`, `Rewards.jsx` rescris) după mockup-ul userului:
+  3 carduri sus (Puncte disponibile, Recompense revendicate, Nivel cont PLUS/FREE), grilă de 3 produse
+  hardcodate (Invitație Cartoonix PLUS 500p, Bilet cinema 400p, Voucher eMAG 100 RON 250p — imagini neon
+  generate), secțiune „Valorifică Codul" + „Activitate recentă". Iconițe produse hostate pe cloud.
+- Logică revendicare (`POST /api/rewards/redeem`): scade punctele ATOMIC (`find_one_and_update` cu
+  guard `points>=cost`, previne sold negativ/dublă cheltuială), scrie `points_ledger` (negativ) și creează
+  o cerere în `reward_claims` (status „processing"). Pentru „Invitație PLUS" (kind=plus_invite) generează
+  AUTOMAT un cod voucher PLUS (universal, max_uses=1) pe care userul îl dăruiește unui prieten FREE →
+  claim „fulfilled", cod afișat în „Activitate recentă" (rămâne recuperabil după reload). Cinema/eMAG =
+  cereri manuale onorate de admin.
+- Valorificare cod (`POST /api/rewards/redeem-code`): DOAR coduri create de admin (tip plus SAU points).
+  Specific = single-use de userul-țintă; Universal = fiecare user o singură dată, până la o limită totală
+  (`max_uses`). Slot de utilizare rezervat atomic (`update_one` cu guard pe `used_count`) +
+  `voucher_redemptions` pt. unicitate per-user. PLUS = pe viață (`subscription="plus"`).
+- Admin → tab nou „Recompense" (`admin-tab-rewards`, `AdminRewards.jsx`): creare voucher (cod
+  `XXX-XXX-XXX` din `_gen_voucher_code`, alfabet fără caractere ambigue), tip PLUS/puncte, scop
+  universal/specific (+ email țintă), limită utilizări; „Cereri de recompense" (log claims + onorare/anulare
+  manuală `POST /api/admin/reward-claims/{id}/status`); „Istoric vouchere" (tabel cu used_count + toggle
+  activ/inactiv `POST /api/admin/vouchers/{code}/toggle`). Endpoints admin: `POST/GET /api/admin/vouchers`.
+- Link meniu avatar „Magazin puncte" → redenumit „Recompense", duce la `/lobby/rewards`.
+- Verificat: backend 22/22 pytest (iteration_9) + flow-uri UUI e2e (revendicare, cod single/universal-use,
+  puncte insuficiente, creare/toggle voucher, onorare claim). Colecții noi: `vouchers`,
+  `voucher_redemptions`, `reward_claims`.
+
 ## Credentials
 See `/app/memory/test_credentials.md` (admin@cartoonix.ro).
 

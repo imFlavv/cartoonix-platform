@@ -930,6 +930,243 @@ async def points_me(user: dict = Depends(get_current_user)):
     return {"points": int(fresh.get("points", 0)), "history": history}
 
 
+# ---------- Rewards shop + vouchers ----------
+# Products are hardcoded for now (per product decision). Costs are server-authoritative.
+REWARD_PRODUCTS = {
+    "plus_invite":   {"title": "Invitație Cartoonix PLUS", "cost": 500, "kind": "plus_invite",
+                      "desc": "Un cod PLUS pe viață pe care îl poți dărui unui prieten FREE."},
+    "cinema_ticket": {"title": "Bilet cinema", "cost": 400, "kind": "manual",
+                      "desc": "Un bilet la cinema. Îl onorăm manual după revendicare."},
+    "emag_voucher":  {"title": "Voucher eMAG 100 RON", "cost": 250, "kind": "manual",
+                      "desc": "Voucher eMAG în valoare de 100 RON. Îl trimitem după revendicare."},
+}
+
+_VOUCHER_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no ambiguous I/O/0/1
+
+
+def _gen_voucher_code() -> str:
+    grp = lambda: "".join(secrets.choice(_VOUCHER_ALPHABET) for _ in range(3))
+    return f"{grp()}-{grp()}-{grp()}"
+
+
+async def _new_unique_voucher_code() -> str:
+    for _ in range(20):
+        code = _gen_voucher_code()
+        if not await db.vouchers.find_one({"code": code}):
+            return code
+    return _gen_voucher_code()
+
+
+@api_router.get("/rewards")
+async def get_rewards(user: dict = Depends(get_current_user)):
+    fresh = await find_user_by_id(uid_of(user)) or user
+    uid = uid_of(user)
+    claims = await db.reward_claims.find({"user_id": uid}).sort("created_at", -1).to_list(50)
+    for c in claims:
+        c.pop("_id", None)
+    products = [{"id": pid, **{k: p[k] for k in ("title", "cost", "kind", "desc")}}
+                for pid, p in REWARD_PRODUCTS.items()]
+    return {
+        "points": int(fresh.get("points", 0)),
+        "plus": user_is_plus(fresh),
+        "products": products,
+        "claims": claims,
+        "claimed_count": len(claims),
+    }
+
+
+class RedeemProduct(BaseModel):
+    product_id: str
+
+
+@api_router.post("/rewards/redeem")
+async def redeem_product(body: RedeemProduct, user: dict = Depends(get_current_user)):
+    from pymongo import ReturnDocument
+    prod = REWARD_PRODUCTS.get(body.product_id)
+    if not prod:
+        raise HTTPException(status_code=404, detail="Produs inexistent")
+    cost = int(prod["cost"])
+    # atomic point deduction — guards against negative balance / double spend
+    updated = await db.users.find_one_and_update(
+        {"_id": user["_id"], "points": {"$gte": cost}},
+        {"$inc": {"points": -cost}},
+        return_document=ReturnDocument.AFTER,
+    )
+    if not updated:
+        raise HTTPException(status_code=400, detail="Nu ai suficiente puncte pentru această recompensă")
+    uid = uid_of(user)
+    now_iso = datetime.now(timezone.utc).isoformat()
+    await db.points_ledger.insert_one({
+        "user_id": uid, "type": "reward", "points": -cost,
+        "product_id": body.product_id, "product_title": prod["title"], "created_at": now_iso,
+    })
+    oid = ObjectId()
+    claim = {
+        "_id": oid, "id": str(oid), "user_id": uid,
+        "user_name": user_name(user), "user_email": user.get("email", ""),
+        "product_id": body.product_id, "product_title": prod["title"], "cost": cost,
+        "kind": prod["kind"], "status": "processing", "voucher_code": None, "created_at": now_iso,
+    }
+    # PLUS invite -> auto-generate a giftable PLUS voucher (universal, single total use)
+    if prod["kind"] == "plus_invite":
+        code = await _new_unique_voucher_code()
+        await db.vouchers.insert_one({
+            "code": code, "type": "plus", "points": 0, "scope": "universal",
+            "target_user_id": None, "max_uses": 1, "used_count": 0, "active": True,
+            "note": f"Invitație PLUS revendicată de {user_name(user) or user.get('email','')}",
+            "source": "reward", "created_by": uid, "created_at": now_iso,
+        })
+        claim["voucher_code"] = code
+        claim["status"] = "fulfilled"
+        claim["fulfilled_at"] = now_iso
+    await db.reward_claims.insert_one(claim)
+    claim.pop("_id", None)
+    return {"ok": True, "points": int(updated.get("points", 0)), "claim": claim}
+
+
+class RedeemCode(BaseModel):
+    code: str
+
+
+@api_router.post("/rewards/redeem-code")
+async def redeem_code(body: RedeemCode, user: dict = Depends(get_current_user)):
+    code = (body.code or "").strip().upper()
+    if not code:
+        raise HTTPException(status_code=400, detail="Introdu un cod")
+    v = await db.vouchers.find_one({"code": code})
+    if not v or not v.get("active", True):
+        raise HTTPException(status_code=400, detail="Cod invalid sau inactiv")
+    uid = uid_of(user)
+    scope = v.get("scope", "universal")
+    if scope == "specific":
+        if v.get("target_user_id") and v["target_user_id"] != uid:
+            raise HTTPException(status_code=400, detail="Acest cod nu îți este destinat")
+        if int(v.get("used_count", 0)) >= 1:
+            raise HTTPException(status_code=400, detail="Acest cod a fost deja folosit")
+    else:
+        if await db.voucher_redemptions.find_one({"code": code, "user_id": uid}):
+            raise HTTPException(status_code=400, detail="Ai folosit deja acest cod")
+        mx = v.get("max_uses")
+        if mx is not None and int(v.get("used_count", 0)) >= int(mx):
+            raise HTTPException(status_code=400, detail="Acest cod și-a atins limita de utilizări")
+    # claim a usage slot atomically (guards the total limit)
+    guard = {"code": code, "active": True}
+    if scope == "specific":
+        guard["used_count"] = {"$lt": 1}
+    elif v.get("max_uses") is not None:
+        guard["used_count"] = {"$lt": int(v["max_uses"])}
+    res = await db.vouchers.update_one(guard, {"$inc": {"used_count": 1}})
+    if res.modified_count == 0:
+        raise HTTPException(status_code=400, detail="Acest cod nu mai este disponibil")
+    now_iso = datetime.now(timezone.utc).isoformat()
+    vtype = v.get("type")
+    granted = {"type": vtype}
+    if vtype == "plus":
+        await db.users.update_one({"_id": user["_id"]}, {"$set": {"subscription": "plus"}})
+        granted["plus"] = True
+    elif vtype == "points":
+        pts = int(v.get("points", 0))
+        await db.users.update_one({"_id": user["_id"]}, {"$inc": {"points": pts}})
+        await db.points_ledger.insert_one({
+            "user_id": uid, "type": "voucher", "points": pts,
+            "code": code, "created_at": now_iso,
+        })
+        granted["points"] = pts
+    await db.voucher_redemptions.insert_one({
+        "code": code, "user_id": uid, "user_name": user_name(user),
+        "user_email": user.get("email", ""), "type": vtype,
+        "points": int(v.get("points", 0)) if vtype == "points" else 0,
+        "redeemed_at": now_iso,
+    })
+    fresh = await find_user_by_id(uid) or user
+    return {"ok": True, "granted": granted, "points": int(fresh.get("points", 0)), "plus": user_is_plus(fresh)}
+
+
+# ---------- Admin: vouchers + reward claims ----------
+class VoucherCreate(BaseModel):
+    type: str                       # "plus" | "points"
+    points: Optional[int] = 0
+    scope: str = "universal"        # "universal" | "specific"
+    target_email: Optional[str] = None
+    max_uses: Optional[int] = None  # universal only; None = unlimited
+    note: Optional[str] = ""
+
+
+@api_router.post("/admin/vouchers")
+async def admin_create_voucher(data: VoucherCreate, admin: dict = Depends(require_admin)):
+    if data.type not in ("plus", "points"):
+        raise HTTPException(status_code=400, detail="Tip invalid (plus / points)")
+    if data.type == "points" and int(data.points or 0) <= 0:
+        raise HTTPException(status_code=400, detail="Setează un număr de puncte > 0")
+    if data.scope not in ("universal", "specific"):
+        raise HTTPException(status_code=400, detail="Scop invalid")
+    target_uid = None
+    if data.scope == "specific":
+        if not data.target_email:
+            raise HTTPException(status_code=400, detail="Introdu emailul utilizatorului pentru un cod specific")
+        tu = await db.users.find_one({"email": data.target_email.strip().lower()})
+        if not tu:
+            raise HTTPException(status_code=400, detail="Nu există niciun utilizator cu acest email")
+        target_uid = uid_of(tu)
+    code = await _new_unique_voucher_code()
+    doc = {
+        "code": code, "type": data.type,
+        "points": int(data.points or 0) if data.type == "points" else 0,
+        "scope": data.scope, "target_user_id": target_uid,
+        "target_email": data.target_email.strip().lower() if (data.scope == "specific" and data.target_email) else None,
+        "max_uses": (None if data.scope == "specific" else data.max_uses),
+        "used_count": 0, "active": True, "note": data.note or "", "source": "admin",
+        "created_by": uid_of(admin), "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.vouchers.insert_one(doc)
+    doc.pop("_id", None)
+    return {"ok": True, "voucher": doc}
+
+
+@api_router.get("/admin/vouchers")
+async def admin_list_vouchers(admin: dict = Depends(require_admin)):
+    docs = await db.vouchers.find({}).sort("created_at", -1).to_list(500)
+    for d in docs:
+        d.pop("_id", None)
+    return docs
+
+
+@api_router.post("/admin/vouchers/{code}/toggle")
+async def admin_toggle_voucher(code: str, admin: dict = Depends(require_admin)):
+    v = await db.vouchers.find_one({"code": code.strip().upper()})
+    if not v:
+        raise HTTPException(status_code=404, detail="Cod inexistent")
+    new_active = not v.get("active", True)
+    await db.vouchers.update_one({"_id": v["_id"]}, {"$set": {"active": new_active}})
+    return {"ok": True, "active": new_active}
+
+
+@api_router.get("/admin/reward-claims")
+async def admin_list_claims(admin: dict = Depends(require_admin)):
+    docs = await db.reward_claims.find({}).sort("created_at", -1).to_list(500)
+    for d in docs:
+        d.pop("_id", None)
+    return docs
+
+
+class ClaimStatus(BaseModel):
+    status: str  # "processing" | "fulfilled" | "canceled"
+
+
+@api_router.post("/admin/reward-claims/{claim_id}/status")
+async def admin_update_claim(claim_id: str, body: ClaimStatus, admin: dict = Depends(require_admin)):
+    if body.status not in ("processing", "fulfilled", "canceled"):
+        raise HTTPException(status_code=400, detail="Status invalid")
+    upd = {"status": body.status}
+    if body.status == "fulfilled":
+        upd["fulfilled_at"] = datetime.now(timezone.utc).isoformat()
+    res = await db.reward_claims.update_one({"id": claim_id}, {"$set": upd})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Cerere inexistentă")
+    return {"ok": True, "status": body.status}
+
+
+
 
 # ---------- shows routes ----------
 @api_router.get("/shows")

@@ -303,8 +303,8 @@ export const NavBar = () => {
                   <DropdownMenuItem data-testid="menu-settings" onClick={() => navigate("/settings")} className="cursor-pointer focus:bg-white/10">
                     <Settings className="h-4 w-4 mr-2" /> Settings
                   </DropdownMenuItem>
-                  <DropdownMenuItem data-testid="menu-shop" onClick={() => navigate("/shop")} className="cursor-pointer focus:bg-white/10">
-                    <ShoppingBag className="h-4 w-4 mr-2" /> Magazin puncte
+                  <DropdownMenuItem data-testid="menu-shop" onClick={() => navigate("/lobby/rewards")} className="cursor-pointer focus:bg-white/10">
+                    <ShoppingBag className="h-4 w-4 mr-2" /> Recompense
                   </DropdownMenuItem>
                   {user.plus && (
                     <DropdownMenuItem data-testid="menu-tv-account" onClick={() => navigate("/cont-tv")} className="cursor-pointer focus:bg-white/10 text-[#ffcc00]">
