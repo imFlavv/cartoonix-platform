@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { X, MessageCircle, Crown } from "lucide-react";
+import { X, MessageCircle, Crown, HeartHandshake } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 
@@ -9,6 +9,7 @@ const HIDDEN_PATHS = ["/login", "/register", "/lobby/chat", "/land", "/termeni",
 const META = {
   chat: { label: "Live Chat", Icon: MessageCircle, accent: "#ec1c24", border: "rgba(236,28,36,0.4)", glow: "rgba(236,28,36,0.35)" },
   plus: { label: "Cartoonix PLUS", Icon: Crown, accent: "#ffcc00", border: "rgba(255,204,0,0.45)", glow: "rgba(255,204,0,0.3)" },
+  donate: { label: "Donează", Icon: HeartHandshake, accent: "#22c55e", border: "rgba(34,197,94,0.45)", glow: "rgba(34,197,94,0.3)" },
 };
 
 const WidgetCard = ({ w, front, onClick, onClose }) => {
@@ -73,6 +74,7 @@ const ChatWidget = () => {
     Promise.all([
       api.get("/settings/chat-widget").then((r) => ({ id: "chat", ...r.data })).catch(() => null),
       api.get("/settings/plus-widget").then((r) => ({ id: "plus", ...r.data })).catch(() => null),
+      api.get("/settings/donate-widget").then((r) => ({ id: "donate", ...r.data })).catch(() => null),
     ]).then((res) => setWidgets(res.filter((w) => w && w.enabled)));
   }, []);
 
@@ -101,13 +103,19 @@ const ChatWidget = () => {
     setActive(0);
   };
 
+  const openLink = (link) => {
+    const url = link || "/home";
+    if (/^https?:\/\//i.test(url)) window.location.href = url;
+    else navigate(url);
+  };
+
   return (
     <div className="fixed bottom-4 right-4 z-[60] w-64 h-24 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {backW && <WidgetCard w={backW} front={false} onClick={() => {}} onClose={() => {}} />}
       <WidgetCard
         w={frontW}
         front
-        onClick={() => navigate(frontW.link || "/home")}
+        onClick={() => openLink(frontW.link)}
         onClose={(e) => closeWidget(e, frontW.id)}
       />
     </div>

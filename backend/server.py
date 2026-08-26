@@ -2853,6 +2853,18 @@ async def leaderboard(q: Optional[str] = None, user: dict = Depends(get_current_
 
     resp = {"top": top, "me": me}
 
+    # Top 10 by points (donations/rewards wallet)
+    pts_docs = await db.users.find({"points": {"$gt": 0}}).sort("points", -1).to_list(10)
+    resp["top_points"] = [{
+        "rank": i + 1,
+        "id": uid_of(u),
+        "name": user_name(u),
+        "avatar": user_avatar(u),
+        "plus": user_is_plus(u),
+        "points": int(u.get("points", 0) or 0),
+        "online": bool((u.get("last_active") or u.get("last_seen")) and str(u.get("last_active") or u.get("last_seen")) >= threshold),
+    } for i, u in enumerate(pts_docs)]
+
     if q and q.strip():
         docs = await db.users.find(
             {"nickname": {"$regex": re.escape(q.strip()), "$options": "i"}}
@@ -3297,6 +3309,30 @@ async def set_plus_widget(data: ChatWidgetInput, admin: dict = Depends(require_a
     payload = {"key": "plus_widget", **data.model_dump(), "updated_at": datetime.now(timezone.utc).isoformat()}
     await db.settings.update_one({"key": "plus_widget"}, {"$set": payload}, upsert=True)
     return {k: data.model_dump().get(k) for k in PLUS_WIDGET_DEFAULT}
+
+
+# ---------- donate widget (floating CTA, editable from admin) ----------
+DONATE_WIDGET_DEFAULT = {
+    "enabled": True,
+    "text": "Susține proiectul Cartoonix",
+    "image_url": "/donate-widget-bg.webp",
+    "link": "https://cartoonix.ro/doneaza",
+}
+
+
+@api_router.get("/settings/donate-widget")
+async def get_donate_widget():
+    s = await db.settings.find_one({"key": "donate_widget"})
+    if not s:
+        return DONATE_WIDGET_DEFAULT
+    return {k: s.get(k, DONATE_WIDGET_DEFAULT.get(k)) for k in DONATE_WIDGET_DEFAULT}
+
+
+@api_router.post("/admin/donate-widget")
+async def set_donate_widget(data: ChatWidgetInput, admin: dict = Depends(require_admin)):
+    payload = {"key": "donate_widget", **data.model_dump(), "updated_at": datetime.now(timezone.utc).isoformat()}
+    await db.settings.update_one({"key": "donate_widget"}, {"$set": payload}, upsert=True)
+    return {k: data.model_dump().get(k) for k in DONATE_WIDGET_DEFAULT}
 
 
 # ---------- maintenance ----------

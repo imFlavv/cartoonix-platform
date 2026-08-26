@@ -153,6 +153,20 @@ UI language: Romanian only.
   puncte insuficiente, creare/toggle voucher, onorare claim). Colecții noi: `vouchers`,
   `voucher_redemptions`, `reward_claims`.
 
+## Recent changes (2026-06, casetă Donează + puncte în admin/clasament)
+- Casetă flotantă nouă „Donează" (a treia, lângă chat + PLUS): fundal verde cu $ (`/donate-widget-bg.webp`,
+  optimizat 1.7MB→20KB), text „Susține proiectul Cartoonix", la click deschide `https://cartoonix.ro/doneaza`
+  (ChatWidget.jsx tratează acum linkuri externe `http(s)` cu `window.location.href`, altfel `navigate`).
+  Backend: `GET /settings/donate-widget` + `POST /admin/donate-widget` (key `donate_widget`, mirror plus-widget),
+  default enabled. Editor în Admin → Platformă (`donatewidget-*`). Cele 3 casete se rotesc automat (front+back
+  în DOM la un moment dat).
+- Admin → Membri: containerul Admin lărgit la `max-w-7xl`; tabelul are 2 coloane noi — „Puncte"
+  (`member-points-<id>`) și „Data ultimei conectări" (`member-lastseen-<id>`, format ro-RO din `last_seen`).
+  `serialize_user` returna deja `points` + `last_seen`.
+- /clasament: layout pe 2 coloane — „Top Timp Online" (existent) + „Top Puncte" NOU (Top 10 după puncte,
+  `lb-top-points`, componenta `PointsRow`). Backend `/leaderboard` întoarce acum și `top_points`
+  (users cu points>0, sort desc, limit 10). Verificat vizual + curl.
+
 ## Credentials
 See `/app/memory/test_credentials.md` (admin@cartoonix.ro).
 

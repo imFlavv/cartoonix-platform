@@ -7,6 +7,13 @@ import { toast } from "sonner";
 
 const inputCls = "w-full px-4 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[#ffcc00]";
 
+const fmtLastSeen = (v) => {
+  if (!v) return "—";
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return "—";
+  return d.toLocaleString("ro-RO", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+};
+
 export const AdminMembers = () => {
   const [users, setUsers] = useState([]);
   const [q, setQ] = useState("");
@@ -125,6 +132,8 @@ export const AdminMembers = () => {
             <tr>
               <th className="text-left px-4 py-3">Utilizator</th>
               <th className="text-left px-4 py-3">Plan</th>
+              <th className="text-left px-4 py-3">Puncte</th>
+              <th className="text-left px-4 py-3 whitespace-nowrap">Data ultimei conectări</th>
               <th className="text-left px-4 py-3">IP</th>
               <th className="text-left px-4 py-3">Status</th>
               <th className="text-right px-4 py-3">Acțiuni</th>
@@ -147,6 +156,12 @@ export const AdminMembers = () => {
                     {u.plus ? <><PlusIcon className="h-3.5 w-3.5" /> PLUS</> : "FREE"}
                   </button>
                 </td>
+                <td className="px-4 py-3">
+                  <span data-testid={`member-points-${u.id}`} className="inline-flex items-center gap-1 font-semibold text-[#ec4899]">
+                    {Number(u.points || 0).toLocaleString("ro-RO")}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-white/60 text-xs whitespace-nowrap" data-testid={`member-lastseen-${u.id}`}>{fmtLastSeen(u.last_seen)}</td>
                 <td className="px-4 py-3 text-white/60 font-mono text-xs">{u.last_ip || "—"}</td>
                 <td className="px-4 py-3">
                   {u.banned ? <span className="px-2 py-1 rounded-full bg-[#ec1c24]/15 text-[#ec1c24] text-xs font-bold">BANAT</span> : <span className="px-2 py-1 rounded-full bg-[#22c55e]/15 text-[#22c55e] text-xs font-bold">Activ</span>}
