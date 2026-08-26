@@ -934,11 +934,11 @@ async def points_me(user: dict = Depends(get_current_user)):
 # Products are hardcoded for now (per product decision). Costs are server-authoritative.
 REWARD_PRODUCTS = {
     "plus_invite":   {"title": "Invitație Cartoonix PLUS", "cost": 500, "kind": "plus_invite",
-                      "desc": "Un cod PLUS pe viață pe care îl poți dărui unui prieten FREE."},
+                      "desc": "Un cod PLUS pe viață pe care îl poți dărui unui prieten."},
     "cinema_ticket": {"title": "Bilet cinema", "cost": 400, "kind": "manual",
                       "desc": "Un bilet la cinema. Îl onorăm manual după revendicare."},
     "emag_voucher":  {"title": "Voucher eMAG 100 RON", "cost": 250, "kind": "manual",
-                      "desc": "Voucher eMAG în valoare de 100 RON. Îl trimitem după revendicare."},
+                      "desc": "Voucher eMAG în valoare de 100 RON."},
 }
 
 _VOUCHER_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no ambiguous I/O/0/1

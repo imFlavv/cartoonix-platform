@@ -34,6 +34,10 @@ export const AdminRewards = () => {
   const [vouchers, setVouchers] = useState([]);
   const [claims, setClaims] = useState([]);
   const [lastCreated, setLastCreated] = useState(null);
+  const [claimsPage, setClaimsPage] = useState(1);
+  const [vouchersPage, setVouchersPage] = useState(1);
+  const CLAIMS_PER_PAGE = 5;
+  const VOUCHERS_PER_PAGE = 10;
 
   const load = useCallback(async () => {
     try {
@@ -84,6 +88,21 @@ export const AdminRewards = () => {
       load();
     } catch { toast.error("Eroare"); }
   };
+
+  const claimsTotalPages = Math.max(1, Math.ceil(claims.length / CLAIMS_PER_PAGE));
+  const vouchersTotalPages = Math.max(1, Math.ceil(vouchers.length / VOUCHERS_PER_PAGE));
+  const pagedClaims = claims.slice((claimsPage - 1) * CLAIMS_PER_PAGE, claimsPage * CLAIMS_PER_PAGE);
+  const pagedVouchers = vouchers.slice((vouchersPage - 1) * VOUCHERS_PER_PAGE, vouchersPage * VOUCHERS_PER_PAGE);
+
+  const Pager = ({ page, totalPages, onChange, testid }) => (
+    totalPages > 1 ? (
+      <div className="flex items-center justify-center gap-3 mt-4" data-testid={testid}>
+        <button onClick={() => onChange(Math.max(1, page - 1))} disabled={page <= 1} className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white/70 hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed">Înapoi</button>
+        <span className="text-sm text-white/50">Pagina {page} / {totalPages}</span>
+        <button onClick={() => onChange(Math.min(totalPages, page + 1))} disabled={page >= totalPages} className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white/70 hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed">Înainte</button>
+      </div>
+    ) : null
+  );
 
   return (
     <div className="space-y-8" data-testid="admin-rewards">
@@ -159,7 +178,7 @@ export const AdminRewards = () => {
           <p className="text-white/40 text-sm py-6 text-center">Nicio cerere încă.</p>
         ) : (
           <div className="space-y-2" data-testid="admin-claims-list">
-            {claims.map((c) => (
+            {pagedClaims.map((c) => (
               <div key={c.id} data-testid={`admin-claim-${c.id}`} className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/5">
                 <div className="h-9 w-9 rounded-lg bg-black/40 border border-white/10 flex items-center justify-center shrink-0">
                   {c.kind === "plus_invite" ? <Crown className="h-4 w-4 text-[#ffcc00]" /> : <Ticket className="h-4 w-4 text-[#ec4899]" />}
@@ -182,6 +201,7 @@ export const AdminRewards = () => {
             ))}
           </div>
         )}
+        <Pager page={claimsPage} totalPages={claimsTotalPages} onChange={setClaimsPage} testid="claims-pager" />
       </div>
 
       {/* Vouchers log */}
@@ -204,7 +224,7 @@ export const AdminRewards = () => {
                 </tr>
               </thead>
               <tbody>
-                {vouchers.map((v) => (
+                {pagedVouchers.map((v) => (
                   <tr key={v.code} data-testid={`admin-voucher-${v.code}`} className="border-b border-white/5">
                     <td className="py-2.5 pr-3"><CopyCode code={v.code} /></td>
                     <td className="py-2.5 pr-3">{v.type === "plus" ? <span className="text-[#ffcc00] font-semibold">PLUS pe viață</span> : <span className="text-[#ec4899] font-semibold">{v.points} puncte</span>}</td>
@@ -222,6 +242,7 @@ export const AdminRewards = () => {
             </table>
           </div>
         )}
+        <Pager page={vouchersPage} totalPages={vouchersTotalPages} onChange={setVouchersPage} testid="vouchers-pager" />
       </div>
     </div>
   );
