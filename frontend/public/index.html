@@ -17,25 +17,18 @@
     <title>Cartoonix</title>
     <style>
       #cx-boot{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0a0a0a url('%PUBLIC_URL%/boot-bg.webp') center/cover no-repeat;color:#fff;font-family:Nunito,Arial,sans-serif;text-align:center;padding:24px;z-index:9999}
-      #cx-boot::before{content:"";position:absolute;inset:0;background:rgba(10,10,10,.55);z-index:0}
+      #cx-boot::before{content:"";position:absolute;inset:0;background:rgba(10,10,10,.6);z-index:0}
       #cx-boot>*{position:relative;z-index:1}
-      #cx-boot img{height:auto;width:min(70vw,420px);margin-bottom:18px}
-      #cx-boot .cx-bar{width:min(60vw,300px);height:6px;border-radius:9999px;background:rgba(255,255,255,.1);overflow:hidden}
-      #cx-boot .cx-bar>i{display:block;height:100%;width:40%;border-radius:9999px;background:linear-gradient(90deg,#ec1c24,#ffcc00);animation:cxbar 1.4s ease-in-out infinite}
       #cx-boot h1{font-size:24px;margin:18px 0 8px}
       #cx-boot p{color:#aaa;max-width:460px;line-height:1.5;margin:0 0 16px}
       #cx-boot a{color:#ec1c24;font-weight:700;text-decoration:none}
-      @keyframes cxspin{to{transform:rotate(360deg)}}
-      @keyframes cxbar{0%{transform:translateX(-120%)}100%{transform:translateX(320%)}}
+      #cx-boot .cx-compat-logo{height:64px;margin-bottom:18px}
     </style>
   </head>
   <body>
     <noscript>Ai nevoie de JavaScript pentru a rula Cartoonix.</noscript>
     <div id="root">
-      <div id="cx-boot">
-        <img src="%PUBLIC_URL%/cartoonix-logo-autumn.webp" alt="Cartoonix" />
-        <div class="cx-bar"><i></i></div>
-      </div>
+      <div id="cx-boot"></div>
     </div>
     <script>
       (function () {
@@ -46,7 +39,7 @@
           var b = document.getElementById("cx-boot");
           if (!b || window.__CARTOONIX_READY__) return;
           b.innerHTML =
-            '<img src="%PUBLIC_URL%/cartoonix-logo.png" alt="Cartoonix" />' +
+            '<img class="cx-compat-logo" src="%PUBLIC_URL%/cartoonix-logo.png" alt="Cartoonix" />' +
             "<h1>Browser incompatibil</h1>" +
             "<p>Se pare că browserul acestui dispozitiv este prea vechi pentru Cartoonix. " +
             "Te rugăm să actualizezi browserul TV-ului sau să deschizi <b>cartoonix.ro</b> " +
