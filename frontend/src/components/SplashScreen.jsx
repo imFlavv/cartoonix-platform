@@ -44,7 +44,7 @@ export const SplashScreen = () => {
         data-testid="splash-logo"
       />
 
-      <div className="relative mt-12 w-56 md:w-72 h-1.5 rounded-full bg-white/10 overflow-hidden">
+      <div className="relative mt-12 ml-5 md:ml-7 w-56 md:w-72 h-1.5 rounded-full bg-white/10 overflow-hidden">
         <div className="cx-loadbar h-full rounded-full" style={{ background: "linear-gradient(90deg,#ec1c24,#ffcc00)" }} />
       </div>
       <motion.p
