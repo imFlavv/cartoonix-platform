@@ -531,11 +531,6 @@ const Cinema = () => {
       <div className="min-h-screen text-white" style={CINEMA_BG}>
         <NavBar />
         <div className="pt-24 px-4 md:px-12 pb-16 max-w-7xl mx-auto">
-          <div className="inline-flex items-center gap-2 mb-3 px-4 py-1.5 rounded-full bg-[#ffcc00]/15 border border-[#ffcc00]/40 text-[#ffcc00] text-xs font-bold uppercase tracking-widest">
-            <Film className="h-4 w-4" /> Cartoonix Cinema
-          </div>
-          <h1 className="font-display text-4xl md:text-6xl mb-2">Alege sala</h1>
-          <p className="text-white/50 mb-8">Intră într-o sală, alege-ți locul și bucură-te de programul special alături de ceilalți.</p>
 
           {/* hall cards */}
           <div className="grid lg:grid-cols-2 gap-5 mb-6" data-testid="cinema-halls">
