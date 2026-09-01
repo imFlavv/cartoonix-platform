@@ -6,7 +6,15 @@ export const SplashScreen = () => {
     <div
       data-testid="splash-screen"
       className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[#0a0a0a] overflow-hidden"
+      style={{
+        backgroundImage: "url('/boot-bg.webp')",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+      }}
     >
+      {/* dark overlay for readability */}
+      <div className="absolute inset-0 bg-black/60" />
       {/* radial glow */}
       <div className="absolute inset-0 opacity-40" style={{
         background:
