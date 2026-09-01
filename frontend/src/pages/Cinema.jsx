@@ -8,6 +8,14 @@ import { Film, Crown, Info, Maximize, Send, Volume2, VolumeX, ArrowLeft, Lock, T
 
 const rowLetter = (r) => String.fromCharCode(65 + r);
 
+const CINEMA_BG = {
+  backgroundImage:
+    "linear-gradient(90deg, rgba(10,10,10,0.82) 0%, rgba(10,10,10,0.5) 45%, rgba(10,10,10,0.88) 100%), url('/cinema-hall-bg.webp')",
+  backgroundSize: "cover",
+  backgroundPosition: "center",
+  backgroundAttachment: "fixed",
+};
+
 // ---------------- Hall chooser ----------------
 const HallCard = ({ hall, onEnter }) => {
   const closed = hall.status === "closed";
@@ -410,7 +418,7 @@ const Cinema = () => {
   // ----- render -----
   if (!hallParam) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] text-white">
+      <div className="min-h-screen text-white" style={CINEMA_BG}>
         <NavBar />
         <div className="pt-24 px-4 md:px-12 pb-16 max-w-5xl mx-auto">
           <div className="inline-flex items-center gap-2 mb-3 px-4 py-1.5 rounded-full bg-[#ffcc00]/15 border border-[#ffcc00]/40 text-[#ffcc00] text-xs font-bold uppercase tracking-widest">
@@ -428,7 +436,7 @@ const Cinema = () => {
 
   if (!state) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] text-white">
+      <div className="min-h-screen text-white" style={CINEMA_BG}>
         <NavBar />
         <div className="pt-32 text-center text-white/50">Se încarcă sala...</div>
       </div>
@@ -442,7 +450,7 @@ const Cinema = () => {
       : state.status === "ended" ? "Transmisia s-a încheiat. Mulțumim că ai fost alături de noi!"
       : "Sala este în transmisie. Nu se mai pot ocupa locuri.";
     return (
-      <div className="min-h-screen bg-[#0a0a0a] text-white">
+      <div className="min-h-screen text-white" style={CINEMA_BG}>
         <NavBar />
         <div className="pt-32 px-4 max-w-lg mx-auto text-center" data-testid="cinema-locked">
           <div className="w-20 h-20 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-6"><Lock className="h-9 w-9 text-white/40" /></div>
