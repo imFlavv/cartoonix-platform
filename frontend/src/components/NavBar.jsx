@@ -8,7 +8,7 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-import { LOGO_TRANSPARENT, FACEBOOK_URL, TIKTOK_URL, INSTAGRAM_URL, YOUTUBE_URL } from "@/data/constants";
+import { LOGO_TRANSPARENT, LOGO_AUTUMN, FACEBOOK_URL, TIKTOK_URL, INSTAGRAM_URL, YOUTUBE_URL } from "@/data/constants";
 import { PlusIcon } from "@/components/PlusIcon";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
@@ -106,7 +106,7 @@ export const NavBar = () => {
     <header className="fixed top-0 inset-x-0 z-50 backdrop-blur-xl bg-[#0b0b0e]/95 border-b border-white/[0.06]">
       <div className="flex items-center gap-3 px-4 md:px-6 h-16">
         <Link to="/home" data-testid="nav-logo" className="flex items-center shrink-0">
-          <img src={LOGO_TRANSPARENT} alt="Cartoonix" className="h-9 md:h-10" />
+          <img src={LOGO_AUTUMN} alt="Cartoonix" className="h-11 md:h-14" />
         </Link>
 
         {/* vertical divider */}

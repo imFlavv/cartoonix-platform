@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { LOGO_TRANSPARENT } from "@/data/constants";
+import { LOGO_AUTUMN } from "@/data/constants";
 
 export const SplashScreen = () => {
   return (
@@ -38,9 +38,9 @@ export const SplashScreen = () => {
       ))}
 
       <motion.img
-        src={LOGO_TRANSPARENT}
+        src={LOGO_AUTUMN}
         alt="Cartoonix"
-        className="cx-pop relative w-56 md:w-72 drop-shadow-[0_10px_40px_rgba(236,28,36,0.5)]"
+        className="cx-pop relative w-80 md:w-[28rem] drop-shadow-[0_10px_40px_rgba(236,28,36,0.5)]"
         data-testid="splash-logo"
       />
 
