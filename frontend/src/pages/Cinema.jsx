@@ -77,9 +77,6 @@ const HallCard = ({ hall, onEnter }) => {
           ) : (
             <button data-testid={`cinema-schedule-${hall.hall}`} onClick={() => document.getElementById("cinema-schedule")?.scrollIntoView({ behavior: "smooth" })} className="flex-1 py-2.5 rounded-xl bg-white/10 text-white font-bold hover:bg-white/20 transition-all flex items-center justify-center gap-2"><Calendar className="h-4 w-4" /> Vezi programul</button>
           )}
-          <span className="h-11 w-11 rounded-xl border border-white/10 flex items-center justify-center text-white/40">
-            {accessible ? <Heart className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
-          </span>
         </div>
       </div>
     </div>
