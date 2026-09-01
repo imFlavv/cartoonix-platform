@@ -48,7 +48,7 @@ export const SplashScreen = () => {
         <div className="cx-loadbar h-full rounded-full" style={{ background: "linear-gradient(90deg,#ec1c24,#ffcc00)" }} />
       </div>
       <motion.p
-        className="relative mt-5 text-sm tracking-[0.3em] text-white/50 uppercase"
+        className="relative mt-5 ml-5 md:ml-7 text-sm tracking-[0.3em] text-white/50 uppercase"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.6 }}
