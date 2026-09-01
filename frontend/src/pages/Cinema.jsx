@@ -530,7 +530,7 @@ const Cinema = () => {
     return (
       <div className="min-h-screen text-white" style={CINEMA_BG}>
         <NavBar />
-        <div className="pt-24 px-4 md:px-12 pb-16 max-w-7xl mx-auto">
+        <div className="pt-32 md:pt-36 px-4 md:px-12 pb-16 max-w-7xl mx-auto">
 
           {/* hall cards */}
           <div className="grid lg:grid-cols-2 gap-5 mb-6" data-testid="cinema-halls">
