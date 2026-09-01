@@ -3762,6 +3762,10 @@ def _cinema_default(hall: int) -> dict:
     return {
         "hall": hall,
         "name": f"Sala {hall}",
+        "subtitle": "Cinema Principal" if hall == 1 else "Sala Clasică",
+        "poster": "",
+        "starts_label": "",
+        "duration_min": 0,
         "status": "open" if hall == 1 else "closed",  # closed | open | live | ended
         "lights": "on",  # on | off
         "movie_url": "",
@@ -3794,11 +3798,34 @@ async def _get_hall(hall: int) -> dict:
             await db.cinema_sessions.insert_one(dict(doc))
         except Exception:
             pass
+        return doc
+    # backfill any newly-added default fields on legacy docs
+    defaults = _cinema_default(hall)
+    missing = {k: v for k, v in defaults.items() if k not in doc and k != "_id"}
+    if missing:
+        await db.cinema_sessions.update_one({"hall": hall}, {"$set": missing})
+        doc.update(missing)
     return doc
 
 
 def _pub_hall(h: dict) -> dict:
-    return {k: h.get(k) for k in ("hall", "name", "status", "lights", "movie_url", "movie_title", "rows", "cols", "plus_rows", "started_at")}
+    return {k: h.get(k) for k in ("hall", "name", "subtitle", "poster", "starts_label", "duration_min", "status", "lights", "movie_url", "movie_title", "rows", "cols", "plus_rows", "started_at")}
+
+
+CINEMA_SPECIAL_DEFAULT = {"enabled": False, "title": "", "subtitle": "", "description": "",
+                          "date_label": "", "time_label": "", "location": "", "poster": "", "hall": 1}
+
+
+async def _get_cinema_schedule():
+    s = await db.settings.find_one({"key": "cinema_schedule"})
+    return (s or {}).get("items", [])
+
+
+async def _get_cinema_special():
+    s = await db.settings.find_one({"key": "cinema_special"})
+    if not s:
+        return dict(CINEMA_SPECIAL_DEFAULT)
+    return {k: s.get(k, CINEMA_SPECIAL_DEFAULT.get(k)) for k in CINEMA_SPECIAL_DEFAULT}
 
 
 async def _cinema_cleanup(hall: int):
@@ -3821,8 +3848,19 @@ async def cinema_list(user: dict = Depends(get_current_user)):
         h = await _get_hall(hall)
         await _cinema_cleanup(hall)
         cnt = await db.cinema_seats.count_documents({"hall": hall})
-        out.append({**_pub_hall(h), "occupied": cnt, "capacity": h.get("rows", 8) * h.get("cols", 12)})
-    return {"halls": out, "is_plus": user_is_plus(user)}
+        item = {**_pub_hall(h), "occupied": cnt, "capacity": h.get("rows", 8) * h.get("cols", 12)}
+        if h.get("status") == "live" and h.get("started_at"):
+            try:
+                item["position_sec"] = max(0.0, (_now_dt() - datetime.fromisoformat(h["started_at"])).total_seconds())
+            except Exception:
+                item["position_sec"] = 0.0
+        out.append(item)
+    return {
+        "halls": out,
+        "is_plus": user_is_plus(user),
+        "schedule": await _get_cinema_schedule(),
+        "special": await _get_cinema_special(),
+    }
 
 
 @api_router.get("/cinema/tickets")
@@ -3976,6 +4014,10 @@ async def cinema_post_chat(hall: int, body: CinemaChatInput, user: dict = Depend
 # ---- admin ----
 class CinemaAdminUpdate(BaseModel):
     name: Optional[str] = None
+    subtitle: Optional[str] = None
+    poster: Optional[str] = None
+    starts_label: Optional[str] = None
+    duration_min: Optional[int] = None
     status: Optional[str] = None       # closed | open | live | ended
     lights: Optional[str] = None       # on | off
     movie_url: Optional[str] = None
@@ -3999,16 +4041,63 @@ async def admin_cinema_get(admin: dict = Depends(require_admin)):
     return out
 
 
+@api_router.get("/admin/cinema/page")
+async def admin_cinema_page(admin: dict = Depends(require_admin)):
+    return {"schedule": await _get_cinema_schedule(), "special": await _get_cinema_special()}
+
+
+class CinemaScheduleIn(BaseModel):
+    items: list = []
+
+
+@api_router.post("/admin/cinema/schedule")
+async def admin_cinema_schedule(body: CinemaScheduleIn, admin: dict = Depends(require_admin)):
+    items = []
+    for it in (body.items or []):
+        if not isinstance(it, dict):
+            continue
+        items.append({
+            "time": str(it.get("time", "")).strip(),
+            "title": str(it.get("title", "")).strip(),
+            "subtitle": str(it.get("subtitle", "")).strip(),
+            "hall_label": str(it.get("hall_label", "")).strip(),
+            "poster": str(it.get("poster", "")).strip(),
+        })
+    await db.settings.update_one({"key": "cinema_schedule"}, {"$set": {"key": "cinema_schedule", "items": items}}, upsert=True)
+    return {"ok": True, "items": items}
+
+
+class CinemaSpecialIn(BaseModel):
+    enabled: bool = False
+    title: Optional[str] = ""
+    subtitle: Optional[str] = ""
+    description: Optional[str] = ""
+    date_label: Optional[str] = ""
+    time_label: Optional[str] = ""
+    location: Optional[str] = ""
+    poster: Optional[str] = ""
+    hall: Optional[int] = 1
+
+
+@api_router.post("/admin/cinema/special")
+async def admin_cinema_special(body: CinemaSpecialIn, admin: dict = Depends(require_admin)):
+    doc = {"key": "cinema_special", **body.model_dump()}
+    await db.settings.update_one({"key": "cinema_special"}, {"$set": doc}, upsert=True)
+    return {"ok": True, "special": body.model_dump()}
+
+
 @api_router.post("/admin/cinema/{hall}")
 async def admin_cinema_update(hall: int, body: CinemaAdminUpdate, admin: dict = Depends(require_admin)):
     if hall not in CINEMA_HALLS:
         raise HTTPException(status_code=404, detail="Sală inexistentă")
     h = await _get_hall(hall)
     upd = {"updated_at": _now_iso()}
-    for f in ("name", "movie_url", "movie_title"):
+    for f in ("name", "subtitle", "poster", "starts_label", "movie_url", "movie_title"):
         v = getattr(body, f)
         if v is not None:
             upd[f] = v
+    if body.duration_min is not None and int(body.duration_min) >= 0:
+        upd["duration_min"] = int(body.duration_min)
     if body.lights in ("on", "off"):
         upd["lights"] = body.lights
     if body.ads is not None:

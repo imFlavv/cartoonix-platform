@@ -1,12 +1,18 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { NavBar } from "@/components/NavBar";
 import { api, resolveVideoUrl } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import { Film, Crown, Info, Maximize, Send, Volume2, VolumeX, ArrowLeft, Lock, Ticket, Users, Heart, DoorOpen } from "lucide-react";
+import { Film, Crown, Info, Maximize, Send, Volume2, VolumeX, ArrowLeft, Lock, Ticket, Users, Heart, DoorOpen, Clock, MapPin, Bell, Calendar, ChevronRight, ShoppingBag, Star, Play } from "lucide-react";
 
 const rowLetter = (r) => String.fromCharCode(65 + r);
+
+const fmtDur = (s) => {
+  const t = Math.max(0, Math.floor(s || 0));
+  const m = Math.floor(t / 60), sec = t % 60;
+  return `${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+};
 
 const CINEMA_BG = {
   backgroundImage:
@@ -16,40 +22,137 @@ const CINEMA_BG = {
   backgroundAttachment: "fixed",
 };
 
-// ---------------- Hall chooser ----------------
+// ---------------- Hall chooser card (mockup style) ----------------
 const HallCard = ({ hall, onEnter }) => {
-  const closed = hall.status === "closed";
+  const open = hall.status === "open";
   const live = hall.status === "live";
+  const accessible = open || live;
+  const poster = hall.poster || "/cinema-hall-bg.webp";
+  const durSec = (hall.duration_min || 0) * 60;
+  const pct = live && durSec ? Math.min(100, ((hall.position_sec || 0) / durSec) * 100) : (live ? 40 : 0);
+
+  const Badge = () => {
+    if (live) return <span className="px-3 py-1 rounded-full bg-[#ec1c24] text-white text-[11px] font-bold uppercase tracking-widest flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-white animate-pulse" /> În transmisie</span>;
+    if (open) return <span className="px-3 py-1 rounded-full bg-[#22c55e]/20 text-[#22c55e] border border-[#22c55e]/40 text-[11px] font-bold uppercase tracking-widest flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#22c55e]" /> Deschisă</span>;
+    return <span className="px-3 py-1 rounded-full bg-white/10 text-white/60 text-[11px] font-bold uppercase tracking-widest flex items-center gap-1.5"><Clock className="h-3 w-3" /> Începe în curând</span>;
+  };
+
   return (
-    <button
-      data-testid={`cinema-hall-${hall.hall}`}
-      onClick={() => !closed && onEnter(hall.hall)}
-      disabled={closed}
-      className={`group relative overflow-hidden rounded-3xl border p-8 text-left transition-all duration-300 ${
-        closed ? "border-white/10 opacity-60 cursor-not-allowed" : "border-[#ffcc00]/40 hover:border-[#ffcc00] hover:-translate-y-1"
-      }`}
-      style={{ background: "linear-gradient(135deg,#1a1206 0%,#0f0f0f 60%)" }}
-    >
-      <div className="flex items-center justify-between mb-4">
-        <Film className="h-10 w-10 text-[#ffcc00]" />
-        {closed ? (
-          <span className="px-3 py-1 rounded-full bg-white/10 text-white/60 text-xs font-bold uppercase tracking-widest flex items-center gap-1"><Lock className="h-3 w-3" /> Închisă</span>
-        ) : live ? (
-          <span className="px-3 py-1 rounded-full bg-[#ec1c24] text-white text-xs font-bold uppercase tracking-widest animate-pulse">În transmisie</span>
-        ) : (
-          <span className="px-3 py-1 rounded-full bg-[#22c55e]/20 text-[#22c55e] border border-[#22c55e]/40 text-xs font-bold uppercase tracking-widest">Intrare deschisă</span>
-        )}
+    <div data-testid={`cinema-hall-${hall.hall}`} className={`rounded-3xl border overflow-hidden flex ${accessible ? "border-[#ffcc00]/30" : "border-white/10"}`} style={{ background: "linear-gradient(135deg,rgba(26,18,6,0.6),rgba(15,15,15,0.9))" }}>
+      <div className="w-32 sm:w-44 shrink-0 relative">
+        <img src={poster} alt={hall.name} className="absolute inset-0 w-full h-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent to-[#0f0f0f]/80" />
       </div>
-      <h2 className="font-display text-4xl mb-1">{hall.name}</h2>
-      <p className="text-white/50 text-sm">{closed ? "Această sală nu este disponibilă momentan." : `${hall.occupied}/${hall.capacity} locuri ocupate`}</p>
-      {!closed && (
-        <div className="mt-5 inline-flex items-center gap-2 text-[#ffcc00] font-bold text-sm group-hover:gap-3 transition-all">
-          <DoorOpen className="h-4 w-4" /> Intră în sală
+      <div className="flex-1 p-5 min-w-0">
+        <div className="flex items-start justify-between gap-3 mb-1">
+          <div>
+            <h2 className="font-display text-3xl leading-none">{hall.name}</h2>
+            {hall.subtitle && <p className="text-[#ec1c24] font-semibold text-sm mt-1">{hall.subtitle}</p>}
+          </div>
+          <Badge />
         </div>
-      )}
-    </button>
+
+        <div className="mt-3 min-h-[52px]">
+          {accessible ? (
+            <>
+              {hall.movie_title && <p className="text-sm text-white/70 mb-2">Acum rulează: <span className="text-[#ffcc00] font-semibold">{hall.movie_title}</span></p>}
+              {live && (
+                <div className="flex items-center gap-2">
+                  <div className="h-1.5 flex-1 rounded-full bg-white/10 overflow-hidden"><div className="h-full bg-[#ffcc00]" style={{ width: `${pct}%` }} /></div>
+                  <span className="text-[11px] text-white/50 tabular-nums">{fmtDur(hall.position_sec)}{durSec ? ` / ${fmtDur(durSec)}` : ""}</span>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-white/60 mb-2">{hall.movie_title || "Program special cu desene clasice"}</p>
+              {hall.starts_label && <p className="text-sm text-white/70 flex items-center gap-1.5"><Clock className="h-4 w-4 text-white/40" /> {hall.starts_label}</p>}
+            </>
+          )}
+        </div>
+
+        <div className="mt-4 flex items-center gap-2">
+          {accessible ? (
+            <button data-testid={`cinema-enter-${hall.hall}`} onClick={() => onEnter(hall.hall)} className="flex-1 py-2.5 rounded-xl bg-[#ffcc00] text-black font-bold hover:brightness-110 transition-all flex items-center justify-center gap-2"><DoorOpen className="h-4 w-4" /> Intră în sală</button>
+          ) : (
+            <button data-testid={`cinema-schedule-${hall.hall}`} onClick={() => document.getElementById("cinema-schedule")?.scrollIntoView({ behavior: "smooth" })} className="flex-1 py-2.5 rounded-xl bg-white/10 text-white font-bold hover:bg-white/20 transition-all flex items-center justify-center gap-2"><Calendar className="h-4 w-4" /> Vezi programul</button>
+          )}
+          <span className="h-11 w-11 rounded-xl border border-white/10 flex items-center justify-center text-white/40">
+            {accessible ? <Heart className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
+          </span>
+        </div>
+      </div>
+    </div>
   );
 };
+
+// ---------------- Today schedule ----------------
+const ScheduleSection = ({ schedule }) => (
+  <div id="cinema-schedule" className="rounded-2xl bg-[#0f0f0f]/80 border border-white/10 p-5" data-testid="cinema-schedule-section">
+    <div className="flex items-center justify-between mb-4">
+      <h3 className="font-display text-xl flex items-center gap-2"><Calendar className="h-5 w-5 text-[#ffcc00]" /> Programul de astăzi</h3>
+    </div>
+    {(!schedule || schedule.length === 0) ? (
+      <p className="text-white/40 text-sm py-6 text-center">Niciun program setat pentru astăzi.</p>
+    ) : (
+      <div className="grid sm:grid-cols-2 gap-3">
+        {schedule.map((s, i) => (
+          <div key={i} data-testid={`schedule-item-${i}`} className="flex items-center gap-3 p-2.5 rounded-xl bg-white/[0.03] border border-white/5">
+            <span className="font-display text-lg text-[#ffcc00] w-12 shrink-0 text-center">{s.time || "--"}</span>
+            <div className="h-12 w-12 rounded-lg overflow-hidden bg-black/40 shrink-0 flex items-center justify-center">
+              {s.poster ? <img src={s.poster} alt={s.title} className="w-full h-full object-cover" /> : <Film className="h-5 w-5 text-white/30" />}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-sm truncate">{s.title}</p>
+              {s.subtitle && <p className="text-xs text-white/50 truncate">{s.subtitle}</p>}
+              {s.hall_label && <p className="text-[10px] uppercase tracking-widest text-white/30 mt-0.5">{s.hall_label}</p>}
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+);
+
+// ---------------- Special event ----------------
+const SpecialSection = ({ special, onReserve }) => {
+  if (!special || !special.enabled) {
+    return (
+      <div className="rounded-2xl bg-[#0f0f0f]/80 border border-white/10 p-6 text-center" data-testid="cinema-special-empty">
+        <Star className="h-7 w-7 text-white/20 mx-auto mb-2" />
+        <p className="text-white/50">Niciun eveniment special</p>
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-2xl overflow-hidden border border-[#ffcc00]/30 grid md:grid-cols-5" data-testid="cinema-special" style={{ background: "linear-gradient(135deg,rgba(26,18,6,0.7),rgba(15,15,15,0.95))" }}>
+      <div className="md:col-span-3 p-6 relative">
+        {special.poster && <img src={special.poster} alt="" className="absolute inset-0 w-full h-full object-cover opacity-25" />}
+        <div className="relative">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#ffcc00]/15 border border-[#ffcc00]/40 text-[#ffcc00] text-[11px] font-bold uppercase tracking-widest mb-3"><Star className="h-3 w-3" /> Eveniment special</span>
+          <h3 className="font-display text-3xl md:text-4xl mb-1">{special.title}</h3>
+          {special.subtitle && <p className="text-[#ec1c24] font-semibold mb-2">{special.subtitle}</p>}
+          {special.description && <p className="text-white/60 text-sm max-w-md">{special.description}</p>}
+        </div>
+      </div>
+      <div className="md:col-span-2 p-6 bg-black/30 flex flex-col justify-center gap-3">
+        {(special.date_label || special.time_label) && <p className="flex items-center gap-2 text-sm"><Calendar className="h-4 w-4 text-[#ffcc00]" /> {special.date_label} {special.time_label && `· ${special.time_label}`}</p>}
+        {special.location && <p className="flex items-center gap-2 text-sm"><MapPin className="h-4 w-4 text-[#ffcc00]" /> {special.location}</p>}
+        <button data-testid="cinema-special-reserve" onClick={() => onReserve(special.hall || 1)} className="mt-2 py-2.5 rounded-xl bg-[#ffcc00] text-black font-bold hover:brightness-110 transition-all flex items-center justify-center gap-2"><Ticket className="h-4 w-4" /> Rezervă locul</button>
+      </div>
+    </div>
+  );
+};
+
+// ---------------- Shop card ----------------
+const ShopCard = ({ onGo }) => (
+  <div className="rounded-2xl border border-[#ffcc00]/30 p-6 flex flex-col items-center text-center" data-testid="cinema-shop" style={{ background: "linear-gradient(160deg,rgba(26,18,6,0.7),rgba(15,15,15,0.95))" }}>
+    <h3 className="font-display text-xl flex items-center gap-2 self-start mb-3"><ShoppingBag className="h-5 w-5 text-[#ffcc00]" /> Magazin Cartoonix</h3>
+    <img src="/cinema-shop.webp" alt="Magazin Cartoonix" className="w-48 h-48 object-contain my-2 drop-shadow-[0_10px_30px_rgba(255,204,0,0.25)]" />
+    <p className="text-white/60 text-sm mb-5">Descoperă recompense, insigne și obiecte speciale pentru comunitate.</p>
+    <button data-testid="cinema-shop-go" onClick={onGo} className="w-full py-2.5 rounded-xl bg-[#ffcc00] text-black font-bold hover:brightness-110 transition-all flex items-center justify-center gap-2"><ShoppingBag className="h-4 w-4" /> Vezi magazinul</button>
+  </div>
+);
 
 // ---------------- Seat map ----------------
 const SeatMap = ({ state, onPick, canPick }) => {
@@ -351,9 +454,12 @@ const CinemaRoom = ({ hall, state, onBack, onPick, onLeave }) => {
 // ---------------- Main ----------------
 const Cinema = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const hallParam = params.get("hall") ? parseInt(params.get("hall"), 10) : null;
   const [halls, setHalls] = useState([]);
+  const [schedule, setSchedule] = useState([]);
+  const [special, setSpecial] = useState(null);
   const [state, setState] = useState(null);
   const [confirm, setConfirm] = useState(null); // {id,label,golden}
 
@@ -361,7 +467,14 @@ const Cinema = () => {
   useEffect(() => {
     if (hallParam) return;
     setState(null);
-    api.get("/cinema").then((r) => setHalls(r.data.halls || [])).catch(() => {});
+    const load = () => api.get("/cinema").then((r) => {
+      setHalls(r.data.halls || []);
+      setSchedule(r.data.schedule || []);
+      setSpecial(r.data.special || null);
+    }).catch(() => {});
+    load();
+    const t = setInterval(load, 5000);
+    return () => clearInterval(t);
   }, [hallParam]);
 
   // hall detail polling
@@ -420,14 +533,25 @@ const Cinema = () => {
     return (
       <div className="min-h-screen text-white" style={CINEMA_BG}>
         <NavBar />
-        <div className="pt-24 px-4 md:px-12 pb-16 max-w-5xl mx-auto">
+        <div className="pt-24 px-4 md:px-12 pb-16 max-w-7xl mx-auto">
           <div className="inline-flex items-center gap-2 mb-3 px-4 py-1.5 rounded-full bg-[#ffcc00]/15 border border-[#ffcc00]/40 text-[#ffcc00] text-xs font-bold uppercase tracking-widest">
             <Film className="h-4 w-4" /> Cartoonix Cinema
           </div>
           <h1 className="font-display text-4xl md:text-6xl mb-2">Alege sala</h1>
           <p className="text-white/50 mb-8">Intră într-o sală, alege-ți locul și bucură-te de programul special alături de ceilalți.</p>
-          <div className="grid sm:grid-cols-2 gap-5" data-testid="cinema-halls">
+
+          {/* hall cards */}
+          <div className="grid lg:grid-cols-2 gap-5 mb-6" data-testid="cinema-halls">
             {halls.map((h) => <HallCard key={h.hall} hall={h} onEnter={enter} />)}
+          </div>
+
+          {/* schedule + special + shop */}
+          <div className="grid lg:grid-cols-3 gap-5">
+            <div className="lg:col-span-2 space-y-5">
+              <ScheduleSection schedule={schedule} />
+              <SpecialSection special={special} onReserve={enter} />
+            </div>
+            <ShopCard onGo={() => navigate("/lobby/rewards")} />
           </div>
         </div>
       </div>

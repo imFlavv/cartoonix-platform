@@ -218,6 +218,24 @@ UI language: Romanian only.
 - Cunoscut/de reținut: `_cinema_cleanup` rulează la fiecare poll (ok la scara actuală); cinema module ar putea
   fi extras într-un router separat (server.py e mare).
 
+## Recent changes (2026-06, redesign pagină /cinema + config admin)
+- Chooser /cinema redesenat după mockup: 2 carduri de sală orizontale (poster + nume + subtitlu + badge
+  status DESCHISĂ/ÎN TRANSMISIE/ÎNCEPE ÎN CURÂND + „Acum rulează" + bară progres la live + buton Intră/Vezi
+  programul). NU se mai afișează „privitori online"/„interesați" (cerință). Fundal cinema pe pagină.
+- Secțiuni noi pe pagină, configurabile din admin: „Programul de astăzi" (listă items time/title/subtitle/
+  hall/poster), „Eveniment special" (implicit dezactivat → afișează „Niciun eveniment special"), „Magazin
+  Cartoonix" (imagine `/cinema-shop.webp` — biletele cinema trimise de user, fundal transparent, buton
+  „Vezi magazinul" → /lobby/rewards).
+- Backend: câmpuri noi pe săli (subtitle, poster, starts_label, duration_min; backfill automat pe docurile
+  legacy în `_get_hall`). GET /cinema include acum `schedule`, `special` și `position_sec` la halls live.
+  Endpoints noi: GET /admin/cinema/page, POST /admin/cinema/schedule, POST /admin/cinema/special (rutele
+  literale mutate ÎNAINTE de POST /admin/cinema/{hall} ca să nu fie umbrite). Setări în `settings`:
+  `cinema_schedule`, `cinema_special`.
+- Admin → Cinema: editor per-sală extins (subtitle/poster/starts_label/duration_min) + editor „Programul de
+  astăzi" + „Eveniment special" (`ScheduleSpecialAdmin`).
+- Conținut demo semănat (Sala 1 film „Scooby-Doo" 90min, Sala 2 start 18:00, 4 items program) — editabil din
+  Admin. Verificat: backend curl + screenshot full-page (layout identic cu mockup).
+
 ## Credentials
 See `/app/memory/test_credentials.md` (admin@cartoonix.ro).
 

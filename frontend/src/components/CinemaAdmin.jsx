@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-import { Film, Lightbulb, LightbulbOff, Play, DoorOpen, Square, Lock, Trash2, Plus, X, Save } from "lucide-react";
+import { Film, Lightbulb, LightbulbOff, Play, DoorOpen, Square, Lock, Trash2, Plus, X, Save, Calendar } from "lucide-react";
 
 const input = "w-full px-3 py-2.5 rounded-lg bg-white/5 border border-white/10 focus:border-[#ec1c24] outline-none text-sm";
 
@@ -16,6 +16,10 @@ const STATUS_COLORS = {
 const HallControl = ({ hall, reload }) => {
   const [movieUrl, setMovieUrl] = useState(hall.movie_url || "");
   const [movieTitle, setMovieTitle] = useState(hall.movie_title || "");
+  const [subtitle, setSubtitle] = useState(hall.subtitle || "");
+  const [poster, setPoster] = useState(hall.poster || "");
+  const [startsLabel, setStartsLabel] = useState(hall.starts_label || "");
+  const [durationMin, setDurationMin] = useState(hall.duration_min || 0);
   const [ads, setAds] = useState(hall.ads || []);
   const [rows, setRows] = useState(hall.rows);
   const [cols, setCols] = useState(hall.cols);
@@ -23,6 +27,8 @@ const HallControl = ({ hall, reload }) => {
 
   useEffect(() => {
     setMovieUrl(hall.movie_url || ""); setMovieTitle(hall.movie_title || "");
+    setSubtitle(hall.subtitle || ""); setPoster(hall.poster || "");
+    setStartsLabel(hall.starts_label || ""); setDurationMin(hall.duration_min || 0);
     setAds(hall.ads || []); setRows(hall.rows); setCols(hall.cols); setPlusRows(hall.plus_rows);
   }, [hall.hall]); // eslint-disable-line
 
@@ -72,6 +78,20 @@ const HallControl = ({ hall, reload }) => {
         </button>
       </div>
 
+      {/* hall details */}
+      <div className="space-y-2 mb-4">
+        <label className="text-xs text-white/50">Detalii sală (card)</label>
+        <div className="grid grid-cols-2 gap-2">
+          <input data-testid={`cinema-subtitle-${hall.hall}`} value={subtitle} onChange={(e) => setSubtitle(e.target.value)} placeholder="Subtitlu (ex: Cinema Principal)" className={input} />
+          <input data-testid={`cinema-starts-${hall.hall}`} value={startsLabel} onChange={(e) => setStartsLabel(e.target.value)} placeholder="Începe la (ex: 18:00)" className={input} />
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <input data-testid={`cinema-poster-${hall.hall}`} value={poster} onChange={(e) => setPoster(e.target.value)} placeholder="Link imagine card (opțional)" className={input} />
+          <input data-testid={`cinema-duration-${hall.hall}`} type="number" min="0" value={durationMin} onChange={(e) => setDurationMin(+e.target.value)} placeholder="Durată film (min)" className={input} />
+        </div>
+        <button data-testid={`cinema-save-details-${hall.hall}`} onClick={() => patch({ subtitle, poster, starts_label: startsLabel, duration_min: durationMin }, "Detalii salvate")} className="w-full py-2 rounded-lg bg-white/10 hover:bg-white/20 text-sm font-bold flex items-center justify-center gap-2"><Save className="h-4 w-4" /> Salvează detaliile sălii</button>
+      </div>
+
       {/* movie */}
       <div className="space-y-2 mb-4">
         <label className="text-xs text-white/50">Film principal</label>
@@ -110,6 +130,82 @@ const HallControl = ({ hall, reload }) => {
   );
 };
 
+const ScheduleSpecialAdmin = () => {
+  const [schedule, setSchedule] = useState([]);
+  const [special, setSpecial] = useState({ enabled: false, title: "", subtitle: "", description: "", date_label: "", time_label: "", location: "", poster: "", hall: 1 });
+
+  const load = useCallback(async () => {
+    try {
+      const { data } = await api.get("/admin/cinema/page");
+      setSchedule(data.schedule || []);
+      if (data.special) setSpecial((p) => ({ ...p, ...data.special }));
+    } catch { /* ignore */ }
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const saveSchedule = async () => {
+    try { await api.post("/admin/cinema/schedule", { items: schedule }); toast.success("Program salvat"); }
+    catch { toast.error("Eroare la salvarea programului"); }
+  };
+  const saveSpecial = async () => {
+    try { await api.post("/admin/cinema/special", special); toast.success("Eveniment salvat"); }
+    catch { toast.error("Eroare la salvarea evenimentului"); }
+  };
+  const sset = (k, v) => setSpecial((p) => ({ ...p, [k]: v }));
+
+  return (
+    <div className="grid lg:grid-cols-2 gap-5">
+      {/* schedule */}
+      <div className="bg-[#141414] border border-white/10 rounded-2xl p-6" data-testid="admin-schedule">
+        <h3 className="font-display text-xl mb-1 flex items-center gap-2"><Calendar className="h-5 w-5 text-[#ffcc00]" /> Programul de astăzi</h3>
+        <p className="text-sm text-white/50 mb-4">Ce se difuzează azi în cinema (apare pe pagina /cinema).</p>
+        <div className="space-y-2">
+          {schedule.map((s, i) => (
+            <div key={i} data-testid={`admin-schedule-${i}`} className="grid grid-cols-12 gap-2">
+              <input value={s.time} onChange={(e) => setSchedule((p) => p.map((x, j) => j === i ? { ...x, time: e.target.value } : x))} placeholder="10:00" className={`${input} col-span-2`} />
+              <input value={s.title} onChange={(e) => setSchedule((p) => p.map((x, j) => j === i ? { ...x, title: e.target.value } : x))} placeholder="Titlu" className={`${input} col-span-3`} />
+              <input value={s.subtitle} onChange={(e) => setSchedule((p) => p.map((x, j) => j === i ? { ...x, subtitle: e.target.value } : x))} placeholder="Subtitlu" className={`${input} col-span-3`} />
+              <input value={s.hall_label} onChange={(e) => setSchedule((p) => p.map((x, j) => j === i ? { ...x, hall_label: e.target.value } : x))} placeholder="Sala 1" className={`${input} col-span-2`} />
+              <input value={s.poster} onChange={(e) => setSchedule((p) => p.map((x, j) => j === i ? { ...x, poster: e.target.value } : x))} placeholder="Poster" className={`${input} col-span-1`} />
+              <button onClick={() => setSchedule((p) => p.filter((_, j) => j !== i))} className="col-span-1 rounded-lg bg-white/5 hover:bg-[#ec1c24]/20 text-white/50 hover:text-[#ec1c24] flex items-center justify-center"><X className="h-4 w-4" /></button>
+            </div>
+          ))}
+        </div>
+        <div className="flex gap-2 mt-3">
+          <button data-testid="admin-schedule-add" onClick={() => setSchedule((p) => [...p, { time: "", title: "", subtitle: "", hall_label: "", poster: "" }])} className="flex-1 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-sm font-bold flex items-center justify-center gap-2"><Plus className="h-4 w-4" /> Adaugă</button>
+          <button data-testid="admin-schedule-save" onClick={saveSchedule} className="flex-1 py-2 rounded-lg bg-[#ffcc00] text-black hover:brightness-110 text-sm font-bold flex items-center justify-center gap-2"><Save className="h-4 w-4" /> Salvează programul</button>
+        </div>
+      </div>
+
+      {/* special event */}
+      <div className="bg-[#141414] border border-white/10 rounded-2xl p-6" data-testid="admin-special">
+        <div className="flex items-center justify-between mb-1">
+          <h3 className="font-display text-xl flex items-center gap-2"><Film className="h-5 w-5 text-[#ec1c24]" /> Eveniment special</h3>
+          <label className="flex items-center gap-2 text-sm text-white/60">
+            <input data-testid="admin-special-enabled" type="checkbox" checked={!!special.enabled} onChange={(e) => sset("enabled", e.target.checked)} /> Activ
+          </label>
+        </div>
+        <p className="text-sm text-white/50 mb-4">Dacă e dezactivat, pe pagină apare „Niciun eveniment special".</p>
+        <div className="space-y-2">
+          <input data-testid="admin-special-title" value={special.title} onChange={(e) => sset("title", e.target.value)} placeholder="Titlu (ex: Seara Scooby-Doo)" className={input} />
+          <input value={special.subtitle} onChange={(e) => sset("subtitle", e.target.value)} placeholder="Subtitlu" className={input} />
+          <textarea value={special.description} onChange={(e) => sset("description", e.target.value)} placeholder="Descriere" rows={2} className={input} />
+          <div className="grid grid-cols-2 gap-2">
+            <input value={special.date_label} onChange={(e) => sset("date_label", e.target.value)} placeholder="Data (ex: Sâmbătă, 25 Mai)" className={input} />
+            <input value={special.time_label} onChange={(e) => sset("time_label", e.target.value)} placeholder="Ora (ex: 20:00)" className={input} />
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <input value={special.location} onChange={(e) => sset("location", e.target.value)} placeholder="Locație" className={`${input} col-span-2`} />
+            <select data-testid="admin-special-hall" value={special.hall} onChange={(e) => sset("hall", +e.target.value)} className={input}><option value={1}>Sala 1</option><option value={2}>Sala 2</option></select>
+          </div>
+          <input value={special.poster} onChange={(e) => sset("poster", e.target.value)} placeholder="Link imagine (opțional)" className={input} />
+          <button data-testid="admin-special-save" onClick={saveSpecial} className="w-full py-2 rounded-lg bg-[#ffcc00] text-black hover:brightness-110 text-sm font-bold flex items-center justify-center gap-2"><Save className="h-4 w-4" /> Salvează evenimentul</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const CinemaAdmin = () => {
   const [halls, setHalls] = useState([]);
   const reload = useCallback(async () => {
@@ -123,6 +219,7 @@ export const CinemaAdmin = () => {
       <div className="grid xl:grid-cols-2 gap-5">
         {halls.map((h) => <HallControl key={h.hall} hall={h} reload={reload} />)}
       </div>
+      <ScheduleSpecialAdmin />
     </div>
   );
 };
