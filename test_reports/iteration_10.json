@@ -1,0 +1,40 @@
+{
+  "summary": "Full E2E test of the new Cartoonix Cinema feature (backend + frontend). Backend: created /app/backend/tests/test_cinema.py with 28 pytest cases covering hall listing, hall state, PLUS/golden-seat gating, seat move, 409 conflicts, invalid/out-of-range seats, closed-hall rejection, heartbeat/leave, souvenir tickets, chat (post/get/validation), and all admin controls (lights, movie, ads, layout, status transitions open/live/ended, position_sec, clear-seats, auth guards). 28/28 passed. Frontend: verified FREE user flow (chooser -> Sala 2 disabled -> room -> golden seat blocked with PLUS toast -> normal seat confirm dialog -> seat badge + leave -> chat -> Profile 'Bilete' ticket card CX-1-XXXXXX) and ADMIN flow in a 2-browser-context test (Cinema tab, live lights sync to user without refresh, Pornește filmul -> seated user sees live banner & seats disabled, user without seat sees 'Sala este în transmisie' locked screen, Încheie -> locked, Deschide intrarea, Golește locurile, save movie/ads/layout with plus_rows applied live). All flows worked. App left in clean state: Sala 1 open/lights on/empty movie+ads/plus_rows 4/0 seats, Sala 2 closed; test chat msgs + test tickets removed.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/admin/cinema/{hall}", "issue": "Invalid status/lights values are silently ignored (200 with unchanged state) instead of returning 400 — acceptable but hides admin typos."},
+      {"endpoint": "POST /api/cinema/{hall}/seat", "issue": "10-minute idle seat release (CINEMA_IDLE_SECONDS) could not be verified in a test window; logic reviewed and looks correct (last_seen string ISO compare works only because all timestamps are UTC ISO with same format — a naive/localized timestamp would break the $lt string comparison)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "CinemaChat (/app/frontend/src/pages/Cinema.jsx)", "issue": "Every chat message is rendered TWICE and React logs 'Encountered two children with the same key' repeatedly. Root cause: React.StrictMode double-invokes the mount effect, so load() runs twice with lastRef.current still null and both responses are appended. Fix: dedupe in setMsgs by message id (e.g. merge into a Map keyed by m.id) instead of blind concat.", "selector": "[data-testid=\"cinema-chat\"]", "priority": "MEDIUM"},
+      {"component": "CinemaRoom / SeatMap", "issue": "canPick = status==='open' && !my_seat, so once seated ALL seats are disabled and the user cannot move to another seat directly (backend supports moving). User must click 'Renunță la loc' first. If moving should be allowed, keep seats enabled while seated.", "selector": "[data-testid^=\"seat-\"]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Cinema room (/cinema?hall=1)", "issues": ["With no ads/movie configured the screen area is a large fully black box with only the 'Reclame' badge; the 'În curând începe programul' placeholder is only shown when src is empty, but an unreachable ad URL renders a silent black video with no fallback/error state."]},
+      {"screen": "Login page (console)", "issues": ["Console warning: 'An empty string (\"\") was passed to the src attribute' (image rendered with empty src) — pre-existing, unrelated to Cinema."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cinema.py", "/app/test_reports/pytest/cinema_results.xml", "/app/scripts/cleanup_cinema_test_data.py"],
+  "action_items": [
+    "Dedupe cinema chat messages by id in CinemaChat.load() to remove duplicated messages and the React duplicate-key console errors.",
+    "Decide whether a seated user should be able to move seats directly from the seat map (backend already supports it)."
+  ],
+  "critical_code_review_comments": [
+    "Cinema tests are stateful (shared halls); pytest.ini enables xdist and LoadScopeScheduling splits classes across workers, which caused false failures. Run test_cinema.py with -n 0 (documented in this report) or refactor into a single class/hall-per-test isolation.",
+    "server.py is 4283 lines — the cinema module (~300 lines) should be split into its own router file.",
+    "GET /api/cinema and /api/cinema/{hall} call _cinema_cleanup on every poll (2.5s per client) issuing an extra delete_many per request; consider a periodic background task instead to reduce DB load under many viewers.",
+    "_cinema_cleanup compares ISO strings with $lt; enforce a single UTC ISO format for last_seen (or store real datetimes) to avoid silent breakage."
+  ],
+  "updated_files": ["/app/backend/tests/test_cinema.py", "/app/scripts/cleanup_cinema_test_data.py"],
+  "success_rate": {"backend": "100% (28/28)", "frontend": "100% of tested flows passed (1 cosmetic chat duplication bug)"},
+  "seed_data_creation": "Temporary: seats/tickets for test@cartoonix.ro and admin@cartoonix.ro, TEST_ chat messages, TEST_Film movie + TEST ad — all removed afterwards; halls reset to default demo state.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "admin@cartoonix.ro/admin1234 (PLUS admin), test@cartoonix.ro/test1234 (free) — from /app/memory/test_credentials.md",
+  "context_for_next_testing_agent": "Run cinema backend tests serially: `cd /app/backend && python -m pytest tests/test_cinema.py -v -n 0` (xdist parallelism breaks them because halls are shared state). The module fixture resets Sala 1 to open + clears seats before/after. Frontend seat picking requires clicking cinema-confirm-ok; seat map polls every 2.5s, admin panel every 5s, so allow ~4s after admin actions. Lights sync, live-lock, ended, reopen, clear-seats, ads/layout saves were all verified working.",
+  "rca_of_the_issue": "Chat duplication: CinemaChat's mount effect runs twice under React.StrictMode; both invocations fetch the full history with lastRef.current === null and setMsgs concatenates both results, producing duplicate ids (React duplicate-key error) and messages visibly rendered twice."
+}

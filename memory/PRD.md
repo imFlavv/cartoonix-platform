@@ -193,6 +193,31 @@ UI language: Romanian only.
 - Cauza reală a ecranului negru la video rămâne codec-ul legacy (H.265/mp4v) — soluția definitivă e reconversia
   la H.264 (comanda ffmpeg a userului). Overlay-ul doar comunică clar problema.
 
+## Recent changes (2026-06, Cartoonix Cinema)
+- Funcționalitate nouă mare: `/cinema` cu 2 săli (Sala 1 deschisă, Sala 2 închisă). Flux: alegi sala →
+  hartă locuri → alegi 1 loc → confirmi → se generează un bilet suvenir afișat în profil (tab „Bilete").
+- Locuri: grilă rows×cols (implicit 8×12=96); primele `plus_rows` (4) rânduri = AURII, exclusiv PLUS
+  (userii FREE primesc 403). Un loc/user; poți muta locul cât timp intrarea e deschisă. Loc ocupat de
+  altul → (i) + tooltip „Rezervat pentru {nickname}". Eliberare după 10 min inactivitate (heartbeat 60s +
+  cleanup lazy la GET). Real-time prin polling (2.5s).
+- Sala (room): ecran video (reclame pre-show în buclă + listă donatori în starea „open"; film sincronizat
+  continuu în „live" — fără pauză/seek/rewind, click pe ecran = fullscreen cu fallback iOS), hartă locuri,
+  chat lateral (colecție izolată `cinema_chat`, badge PLUS/donator). După „live" sala e blocată (fără intrări
+  noi); userul fără loc vede „Sala este în transmisie".
+- Admin → tab „Cinema" (`CinemaAdmin.jsx`): butoane Deschide intrarea/Pornește filmul(live+started_at)/
+  Încheie/Închide sala; toggle Lumini (se actualizează live la toți fără refresh); setare film (url+titlu),
+  reclame pre-show (listă), layout (rows/cols/plus_rows), Golește locurile.
+- Backend (server.py, secțiunea „Cartoonix Cinema"): colecții `cinema_sessions`, `cinema_seats` (index unic
+  (hall,seat_id) pt. anti-race la rezervare), `cinema_chat`, `cinema_tickets`. Endpoints: GET /cinema,
+  GET /cinema/{hall}, POST /cinema/{hall}/seat|heartbeat|leave, GET/POST /cinema/{hall}/chat,
+  GET /cinema/tickets, GET /admin/cinema, POST /admin/cinema/{hall}, POST /admin/cinema/{hall}/clear-seats.
+  seat_id = R{row}C{col} (0-indexed). Donatorii = top useri cu points>0 (non-admin).
+- Testat: backend 28/28 pytest (`/app/backend/tests/test_cinema.py`, iteration_10) + flow-uri e2e FREE+ADMIN
+  (gating PLUS, mutare loc, 409, bilet în profil, chat, lumini live, live-lock). Fix aplicat: dedupe mesaje
+  chat (StrictMode dubla mesajele) + permis mutarea locului cât e deschis.
+- Cunoscut/de reținut: `_cinema_cleanup` rulează la fiecare poll (ok la scara actuală); cinema module ar putea
+  fi extras într-un router separat (server.py e mare).
+
 ## Credentials
 See `/app/memory/test_credentials.md` (admin@cartoonix.ro).
 

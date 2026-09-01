@@ -7,7 +7,7 @@ import { api } from "@/lib/api";
 import { setQueue } from "@/lib/queue";
 import { AVATAR_SEEDS, PREMIUM_AVATARS } from "@/data/constants";
 import { PlusIcon } from "@/components/PlusIcon";
-import { Check, Play, Heart, Trash2, ListMusic, Film, Clock, Lock, KeyRound, Eye, EyeOff, User, Gift, PlayCircle, Coins } from "lucide-react";
+import { Check, Play, Heart, Trash2, ListMusic, Film, Clock, Lock, KeyRound, Eye, EyeOff, User, Gift, PlayCircle, Coins, Ticket } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 
@@ -45,10 +45,12 @@ const Profile = () => {
   const [avatar, setAvatar] = useState(user?.avatar || AVATAR_SEEDS[0]);
   const [busy, setBusy] = useState(false);
   const [wallet, setWallet] = useState({ points: user?.points ?? 0, history: [] });
+  const [tickets, setTickets] = useState([]);
 
   useEffect(() => {
     refreshUser().catch(() => {});
     api.get("/points/me").then((res) => setWallet(res.data)).catch(() => {});
+    api.get("/cinema/tickets").then((res) => setTickets(res.data || [])).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -189,6 +191,9 @@ const Profile = () => {
               </TabsTrigger>
               <TabsTrigger value="rewards" data-testid="tab-rewards" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
                 <Gift className="h-4 w-4 mr-2" /> Recompense
+              </TabsTrigger>
+              <TabsTrigger value="cinema" data-testid="tab-cinema" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
+                <Ticket className="h-4 w-4 mr-2" /> Bilete
               </TabsTrigger>
             </TabsList>
 
@@ -450,6 +455,47 @@ const Profile = () => {
                   pentru activitatea ta pe Cartoonix. Revino curând! 🎁
                 </p>
               </div>
+            </TabsContent>
+
+            <TabsContent value="cinema" className="mt-6" data-testid="cinema-tickets-content">
+              {tickets.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <div className="w-20 h-20 rounded-full bg-[#ffcc00]/15 border border-[#ffcc00]/40 flex items-center justify-center mb-5">
+                    <Ticket className="h-9 w-9 text-[#ffcc00]" />
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">Niciun bilet încă</h3>
+                  <p className="text-white/50 max-w-sm">
+                    Intră la <b>Cartoonix Cinema</b>, alege-ți un loc și primești un bilet suvenir aici, ca o amintire. 🎬
+                  </p>
+                  <button onClick={() => navigate("/cinema")} data-testid="cinema-go" className="mt-5 inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#ec1c24] font-bold hover:bg-[#ff2d36] transition-colors duration-200">
+                    <Film className="h-4 w-4" /> Mergi la Cinema
+                  </button>
+                </div>
+              ) : (
+                <div className="grid sm:grid-cols-2 gap-5">
+                  {tickets.map((t) => (
+                    <div key={`${t.hall}-${t.date}-${t.code}`} data-testid={`cinema-ticket-${t.code}`} className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#1a1206] to-[#0f0f0f] border border-[#ffcc00]/40">
+                      <div className="absolute -left-3 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-[#0a0a0a]" />
+                      <div className="absolute -right-3 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-[#0a0a0a]" />
+                      <div className="p-5">
+                        <div className="flex items-center justify-between mb-3">
+                          <img src="/cartoonix-logo.png" alt="Cartoonix" className="h-7" />
+                          <span className="text-[10px] uppercase tracking-widest text-[#ffcc00] font-bold flex items-center gap-1"><Ticket className="h-3.5 w-3.5" /> Bilet Cinema</span>
+                        </div>
+                        <p className="font-display text-2xl leading-tight">{t.movie_title}</p>
+                        <div className="border-t border-dashed border-white/15 my-3" />
+                        <div className="grid grid-cols-2 gap-y-2 text-sm">
+                          <div><p className="text-white/40 text-xs">Sala</p><p className="font-semibold">{t.hall_name}</p></div>
+                          <div><p className="text-white/40 text-xs">Data</p><p className="font-semibold">{new Date(t.date).toLocaleDateString("ro-RO", { day: "2-digit", month: "long", year: "numeric" })}</p></div>
+                          <div className="col-span-2"><p className="text-white/40 text-xs">Locul tău</p><p className="font-semibold text-[#ffcc00]">{t.seat_label}</p></div>
+                        </div>
+                        <div className="border-t border-dashed border-white/15 my-3" />
+                        <p className="font-mono tracking-widest text-white/60 text-sm">{t.code}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         </div>

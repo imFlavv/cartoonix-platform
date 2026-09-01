@@ -12,6 +12,7 @@ import { AdminChat } from "@/components/AdminChat";
 import { AdminAnnouncements } from "@/components/AdminAnnouncements";
 import { AdminShowEditor } from "@/components/AdminShowEditor";
 import { AdminRewards } from "@/components/AdminRewards";
+import { CinemaAdmin } from "@/components/CinemaAdmin";
 
 const empty = {
   title: "",
@@ -319,6 +320,9 @@ const Admin = () => {
             </TabsTrigger>
             <TabsTrigger value="rewards" data-testid="admin-tab-rewards" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
               <Gift className="h-4 w-4 mr-2" /> Recompense
+            </TabsTrigger>
+            <TabsTrigger value="cinema" data-testid="admin-tab-cinema" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
+              <Film className="h-4 w-4 mr-2" /> Cinema
             </TabsTrigger>
             <TabsTrigger value="platform" data-testid="admin-tab-platform" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
               <ServerCog className="h-4 w-4 mr-2" /> Platformă
@@ -663,6 +667,10 @@ const Admin = () => {
 
           <TabsContent value="rewards">
             <AdminRewards />
+          </TabsContent>
+
+          <TabsContent value="cinema">
+            <CinemaAdmin />
           </TabsContent>
         </Tabs>
       </div>

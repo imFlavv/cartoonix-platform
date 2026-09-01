@@ -3738,6 +3738,306 @@ async def jellyfin_register(data: JellyfinRegisterInput, user: dict = Depends(ge
     return {"ok": True, "username": email, "jellyfin_user_id": created.get("Id"), "jellyfin_url": jellyfin_url}
 
 
+# ============================================================================
+# Cartoonix Cinema — săli de difuzare cu locuri, sincronizare, lumini, chat
+# ============================================================================
+CINEMA_HALLS = [1, 2]
+CINEMA_IDLE_SECONDS = 600  # 10 min fără prezență -> locul se eliberează
+_cinema_idx_done = False
+
+
+def _now_iso():
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _now_dt():
+    return datetime.now(timezone.utc)
+
+
+def _seat_label(row: int, col: int) -> str:
+    return f"Rândul {chr(65 + row)}, Locul {col + 1}"
+
+
+def _cinema_default(hall: int) -> dict:
+    return {
+        "hall": hall,
+        "name": f"Sala {hall}",
+        "status": "open" if hall == 1 else "closed",  # closed | open | live | ended
+        "lights": "on",  # on | off
+        "movie_url": "",
+        "movie_title": "",
+        "ads": [],  # [{url, title}]
+        "rows": 8, "cols": 12, "plus_rows": 4,
+        "started_at": None,
+        "updated_at": _now_iso(),
+    }
+
+
+async def _ensure_cinema_idx():
+    global _cinema_idx_done
+    if _cinema_idx_done:
+        return
+    try:
+        await db.cinema_seats.create_index([("hall", 1), ("seat_id", 1)], unique=True)
+        await db.cinema_seats.create_index([("hall", 1), ("user_id", 1)])
+    except Exception:
+        pass
+    _cinema_idx_done = True
+
+
+async def _get_hall(hall: int) -> dict:
+    await _ensure_cinema_idx()
+    doc = await db.cinema_sessions.find_one({"hall": hall})
+    if not doc:
+        doc = _cinema_default(hall)
+        try:
+            await db.cinema_sessions.insert_one(dict(doc))
+        except Exception:
+            pass
+    return doc
+
+
+def _pub_hall(h: dict) -> dict:
+    return {k: h.get(k) for k in ("hall", "name", "status", "lights", "movie_url", "movie_title", "rows", "cols", "plus_rows", "started_at")}
+
+
+async def _cinema_cleanup(hall: int):
+    thr = (_now_dt() - timedelta(seconds=CINEMA_IDLE_SECONDS)).isoformat()
+    try:
+        await db.cinema_seats.delete_many({"hall": hall, "last_seen": {"$lt": thr}})
+    except Exception:
+        pass
+
+
+async def _cinema_donors(limit: int = 20) -> list:
+    docs = await db.users.find({"points": {"$gt": 0}, "role": {"$ne": "admin"}}).sort("points", -1).to_list(limit)
+    return [{"name": user_name(u), "avatar": user_avatar(u), "plus": user_is_plus(u), "points": int(u.get("points", 0) or 0)} for u in docs]
+
+
+@api_router.get("/cinema")
+async def cinema_list(user: dict = Depends(get_current_user)):
+    out = []
+    for hall in CINEMA_HALLS:
+        h = await _get_hall(hall)
+        await _cinema_cleanup(hall)
+        cnt = await db.cinema_seats.count_documents({"hall": hall})
+        out.append({**_pub_hall(h), "occupied": cnt, "capacity": h.get("rows", 8) * h.get("cols", 12)})
+    return {"halls": out, "is_plus": user_is_plus(user)}
+
+
+@api_router.get("/cinema/tickets")
+async def cinema_tickets(user: dict = Depends(get_current_user)):
+    docs = await db.cinema_tickets.find({"user_id": uid_of(user)}).sort("created_at", -1).to_list(50)
+    for d in docs:
+        d.pop("_id", None)
+    return docs
+
+
+@api_router.get("/cinema/{hall}")
+async def cinema_state(hall: int, user: dict = Depends(get_current_user)):
+    if hall not in CINEMA_HALLS:
+        raise HTTPException(status_code=404, detail="Sală inexistentă")
+    h = await _get_hall(hall)
+    await _cinema_cleanup(hall)
+    seats = await db.cinema_seats.find({"hall": hall}).to_list(2000)
+    my = next((s for s in seats if s.get("user_id") == uid_of(user)), None)
+    seat_map = [{"seat_id": s["seat_id"], "row": s["row"], "col": s["col"],
+                 "nickname": s.get("nickname"), "plus": s.get("plus", False),
+                 "mine": s.get("user_id") == uid_of(user)} for s in seats]
+    resp = {
+        **_pub_hall(h),
+        "seats": seat_map,
+        "my_seat": my["seat_id"] if my else None,
+        "occupied": len(seats),
+        "capacity": h.get("rows", 8) * h.get("cols", 12),
+        "is_plus": user_is_plus(user),
+    }
+    if h.get("status") == "open":
+        resp["ads"] = h.get("ads", [])
+        resp["donors"] = await _cinema_donors()
+    if h.get("status") == "live" and h.get("started_at"):
+        try:
+            resp["position_sec"] = max(0.0, (_now_dt() - datetime.fromisoformat(h["started_at"])).total_seconds())
+        except Exception:
+            resp["position_sec"] = 0.0
+    return resp
+
+
+class SeatPick(BaseModel):
+    seat_id: str
+
+
+def _parse_seat(seat_id: str):
+    m = re.match(r"^R(\d+)C(\d+)$", seat_id or "")
+    if not m:
+        return None
+    return int(m.group(1)), int(m.group(2))
+
+
+@api_router.post("/cinema/{hall}/seat")
+async def cinema_pick_seat(hall: int, body: SeatPick, user: dict = Depends(get_current_user)):
+    from pymongo.errors import DuplicateKeyError
+    if hall not in CINEMA_HALLS:
+        raise HTTPException(status_code=404, detail="Sală inexistentă")
+    h = await _get_hall(hall)
+    if h.get("status") != "open":
+        raise HTTPException(status_code=400, detail="Sala nu este deschisă pentru alegerea locurilor")
+    parsed = _parse_seat(body.seat_id)
+    if not parsed:
+        raise HTTPException(status_code=400, detail="Loc invalid")
+    row, col = parsed
+    if row < 0 or col < 0 or row >= h.get("rows", 8) or col >= h.get("cols", 12):
+        raise HTTPException(status_code=400, detail="Loc în afara sălii")
+    is_plus = user_is_plus(user)
+    if row < h.get("plus_rows", 4) and not is_plus:
+        raise HTTPException(status_code=403, detail="Acest loc este rezervat exclusiv membrilor Cartoonix PLUS")
+    await _cinema_cleanup(hall)
+    me = uid_of(user)
+    now = _now_iso()
+    old = await db.cinema_seats.find_one({"hall": hall, "user_id": me})
+    if old and old.get("seat_id") == body.seat_id:
+        await db.cinema_seats.update_one({"_id": old["_id"]}, {"$set": {"last_seen": now}})
+    else:
+        try:
+            await db.cinema_seats.insert_one({
+                "hall": hall, "seat_id": body.seat_id, "row": row, "col": col,
+                "user_id": me, "nickname": user_name(user) or "Anonim",
+                "plus": is_plus, "reserved_at": now, "last_seen": now,
+            })
+        except DuplicateKeyError:
+            raise HTTPException(status_code=409, detail="Acest loc tocmai a fost ocupat")
+        if old:
+            await db.cinema_seats.delete_one({"_id": old["_id"]})
+    # generate/refresh the souvenir ticket for today (design only)
+    today = _now_dt().strftime("%Y-%m-%d")
+    code = f"CX-{hall}-{secrets.token_hex(3).upper()}"
+    await db.cinema_tickets.update_one(
+        {"user_id": me, "hall": hall, "date": today},
+        {"$set": {"hall_name": h.get("name"), "seat_label": _seat_label(row, col),
+                  "movie_title": h.get("movie_title") or "Program special Cartoonix", "updated_at": now},
+         "$setOnInsert": {"code": code, "created_at": now}},
+        upsert=True,
+    )
+    ticket = await db.cinema_tickets.find_one({"user_id": me, "hall": hall, "date": today})
+    if ticket:
+        ticket.pop("_id", None)
+    return {"ok": True, "seat_id": body.seat_id, "ticket": ticket}
+
+
+@api_router.post("/cinema/{hall}/heartbeat")
+async def cinema_heartbeat(hall: int, user: dict = Depends(get_current_user)):
+    res = await db.cinema_seats.update_one(
+        {"hall": hall, "user_id": uid_of(user)},
+        {"$set": {"last_seen": _now_iso()}},
+    )
+    return {"ok": res.matched_count > 0}
+
+
+@api_router.post("/cinema/{hall}/leave")
+async def cinema_leave(hall: int, user: dict = Depends(get_current_user)):
+    await db.cinema_seats.delete_many({"hall": hall, "user_id": uid_of(user)})
+    return {"ok": True}
+
+
+# ---- cinema chat (izolat de chat-ul global) ----
+class CinemaChatInput(BaseModel):
+    text: str = Field(min_length=1, max_length=200)
+
+
+@api_router.get("/cinema/{hall}/chat")
+async def cinema_get_chat(hall: int, after: Optional[str] = None, user: dict = Depends(get_current_user)):
+    q = {"hall": hall}
+    if after:
+        q["created_at"] = {"$gt": after}
+    docs = await db.cinema_chat.find(q).sort("created_at", 1).to_list(200)
+    for d in docs:
+        d["id"] = str(d.pop("_id"))
+    return docs
+
+
+@api_router.post("/cinema/{hall}/chat")
+async def cinema_post_chat(hall: int, body: CinemaChatInput, user: dict = Depends(get_current_user)):
+    if hall not in CINEMA_HALLS:
+        raise HTTPException(status_code=404, detail="Sală inexistentă")
+    if user.get("role") != "admin" and user_is_muted(user):
+        raise HTTPException(status_code=403, detail="Ai fost redus la tăcere și nu poți trimite mesaje.")
+    doc = {
+        "hall": hall, "user_id": uid_of(user), "name": user_name(user) or "Anonim",
+        "avatar": user_avatar(user), "plus": user_is_plus(user), "donor": user_is_donor(user),
+        "role": user.get("role", "user"), "text": body.text.strip(), "created_at": _now_iso(),
+    }
+    oid = ObjectId()
+    doc["_id"] = oid
+    await db.cinema_chat.insert_one(doc)
+    doc["id"] = str(doc.pop("_id"))
+    return doc
+
+
+# ---- admin ----
+class CinemaAdminUpdate(BaseModel):
+    name: Optional[str] = None
+    status: Optional[str] = None       # closed | open | live | ended
+    lights: Optional[str] = None       # on | off
+    movie_url: Optional[str] = None
+    movie_title: Optional[str] = None
+    ads: Optional[list] = None
+    rows: Optional[int] = None
+    cols: Optional[int] = None
+    plus_rows: Optional[int] = None
+
+
+@api_router.get("/admin/cinema")
+async def admin_cinema_get(admin: dict = Depends(require_admin)):
+    out = []
+    for hall in CINEMA_HALLS:
+        h = await _get_hall(hall)
+        cnt = await db.cinema_seats.count_documents({"hall": hall})
+        d = dict(h)
+        d.pop("_id", None)
+        d["occupied"] = cnt
+        out.append(d)
+    return out
+
+
+@api_router.post("/admin/cinema/{hall}")
+async def admin_cinema_update(hall: int, body: CinemaAdminUpdate, admin: dict = Depends(require_admin)):
+    if hall not in CINEMA_HALLS:
+        raise HTTPException(status_code=404, detail="Sală inexistentă")
+    h = await _get_hall(hall)
+    upd = {"updated_at": _now_iso()}
+    for f in ("name", "movie_url", "movie_title"):
+        v = getattr(body, f)
+        if v is not None:
+            upd[f] = v
+    if body.lights in ("on", "off"):
+        upd["lights"] = body.lights
+    if body.ads is not None:
+        upd["ads"] = [{"url": str(a.get("url", "")).strip(), "title": str(a.get("title", "")).strip()}
+                      for a in body.ads if isinstance(a, dict) and str(a.get("url", "")).strip()]
+    for f in ("rows", "cols", "plus_rows"):
+        v = getattr(body, f)
+        if v is not None and int(v) >= 0:
+            upd[f] = int(v)
+    if body.status in ("closed", "open", "live", "ended"):
+        upd["status"] = body.status
+        if body.status == "live" and not h.get("started_at"):
+            upd["started_at"] = _now_iso()
+        if body.status == "open":
+            upd["started_at"] = None
+    await db.cinema_sessions.update_one({"hall": hall}, {"$set": upd})
+    h2 = await _get_hall(hall)
+    d = dict(h2)
+    d.pop("_id", None)
+    return d
+
+
+@api_router.post("/admin/cinema/{hall}/clear-seats")
+async def admin_cinema_clear(hall: int, admin: dict = Depends(require_admin)):
+    res = await db.cinema_seats.delete_many({"hall": hall})
+    return {"ok": True, "removed": res.deleted_count}
+
+
+
 app.include_router(api_router)
 
 app.add_middleware(
