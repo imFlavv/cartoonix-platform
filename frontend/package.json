@@ -68,7 +68,12 @@
   "browserslist": {
     "production": [
       ">0.2%",
-      "not dead",
+      "last 4 versions",
+      "Firefox ESR",
+      "Chrome >= 53",
+      "Safari >= 10",
+      "iOS >= 10",
+      "Samsung >= 4",
       "not op_mini all"
     ],
     "development": [

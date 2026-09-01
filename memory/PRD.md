@@ -175,6 +175,24 @@ UI language: Romanian only.
 - Badge DONATOR înlocuit cu unul ANIMAT: `/badge-donator.gif` (sac de bani cu $, hover-shake, 85KB) în locul
   vechiului `/badge-donator.png`, aceeași dimensiune (h-3.5 w-3.5) în ChatRoom.jsx.
 
+## Recent changes (2026-06, compatibilitate Smart TV)
+- Scop: platforma să meargă și în browserele integrate ale TV-urilor (unde apărea pagină neagră sau video negru).
+- `ErrorBoundary` nou (`components/ErrorBoundary.jsx`) care prinde erorile JS și afișează un mesaj + buton
+  „Reîncarcă" în loc de ecran alb/negru; montat în `index.js` în jurul `<App/>`.
+- Watchdog de boot în `public/index.html`: un loader vizibil în `#root` + script (ES5) care, dacă
+  `window.__CARTOONIX_READY__` nu e setat (bundle-ul nu rulează pe un browser TV vechi) sau apare o eroare de
+  script, afișează un mesaj clar „Browser incompatibil" cu recomandări. `index.js` setează
+  `window.__CARTOONIX_READY__=true` după render. Verificat: pe browser modern app-ul montează, watchdog-ul NU
+  se declanșează.
+- `browserslist.production` lărgit: `Chrome >= 53, Safari >= 10, iOS >= 10, Samsung >= 4` (fără `not dead`), ca
+  build-ul de PRODUCȚIE (deploy) să fie transpilat compatibil cu browsere de TV mai vechi. NOTĂ: are efect doar
+  după DEPLOY, nu în preview (dev folosește lista `development`).
+- Player video `Watch.jsx`: adăugat `playsInline` + `preload="metadata"` + `key` pe src + overlay `onError`
+  (`data-testid=video-error`) care explică „format neacceptat (posibil H.265/HEVC)" în loc de ecran negru mut.
+  `Live.jsx` și `WatchParty.jsx` aveau deja `playsInline`/`onError`.
+- Cauza reală a ecranului negru la video rămâne codec-ul legacy (H.265/mp4v) — soluția definitivă e reconversia
+  la H.264 (comanda ffmpeg a userului). Overlay-ul doar comunică clar problema.
+
 ## Credentials
 See `/app/memory/test_credentials.md` (admin@cartoonix.ro).
 

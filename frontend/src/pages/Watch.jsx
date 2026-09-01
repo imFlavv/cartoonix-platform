@@ -21,6 +21,7 @@ const Watch = () => {
   const [autoplay, setAutoplay] = useState(true);
   const [progress, setProgress] = useState({});
   const [queue, setQueueState] = useState(null);
+  const [videoError, setVideoError] = useState(false);
   const epNumber = parseInt(ep, 10);
   const videoRef = useRef(null);
   const resumeRef = useRef(0);
@@ -187,18 +188,34 @@ const Watch = () => {
             </button>
           </div>
         ) : (
-          <video
-            ref={videoRef}
-            data-testid="video-player"
-            src={resolveVideoUrl(episode?.video_url)}
-            controls
-            autoPlay
-            onLoadedMetadata={onLoadedMeta}
-            onTimeUpdate={onTimeUpdate}
-            onEnded={onEnded}
-            onPause={() => saveProgress(false)}
-            className="w-full aspect-video rounded-xl bg-black shadow-[0_0_60px_rgba(236,28,36,0.15)]"
-          />
+          <div className="relative w-full aspect-video">
+            <video
+              ref={videoRef}
+              data-testid="video-player"
+              key={resolveVideoUrl(episode?.video_url)}
+              src={resolveVideoUrl(episode?.video_url)}
+              controls
+              autoPlay
+              playsInline
+              preload="metadata"
+              onLoadedMetadata={(e) => { setVideoError(false); onLoadedMeta(e); }}
+              onTimeUpdate={onTimeUpdate}
+              onEnded={onEnded}
+              onError={() => setVideoError(true)}
+              onPause={() => saveProgress(false)}
+              className="w-full h-full rounded-xl bg-black shadow-[0_0_60px_rgba(236,28,36,0.15)]"
+            />
+            {videoError && (
+              <div data-testid="video-error" className="absolute inset-0 rounded-xl bg-black/95 flex flex-col items-center justify-center text-center px-6 border border-white/10">
+                <X className="h-12 w-12 text-[#ec1c24] mb-3" />
+                <h3 className="font-display text-2xl mb-2">Episodul nu poate fi redat aici</h3>
+                <p className="text-white/60 max-w-md text-sm">
+                  Acest dispozitiv nu acceptă formatul video al episodului (posibil codec H.265/HEVC).
+                  Încearcă de pe alt dispozitiv sau un browser modern. Am anunțat echipa să reconverteze episodul.
+                </p>
+              </div>
+            )}
+          </div>
         )}
 
         <div className="flex flex-wrap items-center justify-between gap-4 mt-6">
