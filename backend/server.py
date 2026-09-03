@@ -266,6 +266,7 @@ def sanitize_chat_style(style: Optional[dict]) -> dict:
 PREMIUM_AVATARS = {
     "/avatars/plus-goku-bg.gif",
     "/avatars/plus-scarecrow-bg.gif",
+    "/avatars/plus-cat-bg.gif",
 }
 
 

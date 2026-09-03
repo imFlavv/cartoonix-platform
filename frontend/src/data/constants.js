@@ -28,6 +28,7 @@ export const AVATAR_SEEDS = [
 export const PREMIUM_AVATARS = [
   "/avatars/plus-goku-bg.gif",
   "/avatars/plus-scarecrow-bg.gif",
+  "/avatars/plus-cat-bg.gif",
 ];
 
 export const CHANNELS = ["Cartoon Network", "Jetix", "Minimax", "Boomerang"];
