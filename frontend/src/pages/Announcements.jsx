@@ -64,7 +64,7 @@ const Announcements = () => {
                         )}
                       </div>
                       <h2 className="font-display text-lg md:text-2xl leading-tight mt-1 tracking-wide truncate">{n.title}</h2>
-                      <p className="text-sm text-white/55 mt-1 line-clamp-2 hidden sm:block">{n.body}</p>
+                      <p className="text-sm text-white/55 mt-1 line-clamp-1">{n.body}</p>
                       <p className="text-xs text-white/45 mt-1.5">{fmtDate(n.created_at)} · {fmtTime(n.created_at)}</p>
                     </div>
                     <ChevronRight className="h-6 w-6 text-white/30 group-hover:text-white/70 group-hover:translate-x-0.5 transition-all shrink-0" />
