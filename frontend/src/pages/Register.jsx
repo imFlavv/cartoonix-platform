@@ -91,7 +91,8 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen relative flex items-center justify-center px-4 py-10 overflow-hidden bg-[#0a0a0a]">
+    <div className="min-h-screen relative flex items-center justify-center px-4 py-10 overflow-hidden bg-[#0a0a0a] bg-cover bg-center" style={{ backgroundImage: "url('/auth-bg.webp')" }}>
+      <div className="absolute inset-0 bg-black/55" />
       <div className="absolute inset-0 opacity-30" style={{
         background: "radial-gradient(circle at 70% 20%, rgba(255,204,0,0.3), transparent 55%), radial-gradient(circle at 20% 80%, rgba(236,28,36,0.35), transparent 55%)",
       }} />
