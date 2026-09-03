@@ -1,0 +1,56 @@
+{
+  "summary": "Tested the redesigned Anunțuri feature end-to-end. Backend: created /app/backend/tests/test_announcements.py (13 tests) covering GET /api/notifications (auth + exactly 3 seeded broadcasts, categories, ordering, no _id leak), GET/POST/DELETE /api/admin/announcements, 403 for non-admins, validation and error cases — all 13 pass after one fix. Found and fixed a CRITICAL 500 on POST /api/admin/announcements (ObjectId leak). Frontend: verified list page (3 cards, badges, dates, NOU, sidebar 'Anunțuri de top' + 'Sfatul zilei'), detail page for the autumn update (hero, Update badge, date/time, Echipa Cartoonix + verified badge, full body sections, no PLUS benefits grid), 'Sistem' badge on security announcement, share buttons, 'Alte anunțuri' navigation, detail-back/ann-back, invalid-id fallback, and Admin → Anunțuri publish/delete round-trip (item appeared on public list, then deleted). DB left with exactly the original 3 announcements.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/admin/announcements", "issue": "FIXED BY TESTER: returned 500 (ValueError: 'ObjectId' object is not iterable) on every call because motor's insert_one mutates `doc` adding `_id` (ObjectId) which was then spread into the JSON response. The announcement WAS still inserted, so each failed admin publish silently created a record while showing an error toast. Fixed by excluding `_id` from the response dict (server.py:2076). Admin publish now works in UI + API.", "priority": "CRITICAL"}
+    ],
+    "minor": [
+      {"endpoint": "/api/auth/register (old tests)", "issue": "Pre-existing: /app/backend/tests/backend_test.py and test_cinema.py are stale (register is now /auth/register/start + /verify, and it hardcodes the old admin password 'Cartoonix2026!'). 10 failed / 7 errors there are unrelated to announcements."},
+      {"endpoint": "CORS / auth hardening", "issue": "Pre-existing architecture notes from playbook checklist: CORS_ORIGINS='*' combined with allow_credentials=True (browsers reject credentialed wildcard); auth uses JWT bearer token in JSON (no httpOnly cookie); no brute-force lockout on /api/auth/login (failed attempts are not counted). bcrypt hashes verified correct ($2b$12$)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Announcements list (mobile)", "issue": "Horizontal overflow at 390px: each announcement card is 413px wide inside a 390px viewport (document.scrollWidth=429), so the right part of the card (chevron area) is clipped/scrolls off-screen. Needs min-w-0 / w-full fix on the card's inner flex row.", "selector": "[data-testid=\"announcement\"]", "priority": "MEDIUM"},
+      {"component": "Announcements list (mobile)", "issue": "Date/time and the 'NOU' badge are hidden below the sm breakpoint (`hidden sm:flex`), so mobile users see no publish date although the mockup shows it.", "selector": "[data-testid=\"announcement\"]", "priority": "LOW"},
+      {"component": "AdminAnnouncements list", "issue": "Category badge in 'Anunțuri publicate' is always purple and shows the raw lowercase key ('update', 'sistem') instead of the category label/color used on the public pages. Also delete acts immediately with no confirmation dialog.", "selector": "[data-testid=\"admin-ann-item\"]", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Detail → share → copy link", "issue": "Clicking share-copy produced no 'Link copiat!' toast in the automated browser (navigator.clipboard blocked without permission in headless). Likely environment-only; consider a document.execCommand fallback so the copy works in restricted contexts.", "affected_selectors": ["[data-testid=\"share-copy\"]"]}
+    ],
+    "design_issues": [
+      {"screen": "Announcement detail", "issues": ["Long titles with emoji wrap over two lines and slightly crowd the hero on mobile (cosmetic only)", "React console warning repeated on several pages: 'An empty string (\"\") was passed to the src attribute' — an <img src=\"\"> is rendered somewhere (causes a full page re-download)"]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_announcements.py",
+    "/app/backend/tests/cleanup_test_announcements.py",
+    "/app/test_reports/pytest/announcements.xml",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Review the tester-applied fix at server.py:2076 (exclude `_id` from POST /api/admin/announcements response) and audit other endpoints that spread a dict after insert_one (same ObjectId-leak pattern).",
+    "Fix mobile horizontal overflow of [data-testid=\"announcement\"] cards (413px wide at 390px viewport).",
+    "Show date (and optionally NOU badge) on mobile in the announcements list.",
+    "Use per-category label/colour for the badge in AdminAnnouncements published list and add a delete confirmation.",
+    "Find and remove the <img src=\"\"> causing the repeated React empty-src console warning.",
+    "Optional: refresh stale /app/backend/tests/backend_test.py + test_cinema.py (old admin password, removed /auth/register)."
+  ],
+  "critical_code_review_comments": [
+    "server.py admin_create_announcement: motor mutates the inserted dict in place — never spread the post-insert doc into a response without stripping `_id` (root cause of the 500).",
+    "DELETE returns 404/400 correctly, but there was no test coverage for the create path before; test_announcements.py now guards it.",
+    "AnnouncementDetail.jsx renders `<img src={LOGO_TRANSPARENT}>`-style images; ensure no image src can be an empty string (React warning observed)."
+  ],
+  "updated_files": [
+    "/app/backend/server.py (line 2076: exclude `_id` from announcement create response)",
+    "/app/backend/tests/test_announcements.py (new)",
+    "/app/backend/tests/cleanup_test_announcements.py (new helper)"
+  ],
+  "success_rate": {"backend": "100% (13/13 announcement tests after the ObjectId fix)", "frontend": "95% (all flows pass; mobile overflow + clipboard toast issues)"},
+  "seed_data_creation": "Temporary announcements TEST_Anunt QA / TEST_cat / TEST_del_guard / TEST_QA UI Anunt were created and all deleted. DB verified: exactly 3 broadcast announcements remain (Update de toamnă Cartoonix 🍂, Secțiunea Live TV – în BETA!, Îmbunătățiri de securitate).",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "admin@cartoonix.ro / admin1234 (admin), test@cartoonix.ro / test1234 (free user) — from /app/memory/test_credentials.md, unchanged",
+  "context_for_next_testing_agent": "Announcements backend suite: /app/backend/tests/test_announcements.py — run with `pytest tests/test_announcements.py -n 0` (xdist parallelism causes cross-test interference on the shared announcement count assertions). Use /app/backend/tests/cleanup_test_announcements.py to purge leftover TEST_* announcements. Login flow for UI: go to /login (root page shows a 'Conectează-te' gate, not the form), fill login-email/login-password, click login-submit → lands on /home. Splash takes ~3s. Remaining known open items are frontend-only: mobile card overflow, hidden mobile date, admin badge styling, empty img src warning.",
+  "rca_of_the_issue": "POST /api/admin/announcements built `doc`, called `await db.notifications.insert_one(doc)` and returned `{**doc}` filtering only 'user_id'. Motor/PyMongo injects the generated `_id` (bson ObjectId) into `doc` in place, so the response contained a non-JSON-serialisable ObjectId → FastAPI serialisation ValueError → HTTP 500 while the document was already persisted. Reproduction: admin POST any announcement → 500 but item appears in GET /api/admin/announcements. Mitigation applied: exclude both 'user_id' and '_id' from the response payload; verified via test_create_appears_in_list_and_notifications_then_delete and the Admin UI publish/delete round-trip."
+}

@@ -3,6 +3,7 @@
 Romanian nostalgic cartoon streaming platform. React (CRA/craco + Tailwind) frontend, FastAPI + MongoDB (Motor) backend. UI/UX entirely in Romanian.
 
 ## Core features (built)
+- **Announcements redesign** — NEW (Jun 2026): `/lobby/announcements` list (category badges Noutate/Eveniment/Update/Sistem/Concurs, colored icon thumbnails, date/time, NOU badge, "Anunțuri de top" + "Sfatul zilei" sidebar) and detail page `/lobby/announcements/:id` (hero card, author "Echipa Cartoonix" + verified, full body, PLUS benefits grid only when cta_link has 'plus', share buttons, "Alte anunțuri", "Ai întrebări?"). Admin publishes/deletes via Admin → Anunțuri (`POST/GET/DELETE /api/admin/announcements`). Broadcast announcements stored in `db.notifications` with `user_id=None` + `category`. Helper: `data/announcementCategories.js`.
 - Auth: JWT (Bearer token in localStorage `cx_token`), bcrypt hashing, OTP email verification on register via Brevo, admin seeding.
 - **Password reset (forgot password)** — NEW (Jun 2026): `/login` has "Ai uitat parola?" → email input → Brevo reset link (from no-reply@cartoonix.ro) → `/reset-password?token=` page to set new password. Secure token: `secrets.token_urlsafe`, sha256-hashed in `password_reset_tokens`, 45 min expiry, single-use, anti-enumeration.
 - WatchParty, Live TV (`/live`), synchronized Cinema (`/cinema`, 2 halls, seat map, polling sync, admin controls), Lobby chat with donor badges.

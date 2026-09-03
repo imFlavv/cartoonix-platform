@@ -2034,6 +2034,60 @@ async def read_all_notifications(user: dict = Depends(get_current_user)):
     return {"ok": True}
 
 
+# ---------- admin: announcements (broadcast) ----------
+ANN_CATEGORIES = {"noutate", "eveniment", "update", "sistem", "concurs"}
+
+
+class AnnouncementCreate(BaseModel):
+    title: str = Field(min_length=1, max_length=200)
+    body: str = Field(default="", max_length=5000)
+    category: str = "noutate"
+    image: Optional[str] = ""
+    cta_label: Optional[str] = ""
+    cta_link: Optional[str] = ""
+
+
+@api_router.get("/admin/announcements")
+async def admin_list_announcements(admin: dict = Depends(require_admin)):
+    notifs = await db.notifications.find({"user_id": None}).sort("created_at", -1).to_list(200)
+    items = []
+    for n in notifs:
+        n["id"] = str(n.pop("_id"))
+        items.append(n)
+    return {"items": items}
+
+
+@api_router.post("/admin/announcements")
+async def admin_create_announcement(data: AnnouncementCreate, admin: dict = Depends(require_admin)):
+    cat = (data.category or "noutate").strip().lower()
+    if cat not in ANN_CATEGORIES:
+        cat = "noutate"
+    doc = {
+        "title": data.title.strip(),
+        "body": (data.body or "").strip(),
+        "category": cat,
+        "image": (data.image or "").strip(),
+        "cta_label": (data.cta_label or "").strip(),
+        "cta_link": (data.cta_link or "").strip(),
+        "user_id": None,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    res = await db.notifications.insert_one(doc)
+    return {"id": str(res.inserted_id), **{k: v for k, v in doc.items() if k not in ("user_id", "_id")}}
+
+
+@api_router.delete("/admin/announcements/{ann_id}")
+async def admin_delete_announcement(ann_id: str, admin: dict = Depends(require_admin)):
+    try:
+        oid = ObjectId(ann_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="ID invalid")
+    res = await db.notifications.delete_one({"_id": oid, "user_id": None})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Anunțul nu a fost găsit")
+    return {"ok": True}
+
+
 # ---------- chat ----------
 class ChatInput(BaseModel):
     text: str = Field(min_length=1, max_length=120)
@@ -4426,27 +4480,43 @@ async def startup():
         base = datetime.now(timezone.utc)
         seed_notifs = [
             {
-                "title": "🎉 Bine ai venit la Cartoonix!",
-                "body": "Ne bucurăm să te avem alături. Explorează biblioteca cu desenele copilăriei de pe Cartoon Network, Jetix, Minimax și Boomerang.",
-                "image": "https://static.prod-images.emergentagent.com/jobs/d62dd950-d3ee-4e8f-8661-5ce4364784fd/images/76a50c88ba7bd95171c0c4c5440190a2abc123034b77e4425ef587d9926b54eb.png",
-                "cta_label": "Explorează",
-                "cta_link": "/browse",
+                "title": "Cartoonix PLUS – beneficii noi!",
+                "body": "Descoperă noile beneficii exclusive pentru abonații PLUS: fără reclame, acces la secțiuni speciale și multe altele!\n\nSuntem încântați să vă prezentăm noile beneficii disponibile pentru abonații Cartoonix PLUS!\nAm lucrat la îmbunătățirea experienței voastre și am adăugat funcționalități noi, gândite special pentru comunitatea noastră.",
+                "category": "noutate",
+                "cta_label": "Abonează-te acum",
+                "cta_link": "/plus",
+                "created_at": base.isoformat(),
+            },
+            {
+                "title": "Eveniment de Halloween",
+                "body": "Pregătim un eveniment special de Halloween cu premii și surprize! Stai aproape pentru mai multe detalii.",
+                "category": "eveniment",
+                "cta_label": "",
+                "cta_link": "",
                 "created_at": (base - timedelta(days=1)).isoformat(),
             },
             {
-                "title": "👑 Cartoonix PLUS a sosit!",
-                "body": "Deblochează toate episoadele, streaming fără reclame și descărcări offline. Doar 50 RON pe lună.",
-                "image": "https://static.prod-images.emergentagent.com/jobs/d62dd950-d3ee-4e8f-8661-5ce4364784fd/images/6d006af20ec32c576faf383647d597debe0d1e656fdb19e5bca194cd553c4d6c.png",
-                "cta_label": "Vezi PLUS",
-                "cta_link": "/plus",
-                "created_at": (base - timedelta(days=3)).isoformat(),
+                "title": "Secțiunea Live TV – în BETA!",
+                "body": "Funcția Live TV este acum disponibilă în versiune BETA pentru abonații PLUS. Testează și oferă-ne feedback!",
+                "category": "update",
+                "cta_label": "Vezi Live TV",
+                "cta_link": "/live",
+                "created_at": (base - timedelta(days=2)).isoformat(),
             },
             {
-                "title": "🆕 Desene noi adăugate",
-                "body": "Am adăugat noi seriale clasice în bibliotecă. Verifică secțiunea Ultimele Adăugate!",
-                "image": "https://static.prod-images.emergentagent.com/jobs/d62dd950-d3ee-4e8f-8661-5ce4364784fd/images/c27c5f671b01b6977313ed30d737c72110b691f93df2bdc01c7809a7d247ed7f.png",
-                "cta_label": "Vezi noutățile",
-                "cta_link": "/home",
+                "title": "Îmbunătățiri de securitate",
+                "body": "Am implementat noi măsuri de securitate pentru a-ți proteja contul și datele personale.",
+                "category": "sistem",
+                "cta_label": "",
+                "cta_link": "",
+                "created_at": (base - timedelta(days=4)).isoformat(),
+            },
+            {
+                "title": "Concurs: cele mai frumoase amintiri",
+                "body": "Participă la concursul nostru și poți câștiga premii uimitoare! Află mai multe în secțiunea dedicată.",
+                "category": "concurs",
+                "cta_label": "Participă",
+                "cta_link": "/lobby",
                 "created_at": (base - timedelta(days=5)).isoformat(),
             },
         ]
