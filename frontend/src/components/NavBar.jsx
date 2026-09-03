@@ -265,7 +265,7 @@ export const NavBar = () => {
                 data-testid="nav-points-pill"
                 onClick={() => navigate("/profile")}
                 title="Punctele mele"
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-[#ffcc00]/10 border border-[#ffcc00]/30 text-[#ffcc00] text-sm font-bold hover:bg-[#ffcc00]/20 transition-colors duration-200"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[9px] bg-[#ffcc00]/10 text-[#ffcc00] text-sm font-bold hover:bg-[#ffcc00]/20 transition-colors duration-200"
               >
                 <Coins className="h-4 w-4" />
                 <span data-testid="nav-points-value">{user.points ?? 0}</span>
