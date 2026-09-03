@@ -82,6 +82,7 @@ BREVO_API_KEY = os.environ.get("BREVO_API_KEY", "")
 BREVO_SENDER_EMAIL = os.environ.get("BREVO_SENDER_EMAIL", "")
 BREVO_SENDER_NAME = os.environ.get("BREVO_SENDER_NAME", "Cartoonix")
 OTP_TTL_MINUTES = int(os.environ.get("OTP_TTL_MINUTES", "10"))
+RESET_TTL_MINUTES = int(os.environ.get("RESET_TTL_MINUTES", "45"))
 OTP_RESEND_COOLDOWN_SECONDS = 60
 OTP_MAX_ATTEMPTS = 5
 
@@ -416,7 +417,38 @@ async def send_otp_email(to_email: str, name: str, code: str):
         r.raise_for_status()
 
 
-# ---------- auth routes ----------
+async def send_reset_email(to_email: str, name: str, link: str):
+    if not BREVO_API_KEY or not BREVO_SENDER_EMAIL:
+        raise RuntimeError("Brevo nu este configurat")
+    display_name = (name or "").strip() or "acolo"
+    html = f"""
+    <div style="font-family:Arial,Helvetica,sans-serif;background:#0a0a0a;padding:32px;color:#ffffff;">
+      <div style="max-width:480px;margin:0 auto;background:#141414;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:32px;">
+        <h1 style="color:#ffcc00;margin:0 0 8px;font-size:24px;">Cartoonix</h1>
+        <p style="color:#cccccc;margin:0 0 24px;">Salut, {display_name}! Ai cerut resetarea parolei pentru contul tău Cartoonix. Apasă butonul de mai jos pentru a-ți seta o parolă nouă:</p>
+        <div style="text-align:center;margin:0 0 24px;">
+          <a href="{link}" style="display:inline-block;background:#ec1c24;color:#ffffff;text-decoration:none;font-weight:800;padding:14px 28px;border-radius:12px;font-size:16px;">Resetează parola</a>
+        </div>
+        <p style="color:#888888;margin:0 0 8px;font-size:13px;">Sau copiază acest link în browser:</p>
+        <p style="color:#ffcc00;margin:0 0 24px;font-size:12px;word-break:break-all;">{link}</p>
+        <p style="color:#888888;margin:0;font-size:13px;">Linkul expiră în {RESET_TTL_MINUTES} de minute. Dacă nu ai cerut resetarea parolei, ignoră acest email — parola ta rămâne neschimbată.</p>
+      </div>
+    </div>
+    """
+    payload = {
+        "sender": {"name": BREVO_SENDER_NAME, "email": BREVO_SENDER_EMAIL},
+        "to": [{"email": to_email}],
+        "subject": "Resetare parolă Cartoonix",
+        "htmlContent": html,
+    }
+    headers = {
+        "api-key": BREVO_API_KEY,
+        "accept": "application/json",
+        "content-type": "application/json",
+    }
+    async with httpx.AsyncClient(timeout=20) as http_client:
+        r = await http_client.post("https://api.brevo.com/v3/smtp/email", json=payload, headers=headers)
+        r.raise_for_status()
 @api_router.post("/auth/register/start")
 async def register_start(data: RegisterStartInput, request: Request):
     email = data.email.lower()
@@ -640,6 +672,75 @@ async def change_password(data: ChangePasswordInput, user: dict = Depends(get_cu
         {"$set": {"password_hash": hash_password(data.new_password)}},
     )
     return {"ok": True}
+
+
+# ---------- password reset (forgot password) ----------
+class ForgotPasswordInput(BaseModel):
+    email: str = Field(min_length=3, max_length=200)
+
+
+class ResetPasswordInput(BaseModel):
+    token: str = Field(min_length=10, max_length=200)
+    new_password: str = Field(min_length=6, max_length=200)
+
+
+def _hash_reset_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+@api_router.post("/auth/forgot-password")
+async def forgot_password(data: ForgotPasswordInput, request: Request):
+    email = data.email.strip().lower()
+    generic = {"ok": True, "message": "Dacă există un cont cu acest email, vei primi un link de resetare."}
+    user = await db.users.find_one({"email": email})
+    if not user:
+        return generic  # anti-enumeration: don't reveal whether the email exists
+    now = datetime.now(timezone.utc)
+    token = secrets.token_urlsafe(32)
+    await db.password_reset_tokens.delete_many({"user_id": uid_of(user)})
+    await db.password_reset_tokens.insert_one({
+        "user_id": uid_of(user),
+        "email": email,
+        "token_hash": _hash_reset_token(token),
+        "expires_at": (now + timedelta(minutes=RESET_TTL_MINUTES)).isoformat(),
+        "used": False,
+        "created_at": now.isoformat(),
+    })
+    origin = (request.headers.get("origin") or "").rstrip("/")
+    if not origin:
+        ref = request.headers.get("referer") or ""
+        if ref:
+            from urllib.parse import urlparse
+            p = urlparse(ref)
+            origin = f"{p.scheme}://{p.netloc}"
+    base = origin or os.environ.get("PUBLIC_APP_URL", "https://cartoonix.ro").rstrip("/")
+    link = f"{base}/reset-password?token={token}"
+    try:
+        await send_reset_email(email, user_name(user), link)
+    except Exception as e:
+        logging.getLogger(__name__).error(f"Reset email failed: {e}")
+    return generic
+
+
+@api_router.post("/auth/reset-password")
+async def reset_password(data: ResetPasswordInput):
+    record = await db.password_reset_tokens.find_one({"token_hash": _hash_reset_token(data.token)})
+    if not record or record.get("used"):
+        raise HTTPException(status_code=400, detail="Link invalid sau deja folosit. Cere unul nou.")
+    try:
+        expires = datetime.fromisoformat(record["expires_at"])
+        if expires.tzinfo is None:
+            expires = expires.replace(tzinfo=timezone.utc)
+    except Exception:
+        expires = datetime.now(timezone.utc) - timedelta(seconds=1)
+    if datetime.now(timezone.utc) > expires:
+        raise HTTPException(status_code=400, detail="Linkul de resetare a expirat. Cere unul nou.")
+    user = await db.users.find_one({"email": record["email"]})
+    if not user:
+        raise HTTPException(status_code=400, detail="Contul nu a fost găsit.")
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {"password_hash": hash_password(data.new_password)}})
+    await db.password_reset_tokens.update_one({"_id": record["_id"]}, {"$set": {"used": True, "used_at": datetime.now(timezone.utc).isoformat()}})
+    return {"ok": True, "message": "Parola a fost schimbată. Te poți conecta acum."}
 
 
 class ChatStyleInput(BaseModel):

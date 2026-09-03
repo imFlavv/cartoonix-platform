@@ -15,6 +15,7 @@ import Home from "@/pages/Home";
 import Browse from "@/pages/Browse";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
+import ResetPassword from "@/pages/ResetPassword";
 import ShowDetail from "@/pages/ShowDetail";
 import Watch from "@/pages/Watch";
 import Plus from "@/pages/Plus";
@@ -90,6 +91,7 @@ function App() {
             <Route path="/browse" element={<Browse />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/plus" element={<Plus />} />
             <Route path="/payment/success" element={<PaymentSuccess />} />
             <Route path="/payment/cancel" element={<PaymentCancel />} />
