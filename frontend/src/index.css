@@ -460,3 +460,10 @@ body.cx-no-avatar-frames .cx-premium-ring::before {
 }
 
 .cx-txt-sparkle { animation: cx-txt-sparkle 2.4s ease-in-out infinite; }
+
+
+@media print {
+  body * { visibility: hidden !important; }
+  #invoice-print, #invoice-print * { visibility: visible !important; }
+  #invoice-print { position: absolute; left: 0; top: 0; width: 100%; padding: 24px !important; }
+}

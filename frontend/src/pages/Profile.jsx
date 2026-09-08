@@ -7,7 +7,7 @@ import { api } from "@/lib/api";
 import { setQueue } from "@/lib/queue";
 import { AVATAR_SEEDS, PREMIUM_AVATARS } from "@/data/constants";
 import { PlusIcon } from "@/components/PlusIcon";
-import { Check, Play, Heart, Trash2, ListMusic, Film, Clock, Lock, KeyRound, Eye, EyeOff, User, Gift, PlayCircle, Coins, Ticket } from "lucide-react";
+import { Check, Play, Heart, Trash2, ListMusic, Film, Clock, Lock, KeyRound, Eye, EyeOff, User, Gift, PlayCircle, Coins, Ticket, FileText, Building2, Download } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 
@@ -46,11 +46,14 @@ const Profile = () => {
   const [busy, setBusy] = useState(false);
   const [wallet, setWallet] = useState({ points: user?.points ?? 0, history: [] });
   const [tickets, setTickets] = useState([]);
+  const [invoiceData, setInvoiceData] = useState(null);
+  const [openInvoice, setOpenInvoice] = useState(null);
 
   useEffect(() => {
     refreshUser().catch(() => {});
     api.get("/points/me").then((res) => setWallet(res.data)).catch(() => {});
     api.get("/cinema/tickets").then((res) => setTickets(res.data || [])).catch(() => {});
+    api.get("/invoices").then((res) => setInvoiceData(res.data)).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -194,6 +197,9 @@ const Profile = () => {
               </TabsTrigger>
               <TabsTrigger value="cinema" data-testid="tab-cinema" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
                 <Ticket className="h-4 w-4 mr-2" /> Bilete
+              </TabsTrigger>
+              <TabsTrigger value="invoices" data-testid="tab-invoices" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
+                <FileText className="h-4 w-4 mr-2" /> Facturi
               </TabsTrigger>
             </TabsList>
 
@@ -497,9 +503,117 @@ const Profile = () => {
                 </div>
               )}
             </TabsContent>
+
+            <TabsContent value="invoices" className="mt-6" data-testid="invoices-content">
+              {!invoiceData || invoiceData.invoices.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <div className="w-20 h-20 rounded-full bg-[#ffcc00]/15 border border-[#ffcc00]/40 flex items-center justify-center mb-5">
+                    <FileText className="h-9 w-9 text-[#ffcc00]" />
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">Nicio factură încă</h3>
+                  <p className="text-white/50 max-w-sm">
+                    Facturile pentru achizițiile tale (de ex. <b>Cartoonix PLUS</b>) vor apărea aici, gata de vizualizat și descărcat.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {invoiceData.invoices.map((inv) => (
+                    <div key={inv.id} data-testid="invoice-row" className="flex items-center gap-4 p-4 rounded-2xl bg-[#141414] border border-white/10 hover:border-white/25 transition-colors">
+                      <span className="grid place-items-center h-12 w-12 rounded-xl bg-[#ffcc00]/15 text-[#ffcc00] shrink-0">
+                        <FileText className="h-6 w-6" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-bold truncate">{inv.number}</p>
+                        <p className="text-sm text-white/50 truncate">{inv.product} · {new Date(inv.date).toLocaleDateString("ro-RO", { day: "2-digit", month: "long", year: "numeric" })}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="font-bold">{inv.amount.toFixed(2)} {inv.currency}</p>
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-[#22c55e]">{inv.status}</span>
+                      </div>
+                      <button data-testid="invoice-view" onClick={() => setOpenInvoice(inv)} className="px-4 py-2 rounded-lg bg-[#ec1c24] text-white text-sm font-bold hover:bg-[#ff2d36] transition-colors shrink-0">
+                        Vezi factura
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
           </Tabs>
         </div>
       </div>
+
+      {/* Invoice viewer modal */}
+      {openInvoice && invoiceData && (
+        <div className="fixed inset-0 z-[80] flex items-start md:items-center justify-center p-4 bg-black/70 backdrop-blur-sm overflow-y-auto" data-testid="invoice-modal" onClick={() => setOpenInvoice(null)}>
+          <div className="relative w-full max-w-2xl my-8 bg-white text-[#111] rounded-2xl shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <button data-testid="invoice-close" onClick={() => setOpenInvoice(null)} className="absolute top-3 right-3 h-8 w-8 grid place-items-center rounded-full bg-black/5 hover:bg-black/10 text-[#111] print:hidden">✕</button>
+            <div id="invoice-print" className="p-8 md:p-10">
+              <div className="flex items-start justify-between gap-4 mb-8">
+                <div>
+                  <img src="/cartoonix-logo.png" alt="Cartoonix" className="h-9 mb-2" />
+                  <p className="text-xs text-gray-500">cartoonix.ro</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-2xl font-extrabold tracking-tight">FACTURĂ</p>
+                  <p className="text-sm text-gray-600">Seria {openInvoice.number}</p>
+                  <p className="text-sm text-gray-600">Data: {new Date(openInvoice.date).toLocaleDateString("ro-RO", { day: "2-digit", month: "long", year: "numeric" })}</p>
+                </div>
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-6 mb-8">
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1 flex items-center gap-1"><Building2 className="h-3.5 w-3.5" /> Furnizor</p>
+                  <p className="font-bold">{invoiceData.seller.name}</p>
+                  <p className="text-sm text-gray-600">CUI: {invoiceData.seller.cui}</p>
+                  <p className="text-sm text-gray-600">Nr. Reg. Com.: {invoiceData.seller.reg_com}</p>
+                  <p className="text-sm text-gray-600">{invoiceData.seller.county}, {invoiceData.seller.city}</p>
+                  <p className="text-sm text-gray-600">{invoiceData.seller.address}</p>
+                </div>
+                <div className="sm:text-right">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1">Client</p>
+                  <p className="font-bold">{invoiceData.buyer.name}</p>
+                  <p className="text-sm text-gray-600">{invoiceData.buyer.email}</p>
+                </div>
+              </div>
+
+              <table className="w-full text-sm mb-6">
+                <thead>
+                  <tr className="border-b-2 border-gray-200 text-left text-gray-500">
+                    <th className="py-2 font-semibold">Descriere</th>
+                    <th className="py-2 font-semibold text-right">Cant.</th>
+                    <th className="py-2 font-semibold text-right">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b border-gray-100">
+                    <td className="py-3">{openInvoice.description}</td>
+                    <td className="py-3 text-right">1</td>
+                    <td className="py-3 text-right font-semibold">{openInvoice.amount.toFixed(2)} {openInvoice.currency}</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div className="flex justify-end">
+                <div className="w-full sm:w-64 space-y-1">
+                  <div className="flex justify-between text-sm text-gray-600"><span>Subtotal</span><span>{openInvoice.amount.toFixed(2)} {openInvoice.currency}</span></div>
+                  <div className="flex justify-between text-xs text-gray-400"><span>TVA</span><span>Neplătitor de TVA</span></div>
+                  <div className="flex justify-between text-lg font-extrabold border-t-2 border-gray-200 pt-2 mt-1"><span>Total</span><span>{openInvoice.amount.toFixed(2)} {openInvoice.currency}</span></div>
+                </div>
+              </div>
+
+              <div className="mt-8 pt-4 border-t border-gray-200 flex items-center justify-between">
+                <p className="text-xs text-gray-400">Factură achitată integral. Mulțumim pentru susținere!</p>
+                <span className="text-xs font-bold uppercase tracking-wider text-[#16a34a] border border-[#16a34a]/30 rounded px-2 py-1">{openInvoice.status}</span>
+              </div>
+            </div>
+            <div className="px-8 md:px-10 pb-6 flex justify-end print:hidden">
+              <button data-testid="invoice-print-btn" onClick={() => window.print()} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#111] text-white font-bold hover:bg-black transition-colors">
+                <Download className="h-4 w-4" /> Descarcă / Printează
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

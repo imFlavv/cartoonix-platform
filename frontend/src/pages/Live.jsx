@@ -4,7 +4,7 @@ import { api, resolveVideoUrl } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { NavBar } from "@/components/NavBar";
 import { PlusIcon } from "@/components/PlusIcon";
-import { Volume2, VolumeX, Maximize, Radio, Tv, Lock, Sparkles } from "lucide-react";
+import { Volume2, VolumeX, Maximize, Radio, Tv, Lock, Sparkles, Play, Pause } from "lucide-react";
 
 const POLL_MS = 8000;   // re-sync with the server every 8s
 const DRIFT_TOLERANCE = 4; // seconds
@@ -25,6 +25,27 @@ const Live = () => {
   const mutedRef = useRef(true);
   const reportedRef = useRef(new Set());
   const [ended, setEnded] = useState(false);
+  const [playing, setPlaying] = useState(true);
+  const [uiVisible, setUiVisible] = useState(true);
+  const hideTimerRef = useRef(null);
+
+  const showUi = useCallback(() => {
+    setUiVisible(true);
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    hideTimerRef.current = setTimeout(() => {
+      const v = videoRef.current;
+      if (v && !v.paused) setUiVisible(false);
+    }, 3000);
+  }, []);
+
+  const togglePlay = useCallback(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    if (v.paused) { v.play().catch(() => {}); } else { v.pause(); }
+    showUi();
+  }, [showUi]);
+
+  useEffect(() => () => { if (hideTimerRef.current) clearTimeout(hideTimerRef.current); }, []);
 
   useEffect(() => { nowRef.current = nowData; }, [nowData]);
   useEffect(() => { mutedRef.current = muted; }, [muted]);
@@ -198,7 +219,13 @@ const Live = () => {
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Player */}
           <div className="lg:col-span-2">
-            <div ref={playerRef} className="relative rounded-2xl overflow-hidden bg-black aspect-video shadow-[0_0_60px_rgba(236,28,36,0.18)]">
+            <div
+              ref={playerRef}
+              onMouseMove={showUi}
+              onTouchStart={showUi}
+              onMouseLeave={() => { const v = videoRef.current; if (v && !v.paused) setUiVisible(false); }}
+              className={`relative rounded-2xl overflow-hidden bg-black aspect-video shadow-[0_0_60px_rgba(236,28,36,0.18)] ${uiVisible ? "" : "cursor-none"}`}
+            >
               {current ? (
                 <video
                   ref={videoRef}
@@ -210,6 +237,8 @@ const Live = () => {
                   onLoadedMetadata={onLoadedMetadata}
                   onEnded={onEnded}
                   onError={onError}
+                  onPlay={() => { setPlaying(true); showUi(); }}
+                  onPause={() => { setPlaying(false); setUiVisible(true); if (hideTimerRef.current) clearTimeout(hideTimerRef.current); }}
                   className="w-full h-full object-contain bg-black"
                 />
               ) : (
@@ -239,9 +268,22 @@ const Live = () => {
                 </div>
               )}
 
+              {/* Center play/pause button (YouTube-style) */}
+              {current && !ended && (
+                <button
+                  type="button"
+                  onClick={togglePlay}
+                  data-testid="live-center-toggle"
+                  aria-label={playing ? "Pauză" : "Redă"}
+                  className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 grid place-items-center h-16 w-16 md:h-20 md:w-20 rounded-full bg-black/55 backdrop-blur-sm text-white transition-all duration-200 hover:bg-black/70 hover:scale-105 ${uiVisible || !playing ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+                >
+                  {playing ? <Pause className="h-8 w-8 md:h-9 md:w-9" /> : <Play className="h-8 w-8 md:h-9 md:w-9 translate-x-0.5" />}
+                </button>
+              )}
+
               {/* Now playing label (bottom-left) */}
               {current && (
-                <div className="absolute bottom-14 left-4 max-w-[70%] pointer-events-none">
+                <div className={`absolute bottom-14 left-4 max-w-[70%] pointer-events-none transition-opacity duration-300 ${uiVisible ? "opacity-100" : "opacity-0"}`}>
                   <p className="text-[11px] uppercase tracking-widest text-[#ffcc00] font-bold">Acum se redă</p>
                   <p className="font-display text-xl md:text-2xl leading-tight drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)] truncate">{current.show_title}</p>
                   <p className="text-sm text-white/70 truncate">{current.episode_title || `Ep ${current.episode_number}`} · {current.channel}</p>
@@ -249,7 +291,7 @@ const Live = () => {
               )}
 
               {/* Controls: ONLY volume + fullscreen */}
-              <div className="absolute bottom-0 inset-x-0 flex items-center gap-3 px-4 py-2.5 bg-gradient-to-t from-black/85 to-transparent" data-testid="live-controls">
+              <div className={`absolute bottom-0 inset-x-0 flex items-center gap-3 px-4 py-2.5 bg-gradient-to-t from-black/85 to-transparent transition-opacity duration-300 ${uiVisible ? "opacity-100" : "opacity-0 pointer-events-none"}`} data-testid="live-controls">
                 <button type="button" onClick={toggleMute} data-testid="live-mute" title={muted ? "Activează sunetul" : "Dezactivează sunetul"} className="text-white/90 hover:text-white shrink-0">
                   {muted || volume === 0 ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
                 </button>

@@ -914,6 +914,50 @@ async def payment_status(session_id: str, request: Request):
     }
 
 
+# ---------- Invoices (facturi PLUS) ----------
+SELLER_INFO = {
+    "name": "PIXELVERSE SRL",
+    "cui": "55447970",
+    "reg_com": "J2026050461000",
+    "county": "București",
+    "city": "Sectorul 1",
+    "address": "Bdul. Dinicu Golescu 7, Et. P, SP. COM. 3, Cod 010861",
+}
+
+
+@api_router.get("/invoices")
+async def list_invoices(user: dict = Depends(get_current_user)):
+    txns = await db.payment_transactions.find({
+        "user_id": uid_of(user),
+        "product": "cartoonix_plus_lifetime",
+        "payment_status": "paid",
+    }).sort("created_at", 1).to_list(100)
+    invoices = []
+    for i, t in enumerate(txns, start=1):
+        created = t.get("updated_at") or t.get("created_at") or ""
+        year = created[:4] if created else str(datetime.now(timezone.utc).year)
+        sid = t.get("session_id", "")
+        number = f"CTX-{year}-{str(i).zfill(4)}"
+        invoices.append({
+            "id": sid or str(t.get("_id")),
+            "number": number,
+            "date": created,
+            "product": "Cartoonix PLUS — acces pe viață",
+            "description": "Abonament Cartoonix PLUS (plată unică, acces pe viață)",
+            "amount": float(t.get("amount") or PLUS_PRICE_RON),
+            "currency": (t.get("currency") or PLUS_CURRENCY).upper(),
+            "status": "Plătită",
+        })
+    return {
+        "seller": SELLER_INFO,
+        "buyer": {
+            "name": user_name(user),
+            "email": user.get("email", ""),
+        },
+        "invoices": invoices,
+    }
+
+
 @api_router.post("/webhook/stripe")
 async def stripe_webhook(request: Request):
     body_bytes = await request.body()
