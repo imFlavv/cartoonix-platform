@@ -7,7 +7,7 @@ import { api } from "@/lib/api";
 import { setQueue } from "@/lib/queue";
 import { AVATAR_SEEDS, PREMIUM_AVATARS } from "@/data/constants";
 import { PlusIcon } from "@/components/PlusIcon";
-import { Check, Play, Heart, Trash2, ListMusic, Film, Clock, Lock, KeyRound, Eye, EyeOff, User, Gift, PlayCircle, Coins, Ticket, FileText, Building2, Download, Crown, Copy } from "lucide-react";
+import { Check, Play, Heart, Trash2, ListMusic, Film, Clock, Lock, KeyRound, Eye, EyeOff, User, Gift, PlayCircle, Coins, Ticket, FileText, Building2, Download, Crown, Copy, Plus } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 
@@ -512,12 +512,8 @@ const Profile = () => {
                       })}
 
                       {Array.from({ length: emptySlots }).map((_, i) => (
-                        <div key={`empty-${i}`} data-testid="reward-empty-slot" className="rounded-2xl border-2 border-dashed border-white/10 p-5 flex flex-col items-center justify-center text-center min-h-[168px]">
-                          <span className="grid place-items-center h-11 w-11 rounded-xl bg-white/5 text-white/30 mb-3">
-                            <Lock className="h-5 w-5" />
-                          </span>
-                          <p className="text-sm font-semibold text-white/40">Recompensă blocată</p>
-                          <p className="text-xs text-white/25 mt-1">Câștigă recompense la roata norocului</p>
+                        <div key={`empty-${i}`} data-testid="reward-empty-slot" className="rounded-2xl border-2 border-dashed border-white/10 flex items-center justify-center min-h-[168px]">
+                          <Plus className="h-8 w-8 text-white/20" />
                         </div>
                       ))}
                     </div>
