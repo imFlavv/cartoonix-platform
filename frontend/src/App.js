@@ -30,6 +30,7 @@ import Lobby from "@/pages/Lobby";
 import ChatRoom from "@/pages/ChatRoom";
 import Announcements from "@/pages/Announcements";
 import AnnouncementDetail from "@/pages/AnnouncementDetail";
+import Spin from "@/pages/Spin";
 import Rewards from "@/pages/Rewards";
 import Clasament from "@/pages/Clasament";
 import WatchParty from "@/pages/WatchParty";
@@ -115,6 +116,7 @@ function App() {
             <Route path="/lobby/chat" element={<ProtectedRoute><ChatRoom /></ProtectedRoute>} />
             <Route path="/lobby/announcements" element={<ProtectedRoute><Announcements /></ProtectedRoute>} />
             <Route path="/lobby/announcements/:id" element={<ProtectedRoute><AnnouncementDetail /></ProtectedRoute>} />
+            <Route path="/spin" element={<ProtectedRoute><Spin /></ProtectedRoute>} />
             <Route path="/lobby/rewards" element={<ProtectedRoute><Rewards /></ProtectedRoute>} />
             <Route path="/clasament" element={<ProtectedRoute><Clasament /></ProtectedRoute>} />
             <Route path="/watch-party" element={<ProtectedRoute><WatchParty /></ProtectedRoute>} />

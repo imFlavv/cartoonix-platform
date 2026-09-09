@@ -3,7 +3,8 @@
 Romanian nostalgic cartoon streaming platform. React (CRA/craco + Tailwind) frontend, FastAPI + MongoDB (Motor) backend. UI/UX entirely in Romanian.
 
 ## Core features (built)
-- **Facturi (invoices)** — NEW (Jun 2026): `/profile` tab "Facturi". `GET /api/invoices` returns paid PLUS transactions (from `payment_transactions`, product `cartoonix_plus_lifetime`, payment_status paid) as invoices (number CTX-YYYY-NNNN, date, 50 RON). Modal invoice viewer with seller PIXELVERSE SRL details (CUI 55447970, Reg.Com J2026050461000, Bdul. Dinicu Golescu 7...), buyer info, print/download (print CSS isolates #invoice-print).
+- **Spin the Wheel** — NEW (Jun 2026): `/spin` animated SVG wheel (8 slices), prizes 5/10/15/50 puncte, Invitație PLUS (generates a giftable `type:"plus"` voucher + reward_claim), "Mai încearcă". Requires `user.spins` (new users get 1). `GET/POST /api/spin` (weighted pick server-side, atomic spin consume, points→ledger). Admin: grant spins per-user (`POST /api/admin/users/{id}/spins`) + bulk (`POST /api/admin/spins/grant-all`) in Members tab; edit odds in Admin → Roata tab (`GET/POST /api/admin/spin-config`, weights stored in `db.settings._id="spin_config"`, defaults retry55/p5 20/p10 12/p15 7/p50 4/plus 2). Files: `pages/Spin.jsx`, `components/AdminSpin.jsx`, `components/AdminMembers.jsx`.
+- **Facturi (invoices)** — (Jun 2026): `/profile` tab "Facturi", `GET /api/invoices`, PIXELVERSE SRL seller details, print modal.
 - **Live TV player UX** — NEW (Jun 2026): `/live` custom controls auto-hide after 3s inactivity (fullscreen TV/PC/mobile), cursor hidden when idle; center play/pause button (YouTube-style) via `togglePlay`. Series `/watch` uses native controls.
 - **Announcements redesign** (Jun 2026): `/lobby/announcements` list + detail, admin CRUD.
 - Auth: JWT (Bearer token in localStorage `cx_token`), bcrypt hashing, OTP email verification on register via Brevo, admin seeding.

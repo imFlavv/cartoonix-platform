@@ -3,7 +3,7 @@ import { NavBar } from "@/components/NavBar";
 import { api } from "@/lib/api";
 import { CHANNELS } from "@/data/constants";
 import { toast } from "sonner";
-import { FolderSearch, Plus, Film, Lightbulb, Users, Pencil, ChevronUp, ChevronDown, ServerCog, Inbox, ImageOff, MessagesSquare, Megaphone, RotateCcw, Crown, Heart, Tv, Gift } from "lucide-react";
+import { FolderSearch, Plus, Film, Lightbulb, Users, Pencil, ChevronUp, ChevronDown, ServerCog, Inbox, ImageOff, MessagesSquare, Megaphone, RotateCcw, RotateCw, Crown, Heart, Tv, Gift } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { AdminMembers } from "@/components/AdminMembers";
@@ -12,6 +12,7 @@ import { AdminChat } from "@/components/AdminChat";
 import { AdminAnnouncements } from "@/components/AdminAnnouncements";
 import { AdminShowEditor } from "@/components/AdminShowEditor";
 import { AdminRewards } from "@/components/AdminRewards";
+import { AdminSpin } from "@/components/AdminSpin";
 import { CinemaAdmin } from "@/components/CinemaAdmin";
 
 const empty = {
@@ -320,6 +321,9 @@ const Admin = () => {
             </TabsTrigger>
             <TabsTrigger value="rewards" data-testid="admin-tab-rewards" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
               <Gift className="h-4 w-4 mr-2" /> Recompense
+            </TabsTrigger>
+            <TabsTrigger value="spin" data-testid="admin-tab-spin" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
+              <RotateCw className="h-4 w-4 mr-2" /> Roata
             </TabsTrigger>
             <TabsTrigger value="cinema" data-testid="admin-tab-cinema" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
               <Film className="h-4 w-4 mr-2" /> Cinema
@@ -667,6 +671,10 @@ const Admin = () => {
 
           <TabsContent value="rewards">
             <AdminRewards />
+          </TabsContent>
+
+          <TabsContent value="spin">
+            <AdminSpin />
           </TabsContent>
 
           <TabsContent value="cinema">

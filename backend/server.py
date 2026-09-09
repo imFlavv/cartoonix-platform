@@ -215,6 +215,7 @@ def serialize_user(doc: dict) -> dict:
         "email_verified": doc.get("email_verified", True),
         "banned": doc.get("banned", False),
         "muted_until": doc.get("muted_until"),
+        "spins": int(doc.get("spins", 0)),
         "last_ip": doc.get("last_ip", ""),
         "total_time_seconds": doc.get("presence_seconds", doc.get("total_time_seconds", 0)),
         "last_seen": doc.get("last_active") or doc.get("last_seen"),
@@ -523,6 +524,7 @@ async def register_verify(data: RegisterVerifyInput, request: Request):
             "subscription": "free",
             "email_verified": True,
             "banned": False,
+            "spins": 1,
             "last_ip": ip,
             "accepted_terms_at": now_iso,
             "created_at": now_iso,
@@ -564,6 +566,7 @@ async def admin_create_user(data: AdminCreateUserInput, admin: dict = Depends(re
         "subscription": "plus" if data.plus else "free",
         "email_verified": True,
         "banned": False,
+        "spins": 1,
         "accepted_terms_at": now_iso,
         "created_at": now_iso,
         "last_active": now_iso,
@@ -1212,6 +1215,161 @@ async def redeem_code(body: RedeemCode, user: dict = Depends(get_current_user)):
     })
     fresh = await find_user_by_id(uid) or user
     return {"ok": True, "granted": granted, "points": int(fresh.get("points", 0)), "plus": user_is_plus(fresh)}
+
+
+# ---------- Spin the Wheel ----------
+# Display order of the wheel slices (fixed). Weights are server-side only (never exposed).
+SPIN_SEGMENTS = [
+    {"key": "retry", "label": "Mai încearcă", "color": "#3a2a12", "text": "#f0d8a8"},
+    {"key": "p5",    "label": "5 puncte",     "color": "#1f4d3a", "text": "#c9ffe6"},
+    {"key": "retry", "label": "Mai încearcă", "color": "#2a1f3a", "text": "#e0cbff"},
+    {"key": "p10",   "label": "10 puncte",    "color": "#12405e", "text": "#c7e9ff"},
+    {"key": "p15",   "label": "15 puncte",    "color": "#5e3a12", "text": "#ffe0b8"},
+    {"key": "retry", "label": "Mai încearcă", "color": "#3a1220", "text": "#ffc7d6"},
+    {"key": "p50",   "label": "50 puncte",    "color": "#5e5012", "text": "#fff3b0"},
+    {"key": "plus",  "label": "Invitație PLUS","color": "#5e1220", "text": "#ffd0d6"},
+]
+
+# prize key -> (weight, points). "plus" and "retry" handled specially.
+SPIN_PRIZES = [
+    ("retry", 55),
+    ("p5", 20),
+    ("p10", 12),
+    ("p15", 7),
+    ("p50", 4),
+    ("plus", 2),
+]
+SPIN_DEFAULT_WEIGHTS = {k: w for k, w in SPIN_PRIZES}
+SPIN_LABELS = {"retry": "Mai încearcă", "p5": "5 puncte", "p10": "10 puncte", "p15": "15 puncte", "p50": "50 puncte", "plus": "Invitație PLUS"}
+_SPIN_POINTS = {"p5": 5, "p10": 10, "p15": 15, "p50": 50}
+
+
+async def _get_spin_weights() -> dict:
+    doc = await db.settings.find_one({"_id": "spin_config"})
+    w = (doc or {}).get("weights") or {}
+    return {k: int(w.get(k, SPIN_DEFAULT_WEIGHTS[k])) for k in SPIN_DEFAULT_WEIGHTS}
+
+
+def _pick_spin_prize(weights: dict) -> str:
+    total = sum(max(0, int(v)) for v in weights.values())
+    if total <= 0:
+        return "retry"
+    r = secrets.randbelow(total)
+    acc = 0
+    for key in SPIN_DEFAULT_WEIGHTS:
+        acc += max(0, int(weights.get(key, 0)))
+        if r < acc:
+            return key
+    return "retry"
+
+
+def _segment_index_for(key: str) -> int:
+    idxs = [i for i, s in enumerate(SPIN_SEGMENTS) if s["key"] == key]
+    return secrets.choice(idxs) if idxs else 0
+
+
+@api_router.get("/spin")
+async def get_spin(user: dict = Depends(get_current_user)):
+    fresh = await find_user_by_id(uid_of(user)) or user
+    segments = [{"label": s["label"], "color": s["color"], "text": s["text"]} for s in SPIN_SEGMENTS]
+    return {"spins": int(fresh.get("spins", 0)), "segments": segments}
+
+
+@api_router.post("/spin")
+async def do_spin(user: dict = Depends(get_current_user)):
+    from pymongo import ReturnDocument
+    # atomically consume one spin (guards against double-spend / no spins)
+    updated = await db.users.find_one_and_update(
+        {"_id": user["_id"], "spins": {"$gte": 1}},
+        {"$inc": {"spins": -1}},
+        return_document=ReturnDocument.AFTER,
+    )
+    if not updated:
+        raise HTTPException(status_code=400, detail="Nu mai ai rotiri. Cere-i unui admin să îți ofere una!")
+    uid = uid_of(user)
+    now_iso = datetime.now(timezone.utc).isoformat()
+    weights = await _get_spin_weights()
+    key = _pick_spin_prize(weights)
+    seg_index = _segment_index_for(key)
+    result = {"key": key, "label": SPIN_SEGMENTS[seg_index]["label"], "type": "retry"}
+
+    if key in _SPIN_POINTS:
+        pts = _SPIN_POINTS[key]
+        await db.users.update_one({"_id": user["_id"]}, {"$inc": {"points": pts}})
+        await db.points_ledger.insert_one({
+            "user_id": uid, "type": "spin", "points": pts, "created_at": now_iso,
+        })
+        result.update({"type": "points", "points": pts})
+    elif key == "plus":
+        code = await _new_unique_voucher_code()
+        await db.vouchers.insert_one({
+            "code": code, "type": "plus", "points": 0, "scope": "universal",
+            "target_user_id": None, "max_uses": 1, "used_count": 0, "active": True,
+            "note": f"Invitație PLUS câștigată la roată de {user_name(user) or user.get('email','')}",
+            "source": "spin", "created_by": uid, "created_at": now_iso,
+        })
+        oid = ObjectId()
+        await db.reward_claims.insert_one({
+            "_id": oid, "id": str(oid), "user_id": uid,
+            "user_name": user_name(user), "user_email": user.get("email", ""),
+            "product_id": "spin_plus_invite", "product_title": "Invitație Cartoonix PLUS (roată)",
+            "cost": 0, "kind": "plus_invite", "status": "fulfilled",
+            "voucher_code": code, "created_at": now_iso, "fulfilled_at": now_iso,
+        })
+        result.update({"type": "plus", "voucher_code": code})
+
+    await db.spin_history.insert_one({
+        "user_id": uid, "key": key, "result": result.get("type"),
+        "points": result.get("points", 0), "voucher_code": result.get("voucher_code"),
+        "created_at": now_iso,
+    })
+    fresh = await find_user_by_id(uid) or updated
+    return {
+        "ok": True,
+        "segment_index": seg_index,
+        "result": result,
+        "spins": int(updated.get("spins", 0)),
+        "points": int(fresh.get("points", 0)),
+    }
+
+
+class GrantSpins(BaseModel):
+    count: int = Field(ge=1, le=1000)
+
+
+@api_router.post("/admin/users/{uid}/spins")
+async def admin_grant_spins(uid: str, data: GrantSpins, admin: dict = Depends(require_admin)):
+    target = await find_user_by_id(uid)
+    if not target:
+        raise HTTPException(status_code=404, detail="Utilizator inexistent")
+    await db.users.update_one({"_id": target["_id"]}, {"$inc": {"spins": int(data.count)}})
+    fresh = await db.users.find_one({"_id": target["_id"]})
+    return {"ok": True, "spins": int(fresh.get("spins", 0))}
+
+
+@api_router.post("/admin/spins/grant-all")
+async def admin_grant_spins_all(data: GrantSpins, admin: dict = Depends(require_admin)):
+    res = await db.users.update_many({}, {"$inc": {"spins": int(data.count)}})
+    return {"ok": True, "updated": res.modified_count}
+
+
+class SpinConfig(BaseModel):
+    weights: dict
+
+
+@api_router.get("/admin/spin-config")
+async def admin_get_spin_config(admin: dict = Depends(require_admin)):
+    w = await _get_spin_weights()
+    return {"weights": w, "labels": SPIN_LABELS, "order": list(SPIN_DEFAULT_WEIGHTS.keys())}
+
+
+@api_router.post("/admin/spin-config")
+async def admin_set_spin_config(data: SpinConfig, admin: dict = Depends(require_admin)):
+    clean = {k: max(0, int(data.weights.get(k, SPIN_DEFAULT_WEIGHTS[k]))) for k in SPIN_DEFAULT_WEIGHTS}
+    if sum(clean.values()) <= 0:
+        raise HTTPException(status_code=400, detail="Cel puțin un premiu trebuie să aibă șansă > 0")
+    await db.settings.update_one({"_id": "spin_config"}, {"$set": {"weights": clean}}, upsert=True)
+    return {"ok": True, "weights": clean}
 
 
 # ---------- Admin: vouchers + reward claims ----------
