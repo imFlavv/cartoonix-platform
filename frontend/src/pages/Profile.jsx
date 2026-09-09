@@ -7,7 +7,7 @@ import { api } from "@/lib/api";
 import { setQueue } from "@/lib/queue";
 import { AVATAR_SEEDS, PREMIUM_AVATARS } from "@/data/constants";
 import { PlusIcon } from "@/components/PlusIcon";
-import { Check, Play, Heart, Trash2, ListMusic, Film, Clock, Lock, KeyRound, Eye, EyeOff, User, Gift, PlayCircle, Coins, Ticket, FileText, Building2, Download } from "lucide-react";
+import { Check, Play, Heart, Trash2, ListMusic, Film, Clock, Lock, KeyRound, Eye, EyeOff, User, Gift, PlayCircle, Coins, Ticket, FileText, Building2, Download, Crown, Copy } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 
@@ -48,12 +48,14 @@ const Profile = () => {
   const [tickets, setTickets] = useState([]);
   const [invoiceData, setInvoiceData] = useState(null);
   const [openInvoice, setOpenInvoice] = useState(null);
+  const [rewards, setRewards] = useState(null);
 
   useEffect(() => {
     refreshUser().catch(() => {});
     api.get("/points/me").then((res) => setWallet(res.data)).catch(() => {});
     api.get("/cinema/tickets").then((res) => setTickets(res.data || [])).catch(() => {});
     api.get("/invoices").then((res) => setInvoiceData(res.data)).catch(() => {});
+    api.get("/rewards").then((res) => setRewards(res.data)).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -450,17 +452,78 @@ const Profile = () => {
               )}
             </TabsContent>
 
-            <TabsContent value="rewards" className="mt-6">
-              <div data-testid="rewards-wip" className="flex flex-col items-center justify-center py-20 text-center">
-                <div className="w-20 h-20 rounded-full bg-[#ffcc00]/15 border border-[#ffcc00]/40 flex items-center justify-center mb-5">
-                  <Gift className="h-9 w-9 text-[#ffcc00]" />
-                </div>
-                <h3 className="text-xl font-bold mb-2">Recompense</h3>
-                <p className="text-white/50 max-w-sm">
-                  Pagină în curs de lucru. În curând vei putea câștiga și revendica recompense
-                  pentru activitatea ta pe Cartoonix. Revino curând! 🎁
-                </p>
-              </div>
+            <TabsContent value="rewards" className="mt-6" data-testid="rewards-content">
+              {(() => {
+                const claims = rewards?.claims || [];
+                const kindMeta = (k) => {
+                  if (k === "plus_invite") return { icon: Crown, color: "#a855f7", label: "Invitație PLUS" };
+                  if (k === "points") return { icon: Coins, color: "#ffcc00", label: "Puncte" };
+                  return { icon: Gift, color: "#ec1c24", label: "Recompensă" };
+                };
+                const emptySlots = claims.length >= 6 ? 3 : 6 - claims.length;
+                const copyCode = async (code) => {
+                  try { await navigator.clipboard.writeText(code); toast.success("Cod copiat!"); }
+                  catch { toast.error("Nu am putut copia codul"); }
+                };
+                return (
+                  <>
+                    <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
+                      <div>
+                        <h3 className="font-display text-2xl">Recompensele mele</h3>
+                        <p className="text-sm text-white/50">Codurile și premiile câștigate apar aici.</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span data-testid="rewards-points" className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#141414] border border-white/10 font-bold">
+                          <Coins className="h-4 w-4 text-[#ffcc00]" /> {rewards?.points ?? 0} <span className="text-white/50 font-normal">puncte</span>
+                        </span>
+                        <button data-testid="rewards-go-spin" onClick={() => navigate("/spin")} className="px-4 py-2 rounded-xl bg-[#ec1c24] font-bold text-sm hover:bg-[#ff2d36] transition-colors">
+                          Câștigă mai multe
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {claims.map((c, i) => {
+                        const m = kindMeta(c.kind);
+                        const Icon = m.icon;
+                        return (
+                          <div key={c.id || i} data-testid="reward-card" className="rounded-2xl bg-[#141414] border border-white/10 p-5 flex flex-col">
+                            <div className="flex items-center justify-between mb-3">
+                              <span className="grid place-items-center h-11 w-11 rounded-xl shrink-0" style={{ backgroundColor: `${m.color}22`, color: m.color }}>
+                                <Icon className="h-6 w-6" />
+                              </span>
+                              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded"
+                                style={{ backgroundColor: c.status === "fulfilled" ? "#22c55e22" : "#eab30822", color: c.status === "fulfilled" ? "#4ade80" : "#facc15" }}>
+                                {c.status === "fulfilled" ? "Activ" : "În așteptare"}
+                              </span>
+                            </div>
+                            <p className="font-bold leading-tight mb-1">{c.product_title || m.label}</p>
+                            <p className="text-xs text-white/40 mb-3">{c.created_at ? new Date(c.created_at).toLocaleDateString("ro-RO", { day: "2-digit", month: "short", year: "numeric" }) : ""}</p>
+                            {c.voucher_code ? (
+                              <div className="mt-auto flex items-center gap-2">
+                                <code className="flex-1 min-w-0 truncate px-3 py-2 rounded-lg bg-black/40 border border-[#ffcc00]/40 text-[#ffcc00] font-mono text-sm tracking-wider">{c.voucher_code}</code>
+                                <button data-testid="reward-copy" onClick={() => copyCode(c.voucher_code)} className="h-9 w-9 grid place-items-center rounded-lg bg-white/10 hover:bg-white/20 transition shrink-0"><Copy className="h-4 w-4" /></button>
+                              </div>
+                            ) : (
+                              <p className="mt-auto text-sm text-white/50">{c.points ? `+${c.points} puncte` : "Revendicată"}</p>
+                            )}
+                          </div>
+                        );
+                      })}
+
+                      {Array.from({ length: emptySlots }).map((_, i) => (
+                        <div key={`empty-${i}`} data-testid="reward-empty-slot" className="rounded-2xl border-2 border-dashed border-white/10 p-5 flex flex-col items-center justify-center text-center min-h-[168px]">
+                          <span className="grid place-items-center h-11 w-11 rounded-xl bg-white/5 text-white/30 mb-3">
+                            <Lock className="h-5 w-5" />
+                          </span>
+                          <p className="text-sm font-semibold text-white/40">Recompensă blocată</p>
+                          <p className="text-xs text-white/25 mt-1">Câștigă recompense la roata norocului</p>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                );
+              })()}
             </TabsContent>
 
             <TabsContent value="cinema" className="mt-6" data-testid="cinema-tickets-content">
