@@ -74,8 +74,18 @@ def _jellyfin_conf():
 
 # ---------- Media (VPS video library) config ----------
 VIDEO_DIR = os.environ.get("VIDEO_DIR", "/media/videos")
+STORAGE_DIR = os.environ.get("STORAGE_DIR", "/mnt/cartoonix-storage")
+# Allowed media roots (url_key -> base dir). Videos keep their legacy /media/videos url.
+MEDIA_ROOTS = [("videos", VIDEO_DIR), ("storage", STORAGE_DIR)]
 VIDEO_EXTENSIONS = {".mp4", ".mkv", ".webm", ".mov", ".m4v", ".avi", ".wmv", ".flv", ".mpeg", ".mpg", ".ts"}
 MEDIA_CHUNK_SIZE = 1024 * 1024  # 1 MB chunks for Range streaming
+
+
+def _base_for_root(root_key: str):
+    for k, b in MEDIA_ROOTS:
+        if k == root_key:
+            return os.path.realpath(b)
+    return None
 
 # ---------- Brevo (email OTP) config ----------
 BREVO_API_KEY = os.environ.get("BREVO_API_KEY", "")
@@ -1715,17 +1725,18 @@ def _probe_seconds_sync(path: str) -> float:
 
 
 def _video_url_to_path(video_url: str):
-    """Map an episode video_url (/media/videos/<rel>) to a physical path under VIDEO_DIR."""
+    """Map an episode video_url (/media/<root>/<rel>) to a physical path under the matching root."""
     if not video_url:
         return None
-    rel = str(video_url)
-    prefix = "/media/videos/"
-    idx = rel.find(prefix)
-    if idx >= 0:
-        rel = rel[idx + len(prefix):]
-    rel = unquote(rel).lstrip("/")
-    base = os.path.realpath(VIDEO_DIR)
-    full = os.path.realpath(os.path.join(base, rel))
+    rel = unquote(str(video_url))
+    m = re.search(r"/media/([^/]+)/(.*)$", rel)
+    if not m:
+        return None
+    root_key, sub = m.group(1), m.group(2)
+    base = _base_for_root(root_key)
+    if not base:
+        return None
+    full = os.path.realpath(os.path.join(base, sub.lstrip("/")))
     if not (full == base or full.startswith(base + os.sep)):
         return None
     return full
@@ -1817,19 +1828,21 @@ async def admin_live_precalc_status(admin: dict = Depends(require_admin)):
 
 
 # ---------- media library: stream video from VPS with Range (seek) support ----------
-def _safe_media_path(file_path: str) -> str:
-    """Resolve a request path safely under VIDEO_DIR (anti path-traversal)."""
+def _safe_media_path(root_key: str, file_path: str) -> str:
+    """Resolve a request path safely under the given media root (anti path-traversal)."""
+    base = _base_for_root(root_key)
+    if not base:
+        raise HTTPException(status_code=404, detail="Locație media necunoscută")
     rel = unquote(file_path).lstrip("/")
-    base = os.path.realpath(VIDEO_DIR)
     full = os.path.realpath(os.path.join(base, rel))
     if not (full == base or full.startswith(base + os.sep)):
         raise HTTPException(status_code=403, detail="Acces interzis")
     return full
 
 
-@api_router.get("/media/videos/{file_path:path}")
-async def serve_video(file_path: str, request: Request):
-    full = _safe_media_path(file_path)
+@api_router.get("/media/{root}/{file_path:path}")
+async def serve_video(root: str, file_path: str, request: Request):
+    full = _safe_media_path(root, file_path)
     if not os.path.isfile(full):
         raise HTTPException(status_code=404, detail="Fișier inexistent")
     file_size = os.path.getsize(full)
@@ -1945,16 +1958,25 @@ async def _probe_durations(paths: List[str]) -> dict:
     return dict(results)
 
 
-def _resolve_under_video_dir(raw: str):
-    """Return (base, full_dir) resolving raw as absolute-under-base or relative; raises on escape."""
-    base = os.path.realpath(VIDEO_DIR)
+def _resolve_media_dir(raw: str):
+    """Return (base, full_dir, url_key) resolving raw against any allowed media root.
+    Absolute paths must live under one of MEDIA_ROOTS; relative paths default to VIDEO_DIR."""
     raw = (raw or "").strip()
     if not raw:
-        raise HTTPException(status_code=400, detail="Introdu path-ul folderului de pe VPS")
-    full_dir = os.path.realpath(raw) if os.path.isabs(raw) else os.path.realpath(os.path.join(base, raw))
-    if not (full_dir == base or full_dir.startswith(base + os.sep)):
+        raise HTTPException(status_code=400, detail="Introdu path-ul folderului")
+    if os.path.isabs(raw):
+        full = os.path.realpath(raw)
+        for key, b in MEDIA_ROOTS:
+            base = os.path.realpath(b)
+            if full == base or full.startswith(base + os.sep):
+                return base, full, key
+        allowed = ", ".join(b for _, b in MEDIA_ROOTS)
+        raise HTTPException(status_code=400, detail=f"Folderul trebuie să fie sub una din locațiile permise: {allowed}")
+    base = os.path.realpath(VIDEO_DIR)
+    full = os.path.realpath(os.path.join(base, raw))
+    if not (full == base or full.startswith(base + os.sep)):
         raise HTTPException(status_code=400, detail=f"Folderul trebuie să fie sub {VIDEO_DIR}")
-    return base, full_dir
+    return base, full, "videos"
 
 
 def _list_video_files(directory: str) -> List[str]:
@@ -1973,7 +1995,7 @@ def _list_subdirs(directory: str) -> List[str]:
     )
 
 
-def _scan_show_folder(full_dir: str, base: str) -> List[dict]:
+def _scan_show_folder(full_dir: str, base: str, url_key: str = "videos") -> List[dict]:
     """Scan a show folder. Direct .mp4 files -> no season. Subfolders -> each is a season
     (scanned one level deep). Episodes get a globally-unique `number` (routing id) plus a
     `season` label. Includes a temporary `_path` (absolute) for duration probing."""
@@ -1996,7 +2018,7 @@ def _scan_show_folder(full_dir: str, base: str) -> List[dict]:
             episodes.append({
                 "number": n,
                 "title": _prettify_title(fname),
-                "video_url": f"/media/videos/{rel}",
+                "video_url": f"/media/{url_key}/{rel}",
                 "duration": "",
                 "season": season,
                 "_path": fpath,
@@ -2023,11 +2045,11 @@ class ImportFolderInput(BaseModel):
 async def admin_import_folder(data: ImportFolderInput, admin: dict = Depends(require_admin)):
     """Scan a real folder under VIDEO_DIR (with season subfolders + durations) and return
     detected episodes (non-destructive). Admin previews, then saves via create/update endpoints."""
-    base, full_dir = _resolve_under_video_dir(data.folder)
+    base, full_dir, url_key = _resolve_media_dir(data.folder)
     if not os.path.isdir(full_dir):
         raise HTTPException(status_code=404, detail=f"Folder inexistent pe server: {full_dir}")
 
-    episodes = _scan_show_folder(full_dir, base)
+    episodes = _scan_show_folder(full_dir, base, url_key)
     episodes = await _finalize_episodes(episodes, probe=True)
     seasons = [s for s in dict.fromkeys([e["season"] for e in episodes if e["season"]])]
     return {"count": len(episodes), "episodes": episodes, "folder": full_dir, "seasons": seasons}
@@ -2044,7 +2066,7 @@ class ImportAllInput(BaseModel):
 async def admin_import_all(data: ImportAllInput, admin: dict = Depends(require_admin)):
     """Scan a PARENT folder: every subfolder becomes a show (desen) with its episodes
     (season subfolders + durations). Skips subfolders that already exist as a show (by title)."""
-    base, parent_dir = _resolve_under_video_dir(data.folder)
+    base, parent_dir, url_key = _resolve_media_dir(data.folder)
     if not os.path.isdir(parent_dir):
         raise HTTPException(status_code=404, detail=f"Folder inexistent pe server: {parent_dir}")
 
@@ -2056,7 +2078,7 @@ async def admin_import_all(data: ImportAllInput, admin: dict = Depends(require_a
     total_files = 0
     for sub in subdirs:
         sub_dir = os.path.join(parent_dir, sub)
-        episodes = _scan_show_folder(sub_dir, base)
+        episodes = _scan_show_folder(sub_dir, base, url_key)
         if not episodes:
             skipped.append({"folder": sub, "reason": "fără fișiere video"})
             continue
@@ -2077,7 +2099,7 @@ async def admin_import_all(data: ImportAllInput, admin: dict = Depends(require_a
             "channel": data.channel or "Cartoon Network",
             "year": "",
             "genres": [],
-            "vps_path": f"/media/videos/{rel_parent}",
+            "vps_path": f"/media/{url_key}/{rel_parent}",
             "episodes": episodes,
             "created_at": datetime.now(timezone.utc).isoformat(),
         }

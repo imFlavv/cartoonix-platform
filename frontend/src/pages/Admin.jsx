@@ -340,7 +340,7 @@ const Admin = () => {
               <div className="flex gap-2">
                 <input
                   data-testid="admin-import-all-path"
-                  placeholder="Folder părinte (ex: /media/videos)"
+                  placeholder="Folder părinte (ex: /media/videos sau /mnt/cartoonix-storage/desene)"
                   value={importAllPath}
                   onChange={(e) => setImportAllPath(e.target.value)}
                   className={input}
@@ -387,7 +387,7 @@ const Admin = () => {
                 <input data-testid="admin-genres" placeholder="Genuri (separate prin virgulă)" value={form.genres} onChange={(e) => set("genres", e.target.value)} className={input} />
 
                 <div className="flex gap-2">
-                  <input data-testid="admin-vps-path" placeholder="Path folder VPS (ex: /media/videos/ATOM sau ATOM)" value={form.vps_path} onChange={(e) => set("vps_path", e.target.value)} className={input} />
+                  <input data-testid="admin-vps-path" placeholder="Path folder (ex: /media/videos/ATOM sau /mnt/cartoonix-storage/desene/ATOM)" value={form.vps_path} onChange={(e) => set("vps_path", e.target.value)} className={input} />
                   <button type="button" data-testid="admin-detect" onClick={detectEpisodes} disabled={detecting} className="shrink-0 px-4 rounded-lg bg-white/10 hover:bg-white/20 transition-colors duration-200 flex items-center gap-1 text-sm font-semibold disabled:opacity-60">
                     <FolderSearch className="h-4 w-4" /> {detecting ? "Se scanează..." : "Detectează"}
                   </button>

@@ -13,13 +13,13 @@ export function resolveVideoUrl(p) {
   if (!p) return p;
   if (/^https?:\/\//i.test(p)) return p;
   const clean = String(p).replace(/^\/+/, ""); // drop leading slashes
-  if (clean.startsWith("media/videos/")) {
-    return `${API}/${clean}`; // -> {BACKEND}/api/media/videos/...
+  if (clean.startsWith("media/")) {
+    return `${API}/${clean}`; // -> {BACKEND}/api/media/<root>/...
   }
   if (clean.startsWith("api/")) {
     return `${BACKEND_URL}/${clean}`;
   }
-  // Fallback: assume it lives in the external library
+  // Fallback: assume it lives in the primary library
   return `${API}/media/videos/${clean}`;
 }
 
