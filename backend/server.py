@@ -3785,6 +3785,28 @@ async def set_maintenance(data: MaintenanceInput, admin: dict = Depends(require_
     return {"enabled": data.enabled}
 
 
+# ---------- Halloween mode toggle (admin activates the Halloween theme on /land) ----------
+class HalloweenToggleInput(BaseModel):
+    enabled: bool
+
+
+@api_router.get("/settings/halloween")
+async def get_halloween_setting():
+    s = await db.settings.find_one({"key": "halloween"})
+    return {"enabled": bool(s and s.get("enabled"))}
+
+
+@api_router.post("/admin/settings/halloween")
+async def set_halloween_setting(data: HalloweenToggleInput, admin: dict = Depends(require_admin)):
+    await db.settings.update_one(
+        {"key": "halloween"},
+        {"$set": {"key": "halloween", "enabled": data.enabled,
+                  "updated_at": datetime.now(timezone.utc).isoformat()}},
+        upsert=True,
+    )
+    return {"enabled": data.enabled}
+
+
 # ---------- Donate feature toggle (admin can disable the Donate page/button) ----------
 class DonateToggleInput(BaseModel):
     enabled: bool

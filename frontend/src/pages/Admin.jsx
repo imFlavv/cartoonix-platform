@@ -37,6 +37,7 @@ const Admin = () => {
   const [maintenance, setMaintenance] = useState(false);
   const [avatarFrames, setAvatarFrames] = useState(true);
   const [donateEnabled, setDonateEnabled] = useState(true);
+  const [halloween, setHalloween] = useState(false);
   const [promo, setPromo] = useState({ enabled: false, title: "", message: "", price_old: "", price_new: "", cta_label: "", cta_link: "/plus" });
   const [savingPromo, setSavingPromo] = useState(false);
   const [chatWidget, setChatWidget] = useState({ enabled: false, text: "", image_url: "", link: "/lobby/chat" });
@@ -68,6 +69,7 @@ const Admin = () => {
     api.get("/settings/maintenance").then((res) => setMaintenance(res.data.enabled)).catch(() => {});
     api.get("/settings/ui").then((res) => setAvatarFrames(res.data.avatar_frames_enabled !== false)).catch(() => {});
     api.get("/settings/donate").then((res) => setDonateEnabled(res.data.enabled !== false)).catch(() => {});
+    api.get("/settings/halloween").then((res) => setHalloween(!!res.data.enabled)).catch(() => {});
     api.get("/settings/promo-popup").then((res) => setPromo(res.data)).catch(() => {});
     api.get("/settings/chat-widget").then((res) => setChatWidget(res.data)).catch(() => {});
     api.get("/settings/plus-widget").then((res) => setPlusWidget(res.data)).catch(() => {});
@@ -167,8 +169,19 @@ const Admin = () => {
     }
   };
 
+  const toggleHalloween = async (val) => {
+    try {
+      await api.post("/admin/settings/halloween", { enabled: val });
+      setHalloween(val);
+      toast.success(val ? "Modul Halloween ACTIVAT pe Cartoonix Land 🎃" : "Modul Halloween dezactivat");
+    } catch {
+      toast.error("Eroare");
+    }
+  };
 
   const [precalc, setPrecalc] = useState(null);
+
+
   const [startingPrecalc, setStartingPrecalc] = useState(false);
 
   const loadPrecalcStatus = async () => {
@@ -504,13 +517,25 @@ const Admin = () => {
 
               <div className="bg-[#0f0f0f] border border-white/10 rounded-2xl p-6">
                 <h2 className="font-display text-2xl mb-1 flex items-center gap-2"><Heart className="h-5 w-5 text-[#ec1c24]" /> Donații</h2>
-                <p className="text-sm text-white/50 mb-5">Activează/dezactivează pagina și butonul „Donează". Când e dezactivat, dispare din bară pentru utilizatori și rămâne vizibil doar pentru admini.</p>
+                <p className="text-sm text-white/50 mb-5">Activează/dezactivează pagina și butonul „Donează”. Când e dezactivat, dispare din bară pentru utilizatori și rămâne vizibil doar pentru admini.</p>
                 <div className="flex items-center justify-between p-4 rounded-xl bg-white/5">
                   <div>
                     <p className="font-semibold">Donații active</p>
                     <p className={`text-xs ${donateEnabled ? "text-[#22c55e]" : "text-[#ec1c24]"}`}>{donateEnabled ? "Vizibile - toți utilizatorii văd butonul „Donează”" : "Dezactivate - vizibile doar pentru admini"}</p>
                   </div>
                   <Switch data-testid="donate-toggle" checked={donateEnabled} onCheckedChange={toggleDonate} />
+                </div>
+              </div>
+
+              <div className="bg-[#0f0f0f] border border-white/10 rounded-2xl p-6">
+                <h2 className="font-display text-2xl mb-1 flex items-center gap-2"><span className="text-2xl leading-none">🎃</span> Mod Halloween</h2>
+                <p className="text-sm text-white/50 mb-5">Activează tema de Halloween pe pagina Cartoonix Land (`/land`). La activare se folosește harta de Halloween cu efect de glow în centru. La dezactivare revine harta normală.</p>
+                <div className="flex items-center justify-between p-4 rounded-xl bg-white/5">
+                  <div>
+                    <p className="font-semibold">Mod Halloween</p>
+                    <p className={`text-xs ${halloween ? "text-[#ff7a18]" : "text-white/50"}`}>{halloween ? "ACTIV - Cartoonix Land afișează tema de Halloween" : "Inactiv - Cartoonix Land afișează harta normală"}</p>
+                  </div>
+                  <Switch data-testid="halloween-toggle" checked={halloween} onCheckedChange={toggleHalloween} />
                 </div>
               </div>
 

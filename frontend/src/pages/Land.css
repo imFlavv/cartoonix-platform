@@ -39,3 +39,17 @@
   cursor: pointer;
   z-index: 5;
 }
+
+/* clickable hotspot over the central Halloween element (pumpkin cluster) */
+.land-hotspot-halloween {
+  position: absolute;
+  left: 44%;
+  top: 33%;
+  width: 12%;
+  height: 26%;
+  background: transparent;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  z-index: 5;
+}
