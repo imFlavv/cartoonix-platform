@@ -169,7 +169,7 @@ export const NavBar = () => {
                   active ? "text-white" : "text-white/60 hover:text-white"
                 }`}
               >
-                {l.plus ? <PlusIcon className="h-4 w-4" /> : l.pumpkin ? <img src="/icon-pumpkin.png" alt="" className="h-4 w-4 object-contain" /> : Icon ? <Icon className="h-4 w-4" /> : null}
+                {l.plus ? <PlusIcon className="h-4 w-4" /> : l.pumpkin ? <img src="/icon-pumpkin.png" alt="" className="h-6 w-6 object-contain" /> : Icon ? <Icon className="h-4 w-4" /> : null}
                 {l.label}
               </Link>
             );
@@ -352,7 +352,7 @@ export const NavBar = () => {
             const Icon = l.icon;
             return (
               <Link key={l.to} to={l.to} onClick={() => setOpen(false)} className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-white/[0.04] text-sm font-semibold text-white/80 hover:text-white">
-                {l.plus ? <PlusIcon className="h-4 w-4" /> : l.pumpkin ? <img src="/icon-pumpkin.png" alt="" className="h-4 w-4 object-contain" /> : Icon ? <Icon className="h-4 w-4" /> : null} {l.label}
+                {l.plus ? <PlusIcon className="h-4 w-4" /> : l.pumpkin ? <img src="/icon-pumpkin.png" alt="" className="h-6 w-6 object-contain" /> : Icon ? <Icon className="h-4 w-4" /> : null} {l.label}
               </Link>
             );
           })}
