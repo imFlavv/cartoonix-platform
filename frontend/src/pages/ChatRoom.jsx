@@ -452,9 +452,9 @@ const ChatRoom = () => {
                     );
                   }
                   return (
-                    <div key={m.id} data-testid="chat-message" className="group flex items-start gap-3">
+                    <div key={m.id} data-testid="chat-message" className="group flex items-center gap-3">
                       {/* left: avatar + online + count */}
-                      <div className="flex flex-col items-center gap-2 shrink-0 w-16 pt-5">
+                      <div className="flex flex-col items-center gap-2 shrink-0 w-16">
                         <div className="relative">
                           <img src={m.avatar || `https://api.dicebear.com/9.x/bottts/svg?seed=${m.name}`} alt="" className="h-14 w-14 rounded-full bg-[#141414] object-cover" />
                           {m.sender_online && <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-[#22c55e] border-2 border-[#0a0a0a]" />}
@@ -507,11 +507,11 @@ const ChatRoom = () => {
                       </div>
 
                       {/* right: time + mod */}
-                      <span className="text-[11px] text-white/30 shrink-0 pt-5 tabular-nums">{fmtTime(m.created_at)}</span>
+                      <span className="text-[11px] text-white/30 shrink-0 self-start pt-1 tabular-nums">{fmtTime(m.created_at)}</span>
                       {canModerate && !m.deleted && m.user_id && (
                         <DropdownMenu modal={false}>
                           <DropdownMenuTrigger asChild>
-                            <button data-testid="chat-mod-trigger" className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity pt-5 h-7 w-7 flex items-center justify-center rounded-full text-white/50 hover:text-white hover:bg-white/10" title="Moderare">
+                            <button data-testid="chat-mod-trigger" className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity self-start pt-1 h-7 w-7 flex items-center justify-center rounded-full text-white/50 hover:text-white hover:bg-white/10" title="Moderare">
                               <MoreVertical className="h-4 w-4" />
                             </button>
                           </DropdownMenuTrigger>
