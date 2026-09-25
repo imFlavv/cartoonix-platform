@@ -7,7 +7,7 @@ export const SplashScreen = () => {
       data-testid="splash-screen"
       className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[#0a0a0a] overflow-hidden"
       style={{
-        backgroundImage: "url('/boot-bg.webp')",
+        backgroundImage: "url('/boot-bg-autumn.webp')",
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
