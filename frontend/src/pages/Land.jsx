@@ -26,10 +26,10 @@ const Land = () => {
   if (halloween) {
     return (
       <div data-testid="land-page" className="fullscreen-image">
-        <img src="/land-assets/halloween-base.webp" alt="Cartoonix Land - Halloween" draggable={false} />
+        <img src="/land-assets/halloween-base.png" alt="Cartoonix Land - Halloween" draggable={false} />
         {/* glow overlay of the central element, same transform → perfectly aligned */}
         <img
-          src="/land-assets/halloween-glow.webp"
+          src="/land-assets/halloween-glow.png"
           alt=""
           aria-hidden="true"
           draggable={false}
