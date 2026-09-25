@@ -41,6 +41,9 @@ export const CHAT_STYLE_BUBBLES = [
   { value: "planet", label: "Planet", desc: "Cosmic și vibrant", thumb: "/chat/bubbles/planet/left.png" },
   { value: "neon", label: "Neon", desc: "Modern și strălucitor", css: true },
   { value: "retro", label: "Retro", desc: "Pixel perfect", css: true },
+  { value: "gold", label: "Aur", desc: "Luxos și regal", css: true },
+  { value: "holo", label: "Holo", desc: "Curcubeu futurist", css: true },
+  { value: "bubblegum", label: "Bubblegum", desc: "Dulce și pufos", css: true },
 ];
 
 // Name colors (PLUS only). "default" keeps the standard chat name color.

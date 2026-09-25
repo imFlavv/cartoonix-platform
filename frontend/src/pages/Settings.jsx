@@ -24,6 +24,7 @@ import {
   chatStyleClasses,
 } from "@/lib/chatStyle";
 import { SkinnedBubble } from "@/components/SkinnedBubble";
+import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { AVATAR_SEEDS, PREMIUM_AVATARS } from "@/data/constants";
 
 const Card = ({ icon: Icon, title, subtitle, children }) => (
@@ -283,7 +284,7 @@ const Settings = () => {
           {/* ---------------- PERSONALIZARE ---------------- */}
           <TabsContent value="chat" className="space-y-5">
             {/* Top row: Profil & Avatar + Previzualizare */}
-            <div className="grid lg:grid-cols-2 gap-5">
+            <div className="grid lg:grid-cols-2 gap-5 items-start">
               {/* PROFIL & AVATAR */}
               <Card icon={User} title="Profil & Avatar" subtitle="Personalizează-ți identitatea în chat-ul Cartoonix.">
                 <div className="flex items-start gap-5">
@@ -377,7 +378,7 @@ const Settings = () => {
 
               {/* PREVIZUALIZARE CHAT */}
               <Card icon={Eye} title="Previzualizare chat" subtitle="Vezi cum va arăta profilul și mesajele tale în chat.">
-                <div data-testid="chat-style-preview" className="rounded-2xl bg-[#0a0a0a] border border-white/10 p-4 h-full">
+                <div data-testid="chat-style-preview" className="rounded-2xl bg-[#0a0a0a] border border-white/10 p-4">
                   <div className="flex items-start gap-2.5">
                     <span className={`block h-9 w-9 rounded-full overflow-hidden shrink-0 ${PREMIUM_AVATARS.includes(avatar) && isPlus ? "cx-premium-ring" : ""}`}>
                       <img src={avatar} alt="" className="h-full w-full object-cover bg-[#141414]" />
@@ -387,9 +388,11 @@ const Settings = () => {
                         <span className="font-semibold" style={isPlus && nameColorHex(chatStyle.name_color) ? { color: nameColorHex(chatStyle.name_color) } : { color: "#e5e5e5" }}>
                           {user?.name || "Cartoonix"}
                         </span>
-                        <span className={`inline-flex items-center rounded-full px-1.5 py-[1px] text-[9px] font-extrabold uppercase tracking-wide leading-none ${isPlus ? "bg-[#a855f7] text-white" : "bg-white/10 text-white/70"}`}>
-                          {isPlus ? "PLUS" : "MEMBRU"}
-                        </span>
+                        {user?.role === "founder" && <Crown className="h-3.5 w-3.5 text-[#ffcc00]" />}
+                        {user?.role === "admin" && <VerifiedBadge className="h-3.5 w-3.5" />}
+                        {user?.role === "moderator" && <Shield className="h-3.5 w-3.5 text-[#3b82f6]" />}
+                        {isPlus && <PlusIcon className="h-3.5 w-3.5" />}
+                        {user?.donor && <img src="/badge-donator.gif" alt="Donator" className="h-[18px] w-[18px] object-contain -ml-0.5" />}
                         <span className="text-white/40">astăzi, 14:32</span>
                       </p>
                       {isPlus && chatStyle.bubble && chatStyle.bubble !== "none" ? (
@@ -429,10 +432,8 @@ const Settings = () => {
                       <span className="h-12 flex items-center justify-center">
                         {b.thumb ? (
                           <img src={b.thumb} alt="" className="h-11 w-11 object-contain" />
-                        ) : b.value === "neon" ? (
-                          <span className="cx-bubble-css cx-bubble-neon !px-2 !py-1 !text-[10px]">abc</span>
-                        ) : b.value === "retro" ? (
-                          <span className="cx-bubble-css cx-bubble-retro !px-2 !py-1 !text-[10px]">abc</span>
+                        ) : b.css ? (
+                          <span className={`cx-bubble-css cx-bubble-${b.value} !px-2 !py-1 !text-[10px]`}>abc</span>
                         ) : (
                           <span className="h-9 w-12 rounded-lg bg-[#2a2a2a] border border-white/10 flex items-center justify-center text-[10px] text-white/50">abc</span>
                         )}

@@ -498,3 +498,41 @@ body.cx-no-avatar-frames .cx-premium-ring::before {
   font-family: "JetBrains Mono", "Menlo", monospace;
   letter-spacing: 0.02em;
 }
+
+/* Aur — luxos, contur auriu + strălucire caldă */
+.cx-bubble-gold {
+  color: #fff8e1;
+  background: linear-gradient(180deg, rgba(60,44,10,.96), rgba(34,26,8,.96));
+  border: 1.5px solid #ffcc00;
+  border-radius: 14px 14px 14px 4px;
+  box-shadow: 0 0 8px rgba(255,204,0,.55), 0 0 20px rgba(255,138,0,.35), inset 0 0 10px rgba(255,204,0,.18);
+}
+/* Holo — curcubeu futurist, gradient animat */
+.cx-bubble-holo {
+  color: #fff;
+  position: relative;
+  background: rgba(14,14,26,.92);
+  border: 1.5px solid transparent;
+  border-radius: 14px 14px 14px 4px;
+  background-image:
+    linear-gradient(rgba(14,14,26,.92), rgba(14,14,26,.92)),
+    linear-gradient(90deg,#ff6ec4,#7873f5,#4ade80,#38bdf8,#ff6ec4);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  background-size: 100% 100%, 300% 100%;
+  animation: cx-holo-shift 6s linear infinite;
+  box-shadow: 0 0 10px rgba(120,115,245,.4), 0 0 18px rgba(56,189,248,.3);
+}
+@keyframes cx-holo-shift {
+  0% { background-position: 0 0, 0% 50%; }
+  100% { background-position: 0 0, 300% 50%; }
+}
+/* Bubblegum — dulce, roz lucios */
+.cx-bubble-bubblegum {
+  color: #4a0f2e;
+  font-weight: 800;
+  background: linear-gradient(180deg,#ffd1ec,#ff8fc7);
+  border: 2px solid #ff5db1;
+  border-radius: 18px 18px 18px 6px;
+  box-shadow: 0 3px 0 0 #ff5db1, 0 0 12px rgba(255,93,177,.45), inset 0 2px 6px rgba(255,255,255,.6);
+}

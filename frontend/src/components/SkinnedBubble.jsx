@@ -24,10 +24,13 @@ const SKIN_ASSETS = {
   },
 };
 
-// CSS-only skins (no images) — neon glow + retro pixel outline.
+// CSS-only skins (no images) — glowing / stylised bubbles.
 const CSS_SKINS = {
   neon: "cx-bubble-neon",
   retro: "cx-bubble-retro",
+  gold: "cx-bubble-gold",
+  holo: "cx-bubble-holo",
+  bubblegum: "cx-bubble-bubblegum",
 };
 
 export function SkinnedBubble({ skin, textClasses = "", children, testId }) {

@@ -1,25 +1,47 @@
-// Rank titles (după numărul de mesaje pe chat) și badge-uri de rol (permisiuni/status).
+// Rank titles (după numărul de mesaje pe chat) + progres spre nivelul următor.
+
+export const RANK_LEVELS = [
+  { min: 0, title: "Membru" },
+  { min: 25, title: "Membru Activ" },
+  { min: 100, title: "Membru Avansat" },
+  { min: 300, title: "Veteran" },
+  { min: 800, title: "Super Fan" },
+  { min: 2000, title: "Legendă Cartoonix" },
+];
 
 export const rankTitle = (count) => {
   const c = Number(count) || 0;
-  if (c >= 2000) return "Legendă Cartoonix";
-  if (c >= 800) return "Super Fan";
-  if (c >= 300) return "Veteran";
-  if (c >= 100) return "Membru Avansat";
-  if (c >= 25) return "Membru Activ";
-  return "Membru";
+  let title = RANK_LEVELS[0].title;
+  for (const lvl of RANK_LEVELS) {
+    if (c >= lvl.min) title = lvl.title;
+  }
+  return title;
 };
 
-const PILL = "inline-flex items-center rounded-full px-1.5 py-[1px] text-[9px] font-extrabold uppercase tracking-wide leading-none";
-
-// Un singur badge, în ordinea priorității: FONDATOR > ADMIN > MODERATOR > PLUS > DONATOR.
-export const roleBadge = (entity) => {
-  if (!entity) return null;
-  const role = entity.role;
-  if (role === "founder") return { label: "FONDATOR", cls: `${PILL} bg-gradient-to-r from-amber-400 to-yellow-500 text-black` };
-  if (role === "admin") return { label: "ADMIN", cls: `${PILL} bg-[#ec1c24] text-white` };
-  if (role === "moderator") return { label: "MODERATOR", cls: `${PILL} bg-[#3b82f6] text-white` };
-  if (entity.plus) return { label: "PLUS", cls: `${PILL} bg-[#a855f7] text-white` };
-  if (entity.donor) return { label: "DONATOR", cls: `${PILL} bg-[#ec4899] text-white` };
-  return null;
+// Returnează informații pentru bara de progres pe pagina de profil.
+export const rankInfo = (count) => {
+  const c = Math.max(0, Number(count) || 0);
+  let idx = 0;
+  for (let i = 0; i < RANK_LEVELS.length; i++) {
+    if (c >= RANK_LEVELS[i].min) idx = i;
+  }
+  const current = RANK_LEVELS[idx];
+  const next = RANK_LEVELS[idx + 1] || null;
+  const isMax = !next;
+  const spanStart = current.min;
+  const spanEnd = next ? next.min : current.min;
+  const progress = isMax ? 100 : Math.min(100, Math.round(((c - spanStart) / (spanEnd - spanStart)) * 100));
+  const remaining = isMax ? 0 : Math.max(0, spanEnd - c);
+  return {
+    title: current.title,
+    nextTitle: next ? next.title : null,
+    count: c,
+    currentMin: spanStart,
+    nextMin: spanEnd,
+    progress,
+    remaining,
+    isMax,
+    level: idx + 1,
+    maxLevel: RANK_LEVELS.length,
+  };
 };

@@ -6,14 +6,15 @@ import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import {
   ArrowLeft, Send, Hash, Lock, Users, Gift, Plus, Star, Megaphone, AlertTriangle,
-  CheckCircle2, Info, MoreVertical, Ban, VolumeX, Trash2, Tv, X, Pin, PinOff, Trophy, MessageSquare, Radio, Hexagon,
+  CheckCircle2, Info, MoreVertical, Ban, VolumeX, Trash2, Tv, X, Pin, PinOff, Trophy, MessageSquare, Radio, Hexagon, Crown, Shield,
 } from "lucide-react";
 import { PlusIcon } from "@/components/PlusIcon";
+import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { MessageText } from "@/components/MessageText";
 import { EmojiPicker } from "@/components/EmojiPicker";
 import { chatStyleClasses } from "@/lib/chatStyle";
 import { SkinnedBubble } from "@/components/SkinnedBubble";
-import { rankTitle, roleBadge } from "@/lib/roles";
+import { rankTitle } from "@/lib/roles";
 import { nameColorHex } from "@/lib/chatStyle";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
@@ -63,11 +64,15 @@ const fmtTime = (iso) => {
   try { return new Date(iso).toLocaleTimeString("ro-RO", { hour: "2-digit", minute: "2-digit" }); } catch { return ""; }
 };
 
-const NameBadges = ({ m }) => {
-  const b = roleBadge(m);
-  if (!b) return null;
-  return <span data-testid="chat-role-badge" className={b.cls}>{b.label}</span>;
-};
+const NameBadges = ({ m }) => (
+  <>
+    {m?.role === "founder" && <Crown className="h-3.5 w-3.5 text-[#ffcc00]" aria-label="Hall of Fame" />}
+    {m?.role === "admin" && <VerifiedBadge className="h-3.5 w-3.5" />}
+    {m?.role === "moderator" && <Shield className="h-3.5 w-3.5 text-[#3b82f6]" aria-label="Moderator" />}
+    {m?.plus && <PlusIcon className="h-3.5 w-3.5" />}
+    {m?.donor && <img src="/badge-donator.gif" alt="Donator" title="Susținător Cartoonix" className="h-[18px] w-[18px] object-contain -ml-0.5" />}
+  </>
+);
 
 const ChatRoom = () => {
   const { user } = useAuth();
@@ -345,7 +350,7 @@ const ChatRoom = () => {
               <div className="min-w-0">
                 <p className="text-sm font-bold truncate flex items-center gap-1.5">
                   {user?.name}
-                  {(() => { const b = roleBadge({ role: user?.role, plus: user?.plus, donor: user?.donor }); return b ? <span className={b.cls}>{b.label}</span> : null; })()}
+                  <NameBadges m={{ role: user?.role, plus: user?.plus, donor: user?.donor }} />
                 </p>
                 <p className="text-[10px] text-white/40 font-semibold">{rankTitle(stats?.my_count)}</p>
                 <p className="text-[11px] text-[#22c55e] font-semibold">Online</p>
@@ -618,7 +623,7 @@ const ChatRoom = () => {
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold truncate flex items-center gap-1.5">
                       {u.name}
-                      {(() => { const b = roleBadge(u); return b ? <span className={b.cls}>{b.label}</span> : null; })()}
+                      <NameBadges m={u} />
                     </p>
                     <p className="text-[11px] text-white/40">{roNum(u.count)} mesaje</p>
                   </div>

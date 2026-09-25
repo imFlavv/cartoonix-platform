@@ -7,8 +7,9 @@ import { api } from "@/lib/api";
 import { setQueue } from "@/lib/queue";
 import { AVATAR_SEEDS, PREMIUM_AVATARS } from "@/data/constants";
 import { PlusIcon } from "@/components/PlusIcon";
-import { Check, Play, Heart, Trash2, ListMusic, Film, Clock, Lock, KeyRound, Eye, EyeOff, User, Gift, PlayCircle, Coins, Ticket, FileText, Building2, Download, Crown, Copy, Plus } from "lucide-react";
+import { Check, Play, Heart, Trash2, ListMusic, Film, Clock, Lock, KeyRound, Eye, EyeOff, User, Gift, PlayCircle, Coins, Ticket, FileText, Building2, Download, Crown, Copy, Plus, Award, MessageCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { rankInfo } from "@/lib/roles";
 import { toast } from "sonner";
 
 const formatTime = (sec) => {
@@ -49,6 +50,7 @@ const Profile = () => {
   const [invoiceData, setInvoiceData] = useState(null);
   const [openInvoice, setOpenInvoice] = useState(null);
   const [rewards, setRewards] = useState(null);
+  const [chatCount, setChatCount] = useState(null);
 
   useEffect(() => {
     refreshUser().catch(() => {});
@@ -56,8 +58,11 @@ const Profile = () => {
     api.get("/cinema/tickets").then((res) => setTickets(res.data || [])).catch(() => {});
     api.get("/invoices").then((res) => setInvoiceData(res.data)).catch(() => {});
     api.get("/rewards").then((res) => setRewards(res.data)).catch(() => {});
+    api.get("/chat/stats").then((res) => setChatCount(res.data?.my_count ?? 0)).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const rank = rankInfo(chatCount || 0);
 
   const saveAvatar = async () => {
     setBusy(true);
@@ -180,6 +185,36 @@ const Profile = () => {
         </div>
 
         <div className="max-w-5xl mx-auto px-4 md:px-12 py-8">
+          {/* Rank / nivel pe chat */}
+          <div data-testid="profile-rank" className="mb-8 rounded-2xl border border-white/10 bg-[#0f0f0f] p-5 md:p-6 overflow-hidden relative">
+            <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ background: "radial-gradient(circle at 100% 0%, rgba(255,204,0,0.25), transparent 55%)" }} />
+            <div className="relative flex items-center gap-4 mb-4">
+              <div className="h-12 w-12 rounded-xl bg-[#ffcc00]/15 border border-[#ffcc00]/40 flex items-center justify-center shrink-0">
+                <Award className="h-6 w-6 text-[#ffcc00]" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs uppercase tracking-wider text-white/40">Rangul tău</p>
+                <h3 className="font-display text-2xl md:text-3xl leading-tight">{rank.title}</h3>
+              </div>
+              <div className="text-right shrink-0">
+                <p className="font-display text-2xl text-[#ffcc00] flex items-center gap-1.5 justify-end">
+                  <MessageCircle className="h-4 w-4" /> {(chatCount ?? 0).toLocaleString("ro-RO")}
+                </p>
+                <p className="text-xs text-white/50">mesaje pe chat</p>
+              </div>
+            </div>
+            <div className="relative">
+              <div className="h-2.5 w-full rounded-full bg-white/10 overflow-hidden">
+                <div className="h-full rounded-full bg-gradient-to-r from-[#ffcc00] to-[#ff8a00] transition-all duration-500" style={{ width: `${rank.progress}%` }} />
+              </div>
+              <p className="text-xs text-white/50 mt-2">
+                {rank.isMax
+                  ? "Ai atins rangul maxim — o adevărată Legendă Cartoonix! 🏆"
+                  : <>Încă <span className="text-white font-bold">{rank.remaining.toLocaleString("ro-RO")}</span> mesaje până la <span className="text-[#ffcc00] font-semibold">{rank.nextTitle}</span></>}
+              </p>
+            </div>
+          </div>
+
           <Tabs defaultValue="favorites">
             <TabsList className="bg-[#141414] border border-white/10">
               <TabsTrigger value="favorites" data-testid="tab-favorites" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
