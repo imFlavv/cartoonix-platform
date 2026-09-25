@@ -24,7 +24,21 @@ const SKIN_ASSETS = {
   },
 };
 
+// CSS-only skins (no images) — neon glow + retro pixel outline.
+const CSS_SKINS = {
+  neon: "cx-bubble-neon",
+  retro: "cx-bubble-retro",
+};
+
 export function SkinnedBubble({ skin, textClasses = "", children, testId }) {
+  const cssClass = CSS_SKINS[skin];
+  if (cssClass) {
+    return (
+      <div data-testid={testId} className={`cx-bubble-css ${cssClass}`}>
+        <span className={textClasses}>{children}</span>
+      </div>
+    );
+  }
   const cfg = SKIN_ASSETS[skin];
   if (!cfg) return null;
   return (

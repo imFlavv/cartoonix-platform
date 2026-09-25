@@ -14,6 +14,7 @@ import { EmojiPicker } from "@/components/EmojiPicker";
 import { chatStyleClasses } from "@/lib/chatStyle";
 import { SkinnedBubble } from "@/components/SkinnedBubble";
 import { rankTitle, roleBadge } from "@/lib/roles";
+import { nameColorHex } from "@/lib/chatStyle";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent,
@@ -462,7 +463,7 @@ const ChatRoom = () => {
                       {/* middle */}
                       <div className="flex-1 min-w-0">
                         <p className="text-xs text-white/40 mb-0.5 px-1 flex items-center gap-1.5">
-                          <span className="text-white/70 font-semibold">{m.name}</span>
+                          <span className="text-white/70 font-semibold" style={m.plus && nameColorHex(m.chat_style?.name_color) ? { color: nameColorHex(m.chat_style.name_color) } : undefined}>{m.name}</span>
                           <NameBadges m={m} />
                         </p>
                         <p className="text-[10px] text-white/35 mb-1 px-1 leading-none" data-testid="chat-rank-title">{rankTitle(m.sender_msg_count)}</p>

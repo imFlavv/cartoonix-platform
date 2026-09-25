@@ -33,21 +33,44 @@ export const CHAT_STYLE_GRADIENTS = [
 ];
 
 // PLUS-exclusive chat bubble skins. "none" = classic dark bubble (same as FREE).
+// `thumb` = image preview; `css` = CSS-only skin (rendered via SkinnedBubble class).
 export const CHAT_STYLE_BUBBLES = [
-  { value: "none", label: "Clasică", thumb: null },
-  { value: "capybara", label: "Capybara", thumb: "/chat/bubbles/capybara/left.png" },
-  { value: "ice", label: "Ice", thumb: "/chat/bubbles/ice/left.png" },
-  { value: "planet", label: "Planet", thumb: "/chat/bubbles/planet/left.png" },
+  { value: "none", label: "Clasică", desc: "Simplu și elegant", thumb: null },
+  { value: "capybara", label: "Capybara", desc: "Prietenos și simpatic", thumb: "/chat/bubbles/capybara/left.png" },
+  { value: "ice", label: "Ice", desc: "Rece și modern", thumb: "/chat/bubbles/ice/left.png" },
+  { value: "planet", label: "Planet", desc: "Cosmic și vibrant", thumb: "/chat/bubbles/planet/left.png" },
+  { value: "neon", label: "Neon", desc: "Modern și strălucitor", css: true },
+  { value: "retro", label: "Retro", desc: "Pixel perfect", css: true },
 ];
+
+// Name colors (PLUS only). "default" keeps the standard chat name color.
+export const CHAT_STYLE_NAME_COLORS = [
+  { value: "default", hex: "#ffffff" },
+  { value: "gold", hex: "#ffcc00" },
+  { value: "orange", hex: "#ff8a00" },
+  { value: "red", hex: "#ff3c3c" },
+  { value: "pink", hex: "#ff5db1" },
+  { value: "purple", hex: "#b478ff" },
+  { value: "blue", hex: "#3b82f6" },
+  { value: "cyan", hex: "#00e0ff" },
+  { value: "green", hex: "#39ff14" },
+];
+
+export function nameColorHex(value) {
+  const found = CHAT_STYLE_NAME_COLORS.find((c) => c.value === value);
+  return found && found.value !== "default" ? found.hex : null;
+}
 
 export const DEFAULT_CHAT_STYLE = {
   font: "default",
   glow: "none",
   gradient: "none",
   bubble: "none",
+  name_color: "default",
   bold: false,
   italic: false,
   sparkle: false,
+  shadow: false,
 };
 
 // Build the className string applied to the message text <span>
@@ -59,5 +82,6 @@ export function chatStyleClasses(style) {
   if (s.bold) parts.push("cx-txt-bold");
   if (s.italic) parts.push("cx-txt-italic");
   if (s.sparkle) parts.push("cx-txt-sparkle");
+  if (s.shadow) parts.push("cx-txt-shadow");
   return parts.join(" ");
 }

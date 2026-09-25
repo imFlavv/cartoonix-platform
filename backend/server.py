@@ -241,7 +241,8 @@ def serialize_user(doc: dict) -> dict:
 ALLOWED_FONTS = {"default", "serif", "mono", "cursive", "display", "handwritten"}
 ALLOWED_GLOWS = {"none", "gold", "cyan", "pink", "green", "red", "purple", "white"}
 ALLOWED_GRADIENTS = {"none", "gold", "sunset", "ocean", "candy", "neon", "aurora", "fire"}
-ALLOWED_BUBBLES = {"none", "capybara", "ice", "planet"}
+ALLOWED_BUBBLES = {"none", "capybara", "ice", "planet", "neon", "retro"}
+ALLOWED_NAME_COLORS = {"default", "gold", "orange", "red", "pink", "purple", "blue", "cyan", "green"}
 
 
 def default_chat_style() -> dict:
@@ -251,8 +252,10 @@ def default_chat_style() -> dict:
         "bold": False,
         "italic": False,
         "sparkle": False,
+        "shadow": False,
         "gradient": "none",
         "bubble": "none",
+        "name_color": "default",
     }
 
 
@@ -264,14 +267,17 @@ def sanitize_chat_style(style: Optional[dict]) -> dict:
     glow = style.get("glow")
     grad = style.get("gradient")
     bubble = style.get("bubble")
+    name_color = style.get("name_color")
     return {
         "font": font if font in ALLOWED_FONTS else "default",
         "glow": glow if glow in ALLOWED_GLOWS else "none",
         "gradient": grad if grad in ALLOWED_GRADIENTS else "none",
         "bubble": bubble if bubble in ALLOWED_BUBBLES else "none",
+        "name_color": name_color if name_color in ALLOWED_NAME_COLORS else "default",
         "bold": bool(style.get("bold", False)),
         "italic": bool(style.get("italic", False)),
         "sparkle": bool(style.get("sparkle", False)),
+        "shadow": bool(style.get("shadow", False)),
     }
 
 
@@ -763,9 +769,11 @@ class ChatStyleInput(BaseModel):
     glow: Optional[str] = None
     gradient: Optional[str] = None
     bubble: Optional[str] = None
+    name_color: Optional[str] = None
     bold: Optional[bool] = False
     italic: Optional[bool] = False
     sparkle: Optional[bool] = False
+    shadow: Optional[bool] = False
 
 
 @api_router.put("/auth/chat-style")
