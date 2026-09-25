@@ -36,6 +36,20 @@ export const LibraryProvider = ({ children }) => {
     return data.favorited;
   };
 
+  // Șterge robust un favorit după id (merge chiar dacă desenul nu mai există pe server).
+  const removeFavorite = async (fav) => {
+    const favId = fav?.id || fav?.key;
+    // update optimist
+    setFavorites((prev) => prev.filter((f) => (f.id || f.key) !== favId));
+    try {
+      await api.delete(`/favorites/${encodeURIComponent(favId)}`);
+    } catch (e) {
+      // fallback pe toggle dacă delete eșuează
+      try { await api.post("/favorites/toggle", fav); } catch { /* ignore */ }
+    }
+    await refresh();
+  };
+
   const createPlaylist = async (name) => {
     await api.post("/playlists", { name });
     await refresh();
@@ -61,6 +75,7 @@ export const LibraryProvider = ({ children }) => {
         isFavorite,
         isShowFavorite,
         toggleFavorite,
+        removeFavorite,
         createPlaylist,
         deletePlaylist,
         togglePlaylistItem,

@@ -179,7 +179,7 @@ export const AdminMembers = () => {
                   <div className="flex items-center gap-3">
                     <img src={u.avatar || `https://api.dicebear.com/9.x/bottts/svg?seed=${u.email}`} alt="" className="h-8 w-8 rounded-full bg-[#141414]" />
                     <div>
-                      <p className="font-semibold">{u.name} {u.role === "admin" && <span className="text-[10px] text-[#ffcc00]">(admin)</span>}</p>
+                      <p className="font-semibold">{u.name} {u.role && u.role !== "user" && <span className="text-[10px] text-[#ffcc00]">({u.role === "founder" ? "Hall of Fame" : u.role})</span>}</p>
                       <p className="text-xs text-white/50">{u.email}</p>
                     </div>
                   </div>
@@ -315,11 +315,20 @@ export const AdminMembers = () => {
                 <label className="text-xs text-white/50 flex items-center gap-1"><KeyRound className="h-3 w-3" /> Parolă nouă (opțional)</label>
                 <input data-testid="edit-password" type="text" value={editing.newPassword} onChange={(e) => setEditing({ ...editing, newPassword: e.target.value })} placeholder="lasă gol ca să nu schimbi" className={inputCls} />
               </div>
+              <div>
+                <label className="text-xs text-white/50">Rol / funcție</label>
+                <select data-testid="edit-role" value={editing.role || "user"} onChange={(e) => setEditing({ ...editing, role: e.target.value })} className={inputCls}>
+                  <option value="user">Utilizator</option>
+                  <option value="moderator">Moderator</option>
+                  <option value="admin">Admin</option>
+                  <option value="founder">Hall of Fame (Fondator)</option>
+                </select>
+              </div>
               <button
                 data-testid="save-user"
                 onClick={async () => {
                   try {
-                    await api.put(`/admin/users/${editing.id}`, { name: editing.name, email: editing.email });
+                    await api.put(`/admin/users/${editing.id}`, { name: editing.name, email: editing.email, role: editing.role || "user" });
                     if (editing.newPassword && editing.newPassword.length >= 6) {
                       await api.put(`/admin/users/${editing.id}/password`, { password: editing.newPassword });
                     } else if (editing.newPassword) {

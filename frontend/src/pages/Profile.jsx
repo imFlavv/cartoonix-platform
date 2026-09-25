@@ -29,7 +29,7 @@ const EpItem = ({ item, onPlay, right }) => (
       </span>
     </div>
     <div className="flex-1 min-w-0 cursor-pointer" onClick={onPlay}>
-      <p className="font-semibold text-sm truncate">{item.show_title}</p>
+      <p className="font-semibold text-sm truncate">{item.show_title || "Titlu indisponibil"}</p>
       <p className="text-xs text-white/50 truncate">
         {item.episode_number === 0 ? "Serial complet" : item.episode_title} · {item.channel}
       </p>
@@ -40,7 +40,7 @@ const EpItem = ({ item, onPlay, right }) => (
 
 const Profile = () => {
   const { user, setUser, refreshUser } = useAuth();
-  const { favorites, playlists, toggleFavorite, deletePlaylist, togglePlaylistItem } = useLibrary();
+  const { favorites, playlists, toggleFavorite, removeFavorite, deletePlaylist, togglePlaylistItem } = useLibrary();
   const navigate = useNavigate();
   const [avatar, setAvatar] = useState(user?.avatar || AVATAR_SEEDS[0]);
   const [busy, setBusy] = useState(false);
@@ -195,7 +195,7 @@ const Profile = () => {
                 <Coins className="h-4 w-4 mr-2" /> Wallet
               </TabsTrigger>
               <TabsTrigger value="rewards" data-testid="tab-rewards" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
-                <Gift className="h-4 w-4 mr-2" /> Recompense
+                <Gift className="h-4 w-4 mr-2" /> Inventar
               </TabsTrigger>
               <TabsTrigger value="cinema" data-testid="tab-cinema" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
                 <Ticket className="h-4 w-4 mr-2" /> Bilete
@@ -230,7 +230,7 @@ const Profile = () => {
                         item={f}
                         onPlay={() => play(f)}
                         right={
-                          <button data-testid={`remove-fav-${f.id}`} onClick={() => toggleFavorite(f)} className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors duration-200">
+                          <button data-testid={`remove-fav-${f.id}`} onClick={() => removeFavorite(f)} title="Scoate de la favorite" className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors duration-200">
                             <Heart className="h-4 w-4 fill-[#ec1c24] text-[#ec1c24]" />
                           </button>
                         }
@@ -469,7 +469,7 @@ const Profile = () => {
                   <>
                     <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
                       <div>
-                        <h3 className="font-display text-2xl">Recompensele mele</h3>
+                        <h3 className="font-display text-2xl">Inventarul meu</h3>
                         <p className="text-sm text-white/50">Codurile și premiile câștigate apar aici.</p>
                       </div>
                       <div className="flex items-center gap-2">

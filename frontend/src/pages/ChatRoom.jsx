@@ -9,11 +9,11 @@ import {
   CheckCircle2, Info, MoreVertical, Ban, VolumeX, Trash2, Tv, X, Pin, PinOff, Trophy, MessageSquare, Radio, Hexagon,
 } from "lucide-react";
 import { PlusIcon } from "@/components/PlusIcon";
-import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { MessageText } from "@/components/MessageText";
 import { EmojiPicker } from "@/components/EmojiPicker";
 import { chatStyleClasses } from "@/lib/chatStyle";
 import { SkinnedBubble } from "@/components/SkinnedBubble";
+import { rankTitle, roleBadge } from "@/lib/roles";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent,
@@ -32,6 +32,13 @@ const MUTE_OPTIONS = [
   { value: "1h", label: "1 oră" },
   { value: "24h", label: "24 ore" },
   { value: "perm", label: "Permanent" },
+];
+
+// Moderatorii pot suspenda temporar doar 5/10/15 minute.
+const MOD_MUTE_OPTIONS = [
+  { value: "5m", label: "5 minute" },
+  { value: "10m", label: "10 minute" },
+  { value: "15m", label: "15 minute" },
 ];
 
 const QUICK_RULES = [
@@ -53,6 +60,12 @@ const compact = (n) => {
 const roNum = (n) => (n || 0).toLocaleString("ro-RO");
 const fmtTime = (iso) => {
   try { return new Date(iso).toLocaleTimeString("ro-RO", { hour: "2-digit", minute: "2-digit" }); } catch { return ""; }
+};
+
+const NameBadges = ({ m }) => {
+  const b = roleBadge(m);
+  if (!b) return null;
+  return <span data-testid="chat-role-badge" className={b.cls}>{b.label}</span>;
 };
 
 const ChatRoom = () => {
@@ -79,6 +92,10 @@ const ChatRoom = () => {
   const msgIdsRef = useRef([]);
 
   const isAdmin = user?.role === "admin";
+  const isModerator = user?.role === "moderator";
+  const canModerate = isAdmin || isModerator;
+  const modBase = isAdmin ? "/admin" : "/mod"; // moderatorii folosesc /mod
+  const muteOptions = isAdmin ? MUTE_OPTIONS : MOD_MUTE_OPTIONS;
   const plusLocked = room === "plus" && !user?.plus;
 
   const applyNew = useCallback((incoming) => {
@@ -241,8 +258,8 @@ const ChatRoom = () => {
   // moderation
   const doMute = async (m, duration) => {
     try {
-      await api.post("/admin/chat/mute", { user_id: m.user_id, duration });
-      const lbl = MUTE_OPTIONS.find((o) => o.value === duration)?.label || duration;
+      await api.post(`${modBase}/chat/mute`, { user_id: m.user_id, duration });
+      const lbl = muteOptions.find((o) => o.value === duration)?.label || duration;
       toast.success(`${m.name} a primit mute (${lbl})`);
     } catch (err) { toast.error(err.response?.data?.detail || "Eroare la mute"); }
   };
@@ -252,7 +269,7 @@ const ChatRoom = () => {
   };
   const doDelete = async (m) => {
     try {
-      await api.delete(`/admin/chat/message/${m.id}`);
+      await api.delete(`${modBase}/chat/message/${m.id}`);
       setMessages((prev) => prev.map((x) => (x.id === m.id ? { ...x, deleted: true, text: "" } : x)));
     } catch (err) { toast.error(err.response?.data?.detail || "Eroare la ștergere"); }
   };
@@ -279,14 +296,6 @@ const ChatRoom = () => {
   const roomDesc = room === "plus"
     ? "Cameră exclusivă pentru membrii Cartoonix PLUS 👑"
     : "Discută despre orice! Respectă regulile și fii prietenos.";
-
-  const NameBadges = ({ m }) => (
-    <>
-      {m.role === "admin" && <VerifiedBadge className="h-3.5 w-3.5" />}
-      {m.plus && <PlusIcon className="h-3.5 w-3.5" />}
-      {m.donor && <img src="/badge-donator.gif" alt="Donator" title="Susținător Cartoonix" className="h-[18px] w-[18px] object-contain -ml-1" />}
-    </>
-  );
 
   const visiblePins = pinned.filter((p) => !dismissed.has(p.id));
 
@@ -333,11 +342,11 @@ const ChatRoom = () => {
                 <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-[#22c55e] border-2 border-[#0c0c0f]" />
               </div>
               <div className="min-w-0">
-                <p className="text-sm font-bold truncate flex items-center gap-1">
+                <p className="text-sm font-bold truncate flex items-center gap-1.5">
                   {user?.name}
-                  {isAdmin && <VerifiedBadge className="h-3.5 w-3.5" />}
-                  {user?.plus && <PlusIcon className="h-3.5 w-3.5" />}
+                  {(() => { const b = roleBadge({ role: user?.role, plus: user?.plus, donor: user?.donor }); return b ? <span className={b.cls}>{b.label}</span> : null; })()}
                 </p>
+                <p className="text-[10px] text-white/40 font-semibold">{rankTitle(stats?.my_count)}</p>
                 <p className="text-[11px] text-[#22c55e] font-semibold">Online</p>
               </div>
             </div>
@@ -452,10 +461,11 @@ const ChatRoom = () => {
 
                       {/* middle */}
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs text-white/40 mb-0.5 px-1 flex items-center gap-1">
+                        <p className="text-xs text-white/40 mb-0.5 px-1 flex items-center gap-1.5">
                           <span className="text-white/70 font-semibold">{m.name}</span>
                           <NameBadges m={m} />
                         </p>
+                        <p className="text-[10px] text-white/35 mb-1 px-1 leading-none" data-testid="chat-rank-title">{rankTitle(m.sender_msg_count)}</p>
                         {m.quote && !m.deleted && (
                           <div data-testid="chat-quote-preview" className="mb-1 pl-2.5 border-l-2 border-[#ffcc00]/70 bg-white/5 rounded-r-md px-2 py-1">
                             <span className="block text-[11px] font-semibold text-[#ffcc00]/90 truncate">{m.quote.name}</span>
@@ -492,7 +502,7 @@ const ChatRoom = () => {
 
                       {/* right: time + mod */}
                       <span className="text-[11px] text-white/30 shrink-0 pt-5 tabular-nums">{fmtTime(m.created_at)}</span>
-                      {isAdmin && !m.deleted && m.user_id && (
+                      {canModerate && !m.deleted && m.user_id && (
                         <DropdownMenu modal={false}>
                           <DropdownMenuTrigger asChild>
                             <button data-testid="chat-mod-trigger" className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity pt-5 h-7 w-7 flex items-center justify-center rounded-full text-white/50 hover:text-white hover:bg-white/10" title="Moderare">
@@ -500,18 +510,22 @@ const ChatRoom = () => {
                             </button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="bg-[#141414] border-white/10 text-white">
-                            <DropdownMenuItem data-testid="chat-mod-pin" onClick={() => doPin(m)} className="focus:bg-white/10 gap-2">
-                              <Pin className="h-4 w-4 text-[#a78bfa]" /> Fixează mesajul
-                            </DropdownMenuItem>
+                            {isAdmin && (
+                              <DropdownMenuItem data-testid="chat-mod-pin" onClick={() => doPin(m)} className="focus:bg-white/10 gap-2">
+                                <Pin className="h-4 w-4 text-[#a78bfa]" /> Fixează mesajul
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuSub>
-                              <DropdownMenuSubTrigger data-testid="chat-mod-mute" className="focus:bg-white/10 gap-2"><VolumeX className="h-4 w-4 text-orange-400" /> Mute</DropdownMenuSubTrigger>
+                              <DropdownMenuSubTrigger data-testid="chat-mod-mute" className="focus:bg-white/10 gap-2"><VolumeX className="h-4 w-4 text-orange-400" /> {isAdmin ? "Mute" : "Suspendă"}</DropdownMenuSubTrigger>
                               <DropdownMenuSubContent className="bg-[#141414] border-white/10 text-white">
-                                {MUTE_OPTIONS.map((o) => (
+                                {muteOptions.map((o) => (
                                   <DropdownMenuItem key={o.value} data-testid={`chat-mute-${o.value}`} onClick={() => doMute(m, o.value)} className="focus:bg-white/10">{o.label}</DropdownMenuItem>
                                 ))}
                               </DropdownMenuSubContent>
                             </DropdownMenuSub>
-                            <DropdownMenuItem data-testid="chat-mod-ban" onClick={() => doBan(m)} className="focus:bg-white/10 gap-2 text-red-400"><Ban className="h-4 w-4" /> Ban utilizator</DropdownMenuItem>
+                            {isAdmin && (
+                              <DropdownMenuItem data-testid="chat-mod-ban" onClick={() => doBan(m)} className="focus:bg-white/10 gap-2 text-red-400"><Ban className="h-4 w-4" /> Ban utilizator</DropdownMenuItem>
+                            )}
                             <DropdownMenuSeparator className="bg-white/10" />
                             <DropdownMenuItem data-testid="chat-mod-delete" onClick={() => doDelete(m)} className="focus:bg-white/10 gap-2"><Trash2 className="h-4 w-4" /> Șterge mesajul</DropdownMenuItem>
                           </DropdownMenuContent>
@@ -601,10 +615,9 @@ const ChatRoom = () => {
                     {u.online && <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-[#22c55e] border-2 border-[#0c0c0f]" />}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold truncate flex items-center gap-1">
+                    <p className="text-sm font-semibold truncate flex items-center gap-1.5">
                       {u.name}
-                      {u.role === "admin" && <VerifiedBadge className="h-3 w-3" />}
-                      {u.plus && <PlusIcon className="h-3 w-3" />}
+                      {(() => { const b = roleBadge(u); return b ? <span className={b.cls}>{b.label}</span> : null; })()}
                     </p>
                     <p className="text-[11px] text-white/40">{roNum(u.count)} mesaje</p>
                   </div>

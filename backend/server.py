@@ -174,7 +174,9 @@ def user_is_donor(user: dict) -> bool:
         return False
 
 
-MUTE_DURATIONS = {"5m": 5, "1h": 60, "24h": 60 * 24, "perm": None}
+MUTE_DURATIONS = {"5m": 5, "10m": 10, "15m": 15, "1h": 60, "24h": 60 * 24, "perm": None}
+# Duratele permise moderatorilor (suspendare temporară pe chat)
+MOD_MUTE_DURATIONS = {"5m", "10m", "15m"}
 
 
 def mute_remaining(user: dict):
@@ -310,6 +312,19 @@ async def get_current_user(creds: Optional[HTTPAuthorizationCredentials] = Depen
 
 async def require_admin(user: dict = Depends(get_current_user)) -> dict:
     if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Acces interzis")
+    return user
+
+
+# Roluri permise în platformă. "founder" = Hall of Fame (badge FONDATOR).
+ALLOWED_ROLES = {"user", "moderator", "admin", "founder"}
+# Roluri de "staff" care nu pot fi moderate pe chat.
+STAFF_ROLES = {"admin", "moderator", "founder"}
+
+
+async def require_moderator(user: dict = Depends(get_current_user)) -> dict:
+    """Permite acces moderatorilor ȘI administratorilor."""
+    if user.get("role") not in ("admin", "moderator"):
         raise HTTPException(status_code=403, detail="Acces interzis")
     return user
 
@@ -2157,6 +2172,25 @@ async def toggle_favorite(data: ItemRef, user: dict = Depends(get_current_user))
     return {"favorited": True}
 
 
+@api_router.delete("/favorites/{fav_id}")
+async def delete_favorite(fav_id: str, user: dict = Depends(get_current_user)):
+    """Șterge un favorit după id-ul lui (robust — merge chiar dacă desenul nu mai
+    există pe server, ex. importuri vechi de pe alt VPS). Fallback pe `key`."""
+    uid = uid_of(user)
+    deleted = 0
+    # 1) încearcă după ObjectId
+    try:
+        res = await db.favorites.delete_one({"_id": ObjectId(fav_id), "user_id": uid})
+        deleted = res.deleted_count
+    except Exception:
+        deleted = 0
+    # 2) fallback: după câmpul `key` (ex: "showid:0") sau `id` string legacy
+    if not deleted:
+        res = await db.favorites.delete_one({"user_id": uid, "$or": [{"key": fav_id}, {"id": fav_id}]})
+        deleted = res.deleted_count
+    return {"ok": True, "deleted": deleted}
+
+
 # ---------- playlists ----------
 class PlaylistCreate(BaseModel):
     name: str
@@ -2417,8 +2451,10 @@ async def _sender_meta(user_ids: List[str]) -> dict:
     if oid_list:
         or_clauses.append({"_id": {"$in": oid_list}})
     try:
-        users = await db.users.find({"$or": or_clauses}, {"id": 1, "chat_last_seen": 1, "points": 1}).to_list(1000)
+        users = await db.users.find({"$or": or_clauses}, {"id": 1, "chat_last_seen": 1, "points": 1, "role": 1, "subscription": 1, "plus": 1}).to_list(1000)
         donors = set()
+        roles = {}
+        plus_set = set()
         for u in users:
             key = u.get("id") or str(u.get("_id", ""))
             if u.get("chat_last_seen") and str(u["chat_last_seen"]) >= thr:
@@ -2428,9 +2464,13 @@ async def _sender_meta(user_ids: List[str]) -> dict:
                     donors.add(key)
             except (TypeError, ValueError):
                 pass
+            roles[key] = u.get("role", "user") or "user"
+            if user_is_plus(u):
+                plus_set.add(key)
     except Exception:
         pass
-    return {i: {"count": counts.get(i, 0), "online": i in online, "donor": i in donors} for i in ids}
+    return {i: {"count": counts.get(i, 0), "online": i in online, "donor": i in donors,
+                "role": roles.get(i, "user"), "plus": i in plus_set} for i in ids}
 
 
 async def _enrich_messages(msgs: List[dict]) -> List[dict]:
@@ -2441,6 +2481,8 @@ async def _enrich_messages(msgs: List[dict]) -> List[dict]:
         m["sender_online"] = info["online"] if info else False
         if info is not None:
             m["donor"] = info["donor"]
+            m["role"] = info["role"]
+            m["plus"] = info["plus"]
     return msgs
 
 
@@ -2870,7 +2912,10 @@ async def admin_update_user(uid: str, data: AdminUserUpdate, admin: dict = Depen
     if "banned" in raw:
         updates["banned"] = raw["banned"]
     if "role" in raw:
-        updates["role"] = raw["role"]
+        new_role = str(raw["role"]).lower().strip()
+        if new_role not in ALLOWED_ROLES:
+            raise HTTPException(status_code=400, detail="Rol invalid")
+        updates["role"] = new_role
     if updates:
         await db.users.update_one({"_id": target["_id"]}, {"$set": updates})
     user = await db.users.find_one({"_id": target["_id"]})
@@ -3884,6 +3929,38 @@ async def admin_moderation_lists(admin: dict = Depends(require_admin)):
         "muted": [serialize_user(u) for u in muted],
         "banned": [serialize_user(u) for u in banned],
     }
+
+
+# ==================== CHAT MODERATION (moderator + admin) ====================
+# Moderatorii pot: suspenda temporar un utilizator (5/10/15 min) și șterge un mesaj.
+@api_router.post("/mod/chat/mute")
+async def mod_mute_user(data: MuteInput, mod: dict = Depends(require_moderator)):
+    if data.duration not in MOD_MUTE_DURATIONS:
+        raise HTTPException(status_code=400, detail="Durată invalidă (doar 5, 10 sau 15 minute)")
+    target = await find_user_by_id(data.user_id)
+    if not target:
+        raise HTTPException(status_code=404, detail="Utilizator inexistent")
+    if target.get("role") in STAFF_ROLES:
+        raise HTTPException(status_code=400, detail="Nu poți suspenda un membru al echipei")
+    minutes = MUTE_DURATIONS[data.duration]
+    until = datetime.now(timezone.utc) + timedelta(minutes=minutes)
+    await db.users.update_one({"_id": target["_id"]}, {"$set": {"muted_until": until.isoformat()}})
+    return {"ok": True, "muted_until": until.isoformat()}
+
+
+@api_router.delete("/mod/chat/message/{msg_id}")
+async def mod_delete_message(msg_id: str, mod: dict = Depends(require_moderator)):
+    try:
+        oid = ObjectId(msg_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="ID invalid")
+    res = await db.chat_messages.update_one(
+        {"_id": oid},
+        {"$set": {"deleted": True, "deleted_by": user_name(mod), "deleted_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Mesaj inexistent")
+    return {"ok": True}
 
 
 # ==================== CartoonixTV BOT config ====================
