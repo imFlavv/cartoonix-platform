@@ -8,7 +8,7 @@ import json
 import sys
 
 # Configuration
-BASE_URL = "https://admin-episode-sorter.preview.emergentagent.com/api"
+BASE_URL = "https://favorite-cleanup.preview.emergentagent.com/api"
 
 # Test credentials
 ADMIN_EMAIL = "admin@cartoonix.ro"

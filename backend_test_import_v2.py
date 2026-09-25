@@ -7,7 +7,7 @@ import requests
 import sys
 
 # Configuration
-BASE_URL = "https://a24d1dc1-8c5f-4d9b-b559-5d7a7b94cb87.preview.emergentagent.com/api"
+BASE_URL = "https://favorite-cleanup.preview.emergentagent.com/api"
 ADMIN_EMAIL = "admin@cartoonix.ro"
 ADMIN_PASSWORD = "admin1234"
 TEST_EMAIL = "test@cartoonix.ro"
