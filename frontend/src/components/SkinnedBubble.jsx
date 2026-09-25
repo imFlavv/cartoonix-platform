@@ -25,19 +25,22 @@ const SKIN_ASSETS = {
 };
 
 // CSS-only skins (no images) — glowing / stylised bubbles.
+import { cssSkinStyle } from "@/lib/chatStyle";
+
 const CSS_SKINS = {
   neon: "cx-bubble-neon",
   retro: "cx-bubble-retro",
   gold: "cx-bubble-gold",
   holo: "cx-bubble-holo",
   bubblegum: "cx-bubble-bubblegum",
+  halloween: "cx-bubble-halloween",
 };
 
 export function SkinnedBubble({ skin, textClasses = "", children, testId }) {
   const cssClass = CSS_SKINS[skin];
   if (cssClass) {
     return (
-      <div data-testid={testId} className={`cx-bubble-css ${cssClass}`}>
+      <div data-testid={testId} className={`cx-bubble-css ${cssClass}`} style={cssSkinStyle(skin)}>
         <span className={textClasses}>{children}</span>
       </div>
     );

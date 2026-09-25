@@ -298,10 +298,10 @@ export const NavBar = () => {
                   </div>
                   <DropdownMenuSeparator className="bg-white/10" />
                   <DropdownMenuItem data-testid="menu-profile" onClick={() => navigate("/profile")} className="cursor-pointer focus:bg-white/10">
-                    <User className="h-4 w-4 mr-2" /> My Profile
+                    <User className="h-4 w-4 mr-2" /> Profil
                   </DropdownMenuItem>
                   <DropdownMenuItem data-testid="menu-settings" onClick={() => navigate("/settings")} className="cursor-pointer focus:bg-white/10">
-                    <Settings className="h-4 w-4 mr-2" /> Settings
+                    <Settings className="h-4 w-4 mr-2" /> Setări
                   </DropdownMenuItem>
                   <DropdownMenuItem data-testid="menu-shop" onClick={() => navigate("/lobby/rewards")} className="cursor-pointer focus:bg-white/10">
                     <ShoppingBag className="h-4 w-4 mr-2" /> Recompense

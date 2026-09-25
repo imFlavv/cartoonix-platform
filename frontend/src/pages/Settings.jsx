@@ -20,6 +20,7 @@ import {
   CHAT_STYLE_BUBBLES,
   CHAT_STYLE_NAME_COLORS,
   nameColorHex,
+  cssSkinStyle,
   DEFAULT_CHAT_STYLE,
   chatStyleClasses,
 } from "@/lib/chatStyle";
@@ -433,7 +434,7 @@ const Settings = () => {
                         {b.thumb ? (
                           <img src={b.thumb} alt="" className="h-11 w-11 object-contain" />
                         ) : b.css ? (
-                          <span className={`cx-bubble-css cx-bubble-${b.value} !px-2 !py-1 !text-[10px]`}>abc</span>
+                          <span className={`cx-bubble-css cx-bubble-${b.value} !px-2 !py-1 !text-[10px]`} style={cssSkinStyle(b.value)}>abc</span>
                         ) : (
                           <span className="h-9 w-12 rounded-lg bg-[#2a2a2a] border border-white/10 flex items-center justify-center text-[10px] text-white/50">abc</span>
                         )}

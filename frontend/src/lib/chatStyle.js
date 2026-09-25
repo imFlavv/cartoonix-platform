@@ -44,6 +44,7 @@ export const CHAT_STYLE_BUBBLES = [
   { value: "gold", label: "Aur", desc: "Luxos și regal", css: true },
   { value: "holo", label: "Holo", desc: "Curcubeu futurist", css: true },
   { value: "bubblegum", label: "Bubblegum", desc: "Dulce și pufos", css: true },
+  { value: "halloween", label: "Halloween", desc: "Spooky și festiv", css: true },
 ];
 
 // Name colors (PLUS only). "default" keeps the standard chat name color.
@@ -62,6 +63,19 @@ export const CHAT_STYLE_NAME_COLORS = [
 export function nameColorHex(value) {
   const found = CHAT_STYLE_NAME_COLORS.find((c) => c.value === value);
   return found && found.value !== "default" ? found.hex : null;
+}
+
+// Inline background style for CSS skins that reference a public image (avoids webpack url() resolution).
+const CSS_SKIN_STYLE = {
+  halloween: {
+    backgroundImage: "linear-gradient(rgba(8,6,18,.55), rgba(8,6,18,.78)), url(/chat/halloween-bg.png)",
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+  },
+};
+
+export function cssSkinStyle(value) {
+  return CSS_SKIN_STYLE[value];
 }
 
 export const DEFAULT_CHAT_STYLE = {

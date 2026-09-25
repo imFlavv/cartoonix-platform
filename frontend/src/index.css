@@ -536,3 +536,16 @@ body.cx-no-avatar-frames .cx-premium-ring::before {
   border-radius: 18px 18px 18px 6px;
   box-shadow: 0 3px 0 0 #ff5db1, 0 0 12px rgba(255,93,177,.45), inset 0 2px 6px rgba(255,255,255,.6);
 }
+
+/* Halloween — pădure spooky cu dovleci, contur portocaliu strălucitor.
+   Imaginea de fundal se aplică inline (vezi cssSkinStyle) ca să nu fie procesată de webpack. */
+.cx-bubble-halloween {
+  color: #ffe9c7;
+  background-color: #0a0616;
+  background-size: cover;
+  background-position: center;
+  border: 1.5px solid #ff7a18;
+  border-radius: 14px 14px 14px 4px;
+  box-shadow: 0 0 8px rgba(255,122,24,.6), 0 0 20px rgba(124,58,237,.4), inset 0 0 12px rgba(0,0,0,.5);
+  text-shadow: 0 1px 3px rgba(0,0,0,.9), 0 0 8px rgba(255,122,24,.5);
+}

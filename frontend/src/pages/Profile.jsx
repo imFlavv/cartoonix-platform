@@ -5,7 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useLibrary } from "@/context/LibraryContext";
 import { api } from "@/lib/api";
 import { setQueue } from "@/lib/queue";
-import { AVATAR_SEEDS, PREMIUM_AVATARS } from "@/data/constants";
+import { AVATAR_SEEDS } from "@/data/constants";
 import { PlusIcon } from "@/components/PlusIcon";
 import { Check, Play, Heart, Trash2, ListMusic, Film, Clock, Lock, KeyRound, Eye, EyeOff, User, Gift, PlayCircle, Coins, Ticket, FileText, Building2, Download, Crown, Copy, Plus, Award, MessageCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -43,8 +43,7 @@ const Profile = () => {
   const { user, setUser, refreshUser } = useAuth();
   const { favorites, playlists, toggleFavorite, removeFavorite, deletePlaylist, togglePlaylistItem } = useLibrary();
   const navigate = useNavigate();
-  const [avatar, setAvatar] = useState(user?.avatar || AVATAR_SEEDS[0]);
-  const [busy, setBusy] = useState(false);
+  const [avatar] = useState(user?.avatar || AVATAR_SEEDS[0]);
   const [wallet, setWallet] = useState({ points: user?.points ?? 0, history: [] });
   const [tickets, setTickets] = useState([]);
   const [invoiceData, setInvoiceData] = useState(null);
@@ -63,28 +62,6 @@ const Profile = () => {
   }, []);
 
   const rank = rankInfo(chatCount || 0);
-
-  const saveAvatar = async () => {
-    setBusy(true);
-    try {
-      const { data } = await api.put("/auth/avatar", { avatar });
-      setUser(data);
-      toast.success("Avatar actualizat!");
-    } catch (e) {
-      toast.error(e.response?.data?.detail || "Nu s-a putut salva");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const pickPremium = (a) => {
-    if (!user?.plus) {
-      toast.error("Avatarele premium sunt doar pentru membrii PLUS");
-      navigate("/plus");
-      return;
-    }
-    setAvatar(a);
-  };
 
   const play = (i) => navigate(i.episode_number === 0 ? `/show/${i.show_id}` : `/watch/${i.show_id}/${i.episode_number}`);
 
@@ -182,38 +159,36 @@ const Profile = () => {
               </div>
             </div>
           </div>
+
+          {/* Rank / nivel pe chat — în zona de statistici */}
+          <div data-testid="profile-rank" className="relative max-w-5xl mx-auto mt-6 rounded-2xl border border-white/10 bg-black/30 backdrop-blur-sm p-4 md:p-5">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="h-10 w-10 rounded-xl bg-[#ffcc00]/15 border border-[#ffcc00]/40 flex items-center justify-center shrink-0">
+                <Award className="h-5 w-5 text-[#ffcc00]" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] uppercase tracking-wider text-white/40 leading-none">Rangul tău</p>
+                <h3 className="font-display text-xl md:text-2xl leading-tight">{rank.title}</h3>
+              </div>
+              <div className="text-right shrink-0">
+                <p className="font-display text-xl text-[#ffcc00] flex items-center gap-1.5 justify-end">
+                  <MessageCircle className="h-4 w-4" /> {(chatCount ?? 0).toLocaleString("ro-RO")}
+                </p>
+                <p className="text-[11px] text-white/50 leading-none">mesaje pe chat</p>
+              </div>
+            </div>
+            <div className="h-2.5 w-full rounded-full bg-white/10 overflow-hidden">
+              <div className="h-full rounded-full bg-gradient-to-r from-[#ffcc00] to-[#ff8a00] transition-all duration-500" style={{ width: `${rank.progress}%` }} />
+            </div>
+            <p className="text-xs text-white/50 mt-2">
+              {rank.isMax
+                ? "Ai atins rangul maxim — o adevărată Legendă Cartoonix! 🏆"
+                : <>Încă <span className="text-white font-bold">{rank.remaining.toLocaleString("ro-RO")}</span> mesaje până la <span className="text-[#ffcc00] font-semibold">{rank.nextTitle}</span></>}
+            </p>
+          </div>
         </div>
 
         <div className="max-w-5xl mx-auto px-4 md:px-12 py-8">
-          {/* Rank / nivel pe chat */}
-          <div data-testid="profile-rank" className="mb-8 rounded-2xl border border-white/10 bg-[#0f0f0f] p-5 md:p-6 overflow-hidden relative">
-            <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ background: "radial-gradient(circle at 100% 0%, rgba(255,204,0,0.25), transparent 55%)" }} />
-            <div className="relative flex items-center gap-4 mb-4">
-              <div className="h-12 w-12 rounded-xl bg-[#ffcc00]/15 border border-[#ffcc00]/40 flex items-center justify-center shrink-0">
-                <Award className="h-6 w-6 text-[#ffcc00]" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs uppercase tracking-wider text-white/40">Rangul tău</p>
-                <h3 className="font-display text-2xl md:text-3xl leading-tight">{rank.title}</h3>
-              </div>
-              <div className="text-right shrink-0">
-                <p className="font-display text-2xl text-[#ffcc00] flex items-center gap-1.5 justify-end">
-                  <MessageCircle className="h-4 w-4" /> {(chatCount ?? 0).toLocaleString("ro-RO")}
-                </p>
-                <p className="text-xs text-white/50">mesaje pe chat</p>
-              </div>
-            </div>
-            <div className="relative">
-              <div className="h-2.5 w-full rounded-full bg-white/10 overflow-hidden">
-                <div className="h-full rounded-full bg-gradient-to-r from-[#ffcc00] to-[#ff8a00] transition-all duration-500" style={{ width: `${rank.progress}%` }} />
-              </div>
-              <p className="text-xs text-white/50 mt-2">
-                {rank.isMax
-                  ? "Ai atins rangul maxim — o adevărată Legendă Cartoonix! 🏆"
-                  : <>Încă <span className="text-white font-bold">{rank.remaining.toLocaleString("ro-RO")}</span> mesaje până la <span className="text-[#ffcc00] font-semibold">{rank.nextTitle}</span></>}
-              </p>
-            </div>
-          </div>
 
           <Tabs defaultValue="favorites">
             <TabsList className="bg-[#141414] border border-white/10">
@@ -329,71 +304,9 @@ const Profile = () => {
             </TabsContent>
 
             <TabsContent value="account" className="mt-6">
-              <h3 className="font-display text-2xl mb-4">Schimbă avatarul</h3>
-              <div className="grid grid-cols-5 sm:grid-cols-7 gap-3 mb-6 max-w-lg">
-                {AVATAR_SEEDS.map((a) => (
-                  <button
-                    key={a}
-                    data-testid="profile-avatar-option"
-                    onClick={() => setAvatar(a)}
-                    className={`relative rounded-full overflow-hidden bg-white/5 border-2 transition-all duration-200 ${
-                      avatar === a ? "border-[#ffcc00] scale-105" : "border-transparent hover:border-white/30"
-                    }`}
-                  >
-                    <img src={a} alt="avatar" className="w-full aspect-square object-cover" />
-                    {avatar === a && (
-                      <span className="absolute inset-0 flex items-center justify-center bg-black/40">
-                        <Check className="h-4 w-4 text-[#ffcc00]" />
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
-              <button data-testid="profile-save" onClick={saveAvatar} disabled={busy} className="px-7 py-3 rounded-full bg-[#ec1c24] font-bold hover:bg-[#ff2d36] transition-colors duration-200 disabled:opacity-60">
-                {busy ? "Se salvează..." : "Salvează avatarul"}
-              </button>
-
-              <div className="mt-8">
-                <h3 className="font-display text-2xl mb-1 flex items-center gap-2">
-                  <PlusIcon className="h-5 w-5" /> Avatare PLUS
-                </h3>
-                <p className="text-sm text-white/50 mb-4">Avatare elegante, exclusiv pentru membrii Cartoonix PLUS.</p>
-                <div className="grid grid-cols-5 sm:grid-cols-7 gap-4 max-w-lg">
-                  {PREMIUM_AVATARS.map((a) => {
-                    const selected = avatar === a;
-                    return (
-                      <button
-                        key={a}
-                        data-testid="premium-avatar-option"
-                        onClick={() => pickPremium(a)}
-                        className={`relative rounded-full transition-all duration-200 ${selected ? "scale-105" : ""} ${!user?.plus ? "opacity-90" : ""}`}
-                      >
-                        <span className={`block rounded-full overflow-hidden ${user?.plus ? "cx-premium-ring" : "border-2 border-white/10"}`}>
-                          <img src={a} alt="avatar premium" className="w-full aspect-square object-cover bg-white/5 rounded-full" />
-                        </span>
-                        {!user?.plus && (
-                          <span className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-full">
-                            <Lock className="h-4 w-4 text-[#ffcc00]" />
-                          </span>
-                        )}
-                        {selected && user?.plus && (
-                          <span className="absolute -top-1 -right-1 z-20 h-5 w-5 flex items-center justify-center rounded-full bg-[#ffcc00] shadow-md">
-                            <Check className="h-3 w-3 text-black" />
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-                {!user?.plus && (
-                  <button onClick={() => navigate("/plus")} data-testid="profile-premium-upsell" className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#ffcc00] text-black font-bold hover:brightness-110 transition-all duration-200">
-                    <PlusIcon className="h-4 w-4" /> Deblochează cu PLUS
-                  </button>
-                )}
-              </div>
 
               {/* -------- Change password -------- */}
-              <div className="mt-10 pt-8 border-t border-white/10 max-w-lg">
+              <div className="max-w-lg">
                 <h3 className="font-display text-2xl mb-1 flex items-center gap-2">
                   <KeyRound className="h-5 w-5 text-[#ffcc00]" /> Schimbă parola
                 </h3>
