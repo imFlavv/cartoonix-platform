@@ -273,7 +273,7 @@ const Lobby = () => {
           <LobbyCard
             testid="lobby-cartoonixland"
             title="Cartoonix Land"
-            desc="Marea deschidere Halloween"
+            desc="Alătură-te evenimentului de Halloween!"
             cta="Explorează"
             accent="#ff7a18"
             image={IMG.cartoonixland}
