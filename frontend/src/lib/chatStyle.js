@@ -68,7 +68,7 @@ export function nameColorHex(value) {
 // Inline background style for CSS skins that reference a public image (avoids webpack url() resolution).
 const CSS_SKIN_STYLE = {
   halloween: {
-    backgroundImage: "linear-gradient(rgba(8,6,18,.55), rgba(8,6,18,.78)), url(/chat/halloween-bg.png)",
+    backgroundImage: "linear-gradient(rgba(8,6,18,.5), rgba(8,6,18,.72)), url(/chat/halloween-bg.png?v=2)",
     backgroundSize: "cover",
     backgroundPosition: "center",
   },
