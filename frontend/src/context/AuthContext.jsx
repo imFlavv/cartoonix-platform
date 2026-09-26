@@ -60,12 +60,18 @@ export const AuthProvider = ({ children }) => {
   };
 
   // presence heartbeat + time tracking
+  // Only counts while the tab is actually visible, so background/idle tabs
+  // don't farm time and multi-tab abuse is naturally limited.
   useEffect(() => {
     if (!user) return;
-    const ping = () => api.post("/presence").catch(() => {});
+    const ping = () => {
+      if (document.visibilityState === "visible") api.post("/presence").catch(() => {});
+    };
     ping();
     const t = setInterval(ping, 30000);
-    return () => clearInterval(t);
+    const onVis = () => { if (document.visibilityState === "visible") ping(); };
+    document.addEventListener("visibilitychange", onVis);
+    return () => { clearInterval(t); document.removeEventListener("visibilitychange", onVis); };
   }, [user]);
 
   return (

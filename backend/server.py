@@ -3212,18 +3212,41 @@ async def admin_update_ticket_status(tid: str, data: TicketStatusUpdate, admin: 
 @api_router.post("/presence")
 async def heartbeat(user: dict = Depends(get_current_user)):
     now = datetime.now(timezone.utc)
-    add = 0
-    last = user.get("last_active") or user.get("last_seen")
-    if last:
-        try:
-            delta = (now - datetime.fromisoformat(last)).total_seconds()
-            if 0 < delta <= 90:
-                add = int(delta)
-        except Exception:
-            add = 0
+    # Race-safe time tracking: the elapsed delta is computed *inside* an atomic
+    # aggregation-pipeline update from the document's live `last_active_ts`.
+    # MongoDB serializes writes to a single document, so concurrent pings from
+    # multiple tabs/devices each see the previous write and can NOT double-count
+    # (previously the delta was read via get_current_user, letting N tabs add Nx time).
     await db.users.update_one(
         {"_id": user["_id"]},
-        {"$set": {"last_active": now.isoformat()}, "$inc": {"presence_seconds": add}},
+        [
+            {"$set": {
+                "_pd": {
+                    "$let": {
+                        "vars": {
+                            "d": {
+                                "$cond": [
+                                    {"$ifNull": ["$last_active_ts", False]},
+                                    {"$divide": [{"$subtract": [now, "$last_active_ts"]}, 1000]},
+                                    0,
+                                ]
+                            }
+                        },
+                        "in": {"$cond": [
+                            {"$and": [{"$gt": ["$$d", 0]}, {"$lte": ["$$d", 90]}]},
+                            {"$floor": "$$d"},
+                            0,
+                        ]},
+                    }
+                }
+            }},
+            {"$set": {
+                "presence_seconds": {"$add": [{"$ifNull": ["$presence_seconds", 0]}, "$_pd"]},
+                "last_active": now.isoformat(),
+                "last_active_ts": now,
+            }},
+            {"$unset": "_pd"},
+        ],
     )
     return {"ok": True}
 
