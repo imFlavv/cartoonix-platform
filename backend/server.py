@@ -1133,6 +1133,14 @@ async def get_rewards(user: dict = Depends(get_current_user)):
     claims = await db.reward_claims.find({"user_id": uid}).sort("created_at", -1).to_list(50)
     for c in claims:
         c.pop("_id", None)
+    # A won PLUS invitation disappears once its voucher code has been used (by anyone).
+    codes = [c.get("voucher_code") for c in claims if c.get("kind") == "plus_invite" and c.get("voucher_code")]
+    used_codes = set()
+    if codes:
+        async for v in db.vouchers.find({"code": {"$in": codes}}):
+            if int(v.get("used_count", 0)) >= 1:
+                used_codes.add(v["code"])
+    claims = [c for c in claims if not (c.get("kind") == "plus_invite" and c.get("voucher_code") in used_codes)]
     products = [{"id": pid, **{k: p[k] for k in ("title", "cost", "kind", "desc")}}
                 for pid, p in REWARD_PRODUCTS.items()]
     return {
@@ -1206,6 +1214,8 @@ async def redeem_code(body: RedeemCode, user: dict = Depends(get_current_user)):
     if not v or not v.get("active", True):
         raise HTTPException(status_code=400, detail="Cod invalid sau inactiv")
     uid = uid_of(user)
+    if v.get("type") == "plus" and user_is_plus(user):
+        raise HTTPException(status_code=400, detail="Ai deja acces PLUS activ. Poți dărui codul altcuiva.")
     scope = v.get("scope", "universal")
     if scope == "specific":
         if v.get("target_user_id") and v["target_user_id"] != uid:
@@ -1261,20 +1271,24 @@ SPIN_SEGMENTS = [
     {"key": "p15",   "label": "15 NIX",    "color": "#5e3a12", "text": "#ffe0b8"},
     {"key": "retry", "label": "Mai încearcă", "color": "#3a1220", "text": "#ffc7d6"},
     {"key": "p50",   "label": "50 NIX",    "color": "#5e5012", "text": "#fff3b0"},
+    {"key": "key",   "label": "1 Cheie",    "color": "#4a3a0a", "text": "#ffe08a"},
+    {"key": "pumpkin","label": "1 Dovleac",  "color": "#5e2f0a", "text": "#ffcf9e"},
     {"key": "plus",  "label": "Invitație PLUS","color": "#5e1220", "text": "#ffd0d6"},
 ]
 
-# prize key -> (weight, points). "plus" and "retry" handled specially.
+# prize key -> (weight, points). "plus", "key", "pumpkin" and "retry" handled specially.
 SPIN_PRIZES = [
-    ("retry", 55),
+    ("retry", 15),
     ("p5", 20),
+    ("key", 15),
+    ("pumpkin", 25),
     ("p10", 12),
     ("p15", 7),
     ("p50", 4),
     ("plus", 2),
 ]
 SPIN_DEFAULT_WEIGHTS = {k: w for k, w in SPIN_PRIZES}
-SPIN_LABELS = {"retry": "Mai încearcă", "p5": "5 NIX", "p10": "10 NIX", "p15": "15 NIX", "p50": "50 NIX", "plus": "Invitație PLUS"}
+SPIN_LABELS = {"retry": "Mai încearcă", "p5": "5 NIX", "key": "1 Cheie Mystery Box", "pumpkin": "1 Dovleac", "p10": "10 NIX", "p15": "15 NIX", "p50": "50 NIX", "plus": "Invitație PLUS"}
 _SPIN_POINTS = {"p5": 5, "p10": 10, "p15": 15, "p50": 50}
 
 
@@ -1334,6 +1348,13 @@ async def do_spin(user: dict = Depends(get_current_user)):
             "user_id": uid, "type": "spin", "points": pts, "created_at": now_iso,
         })
         result.update({"type": "points", "points": pts})
+    elif key == "key":
+        await db.users.update_one({"_id": user["_id"]}, {"$inc": {"spins": 1}})
+        result.update({"type": "key", "keys": 1})
+    elif key == "pumpkin":
+        await _hw_doc(user)
+        await db.halloween.update_one({"user_id": uid_of(user)}, {"$inc": {"pumpkins": 1}})
+        result.update({"type": "pumpkin", "pumpkins": 1})
     elif key == "plus":
         code = await _new_unique_voucher_code()
         await db.vouchers.insert_one({
@@ -1362,7 +1383,7 @@ async def do_spin(user: dict = Depends(get_current_user)):
         "ok": True,
         "segment_index": seg_index,
         "result": result,
-        "spins": int(updated.get("spins", 0)),
+        "spins": int(fresh.get("spins", 0)),
         "points": int(fresh.get("points", 0)),
     }
 

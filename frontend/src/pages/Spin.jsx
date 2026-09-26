@@ -4,13 +4,16 @@ import { NavBar } from "@/components/NavBar";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import { Copy, X, KeyRound, RotateCw, Gift } from "lucide-react";
+import { X, RotateCw, Gift } from "lucide-react";
 import { NixCoin } from "@/components/NixCoin";
+import { KeyIcon } from "@/components/KeyIcon";
 
 // --- Reward visual catalogue (odds are NEVER shown / sent to the client) ---
 const PRIZES = {
   retry: { label: "Mai încearcă", short: "MAI ÎNCEARCĂ", img: null, color: "#8b8f98", tint: "rgba(139,143,152,0.16)", rarity: "COMUN" },
   p5:    { label: "5 NIX",  short: "5 NIX",  img: "/nix/coin.png", color: "#c084fc", tint: "rgba(168,85,247,0.12)", rarity: "COMUN" },
+  key:   { label: "1 Cheie Mystery Box", short: "1 CHEIE", img: "/nix/key.png", color: "#ffcc00", tint: "rgba(255,204,0,0.16)", rarity: "SPECIAL" },
+  pumpkin: { label: "1 Dovleac", short: "1 DOVLEAC", img: "/halloween/pumpkin-normal.png", color: "#ff7a18", tint: "rgba(255,122,24,0.18)", rarity: "EVENIMENT" },
   p10:   { label: "10 NIX", short: "10 NIX", img: "/nix/coin.png", color: "#c084fc", tint: "rgba(168,85,247,0.18)", rarity: "FOARTE RAR" },
   p15:   { label: "15 NIX", short: "15 NIX", img: "/nix/coin.png", color: "#c084fc", tint: "rgba(168,85,247,0.24)", rarity: "RAR" },
   p50:   { label: "50 NIX", short: "50 NIX", img: "/nix/pile.png", color: "#d8b4fe", tint: "rgba(192,132,252,0.24)", rarity: "EPIC" },
@@ -90,6 +93,7 @@ const Spin = () => {
 
   const trackRef = useRef(null);
   const vpRef = useRef(null);
+  const busyRef = useRef(false);
 
   const load = useCallback(() => {
     api.get("/spin").then((res) => setSpins(res.data.spins || 0)).catch(() => {});
@@ -126,7 +130,8 @@ const Spin = () => {
   }, [reel.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openBox = async () => {
-    if (spinning || spins < 1) return;
+    if (busyRef.current || spinning || spins < 1) return;
+    busyRef.current = true; // synchronous lock: blocks rapid double-clicks firing extra /spin calls
     getCtx(); // unlock audio on user gesture
     setSpinning(true);
     setResult(null);
@@ -145,11 +150,18 @@ const Spin = () => {
         setResult(data.result);
         if (typeof data.points === "number") setPoints(data.points);
         setSpinning(false);
+        busyRef.current = false;
         refreshUser().catch(() => {});
         playStop();
         if (data.result.type === "points") {
           setTimeout(() => { playPoints(); flyCoins(); }, 160);
           toast.success(`Ai câștigat ${data.result.points} NIX! 🎉`);
+        } else if (data.result.type === "key") {
+          setTimeout(playPoints, 160);
+          toast.success("Ai câștigat o Cheie Mystery Box! 🔑");
+        } else if (data.result.type === "pumpkin") {
+          setTimeout(playPoints, 160);
+          toast.success("Ai câștigat un Dovleac! 🎃");
         } else if (data.result.type === "plus") {
           setTimeout(playLegendary, 180);
           toast.success("Ai câștigat o Invitație Cartoonix PLUS! 👑");
@@ -157,14 +169,10 @@ const Spin = () => {
       }, SPIN_MS + 250);
     } catch (err) {
       setSpinning(false);
+      busyRef.current = false;
       toast.error(err.response?.data?.detail || "Ceva n-a mers. Încearcă din nou.");
       load();
     }
-  };
-
-  const copyCode = async (code) => {
-    try { await navigator.clipboard.writeText(code); toast.success("Cod copiat!"); }
-    catch { toast.error("Nu am putut copia codul"); }
   };
 
   // NIX coins flying from the reel toward the header wallet pill.
@@ -212,7 +220,7 @@ const Spin = () => {
         {/* keys + points badges */}
         <div className="flex items-center justify-center gap-3 mb-8 flex-wrap">
           <span data-testid="spin-count" className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#141414] border border-[#ff7a18]/40 font-bold">
-            <KeyRound className="h-4 w-4 text-[#ff7a18]" /> {spins} <span className="text-white/50 font-normal">{spins === 1 ? "cheie" : "chei"} Mystery Box</span>
+            <KeyIcon className="h-4 w-4" /> {spins} <span className="text-white/50 font-normal">{spins === 1 ? "cheie" : "chei"} Mystery Box</span>
           </span>
           <span data-testid="spin-points" className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#141414] border border-white/10 font-bold">
             <NixCoin className="h-4 w-4" /> {points} <span className="text-white/50 font-normal">NIX</span>
@@ -254,7 +262,7 @@ const Spin = () => {
           disabled={spinning || spins < 1}
           className="mt-8 inline-flex items-center gap-2 px-10 py-4 rounded-full bg-[#ff7a18] text-black text-lg font-extrabold uppercase tracking-wide hover:brightness-110 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 shadow-[0_10px_40px_rgba(255,122,24,0.4)]"
         >
-          <KeyRound className={`h-6 w-6 ${spinning ? "animate-pulse" : ""}`} />
+          <KeyIcon className={`h-6 w-6 ${spinning ? "animate-pulse" : ""}`} />
           {spinning ? "Se deschide..." : spins < 1 ? "Nu ai chei" : "Deschide cutia"}
         </button>
 
@@ -278,6 +286,22 @@ const Spin = () => {
                 <h2 className="font-display text-3xl mb-2">Mai încearcă!</h2>
                 <p className="text-white/50">N-a fost de data asta. Mai ai {spins} {spins === 1 ? "cheie" : "chei"}.</p>
               </>
+            ) : result.type === "pumpkin" ? (
+              <>
+                <div className="mx-auto mb-4 h-24 w-24 grid place-items-center">
+                  <img src="/halloween/pumpkin-normal.png" alt="Dovleac" className="h-24 w-24 object-contain drop-shadow-[0_0_18px_rgba(255,122,24,0.5)]" />
+                </div>
+                <h2 className="font-display text-3xl mb-2 text-[#ff7a18]">+1 Dovleac! 🎃</h2>
+                <p className="text-white/50">Dovleacul a fost adăugat în inventarul tău de Halloween.</p>
+              </>
+            ) : result.type === "key" ? (
+              <>
+                <div className="mx-auto mb-4 h-20 w-20 rounded-full bg-[#ffcc00]/15 border border-[#ffcc00]/40 grid place-items-center">
+                  <KeyIcon className="h-12 w-12" />
+                </div>
+                <h2 className="font-display text-3xl mb-2 text-[#ffcc00]">+1 Cheie Mystery Box!</h2>
+                <p className="text-white/50">O poți folosi pentru încă o deschidere. Ai acum {spins} {spins === 1 ? "cheie" : "chei"}.</p>
+              </>
             ) : result.type === "points" ? (
               <>
                 <div className="mx-auto mb-4 h-20 w-20 rounded-full bg-[#a855f7]/15 border border-[#a855f7]/40 grid place-items-center">
@@ -292,12 +316,10 @@ const Spin = () => {
                   <img src="/nix/scroll.png" alt="Invitație PLUS" className="h-24 w-24 object-contain drop-shadow-[0_0_18px_rgba(255,204,0,0.4)]" />
                 </div>
                 <h2 className="font-display text-3xl mb-1">Invitație Cartoonix PLUS! 👑</h2>
-                <p className="text-white/50 mb-4">Ai câștigat un cod PLUS. Îl poți folosi tu sau dărui unui prieten.</p>
-                <div className="flex items-center gap-2 justify-center mb-4">
-                  <code data-testid="spin-voucher-code" className="px-4 py-2 rounded-lg bg-black/40 border border-[#ffcc00]/40 text-[#ffcc00] font-mono tracking-widest text-lg">{result.voucher_code}</code>
-                  <button onClick={() => copyCode(result.voucher_code)} data-testid="spin-copy-code" className="h-10 w-10 grid place-items-center rounded-lg bg-white/10 hover:bg-white/20 transition"><Copy className="h-4 w-4" /></button>
-                </div>
-                <button onClick={() => navigate("/rewards")} className="text-[#ffcc00] font-semibold hover:underline text-sm">Mergi la Recompense pentru a-l folosi</button>
+                <p className="text-white/50 mb-5">A fost adăugată în inventarul tău. O poți revendica pe contul tău sau dărui codul cuiva — direct din inventar.</p>
+                <button data-testid="spin-go-inventory" onClick={() => navigate("/profile")} className="w-full py-3 rounded-xl bg-[#a855f7] text-white font-bold hover:bg-[#9333ea] transition-colors">
+                  Vezi în inventar
+                </button>
               </>
             )}
             {result.type !== "plus" && (

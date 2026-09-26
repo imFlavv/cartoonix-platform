@@ -3,8 +3,9 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
-import { Truck, Hammer, Gift, Plus, Minus, Loader2, Check, Lock, Copy, Clock, Key, Sparkles, Crown } from "lucide-react";
+import { Truck, Hammer, Gift, Plus, Minus, Loader2, Check, Lock, Copy, Clock, Sparkles, Crown } from "lucide-react";
 import { NixCoin } from "@/components/NixCoin";
+import { KeyIcon } from "@/components/KeyIcon";
 
 const PUMPKIN = "/halloween/pumpkin-normal.png";
 const CARVED = "/halloween/pumpkin-carved.png";
@@ -20,7 +21,7 @@ const fmtDur = (s) => {
 const rewardIcon = (r) => {
   if (r.reward === "points") return <NixCoin className="h-5 w-5" />;
   if (r.reward === "avatar") return <Sparkles className="h-5 w-5 text-[#a855f7]" />;
-  return <Key className="h-5 w-5 text-[#00e0ff]" />;
+  return <KeyIcon className="h-5 w-5" />;
 };
 const rewardText = (r) => {
   if (r.reward === "points") return `${r.points} NIX`;

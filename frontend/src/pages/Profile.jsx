@@ -7,7 +7,7 @@ import { api } from "@/lib/api";
 import { setQueue } from "@/lib/queue";
 import { AVATAR_SEEDS } from "@/data/constants";
 import { PlusIcon } from "@/components/PlusIcon";
-import { Check, Play, Heart, Trash2, ListMusic, Film, Clock, Lock, KeyRound, Eye, EyeOff, User, Gift, PlayCircle, Ticket, FileText, Building2, Download, Crown, Copy, Plus, Award, MessageCircle } from "lucide-react";
+import { Check, Play, Heart, Trash2, ListMusic, Film, Clock, Lock, KeyRound, Eye, EyeOff, User, Gift, PlayCircle, Ticket, FileText, Building2, Download, Crown, Copy, Plus, Award, MessageCircle, X } from "lucide-react";
 import { NixCoin } from "@/components/NixCoin";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { rankInfo } from "@/lib/roles";
@@ -52,13 +52,36 @@ const Profile = () => {
   const [rewards, setRewards] = useState(null);
   const [chatCount, setChatCount] = useState(null);
   const [hwInv, setHwInv] = useState(null);
+  const [invModal, setInvModal] = useState(null);
+  const [invBusy, setInvBusy] = useState(false);
+
+  const fetchRewards = () => api.get("/rewards").then((res) => setRewards(res.data)).catch(() => {});
+
+  const copyInvCode = async (code) => {
+    try { await navigator.clipboard.writeText(code); toast.success("Cod copiat! Trimite-l cui dorești."); }
+    catch { toast.error("Nu am putut copia codul"); }
+  };
+
+  const redeemInvite = async (code) => {
+    setInvBusy(true);
+    try {
+      const { data } = await api.post("/rewards/redeem-code", { code });
+      toast.success(data?.plus ? "Felicitări! Ai acum acces Cartoonix PLUS 👑" : "Cod revendicat!");
+      setInvModal(null);
+      await Promise.all([fetchRewards(), refreshUser().catch(() => {})]);
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Nu am putut revendica codul");
+    } finally {
+      setInvBusy(false);
+    }
+  };
 
   useEffect(() => {
     refreshUser().catch(() => {});
     api.get("/points/me").then((res) => setWallet(res.data)).catch(() => {});
     api.get("/cinema/tickets").then((res) => setTickets(res.data || [])).catch(() => {});
     api.get("/invoices").then((res) => setInvoiceData(res.data)).catch(() => {});
-    api.get("/rewards").then((res) => setRewards(res.data)).catch(() => {});
+    fetchRewards();
     api.get("/chat/stats").then((res) => setChatCount(res.data?.my_count ?? 0)).catch(() => {});
     api.get("/halloween/status").then((res) => setHwInv(res.data?.enabled ? res.data : null)).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -456,6 +479,20 @@ const Profile = () => {
                         </div>
                       ))}
                       {claims.map((c, i) => {
+                        if (c.kind === "plus_invite" && c.voucher_code) {
+                          return (
+                            <button
+                              key={c.id || i}
+                              data-testid="reward-card-invite"
+                              onClick={() => setInvModal(c)}
+                              className="relative rounded-2xl bg-[#141414] border border-[#a855f7]/40 p-5 flex flex-col items-center justify-center min-h-[168px] text-center hover:border-[#a855f7] hover:bg-[#a855f7]/5 transition-colors"
+                            >
+                              <img src="/nix/scroll.png" alt="Invitație PLUS" className="h-16 w-16 object-contain mb-2" />
+                              <p className="font-bold text-sm">Invitație PLUS</p>
+                              <p className="text-xs text-[#c084fc]">Apasă pentru cod</p>
+                            </button>
+                          );
+                        }
                         const m = kindMeta(c.kind);
                         const Icon = m.icon;
                         return (
@@ -489,6 +526,33 @@ const Profile = () => {
                         </div>
                       ))}
                     </div>
+
+                    {invModal && (
+                      <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm" data-testid="invite-modal" onClick={() => setInvModal(null)}>
+                        <div className="relative w-full max-w-sm bg-[#141414] border border-[#a855f7]/40 rounded-3xl p-8 text-center shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                          <button onClick={() => setInvModal(null)} data-testid="invite-modal-close" className="absolute top-4 right-4 text-white/40 hover:text-white"><X className="h-5 w-5" /></button>
+                          <img src="/nix/scroll.png" alt="Invitație PLUS" className="mx-auto h-20 w-20 object-contain mb-3 drop-shadow-[0_0_18px_rgba(168,85,247,0.5)]" />
+                          <h2 className="font-display text-2xl mb-1">Invitație Cartoonix PLUS</h2>
+                          <p className="text-white/50 text-sm mb-5">Trimite acest cod cui dorești sau revendică-l pe contul tău.</p>
+                          <div className="flex items-center gap-2 mb-5">
+                            <code data-testid="invite-code" className="flex-1 min-w-0 truncate px-4 py-2.5 rounded-lg bg-black/40 border border-[#a855f7]/40 text-[#c084fc] font-mono tracking-widest">{invModal.voucher_code}</code>
+                            <button data-testid="invite-copy" onClick={() => copyInvCode(invModal.voucher_code)} className="h-11 w-11 grid place-items-center rounded-lg bg-white/10 hover:bg-white/20 transition shrink-0"><Copy className="h-4 w-4" /></button>
+                          </div>
+                          {rewards?.plus ? (
+                            <p className="text-xs text-white/40">Ai deja acces PLUS — poți dărui acest cod altcuiva.</p>
+                          ) : (
+                            <button
+                              data-testid="invite-redeem"
+                              onClick={() => redeemInvite(invModal.voucher_code)}
+                              disabled={invBusy}
+                              className="w-full py-3 rounded-xl bg-[#a855f7] text-white font-bold hover:bg-[#9333ea] transition-colors disabled:opacity-50"
+                            >
+                              {invBusy ? "Se revendică..." : "Revendică pe contul meu"}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </>
                 );
               })()}
