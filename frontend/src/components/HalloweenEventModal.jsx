@@ -34,14 +34,13 @@ export const HalloweenEventModal = ({ open, onClose }) => {
   const [tab, setTab] = useState("deliver");
   const [basket, setBasket] = useState(0);
   const [busy, setBusy] = useState(false);
-  const [carveRemaining, setCarveRemaining] = useState(0);
+  const [nowTs, setNowTs] = useState(Date.now());
   const tickRef = useRef(null);
 
   const load = async () => {
     try {
       const { data } = await api.get("/halloween/status");
       setStatus(data);
-      if (data.carving) setCarveRemaining(data.carving.remaining_seconds);
     } catch {
       toast.error("Nu s-a putut încărca evenimentul");
     } finally {
@@ -57,24 +56,14 @@ export const HalloweenEventModal = ({ open, onClose }) => {
     }
   }, [open]);
 
-  // live countdown for carving
+  // global 1s ticker while modal is open (drives all carving timers)
   useEffect(() => {
-    if (tickRef.current) clearInterval(tickRef.current);
-    if (status?.carving && !status.carving.ready) {
-      tickRef.current = setInterval(() => {
-        setCarveRemaining((s) => {
-          if (s <= 1) {
-            clearInterval(tickRef.current);
-            load();
-            return 0;
-          }
-          return s - 1;
-        });
-      }, 1000);
-    }
+    if (!open) return undefined;
+    tickRef.current = setInterval(() => setNowTs(Date.now()), 1000);
     return () => tickRef.current && clearInterval(tickRef.current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status?.carving?.ready_at, status?.carving?.ready]);
+  }, [open]);
+
+  const slotRemaining = (readyAt) => Math.max(0, Math.floor((Date.parse(readyAt) - nowTs) / 1000));
 
   const doDeliver = async () => {
     if (basket < 1) return;
@@ -96,7 +85,6 @@ export const HalloweenEventModal = ({ open, onClose }) => {
     try {
       const { data } = await api.post("/halloween/carve/start");
       setStatus(data);
-      if (data.carving) setCarveRemaining(data.carving.remaining_seconds);
       toast.success("Sculptarea a început! Revino peste 3 ore.");
     } catch (e) {
       toast.error(e.response?.data?.detail || "Eroare");
@@ -105,10 +93,10 @@ export const HalloweenEventModal = ({ open, onClose }) => {
     }
   };
 
-  const doCarveClaim = async () => {
+  const doCarveClaim = async (index) => {
     setBusy(true);
     try {
-      const { data } = await api.post("/halloween/carve/claim");
+      const { data } = await api.post("/halloween/carve/claim", { index });
       setStatus(data);
       toast.success("Dovleac sculptat revendicat! 🎃");
     } catch (e) {
@@ -227,50 +215,63 @@ export const HalloweenEventModal = ({ open, onClose }) => {
               )}
             </div>
           ) : tab === "carve" ? (
-            <div data-testid="hw-carve" className="text-center">
-              {!status.carving ? (
-                <>
-                  <p className="text-sm text-white/60 mb-5">Pune un dovleac la sculptat. Durează 3 ore, apoi îl revendici.</p>
-                  <div className="mx-auto h-40 w-40 rounded-2xl border-2 border-dashed border-[#ff7a18]/40 bg-black/20 flex items-center justify-center mb-5">
-                    {status.pumpkins > 0 ? <img src={PUMPKIN} alt="" className="h-28 w-28 object-contain" /> : <span className="text-white/40 text-sm px-4">Niciun dovleac disponibil</span>}
-                  </div>
-                  <button
-                    data-testid="hw-carve-start"
-                    onClick={doCarveStart}
-                    disabled={busy || status.pumpkins < 1}
-                    className="px-8 py-3 rounded-xl bg-[#ff7a18] text-black font-bold hover:brightness-110 transition disabled:opacity-50 inline-flex items-center gap-2"
-                  >
-                    {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Hammer className="h-5 w-5" />} START
-                  </button>
-                </>
-              ) : status.carving.ready || carveRemaining <= 0 ? (
-                <>
-                  <p className="text-sm text-[#39ff14] mb-5">Dovleacul e gata! Revendică-l ca să ajungă în inventar.</p>
-                  <div className="mx-auto h-40 w-40 rounded-2xl border-2 border-[#ff7a18] bg-black/20 flex items-center justify-center mb-5 shadow-[0_0_24px_rgba(255,122,24,0.5)]">
-                    <img src={CARVED} alt="" className="h-28 w-28 object-contain" />
-                  </div>
-                  <button
-                    data-testid="hw-carve-claim"
-                    onClick={doCarveClaim}
-                    disabled={busy}
-                    className="px-8 py-3 rounded-xl bg-[#39ff14] text-black font-bold hover:brightness-110 transition disabled:opacity-50 inline-flex items-center gap-2"
-                  >
-                    {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Check className="h-5 w-5" />} REVENDICĂ
-                  </button>
-                </>
-              ) : (
-                <>
-                  <p className="text-sm text-white/60 mb-5">Se sculptează... revino când timer-ul ajunge la zero.</p>
-                  <div className="mx-auto h-40 w-40 rounded-2xl border-2 border-[#ff7a18]/50 bg-black/20 flex items-center justify-center mb-4 relative">
-                    <img src={PUMPKIN} alt="" className="h-28 w-28 object-contain opacity-60" />
-                    <Hammer className="h-8 w-8 text-[#ff7a18] absolute animate-pulse" />
-                  </div>
-                  <div data-testid="hw-carve-timer" className="font-display text-4xl text-[#ff7a18] tabular-nums flex items-center justify-center gap-2">
-                    <Clock className="h-7 w-7" /> {fmtDur(carveRemaining)}
-                  </div>
-                </>
-              )}
-              <p className="text-xs text-white/40 mt-4">Total sculptați: {status.sculpted}</p>
+            <div data-testid="hw-carve">
+              <p className="text-sm text-white/60 mb-4 text-center">
+                Pune dovleci la sculptat. Durează 3 ore fiecare, apoi îi revendici.
+                {status.max_slots > 1 && <span className="text-[#a855f7] font-semibold"> Ai {status.max_slots} sloturi PLUS!</span>}
+              </p>
+              <div className={`grid gap-4 ${status.max_slots > 1 ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 max-w-xs mx-auto"}`}>
+                {Array.from({ length: status.max_slots }).map((_, i) => {
+                  const carving = (status.carvings || [])[i];
+                  const remaining = carving ? slotRemaining(carving.ready_at) : 0;
+                  const ready = carving && remaining <= 0;
+                  return (
+                    <div key={i} data-testid={`hw-carve-slot-${i}`} className="rounded-2xl border border-white/10 bg-black/20 p-4 text-center">
+                      <p className="text-[11px] uppercase tracking-wider text-white/40 mb-2">Slot {i + 1}</p>
+                      {!carving ? (
+                        <>
+                          <div className="mx-auto h-32 w-32 rounded-2xl border-2 border-dashed border-[#ff7a18]/40 flex items-center justify-center mb-3">
+                            {status.pumpkins > 0 ? <img src={PUMPKIN} alt="" className="h-24 w-24 object-contain" /> : <span className="text-white/40 text-xs px-3">Fără dovleci</span>}
+                          </div>
+                          <button
+                            data-testid={`hw-carve-start-${i}`}
+                            onClick={doCarveStart}
+                            disabled={busy || status.pumpkins < 1}
+                            className="px-6 py-2.5 rounded-xl bg-[#ff7a18] text-black font-bold hover:brightness-110 transition disabled:opacity-50 inline-flex items-center gap-2"
+                          >
+                            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Hammer className="h-4 w-4" />} START
+                          </button>
+                        </>
+                      ) : ready ? (
+                        <>
+                          <div className="mx-auto h-32 w-32 rounded-2xl border-2 border-[#ff7a18] flex items-center justify-center mb-3 shadow-[0_0_24px_rgba(255,122,24,0.5)]">
+                            <img src={CARVED} alt="" className="h-24 w-24 object-contain" />
+                          </div>
+                          <button
+                            data-testid={`hw-carve-claim-${i}`}
+                            onClick={() => doCarveClaim(i)}
+                            disabled={busy}
+                            className="px-6 py-2.5 rounded-xl bg-[#39ff14] text-black font-bold hover:brightness-110 transition disabled:opacity-50 inline-flex items-center gap-2"
+                          >
+                            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} REVENDICĂ
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <div className="mx-auto h-32 w-32 rounded-2xl border-2 border-[#ff7a18]/50 flex items-center justify-center mb-3 relative">
+                            <img src={PUMPKIN} alt="" className="h-24 w-24 object-contain opacity-60" />
+                            <Hammer className="h-7 w-7 text-[#ff7a18] absolute animate-pulse" />
+                          </div>
+                          <div data-testid={`hw-carve-timer-${i}`} className="font-display text-2xl text-[#ff7a18] tabular-nums flex items-center justify-center gap-2">
+                            <Clock className="h-5 w-5" /> {fmtDur(remaining)}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-white/40 mt-4 text-center">Total sculptați: {status.sculpted}</p>
             </div>
           ) : (
             <div data-testid="hw-rewards" className="space-y-3">

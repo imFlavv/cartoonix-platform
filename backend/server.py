@@ -3845,7 +3845,7 @@ async def _hw_doc(user: dict) -> dict:
         doc = {
             "user_id": uid, "pumpkins": 0, "carved": 0, "delivered": 0, "sculpted": 0,
             "earned_awarded": 0, "base_msgs": msg_count, "base_time": _hw_active_seconds(user),
-            "carving": None, "rewards_claimed": [], "final_claimed": False, "final_voucher": None,
+            "carvings": [], "rewards_claimed": [], "final_claimed": False, "final_voucher": None,
             "created_at": datetime.now(timezone.utc).isoformat(),
         }
         await db.halloween.insert_one(doc)
@@ -3874,20 +3874,26 @@ async def _hw_sync_earn(user: dict, doc: dict) -> dict:
     }
 
 
-def _hw_carving_state(doc: dict) -> Optional[dict]:
-    c = doc.get("carving")
-    if not c or not c.get("ready_at"):
-        return None
-    try:
-        ready = datetime.fromisoformat(c["ready_at"])
-    except Exception:
-        return None
+def _hw_max_slots(user: dict) -> int:
+    return 2 if user_is_plus(user) else 1
+
+
+def _hw_carvings_state(doc: dict) -> list:
     now = datetime.now(timezone.utc)
-    remaining = int((ready - now).total_seconds())
-    return {"active": True, "ready": remaining <= 0, "remaining_seconds": max(0, remaining), "ready_at": c["ready_at"]}
+    out = []
+    for i, c in enumerate(doc.get("carvings", []) or []):
+        if not c or not c.get("ready_at"):
+            continue
+        try:
+            ready = datetime.fromisoformat(c["ready_at"])
+        except Exception:
+            continue
+        remaining = int((ready - now).total_seconds())
+        out.append({"index": i, "ready": remaining <= 0, "remaining_seconds": max(0, remaining), "ready_at": c["ready_at"]})
+    return out
 
 
-def _hw_status_payload(doc: dict, earn: dict) -> dict:
+def _hw_status_payload(doc: dict, earn: dict, max_slots: int = 1) -> dict:
     claimed = doc.get("rewards_claimed", [])
     rewards = []
     for r in HALLOWEEN_REWARDS:
@@ -3900,7 +3906,8 @@ def _hw_status_payload(doc: dict, earn: dict) -> dict:
         "carved": int(doc.get("carved", 0)),
         "delivered": int(doc.get("delivered", 0)),
         "sculpted": int(doc.get("sculpted", 0)),
-        "carving": _hw_carving_state(doc),
+        "carvings": _hw_carvings_state(doc),
+        "max_slots": max_slots,
         "carve_duration_seconds": CARVE_DURATION_SECONDS,
         "earn": earn,
         "rewards": rewards,
@@ -3916,7 +3923,7 @@ async def halloween_status(user: dict = Depends(get_current_user)):
     doc = await _hw_doc(user)
     earn = await _hw_sync_earn(user, doc)
     doc = await db.halloween.find_one({"user_id": uid_of(user)})
-    return _hw_status_payload(doc, earn)
+    return _hw_status_payload(doc, earn, _hw_max_slots(user))
 
 
 class DeliverInput(BaseModel):
@@ -3936,7 +3943,7 @@ async def halloween_deliver(data: DeliverInput, user: dict = Depends(get_current
         raise HTTPException(status_code=400, detail="Nu ai suficienți dovleci")
     await db.halloween.update_one({"user_id": uid_of(user)}, {"$inc": {"pumpkins": -n, "delivered": n}})
     doc = await db.halloween.find_one({"user_id": uid_of(user)})
-    return _hw_status_payload(doc, await _hw_sync_earn(user, doc))
+    return _hw_status_payload(doc, await _hw_sync_earn(user, doc), _hw_max_slots(user))
 
 
 @api_router.post("/halloween/carve/start")
@@ -3945,28 +3952,41 @@ async def halloween_carve_start(user: dict = Depends(get_current_user)):
     doc = await _hw_doc(user)
     await _hw_sync_earn(user, doc)
     doc = await db.halloween.find_one({"user_id": uid_of(user)})
-    if _hw_carving_state(doc):
-        raise HTTPException(status_code=400, detail="Ai deja un dovleac la sculptat")
+    max_slots = _hw_max_slots(user)
+    carvings = doc.get("carvings", []) or []
+    if len(carvings) >= max_slots:
+        raise HTTPException(status_code=400, detail="Toate sloturile de sculptat sunt ocupate")
     if int(doc.get("pumpkins", 0)) < 1:
         raise HTTPException(status_code=400, detail="Nu ai niciun dovleac de sculptat")
     ready_at = (datetime.now(timezone.utc) + timedelta(seconds=CARVE_DURATION_SECONDS)).isoformat()
-    await db.halloween.update_one({"user_id": uid_of(user)}, {"$inc": {"pumpkins": -1}, "$set": {"carving": {"ready_at": ready_at}}})
+    await db.halloween.update_one({"user_id": uid_of(user)}, {"$inc": {"pumpkins": -1}, "$push": {"carvings": {"ready_at": ready_at}}})
     doc = await db.halloween.find_one({"user_id": uid_of(user)})
-    return _hw_status_payload(doc, await _hw_sync_earn(user, doc))
+    return _hw_status_payload(doc, await _hw_sync_earn(user, doc), max_slots)
+
+
+class CarveClaimInput(BaseModel):
+    index: int = 0
 
 
 @api_router.post("/halloween/carve/claim")
-async def halloween_carve_claim(user: dict = Depends(get_current_user)):
+async def halloween_carve_claim(data: CarveClaimInput, user: dict = Depends(get_current_user)):
     await _require_halloween()
     doc = await _hw_doc(user)
-    state = _hw_carving_state(doc)
-    if not state:
-        raise HTTPException(status_code=400, detail="Nu ai niciun dovleac la sculptat")
-    if not state["ready"]:
+    carvings = list(doc.get("carvings", []) or [])
+    idx = int(data.index)
+    if idx < 0 or idx >= len(carvings):
+        raise HTTPException(status_code=400, detail="Slot invalid")
+    c = carvings[idx]
+    try:
+        ready = datetime.fromisoformat(c["ready_at"])
+    except Exception:
+        raise HTTPException(status_code=400, detail="Slot invalid")
+    if (ready - datetime.now(timezone.utc)).total_seconds() > 0:
         raise HTTPException(status_code=400, detail="Dovleacul încă nu e gata")
-    await db.halloween.update_one({"user_id": uid_of(user)}, {"$inc": {"carved": 1, "sculpted": 1}, "$set": {"carving": None}})
+    carvings.pop(idx)
+    await db.halloween.update_one({"user_id": uid_of(user)}, {"$inc": {"carved": 1, "sculpted": 1}, "$set": {"carvings": carvings}})
     doc = await db.halloween.find_one({"user_id": uid_of(user)})
-    return _hw_status_payload(doc, await _hw_sync_earn(user, doc))
+    return _hw_status_payload(doc, await _hw_sync_earn(user, doc), _hw_max_slots(user))
 
 
 class ClaimRewardInput(BaseModel):
@@ -4004,7 +4024,7 @@ async def halloween_reward_claim(data: ClaimRewardInput, user: dict = Depends(ge
         })
         await db.halloween.update_one({"user_id": uid}, {"$set": {"final_claimed": True, "final_voucher": code}})
         doc = await db.halloween.find_one({"user_id": uid})
-        return _hw_status_payload(doc, await _hw_sync_earn(user, doc))
+        return _hw_status_payload(doc, await _hw_sync_earn(user, doc), _hw_max_slots(user))
 
     reward = next((r for r in HALLOWEEN_REWARDS if r["id"] == rid), None)
     if not reward:
@@ -4024,7 +4044,7 @@ async def halloween_reward_claim(data: ClaimRewardInput, user: dict = Depends(ge
 
     await db.halloween.update_one({"user_id": uid}, {"$addToSet": {"rewards_claimed": rid}})
     doc = await db.halloween.find_one({"user_id": uid})
-    return _hw_status_payload(doc, await _hw_sync_earn(user, doc))
+    return _hw_status_payload(doc, await _hw_sync_earn(user, doc), _hw_max_slots(user))
 
 
 # ---------- Donate feature toggle (admin can disable the Donate page/button) ----------
