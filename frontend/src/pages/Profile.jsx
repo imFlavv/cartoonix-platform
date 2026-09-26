@@ -50,6 +50,7 @@ const Profile = () => {
   const [openInvoice, setOpenInvoice] = useState(null);
   const [rewards, setRewards] = useState(null);
   const [chatCount, setChatCount] = useState(null);
+  const [hwInv, setHwInv] = useState(null);
 
   useEffect(() => {
     refreshUser().catch(() => {});
@@ -58,6 +59,7 @@ const Profile = () => {
     api.get("/invoices").then((res) => setInvoiceData(res.data)).catch(() => {});
     api.get("/rewards").then((res) => setRewards(res.data)).catch(() => {});
     api.get("/chat/stats").then((res) => setChatCount(res.data?.my_count ?? 0)).catch(() => {});
+    api.get("/halloween/status").then((res) => setHwInv(res.data?.enabled ? res.data : null)).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -429,6 +431,31 @@ const Profile = () => {
                         </button>
                       </div>
                     </div>
+
+                    {hwInv && (
+                      <div data-testid="hw-inventory" className="mb-6 rounded-2xl border border-[#ff7a18]/30 bg-gradient-to-r from-[#ff7a18]/10 to-transparent p-5">
+                        <p className="font-display text-lg mb-3 flex items-center gap-2">🎃 Inventar Halloween</p>
+                        <div className="flex flex-wrap gap-3">
+                          <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-[#141414] border border-white/10">
+                            <img src="/halloween/pumpkin-normal.png" alt="Dovleci" className="h-12 w-12 object-contain" />
+                            <div>
+                              <p className="font-display text-2xl leading-none">{hwInv.pumpkins}</p>
+                              <p className="text-xs text-white/50">Dovleci</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-[#141414] border border-white/10">
+                            <img src="/halloween/pumpkin-carved.png" alt="Sculptați" className="h-12 w-12 object-contain" />
+                            <div>
+                              <p className="font-display text-2xl leading-none">{hwInv.carved}</p>
+                              <p className="text-xs text-white/50">Dovleci sculptați</p>
+                            </div>
+                          </div>
+                          <button onClick={() => navigate("/land")} className="ml-auto self-center px-4 py-2 rounded-xl bg-[#ff7a18] text-black font-bold text-sm hover:brightness-110 transition">
+                            Mergi la eveniment
+                          </button>
+                        </div>
+                      </div>
+                    )}
 
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                       {claims.map((c, i) => {

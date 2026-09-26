@@ -610,6 +610,28 @@ const Settings = () => {
                     })}
                   </div>
 
+                  {(user?.event_avatars || []).length > 0 && (
+                    <>
+                      <div className="flex items-center gap-2 mt-2 mb-3">
+                        <span className="text-lg leading-none">🎃</span>
+                        <p className="text-sm font-bold">Avatare eveniment (deblocate)</p>
+                      </div>
+                      <div className="grid grid-cols-5 sm:grid-cols-6 gap-3 mb-2">
+                        {(user.event_avatars || []).map((a) => {
+                          const selected = avatar === a;
+                          return (
+                            <button key={a} type="button" data-testid="event-avatar-option" onClick={() => saveAvatar(a)}
+                              className={`relative rounded-full overflow-hidden border-2 transition-all ${selected ? "border-[#ff7a18] scale-105" : "border-transparent hover:border-white/30"}`}>
+                              <img src={a} alt="avatar eveniment" className="w-full aspect-square object-cover bg-[#2b2b2b]" />
+                              {selected && <span className="absolute inset-0 flex items-center justify-center bg-black/30"><Check className="h-5 w-5 text-[#ff7a18]" /></span>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+
+
                   <div className="flex items-center gap-2 mt-6 mb-3">
                     <PlusIcon className="h-5 w-5" />
                     <p className="text-sm font-bold">Avatare PLUS</p>

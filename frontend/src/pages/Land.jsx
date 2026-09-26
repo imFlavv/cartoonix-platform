@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
+import { HalloweenEventModal } from "@/components/HalloweenEventModal";
 import "./Land.css";
 
 // Cartoonix Land — full-screen background image, rendered exactly like the
@@ -9,6 +10,7 @@ const Land = () => {
   const [hoverBuilding, setHoverBuilding] = useState(false);
   const [hoverCenter, setHoverCenter] = useState(false);
   const [halloween, setHalloween] = useState(false);
+  const [eventOpen, setEventOpen] = useState(false);
 
   useEffect(() => {
     api.get("/settings/halloween").then((res) => setHalloween(!!res.data.enabled)).catch(() => {});
@@ -16,10 +18,6 @@ const Land = () => {
 
   const openAtelier = () => {
     toast.info("🎨 Atelierul Cartoonix se deschide în curând!");
-  };
-
-  const openHalloween = () => {
-    toast.info("🎃 Evenimentul de Halloween începe în curând!");
   };
 
   // ---- Halloween theme (activated by admin) ----
@@ -41,10 +39,11 @@ const Land = () => {
           data-testid="land-halloween-center"
           onMouseEnter={() => setHoverCenter(true)}
           onMouseLeave={() => setHoverCenter(false)}
-          onClick={openHalloween}
+          onClick={() => setEventOpen(true)}
           title="Evenimentul de Halloween"
           className="land-hotspot-halloween"
         />
+        <HalloweenEventModal open={eventOpen} onClose={() => setEventOpen(false)} />
       </div>
     );
   }

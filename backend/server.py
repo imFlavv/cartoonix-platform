@@ -234,6 +234,7 @@ def serialize_user(doc: dict) -> dict:
         "created_at": doc.get("created_at"),
         "chat_style": doc.get("chat_style") or default_chat_style(),
         "nickname_updated_at": doc.get("nickname_updated_at"),
+        "event_avatars": doc.get("event_avatars", []),
     }
 
 
@@ -3805,6 +3806,225 @@ async def set_halloween_setting(data: HalloweenToggleInput, admin: dict = Depend
         upsert=True,
     )
     return {"enabled": data.enabled}
+
+
+# ==================== HALLOWEEN EVENT (pumpkins) ====================
+CARVE_DURATION_SECONDS = 3 * 3600
+MSG_THRESHOLDS = [50, 100, 200]
+ACTIVE_SECONDS_PER_PUMPKIN = 2 * 3600
+HALLOWEEN_REWARD_AVATAR = "/halloween/pumpkin-carved.png"
+
+HALLOWEEN_REWARDS = [
+    {"id": "d5", "kind": "deliver", "need": 5, "reward": "points", "points": 15, "label": "Livrează 5 dovleci"},
+    {"id": "d10", "kind": "deliver", "need": 10, "reward": "avatar", "label": "Livrează 10 dovleci"},
+    {"id": "d20", "kind": "deliver", "need": 20, "reward": "key", "label": "Livrează 20 dovleci"},
+    {"id": "s5", "kind": "sculpt", "need": 5, "reward": "points", "points": 15, "label": "Sculptează 5 dovleci"},
+    {"id": "s10", "kind": "sculpt", "need": 10, "reward": "avatar", "label": "Sculptează 10 dovleci"},
+    {"id": "s15", "kind": "sculpt", "need": 15, "reward": "key", "label": "Sculptează 15 dovleci"},
+]
+
+
+async def _require_halloween():
+    s = await db.settings.find_one({"key": "halloween"})
+    if not (s and s.get("enabled")):
+        raise HTTPException(status_code=403, detail="Evenimentul Halloween nu este activ")
+
+
+def _hw_active_seconds(user: dict) -> int:
+    try:
+        return int(user.get("presence_seconds", user.get("total_time_seconds", 0)) or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+async def _hw_doc(user: dict) -> dict:
+    uid = uid_of(user)
+    doc = await db.halloween.find_one({"user_id": uid})
+    if not doc:
+        msg_count = await db.chat_messages.count_documents({"user_id": uid})
+        doc = {
+            "user_id": uid, "pumpkins": 0, "carved": 0, "delivered": 0, "sculpted": 0,
+            "earned_awarded": 0, "base_msgs": msg_count, "base_time": _hw_active_seconds(user),
+            "carving": None, "rewards_claimed": [], "final_claimed": False, "final_voucher": None,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        await db.halloween.insert_one(doc)
+    return doc
+
+
+async def _hw_sync_earn(user: dict, doc: dict) -> dict:
+    uid = uid_of(user)
+    msg_count = await db.chat_messages.count_documents({"user_id": uid})
+    eff_msgs = max(0, msg_count - int(doc.get("base_msgs", 0)))
+    msg_p = sum(1 for t in MSG_THRESHOLDS if eff_msgs >= t)
+    eff_time = max(0, _hw_active_seconds(user) - int(doc.get("base_time", 0)))
+    time_p = eff_time // ACTIVE_SECONDS_PER_PUMPKIN
+    earned_total = int(msg_p + time_p)
+    awarded = int(doc.get("earned_awarded", 0))
+    if earned_total > awarded:
+        delta = earned_total - awarded
+        await db.halloween.update_one({"user_id": uid}, {"$inc": {"pumpkins": delta}, "$set": {"earned_awarded": earned_total}})
+        doc["pumpkins"] = int(doc.get("pumpkins", 0)) + delta
+        doc["earned_awarded"] = earned_total
+    next_msg = next((t for t in MSG_THRESHOLDS if eff_msgs < t), None)
+    return {
+        "messages": eff_msgs, "msg_pumpkins": msg_p, "msg_thresholds": MSG_THRESHOLDS, "next_msg": next_msg,
+        "active_seconds": eff_time, "time_pumpkins": int(time_p),
+        "next_time_seconds": ACTIVE_SECONDS_PER_PUMPKIN - (eff_time % ACTIVE_SECONDS_PER_PUMPKIN),
+    }
+
+
+def _hw_carving_state(doc: dict) -> Optional[dict]:
+    c = doc.get("carving")
+    if not c or not c.get("ready_at"):
+        return None
+    try:
+        ready = datetime.fromisoformat(c["ready_at"])
+    except Exception:
+        return None
+    now = datetime.now(timezone.utc)
+    remaining = int((ready - now).total_seconds())
+    return {"active": True, "ready": remaining <= 0, "remaining_seconds": max(0, remaining), "ready_at": c["ready_at"]}
+
+
+def _hw_status_payload(doc: dict, earn: dict) -> dict:
+    claimed = doc.get("rewards_claimed", [])
+    rewards = []
+    for r in HALLOWEEN_REWARDS:
+        progress = doc.get("delivered", 0) if r["kind"] == "deliver" else doc.get("sculpted", 0)
+        rewards.append({**r, "progress": int(progress), "claimed": r["id"] in claimed, "eligible": progress >= r["need"] and r["id"] not in claimed})
+    final_eligible = all(r["id"] in claimed for r in HALLOWEEN_REWARDS) and not doc.get("final_claimed")
+    return {
+        "enabled": True,
+        "pumpkins": int(doc.get("pumpkins", 0)),
+        "carved": int(doc.get("carved", 0)),
+        "delivered": int(doc.get("delivered", 0)),
+        "sculpted": int(doc.get("sculpted", 0)),
+        "carving": _hw_carving_state(doc),
+        "carve_duration_seconds": CARVE_DURATION_SECONDS,
+        "earn": earn,
+        "rewards": rewards,
+        "final": {"claimed": bool(doc.get("final_claimed")), "voucher": doc.get("final_voucher"), "eligible": final_eligible},
+    }
+
+
+@api_router.get("/halloween/status")
+async def halloween_status(user: dict = Depends(get_current_user)):
+    s = await db.settings.find_one({"key": "halloween"})
+    if not (s and s.get("enabled")):
+        return {"enabled": False}
+    doc = await _hw_doc(user)
+    earn = await _hw_sync_earn(user, doc)
+    doc = await db.halloween.find_one({"user_id": uid_of(user)})
+    return _hw_status_payload(doc, earn)
+
+
+class DeliverInput(BaseModel):
+    count: int = 1
+
+
+@api_router.post("/halloween/deliver")
+async def halloween_deliver(data: DeliverInput, user: dict = Depends(get_current_user)):
+    await _require_halloween()
+    doc = await _hw_doc(user)
+    await _hw_sync_earn(user, doc)
+    doc = await db.halloween.find_one({"user_id": uid_of(user)})
+    n = int(data.count)
+    if n < 1:
+        raise HTTPException(status_code=400, detail="Alege cel puțin un dovleac")
+    if n > int(doc.get("pumpkins", 0)):
+        raise HTTPException(status_code=400, detail="Nu ai suficienți dovleci")
+    await db.halloween.update_one({"user_id": uid_of(user)}, {"$inc": {"pumpkins": -n, "delivered": n}})
+    doc = await db.halloween.find_one({"user_id": uid_of(user)})
+    return _hw_status_payload(doc, await _hw_sync_earn(user, doc))
+
+
+@api_router.post("/halloween/carve/start")
+async def halloween_carve_start(user: dict = Depends(get_current_user)):
+    await _require_halloween()
+    doc = await _hw_doc(user)
+    await _hw_sync_earn(user, doc)
+    doc = await db.halloween.find_one({"user_id": uid_of(user)})
+    if _hw_carving_state(doc):
+        raise HTTPException(status_code=400, detail="Ai deja un dovleac la sculptat")
+    if int(doc.get("pumpkins", 0)) < 1:
+        raise HTTPException(status_code=400, detail="Nu ai niciun dovleac de sculptat")
+    ready_at = (datetime.now(timezone.utc) + timedelta(seconds=CARVE_DURATION_SECONDS)).isoformat()
+    await db.halloween.update_one({"user_id": uid_of(user)}, {"$inc": {"pumpkins": -1}, "$set": {"carving": {"ready_at": ready_at}}})
+    doc = await db.halloween.find_one({"user_id": uid_of(user)})
+    return _hw_status_payload(doc, await _hw_sync_earn(user, doc))
+
+
+@api_router.post("/halloween/carve/claim")
+async def halloween_carve_claim(user: dict = Depends(get_current_user)):
+    await _require_halloween()
+    doc = await _hw_doc(user)
+    state = _hw_carving_state(doc)
+    if not state:
+        raise HTTPException(status_code=400, detail="Nu ai niciun dovleac la sculptat")
+    if not state["ready"]:
+        raise HTTPException(status_code=400, detail="Dovleacul încă nu e gata")
+    await db.halloween.update_one({"user_id": uid_of(user)}, {"$inc": {"carved": 1, "sculpted": 1}, "$set": {"carving": None}})
+    doc = await db.halloween.find_one({"user_id": uid_of(user)})
+    return _hw_status_payload(doc, await _hw_sync_earn(user, doc))
+
+
+class ClaimRewardInput(BaseModel):
+    reward_id: str
+
+
+async def _hw_award_points(user: dict, pts: int, note: str):
+    await db.users.update_one({"_id": user["_id"]}, {"$inc": {"points": pts}})
+    await db.points_ledger.insert_one({
+        "user_id": uid_of(user), "type": "halloween", "points": pts, "note": note,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+
+
+@api_router.post("/halloween/reward/claim")
+async def halloween_reward_claim(data: ClaimRewardInput, user: dict = Depends(get_current_user)):
+    await _require_halloween()
+    doc = await _hw_doc(user)
+    uid = uid_of(user)
+    rid = data.reward_id
+
+    if rid == "final":
+        claimed = doc.get("rewards_claimed", [])
+        if not all(r["id"] in claimed for r in HALLOWEEN_REWARDS):
+            raise HTTPException(status_code=400, detail="Finalizează toate cele 6 activități")
+        if doc.get("final_claimed"):
+            raise HTTPException(status_code=400, detail="Recompensă deja revendicată")
+        await _hw_award_points(user, 20, "Halloween — bonus final")
+        code = await _new_unique_voucher_code()
+        await db.vouchers.insert_one({
+            "code": code, "type": "plus", "points": 0, "scope": "universal",
+            "target_user_id": None, "max_uses": 1, "used_count": 0, "active": True,
+            "note": f"Halloween PLUS pentru {user_name(user) or user.get('email','')}",
+            "source": "halloween", "created_by": uid, "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+        await db.halloween.update_one({"user_id": uid}, {"$set": {"final_claimed": True, "final_voucher": code}})
+        doc = await db.halloween.find_one({"user_id": uid})
+        return _hw_status_payload(doc, await _hw_sync_earn(user, doc))
+
+    reward = next((r for r in HALLOWEEN_REWARDS if r["id"] == rid), None)
+    if not reward:
+        raise HTTPException(status_code=400, detail="Recompensă invalidă")
+    if rid in doc.get("rewards_claimed", []):
+        raise HTTPException(status_code=400, detail="Recompensă deja revendicată")
+    progress = doc.get("delivered", 0) if reward["kind"] == "deliver" else doc.get("sculpted", 0)
+    if progress < reward["need"]:
+        raise HTTPException(status_code=400, detail="Nu îndeplinești încă cerința")
+
+    if reward["reward"] == "points":
+        await _hw_award_points(user, reward["points"], f"Halloween — {reward['label']}")
+    elif reward["reward"] == "avatar":
+        await db.users.update_one({"_id": user["_id"]}, {"$addToSet": {"event_avatars": HALLOWEEN_REWARD_AVATAR}})
+    elif reward["reward"] == "key":
+        await db.users.update_one({"_id": user["_id"]}, {"$inc": {"spins": 1}})
+
+    await db.halloween.update_one({"user_id": uid}, {"$addToSet": {"rewards_claimed": rid}})
+    doc = await db.halloween.find_one({"user_id": uid})
+    return _hw_status_payload(doc, await _hw_sync_earn(user, doc))
 
 
 # ---------- Donate feature toggle (admin can disable the Donate page/button) ----------
