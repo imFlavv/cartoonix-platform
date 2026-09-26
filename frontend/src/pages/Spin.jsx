@@ -11,12 +11,34 @@ import { NixCoin } from "@/components/NixCoin";
 const PRIZES = {
   retry: { label: "Mai încearcă", short: "MAI ÎNCEARCĂ", img: null, color: "#8b8f98", tint: "rgba(139,143,152,0.16)", rarity: "COMUN" },
   p5:    { label: "5 NIX",  short: "5 NIX",  img: "/nix/coin.png", color: "#c084fc", tint: "rgba(168,85,247,0.12)", rarity: "COMUN" },
-  p10:   { label: "10 NIX", short: "10 NIX", img: "/nix/coin.png", color: "#c084fc", tint: "rgba(168,85,247,0.18)", rarity: "NECOMUN" },
+  p10:   { label: "10 NIX", short: "10 NIX", img: "/nix/coin.png", color: "#c084fc", tint: "rgba(168,85,247,0.18)", rarity: "FOARTE RAR" },
   p15:   { label: "15 NIX", short: "15 NIX", img: "/nix/coin.png", color: "#c084fc", tint: "rgba(168,85,247,0.24)", rarity: "RAR" },
   p50:   { label: "50 NIX", short: "50 NIX", img: "/nix/pile.png", color: "#d8b4fe", tint: "rgba(192,132,252,0.24)", rarity: "EPIC" },
   plus:  { label: "Invitație PLUS", short: "INVITAȚIE PLUS", img: "/nix/scroll.png", color: "#ffcc00", tint: "rgba(255,204,0,0.20)", rarity: "LEGENDAR" },
 };
 const PRIZE_KEYS = Object.keys(PRIZES);
+
+// --- Sound FX via Web Audio (no asset files needed) ---
+let _actx = null;
+const getCtx = () => {
+  if (typeof window === "undefined") return null;
+  if (!_actx) { try { _actx = new (window.AudioContext || window.webkitAudioContext)(); } catch { _actx = null; } }
+  if (_actx && _actx.state === "suspended") _actx.resume().catch(() => {});
+  return _actx;
+};
+const beep = (freq, start, dur, type = "sine", vol = 0.14) => {
+  const ctx = getCtx(); if (!ctx) return;
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.type = type; o.frequency.value = freq; o.connect(g); g.connect(ctx.destination);
+  const t = ctx.currentTime + start;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.start(t); o.stop(t + dur + 0.03);
+};
+const playStop = () => { beep(340, 0, 0.12, "triangle", 0.13); beep(200, 0.05, 0.16, "sine", 0.08); };
+const playPoints = () => { beep(660, 0, 0.1, "sine", 0.12); beep(880, 0.09, 0.14, "sine", 0.1); };
+const playLegendary = () => { [523, 659, 784, 1047, 1319].forEach((f, i) => beep(f, i * 0.13, 0.4, "triangle", 0.15)); };
 
 const CARD_W = 128;   // card width in px
 const GAP = 12;       // margin between cards
@@ -43,12 +65,11 @@ const ReelCard = ({ pkey, won }) => {
         transform: won ? "scale(1.04)" : "none",
       }}
     >
-      <span className="absolute top-1.5 left-2 text-[9px] font-mono tracking-wider text-white/30">VLT</span>
-      <span className="absolute top-1.5 right-2 text-[9px] font-bold tracking-wider" style={{ color: p.color }}>{p.rarity}</span>
+      <span className="absolute top-2 left-0 right-0 text-center text-[10px] font-bold tracking-wider" style={{ color: p.color }}>{p.rarity}</span>
       {p.img ? (
-        <img src={p.img} alt={p.label} draggable={false} className="h-14 w-14 object-contain mb-2 select-none" />
+        <img src={p.img} alt={p.label} draggable={false} className="h-14 w-14 object-contain mb-2 mt-2 select-none" />
       ) : (
-        <span className="grid place-items-center h-14 w-14 rounded-full mb-2" style={{ background: p.tint, color: p.color }}>
+        <span className="grid place-items-center h-14 w-14 rounded-full mb-2 mt-2" style={{ background: p.tint, color: p.color }}>
           <RotateCw className="h-7 w-7" />
         </span>
       )}
@@ -106,6 +127,7 @@ const Spin = () => {
 
   const openBox = async () => {
     if (spinning || spins < 1) return;
+    getCtx(); // unlock audio on user gesture
     setSpinning(true);
     setResult(null);
     setFinished(false);
@@ -124,8 +146,14 @@ const Spin = () => {
         if (typeof data.points === "number") setPoints(data.points);
         setSpinning(false);
         refreshUser().catch(() => {});
-        if (data.result.type === "points") toast.success(`Ai câștigat ${data.result.points} NIX! 🎉`);
-        else if (data.result.type === "plus") toast.success("Ai câștigat o Invitație Cartoonix PLUS! 👑");
+        playStop();
+        if (data.result.type === "points") {
+          setTimeout(() => { playPoints(); flyCoins(); }, 160);
+          toast.success(`Ai câștigat ${data.result.points} NIX! 🎉`);
+        } else if (data.result.type === "plus") {
+          setTimeout(playLegendary, 180);
+          toast.success("Ai câștigat o Invitație Cartoonix PLUS! 👑");
+        }
       }, SPIN_MS + 250);
     } catch (err) {
       setSpinning(false);
@@ -137,6 +165,34 @@ const Spin = () => {
   const copyCode = async (code) => {
     try { await navigator.clipboard.writeText(code); toast.success("Cod copiat!"); }
     catch { toast.error("Nu am putut copia codul"); }
+  };
+
+  // NIX coins flying from the reel toward the header wallet pill.
+  const flyCoins = () => {
+    const pill = document.querySelector('[data-testid="nav-points-pill"]');
+    const vp = vpRef.current;
+    if (!pill || !vp) return;
+    const to = pill.getBoundingClientRect();
+    const from = vp.getBoundingClientRect();
+    const sx = from.left + from.width / 2, sy = from.top + from.height / 2;
+    const ex = to.left + to.width / 2, ey = to.top + to.height / 2;
+    for (let i = 0; i < 12; i++) {
+      const img = document.createElement("img");
+      img.src = "/nix/coin.png";
+      img.style.cssText = `position:fixed;left:${sx - 17}px;top:${sy - 17}px;width:34px;height:34px;z-index:9999;pointer-events:none;transform:scale(0.5);opacity:0;transition:transform .95s cubic-bezier(.5,0,.2,1),opacity .95s;filter:drop-shadow(0 0 6px rgba(168,85,247,.8));`;
+      document.body.appendChild(img);
+      const jx = (Math.random() * 2 - 1) * 90, jy = (Math.random() * 2 - 1) * 50 - 30;
+      requestAnimationFrame(() => {
+        img.style.opacity = "1";
+        img.style.transform = `translate(${jx}px, ${jy}px) scale(1)`;
+        setTimeout(() => {
+          img.style.transform = `translate(${ex - sx}px, ${ey - sy}px) scale(0.3)`;
+          img.style.opacity = "0.15";
+        }, 200 + i * 45);
+      });
+      setTimeout(() => img.remove(), 1500 + i * 45);
+    }
+    pill.animate([{ transform: "scale(1)" }, { transform: "scale(1.28)" }, { transform: "scale(1)" }], { duration: 520, easing: "ease-out" });
   };
 
   return (
