@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-import { RotateCw, Save, Percent } from "lucide-react";
+import { Save, Percent, KeyRound } from "lucide-react";
 
 export function AdminSpin() {
   const [weights, setWeights] = useState(null);
@@ -37,7 +37,7 @@ export function AdminSpin() {
   return (
     <div className="max-w-2xl">
       <div className="bg-[#141414] border border-white/10 rounded-2xl p-6">
-        <h2 className="font-display text-2xl mb-1 flex items-center gap-2"><RotateCw className="h-5 w-5 text-[#a855f7]" /> Roata norocului — șanse premii</h2>
+        <h2 className="font-display text-2xl mb-1 flex items-center gap-2"><KeyRound className="h-5 w-5 text-[#a855f7]" /> Mystery Box — șanse premii</h2>
         <p className="text-sm text-white/50 mb-6">Setează „greutatea" fiecărui premiu. Șansa reală = greutate ÷ suma tuturor greutăților. Nu trebuie să însumeze 100.</p>
 
         <div className="space-y-3">

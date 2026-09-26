@@ -4,16 +4,17 @@ import { NavBar } from "@/components/NavBar";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import { Coins, Copy, PartyPopper, X, KeyRound, Crown, RotateCw, Gift } from "lucide-react";
+import { Copy, X, KeyRound, RotateCw, Gift } from "lucide-react";
+import { NixCoin } from "@/components/NixCoin";
 
 // --- Reward visual catalogue (odds are NEVER shown / sent to the client) ---
 const PRIZES = {
-  retry: { label: "Mai încearcă", short: "MAI ÎNCEARCĂ", Icon: RotateCw, color: "#8b8f98", tint: "rgba(139,143,152,0.16)", rarity: "COMUN" },
-  p5:    { label: "5 puncte",  short: "5 PUNCTE",  Icon: Coins, color: "#34d399", tint: "rgba(52,211,153,0.16)", rarity: "COMUN" },
-  p10:   { label: "10 puncte", short: "10 PUNCTE", Icon: Coins, color: "#38bdf8", tint: "rgba(56,189,248,0.16)", rarity: "NECOMUN" },
-  p15:   { label: "15 puncte", short: "15 PUNCTE", Icon: Coins, color: "#fb923c", tint: "rgba(251,146,60,0.18)", rarity: "RAR" },
-  p50:   { label: "50 puncte", short: "50 PUNCTE", Icon: Coins, color: "#ffcc00", tint: "rgba(255,204,0,0.20)", rarity: "EPIC" },
-  plus:  { label: "Invitație PLUS", short: "INVITAȚIE PLUS", Icon: Crown, color: "#ec1c24", tint: "rgba(236,28,36,0.20)", rarity: "LEGENDAR" },
+  retry: { label: "Mai încearcă", short: "MAI ÎNCEARCĂ", img: null, color: "#8b8f98", tint: "rgba(139,143,152,0.16)", rarity: "COMUN" },
+  p5:    { label: "5 NIX",  short: "5 NIX",  img: "/nix/coin.png", color: "#c084fc", tint: "rgba(168,85,247,0.12)", rarity: "COMUN" },
+  p10:   { label: "10 NIX", short: "10 NIX", img: "/nix/coin.png", color: "#c084fc", tint: "rgba(168,85,247,0.18)", rarity: "NECOMUN" },
+  p15:   { label: "15 NIX", short: "15 NIX", img: "/nix/coin.png", color: "#c084fc", tint: "rgba(168,85,247,0.24)", rarity: "RAR" },
+  p50:   { label: "50 NIX", short: "50 NIX", img: "/nix/pile.png", color: "#d8b4fe", tint: "rgba(192,132,252,0.24)", rarity: "EPIC" },
+  plus:  { label: "Invitație PLUS", short: "INVITAȚIE PLUS", img: "/nix/scroll.png", color: "#ffcc00", tint: "rgba(255,204,0,0.20)", rarity: "LEGENDAR" },
 };
 const PRIZE_KEYS = Object.keys(PRIZES);
 
@@ -31,7 +32,6 @@ const makeFiller = (len) => Array.from({ length: len }, randKey);
 
 const ReelCard = ({ pkey, won }) => {
   const p = PRIZES[pkey] || PRIZES.retry;
-  const { Icon } = p;
   return (
     <div
       className={`shrink-0 rounded-xl overflow-hidden relative flex flex-col items-center justify-center transition-[filter,transform] duration-300 ${won ? "won-card" : ""}`}
@@ -45,9 +45,13 @@ const ReelCard = ({ pkey, won }) => {
     >
       <span className="absolute top-1.5 left-2 text-[9px] font-mono tracking-wider text-white/30">VLT</span>
       <span className="absolute top-1.5 right-2 text-[9px] font-bold tracking-wider" style={{ color: p.color }}>{p.rarity}</span>
-      <span className="grid place-items-center h-14 w-14 rounded-full mb-2" style={{ background: p.tint, color: p.color }}>
-        <Icon className="h-7 w-7" />
-      </span>
+      {p.img ? (
+        <img src={p.img} alt={p.label} draggable={false} className="h-14 w-14 object-contain mb-2 select-none" />
+      ) : (
+        <span className="grid place-items-center h-14 w-14 rounded-full mb-2" style={{ background: p.tint, color: p.color }}>
+          <RotateCw className="h-7 w-7" />
+        </span>
+      )}
       <span className="text-[11px] font-extrabold tracking-wide text-center px-1 leading-tight" style={{ color: p.color }}>{p.short}</span>
     </div>
   );
@@ -120,7 +124,7 @@ const Spin = () => {
         if (typeof data.points === "number") setPoints(data.points);
         setSpinning(false);
         refreshUser().catch(() => {});
-        if (data.result.type === "points") toast.success(`Ai câștigat ${data.result.points} puncte! 🎉`);
+        if (data.result.type === "points") toast.success(`Ai câștigat ${data.result.points} NIX! 🎉`);
         else if (data.result.type === "plus") toast.success("Ai câștigat o Invitație Cartoonix PLUS! 👑");
       }, SPIN_MS + 250);
     } catch (err) {
@@ -155,7 +159,7 @@ const Spin = () => {
             <KeyRound className="h-4 w-4 text-[#ff7a18]" /> {spins} <span className="text-white/50 font-normal">{spins === 1 ? "cheie" : "chei"} Mystery Box</span>
           </span>
           <span data-testid="spin-points" className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#141414] border border-white/10 font-bold">
-            <Coins className="h-4 w-4 text-[#ffcc00]" /> {points} <span className="text-white/50 font-normal">puncte</span>
+            <NixCoin className="h-4 w-4" /> {points} <span className="text-white/50 font-normal">NIX</span>
           </span>
         </div>
 
@@ -220,16 +224,16 @@ const Spin = () => {
               </>
             ) : result.type === "points" ? (
               <>
-                <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-[#ffcc00]/15 border border-[#ffcc00]/40 grid place-items-center">
-                  <Coins className="h-8 w-8 text-[#ffcc00]" />
+                <div className="mx-auto mb-4 h-20 w-20 rounded-full bg-[#a855f7]/15 border border-[#a855f7]/40 grid place-items-center">
+                  <NixCoin className="h-12 w-12" />
                 </div>
-                <h2 className="font-display text-4xl mb-2 text-[#ffcc00]">+{result.points} puncte!</h2>
-                <p className="text-white/50">Punctele au fost adăugate în portofelul tău.</p>
+                <h2 className="font-display text-4xl mb-2 text-[#c084fc]">+{result.points} NIX!</h2>
+                <p className="text-white/50">NIX-ul a fost adăugat în portofelul tău.</p>
               </>
             ) : (
               <>
-                <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-[#ec1c24]/15 border border-[#ec1c24]/40 grid place-items-center">
-                  <PartyPopper className="h-8 w-8 text-[#ec1c24]" />
+                <div className="mx-auto mb-4 h-24 w-24 grid place-items-center">
+                  <img src="/nix/scroll.png" alt="Invitație PLUS" className="h-24 w-24 object-contain drop-shadow-[0_0_18px_rgba(255,204,0,0.4)]" />
                 </div>
                 <h2 className="font-display text-3xl mb-1">Invitație Cartoonix PLUS! 👑</h2>
                 <p className="text-white/50 mb-4">Ai câștigat un cod PLUS. Îl poți folosi tu sau dărui unui prieten.</p>

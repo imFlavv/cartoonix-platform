@@ -2,7 +2,8 @@ import { useEffect, useState, useCallback } from "react";
 import { api } from "@/lib/api";
 import { PlusIcon } from "@/components/PlusIcon";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Search, Ban, ShieldCheck, Pencil, Trash2, Globe, KeyRound, UserPlus, RotateCw } from "lucide-react";
+import { Search, Ban, ShieldCheck, Pencil, Trash2, Globe, KeyRound, UserPlus } from "lucide-react";
+import { NixCoin } from "@/components/NixCoin";
 import { toast } from "sonner";
 
 const inputCls = "w-full px-4 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[#ffcc00]";
@@ -75,26 +76,26 @@ export const AdminMembers = () => {
   };
 
   const grantSpins = async (u) => {
-    const raw = window.prompt(`Câte rotiri îi oferi lui ${u.name || u.email}?`, "1");
+    const raw = window.prompt(`Câte chei Mystery Box îi oferi lui ${u.name || u.email}?`, "1");
     if (raw === null) return;
     const count = parseInt(raw, 10);
     if (!count || count < 1) return toast.error("Introdu un număr valid (min. 1)");
     try {
       const { data } = await api.post(`/admin/users/${u.id}/spins`, { count });
-      toast.success(`${count} rotiri oferite. Total: ${data.spins}`);
+      toast.success(`${count} chei oferite. Total: ${data.spins}`);
       load();
     } catch (e) { toast.error(e.response?.data?.detail || "Eroare"); }
   };
 
   const grantSpinsAll = async () => {
-    const raw = window.prompt("Câte rotiri oferi TUTUROR utilizatorilor?", "1");
+    const raw = window.prompt("Câte chei Mystery Box oferi TUTUROR utilizatorilor?", "1");
     if (raw === null) return;
     const count = parseInt(raw, 10);
     if (!count || count < 1) return toast.error("Introdu un număr valid (min. 1)");
-    if (!window.confirm(`Confirmi? Fiecare utilizator va primi +${count} rotiri.`)) return;
+    if (!window.confirm(`Confirmi? Fiecare utilizator va primi +${count} chei.`)) return;
     try {
       const { data } = await api.post("/admin/spins/grant-all", { count });
-      toast.success(`+${count} rotiri oferite la ${data.updated} utilizatori`);
+      toast.success(`+${count} chei oferite la ${data.updated} utilizatori`);
       load();
     } catch (e) { toast.error(e.response?.data?.detail || "Eroare"); }
   };
@@ -154,7 +155,7 @@ export const AdminMembers = () => {
           onClick={grantSpinsAll}
           className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#a855f7] text-white font-bold hover:brightness-110 transition-all duration-200"
         >
-          <RotateCw className="h-4 w-4" /> Rotiri pentru toți
+          <KeyRound className="h-4 w-4" /> Chei pentru toți
         </button>
       </div>
 
@@ -164,8 +165,8 @@ export const AdminMembers = () => {
             <tr>
               <th className="text-left px-4 py-3">Utilizator</th>
               <th className="text-left px-4 py-3">Plan</th>
-              <th className="text-left px-4 py-3">Puncte</th>
-              <th className="text-left px-4 py-3">Rotiri</th>
+              <th className="text-left px-4 py-3">NIX</th>
+              <th className="text-left px-4 py-3">Chei</th>
               <th className="text-left px-4 py-3 whitespace-nowrap">Data ultimei conectări</th>
               <th className="text-left px-4 py-3">IP</th>
               <th className="text-left px-4 py-3">Status</th>
@@ -190,13 +191,13 @@ export const AdminMembers = () => {
                   </button>
                 </td>
                 <td className="px-4 py-3">
-                  <span data-testid={`member-points-${u.id}`} className="inline-flex items-center gap-1 font-semibold text-[#ec4899]">
-                    {Number(u.points || 0).toLocaleString("ro-RO")}
+                  <span data-testid={`member-points-${u.id}`} className="inline-flex items-center gap-1 font-semibold text-[#c084fc]">
+                    <NixCoin className="h-3.5 w-3.5" /> {Number(u.points || 0).toLocaleString("ro-RO")}
                   </span>
                 </td>
                 <td className="px-4 py-3">
                   <span data-testid={`member-spins-${u.id}`} className="inline-flex items-center gap-1 font-semibold text-[#c084fc]">
-                    <RotateCw className="h-3.5 w-3.5" /> {Number(u.spins || 0)}
+                    <KeyRound className="h-3.5 w-3.5" /> {Number(u.spins || 0)}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-white/60 text-xs whitespace-nowrap" data-testid={`member-lastseen-${u.id}`}>{fmtLastSeen(u.last_seen)}</td>
@@ -207,7 +208,7 @@ export const AdminMembers = () => {
                 <td className="px-4 py-3">
                   <div className="flex items-center justify-end gap-1">
                     <button data-testid={`edit-user-${u.id}`} onClick={() => setEditing({ ...u, newPassword: "" })} title="Editează" className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-white/10"><Pencil className="h-4 w-4" /></button>
-                    <button data-testid={`grant-spins-${u.id}`} onClick={() => grantSpins(u)} title="Oferă rotiri" className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-white/10"><RotateCw className="h-4 w-4 text-[#c084fc]" /></button>
+                    <button data-testid={`grant-spins-${u.id}`} onClick={() => grantSpins(u)} title="Oferă chei Mystery Box" className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-white/10"><KeyRound className="h-4 w-4 text-[#c084fc]" /></button>
                     <button data-testid={`ban-user-${u.id}`} onClick={() => patch(u, { banned: !u.banned }, u.banned ? "Deblocat" : "Cont banat")} title={u.banned ? "Deblochează" : "Banează"} className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-white/10">
                       {u.banned ? <ShieldCheck className="h-4 w-4 text-[#22c55e]" /> : <Ban className="h-4 w-4 text-[#ec1c24]" />}
                     </button>

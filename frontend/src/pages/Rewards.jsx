@@ -4,7 +4,8 @@ import { NavBar } from "@/components/NavBar";
 import { api, formatApiErrorDetail } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import { ArrowLeft, Gift, Coins, Crown, Ticket, Tag, Clock, ChevronRight, Copy, Check } from "lucide-react";
+import { ArrowLeft, Gift, Crown, Ticket, Tag, Clock, ChevronRight, Copy, Check } from "lucide-react";
+import { NixCoin } from "@/components/NixCoin";
 
 const PRODUCT_IMG = {
   plus_invite: "https://static.prod-images.emergentagent.com/jobs/9e14088f-8d65-46e8-8761-dcb2cff76665/images/fdc68784e35b6a112f20a5dfdcd46b1b5f2c3a1ff89a720e32d92be60a14c83c.jpeg",
@@ -78,10 +79,10 @@ const Rewards = () => {
 
   const redeem = async (p) => {
     if ((data?.points ?? 0) < p.cost) {
-      toast.error("Nu ai suficiente puncte pentru această recompensă");
+      toast.error("Nu ai suficient NIX pentru această recompensă");
       return;
     }
-    if (!window.confirm(`Revendici „${p.title}" pentru ${p.cost} puncte?`)) return;
+    if (!window.confirm(`Revendici „${p.title}" pentru ${p.cost} NIX?`)) return;
     setBusy(p.id);
     try {
       const { data: res } = await api.post("/rewards/redeem", { product_id: p.id });
@@ -106,7 +107,7 @@ const Rewards = () => {
     try {
       const { data: res } = await api.post("/rewards/redeem-code", { code: code.trim() });
       if (res.granted?.type === "plus") toast.success("Felicitări! Ai primit acces Cartoonix PLUS pe viață! 👑");
-      else if (res.granted?.type === "points") toast.success(`Ai primit ${res.granted.points} puncte!`);
+      else if (res.granted?.type === "points") toast.success(`Ai primit ${res.granted.points} NIX!`);
       else toast.success("Cod valorificat!");
       setCode("");
       await load();
@@ -140,10 +141,10 @@ const Rewards = () => {
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
           <StatCard
             testid="rewards-points-card"
-            icon={<Coins className="h-7 w-7 text-[#ec4899]" />}
-            label="Puncte disponibile"
+            icon={<NixCoin className="h-7 w-7" />}
+            label="NIX disponibil"
             value={points.toLocaleString("ro-RO")}
-            sub="Adună puncte și descoperă recompense noi!"
+            sub="Adună NIX și descoperă recompense noi!"
             accent="bg-[#1a0f1a] border-[#ec4899]/40 shadow-[0_0_40px_rgba(236,72,153,0.12)]"
           />
           <StatCard
@@ -180,8 +181,8 @@ const Rewards = () => {
                 </div>
                 <h3 className="font-display text-xl mb-1">{p.title}</h3>
                 <p className="text-sm text-white/50 flex-1 mb-3">{p.desc}</p>
-                <div className="flex items-center gap-1.5 text-[#ffcc00] font-bold mb-3">
-                  <Coins className="h-4 w-4" /> Cost: {p.cost} puncte
+                <div className="flex items-center gap-1.5 text-[#c084fc] font-bold mb-3">
+                  <NixCoin className="h-4 w-4" /> Cost: {p.cost} NIX
                 </div>
                 <button
                   data-testid={`redeem-${p.id}`}
@@ -189,7 +190,7 @@ const Rewards = () => {
                   disabled={busy === p.id || !affordable}
                   className="w-full py-2.5 rounded-lg bg-[#ec1c24] text-white font-bold hover:bg-[#ff2d36] transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {busy === p.id ? "Se revendică..." : affordable ? "Revendică" : "Puncte insuficiente"}
+                  {busy === p.id ? "Se revendică..." : affordable ? "Revendică" : "NIX insuficient"}
                 </button>
               </div>
             );

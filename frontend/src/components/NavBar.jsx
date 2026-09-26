@@ -3,13 +3,14 @@ import { useState, useEffect, useCallback } from "react";
 import {
   Search, Menu, X, LogOut, Shield, HelpCircle, Bell,
   Facebook, Instagram, Youtube, Music2, MessageCircle, User, Settings, CheckCheck, Inbox,
-  Home, Clapperboard, Users, Film, Tv, Coins, Heart, ShoppingBag,
+  Home, Clapperboard, Users, Film, Tv, Heart, ShoppingBag,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { LOGO_TRANSPARENT, LOGO_AUTUMN, FACEBOOK_URL, TIKTOK_URL, INSTAGRAM_URL, YOUTUBE_URL } from "@/data/constants";
 import { PlusIcon } from "@/components/PlusIcon";
+import { NixCoin } from "@/components/NixCoin";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
@@ -261,14 +262,14 @@ export const NavBar = () => {
                 </PopoverContent>
               </Popover>
 
-              {/* Points wallet pill */}
+              {/* NIX wallet pill */}
               <button
                 data-testid="nav-points-pill"
                 onClick={() => navigate("/profile")}
-                title="Punctele mele"
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[9px] bg-[#ffcc00]/10 text-[#ffcc00] text-sm font-bold hover:bg-[#ffcc00]/20 transition-colors duration-200"
+                title="NIX-urile mele"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[9px] bg-[#a855f7]/15 text-[#c084fc] text-sm font-bold hover:bg-[#a855f7]/25 transition-colors duration-200"
               >
-                <Coins className="h-4 w-4" />
+                <NixCoin className="h-4 w-4" />
                 <span data-testid="nav-points-value">{user.points ?? 0}</span>
               </button>
 

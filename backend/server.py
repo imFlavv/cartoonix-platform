@@ -1060,7 +1060,7 @@ async def create_donation(body: DonationRequest, request: Request, user: dict = 
                     "currency": PLUS_CURRENCY,
                     "product_data": {
                         "name": "Donație Cartoonix",
-                        "description": f"Mulțumim pentru susținere! Primești {points} puncte în platformă.",
+                        "description": f"Mulțumim pentru susținere! Primești {points} NIX în platformă.",
                     },
                     "unit_amount": int(round(amount * 100)),
                 },
@@ -1162,7 +1162,7 @@ async def redeem_product(body: RedeemProduct, user: dict = Depends(get_current_u
         return_document=ReturnDocument.AFTER,
     )
     if not updated:
-        raise HTTPException(status_code=400, detail="Nu ai suficiente puncte pentru această recompensă")
+        raise HTTPException(status_code=400, detail="Nu ai suficient NIX pentru această recompensă")
     uid = uid_of(user)
     now_iso = datetime.now(timezone.utc).isoformat()
     await db.points_ledger.insert_one({
@@ -1255,12 +1255,12 @@ async def redeem_code(body: RedeemCode, user: dict = Depends(get_current_user)):
 # Display order of the wheel slices (fixed). Weights are server-side only (never exposed).
 SPIN_SEGMENTS = [
     {"key": "retry", "label": "Mai încearcă", "color": "#3a2a12", "text": "#f0d8a8"},
-    {"key": "p5",    "label": "5 puncte",     "color": "#1f4d3a", "text": "#c9ffe6"},
+    {"key": "p5",    "label": "5 NIX",     "color": "#1f4d3a", "text": "#c9ffe6"},
     {"key": "retry", "label": "Mai încearcă", "color": "#2a1f3a", "text": "#e0cbff"},
-    {"key": "p10",   "label": "10 puncte",    "color": "#12405e", "text": "#c7e9ff"},
-    {"key": "p15",   "label": "15 puncte",    "color": "#5e3a12", "text": "#ffe0b8"},
+    {"key": "p10",   "label": "10 NIX",    "color": "#12405e", "text": "#c7e9ff"},
+    {"key": "p15",   "label": "15 NIX",    "color": "#5e3a12", "text": "#ffe0b8"},
     {"key": "retry", "label": "Mai încearcă", "color": "#3a1220", "text": "#ffc7d6"},
-    {"key": "p50",   "label": "50 puncte",    "color": "#5e5012", "text": "#fff3b0"},
+    {"key": "p50",   "label": "50 NIX",    "color": "#5e5012", "text": "#fff3b0"},
     {"key": "plus",  "label": "Invitație PLUS","color": "#5e1220", "text": "#ffd0d6"},
 ]
 
@@ -1274,7 +1274,7 @@ SPIN_PRIZES = [
     ("plus", 2),
 ]
 SPIN_DEFAULT_WEIGHTS = {k: w for k, w in SPIN_PRIZES}
-SPIN_LABELS = {"retry": "Mai încearcă", "p5": "5 puncte", "p10": "10 puncte", "p15": "15 puncte", "p50": "50 puncte", "plus": "Invitație PLUS"}
+SPIN_LABELS = {"retry": "Mai încearcă", "p5": "5 NIX", "p10": "10 NIX", "p15": "15 NIX", "p50": "50 NIX", "plus": "Invitație PLUS"}
 _SPIN_POINTS = {"p5": 5, "p10": 10, "p15": 15, "p50": 50}
 
 
@@ -1421,7 +1421,7 @@ async def admin_create_voucher(data: VoucherCreate, admin: dict = Depends(requir
     if data.type not in ("plus", "points"):
         raise HTTPException(status_code=400, detail="Tip invalid (plus / points)")
     if data.type == "points" and int(data.points or 0) <= 0:
-        raise HTTPException(status_code=400, detail="Setează un număr de puncte > 0")
+        raise HTTPException(status_code=400, detail="Setează un număr de NIX > 0")
     if data.scope not in ("universal", "specific"):
         raise HTTPException(status_code=400, detail="Scop invalid")
     target_uid = None

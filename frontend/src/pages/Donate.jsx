@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { NavBar } from "@/components/NavBar";
-import { Heart, Coins, Loader2, ShieldCheck, Ban } from "lucide-react";
+import { Heart, Loader2, ShieldCheck, Ban } from "lucide-react";
+import { NixCoin } from "@/components/NixCoin";
 import { toast } from "sonner";
 
 const PRESETS = [10, 25, 50, 100];
@@ -80,7 +81,7 @@ const Donate = () => {
             <h1 className="font-display text-4xl sm:text-5xl mb-3">Susține Cartoonix</h1>
             <p className="text-white/60 max-w-md mx-auto">
               Fiecare donație ne ajută să ținem platforma vie și fără reclame. Ca mulțumire,
-              primești puncte în cont: <b className="text-[#ffcc00]">1 RON = 1 punct</b>.
+              primești NIX în cont: <b className="text-[#c084fc]">1 RON = 1 NIX</b>.
             </p>
           </div>
 
@@ -127,10 +128,10 @@ const Donate = () => {
             )}
 
             {/* Points preview */}
-            <div className="flex items-center justify-between rounded-2xl bg-[#ffcc00]/10 border border-[#ffcc00]/30 px-4 py-3 my-5">
+            <div className="flex items-center justify-between rounded-2xl bg-[#a855f7]/10 border border-[#a855f7]/30 px-4 py-3 my-5">
               <span className="text-sm text-white/70">Vei primi</span>
-              <span data-testid="donate-points-preview" className="flex items-center gap-2 text-xl font-extrabold text-[#ffcc00]">
-                <Coins className="h-5 w-5" /> {points} puncte
+              <span data-testid="donate-points-preview" className="flex items-center gap-2 text-xl font-extrabold text-[#c084fc]">
+                <NixCoin className="h-5 w-5" /> {points} NIX
               </span>
             </div>
 
@@ -144,13 +145,13 @@ const Donate = () => {
             </button>
 
             <p className="flex items-center justify-center gap-2 text-xs text-white/40 mt-4">
-              <ShieldCheck className="h-4 w-4" /> Plată securizată prin Stripe · punctele se încarcă automat după confirmare
+              <ShieldCheck className="h-4 w-4" /> Plată securizată prin Stripe · NIX-ul se încarcă automat după confirmare
             </p>
           </div>
 
           {user && (
             <p className="text-center text-sm text-white/50 mt-6">
-              Ai acum <b className="text-[#ffcc00]">{user.points ?? 0}</b> puncte ·{" "}
+              Ai acum <b className="text-[#c084fc]">{user.points ?? 0}</b> NIX ·{" "}
               <button onClick={() => navigate("/profile")} className="underline hover:text-white transition-colors">vezi wallet-ul</button>
             </p>
           )}

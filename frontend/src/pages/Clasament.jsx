@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { NavBar } from "@/components/NavBar";
 import { api } from "@/lib/api";
-import { Trophy, Search, Crown, Medal, Coins } from "lucide-react";
+import { Trophy, Search, Crown, Medal } from "lucide-react";
+import { NixCoin } from "@/components/NixCoin";
 
 const rankStyle = (rank) => {
   if (rank === 1) return { color: "#ffcc00", ring: "ring-[#ffcc00]" };
@@ -61,8 +62,8 @@ const PointsRow = ({ e, highlight = false }) => {
           {e.online && <span className="h-2 w-2 rounded-full bg-[#22c55e] shrink-0" title="Online" />}
         </p>
       </div>
-      <p className="font-display text-base text-[#ec4899] shrink-0 flex items-center gap-1">
-        <Coins className="h-4 w-4" /> {Number(e.points || 0).toLocaleString("ro-RO")}
+      <p className="font-display text-base text-[#c084fc] shrink-0 flex items-center gap-1">
+        <NixCoin className="h-4 w-4" /> {Number(e.points || 0).toLocaleString("ro-RO")}
       </p>
     </div>
   );
@@ -104,7 +105,7 @@ const Clasament = () => {
         <h1 className="font-display italic text-3xl mb-1 flex items-center gap-3">
           <Trophy className="h-7 w-7 text-[#ffcc00]" /> Clasament
         </h1>
-        <p className="text-white/50 text-sm mb-4">Top utilizatori după timpul petrecut online și după puncte.</p>
+        <p className="text-white/50 text-sm mb-4">Top utilizatori după timpul petrecut online și după NIX.</p>
 
         {/* Search */}
         <form onSubmit={doSearch} className="flex gap-2 mb-4">
@@ -170,11 +171,11 @@ const Clasament = () => {
           {/* Top points */}
           <div>
             <h2 className="font-display text-lg mb-2 flex items-center gap-2">
-              <Coins className="h-5 w-5 text-[#ec4899]" /> Top Puncte
+              <NixCoin className="h-5 w-5" /> Top NIX
             </h2>
             <div className="space-y-1.5" data-testid="lb-top-points">
               {(data?.top_points || []).map((e) => <PointsRow key={`p-${e.id}`} e={e} highlight={e.id === data?.me?.id} />)}
-              {data && (!data.top_points || data.top_points.length === 0) && <p className="text-white/40 text-sm">Încă nimeni nu are puncte. Donează sau câștigă recompense!</p>}
+              {data && (!data.top_points || data.top_points.length === 0) && <p className="text-white/40 text-sm">Încă nimeni nu are NIX. Donează sau câștigă recompense!</p>}
             </div>
           </div>
         </div>

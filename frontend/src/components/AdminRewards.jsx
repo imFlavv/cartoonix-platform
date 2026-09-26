@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { api, formatApiErrorDetail } from "@/lib/api";
 import { toast } from "sonner";
-import { Gift, Ticket, Crown, Coins, Copy, Check, Power, ClipboardList } from "lucide-react";
+import { Gift, Ticket, Crown, Copy, Check, Power, ClipboardList } from "lucide-react";
+import { NixCoin } from "@/components/NixCoin";
 
 const input = "w-full px-3 py-2.5 rounded-lg bg-white/5 border border-white/10 focus:border-[#ec1c24] outline-none text-sm";
 
@@ -109,7 +110,7 @@ export const AdminRewards = () => {
       {/* Create voucher */}
       <div className="bg-[#141414] border border-[#ec1c24]/30 rounded-2xl p-6">
         <h2 className="font-display text-2xl mb-1 flex items-center gap-2"><Gift className="h-6 w-6 text-[#ec1c24]" /> Creează voucher</h2>
-        <p className="text-sm text-white/50 mb-5">Generează un cod de forma <code className="text-white/70">XXX-XXX-XXX</code> care oferă acces PLUS sau puncte. Poate fi universal (mai mulți utilizatori) sau specific unui utilizator.</p>
+        <p className="text-sm text-white/50 mb-5">Generează un cod de forma <code className="text-white/70">XXX-XXX-XXX</code> care oferă acces PLUS sau NIX. Poate fi universal (mai mulți utilizatori) sau specific unui utilizator.</p>
         <div className="grid md:grid-cols-2 gap-4">
           <div className="space-y-3">
             <div>
@@ -119,13 +120,13 @@ export const AdminRewards = () => {
                   <Crown className="h-4 w-4" /> Acces PLUS
                 </button>
                 <button data-testid="voucher-type-points" onClick={() => set("type", "points")} className={`py-2.5 rounded-lg border text-sm font-bold flex items-center justify-center gap-2 ${form.type === "points" ? "bg-[#ec4899] text-white border-[#ec4899]" : "bg-white/5 border-white/10 text-white/70"}`}>
-                  <Coins className="h-4 w-4" /> Puncte
+                  <NixCoin className="h-4 w-4" /> NIX
                 </button>
               </div>
             </div>
             {form.type === "points" && (
               <div>
-                <label className="text-xs text-white/50 mb-1 block">Câte puncte oferă</label>
+                <label className="text-xs text-white/50 mb-1 block">Câți NIX oferă</label>
                 <input data-testid="voucher-points" type="number" min="1" value={form.points} onChange={(e) => set("points", e.target.value)} className={input} placeholder="Ex: 100" />
               </div>
             )}
@@ -163,7 +164,7 @@ export const AdminRewards = () => {
         {lastCreated && (
           <div data-testid="voucher-created" className="mt-4 flex items-center justify-between gap-3 rounded-xl bg-black/40 border border-[#ffcc00]/40 px-4 py-3">
             <div>
-              <p className="text-xs text-white/50">Cod generat ({lastCreated.type === "plus" ? "Acces PLUS pe viață" : `${lastCreated.points} puncte`}):</p>
+              <p className="text-xs text-white/50">Cod generat ({lastCreated.type === "plus" ? "Acces PLUS pe viață" : `${lastCreated.points} NIX`}):</p>
               <CopyCode code={lastCreated.code} />
             </div>
           </div>
@@ -173,7 +174,7 @@ export const AdminRewards = () => {
       {/* Claims log (manual fulfillment) */}
       <div className="bg-[#0f0f0f] border border-white/10 rounded-2xl p-6">
         <h2 className="font-display text-2xl mb-1 flex items-center gap-2"><ClipboardList className="h-6 w-6 text-[#a855f7]" /> Cereri de recompense</h2>
-        <p className="text-sm text-white/50 mb-4">Recompense revendicate de utilizatori cu puncte. Onorează manual biletele cinema / voucherele eMAG.</p>
+        <p className="text-sm text-white/50 mb-4">Recompense revendicate de utilizatori cu NIX. Onorează manual biletele cinema / voucherele eMAG.</p>
         {claims.length === 0 ? (
           <p className="text-white/40 text-sm py-6 text-center">Nicio cerere încă.</p>
         ) : (
@@ -227,7 +228,7 @@ export const AdminRewards = () => {
                 {pagedVouchers.map((v) => (
                   <tr key={v.code} data-testid={`admin-voucher-${v.code}`} className="border-b border-white/5">
                     <td className="py-2.5 pr-3"><CopyCode code={v.code} /></td>
-                    <td className="py-2.5 pr-3">{v.type === "plus" ? <span className="text-[#ffcc00] font-semibold">PLUS pe viață</span> : <span className="text-[#ec4899] font-semibold">{v.points} puncte</span>}</td>
+                    <td className="py-2.5 pr-3">{v.type === "plus" ? <span className="text-[#ffcc00] font-semibold">PLUS pe viață</span> : <span className="text-[#c084fc] font-semibold">{v.points} NIX</span>}</td>
                     <td className="py-2.5 pr-3 text-white/60">{v.scope === "specific" ? `Specific: ${v.target_email || "—"}` : `Universal${v.max_uses ? ` (max ${v.max_uses})` : ""}`}</td>
                     <td className="py-2.5 pr-3 text-white/60">{v.used_count || 0}{v.scope === "specific" ? "/1" : v.max_uses ? `/${v.max_uses}` : ""}</td>
                     <td className="py-2.5 pr-3">{v.active ? <span className="text-[#22c55e]">Activ</span> : <span className="text-white/40">Inactiv</span>}</td>

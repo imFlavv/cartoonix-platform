@@ -83,7 +83,7 @@ const PaymentSuccess = () => {
               <CheckCircle2 className="w-16 h-16 text-green-400 mb-6" />
               <h1 className="text-3xl font-extrabold mb-3">Mulțumim pentru donație! ❤️</h1>
               <p className="text-white/70 mb-6 max-w-md">
-                Am adăugat <b className="text-[#ffcc00]">{info?.points ?? 0} puncte</b> în contul tău.
+                Am adăugat <b className="text-[#c084fc]">{info?.points ?? 0} NIX</b> în contul tău.
                 Susținerea ta ține Cartoonix viu!
               </p>
               <div className="flex gap-3">
@@ -91,7 +91,7 @@ const PaymentSuccess = () => {
                   onClick={() => navigate("/profile")}
                   className="px-8 py-3 rounded-full bg-[#ffcc00] text-black font-bold hover:bg-[#ffd633] transition"
                 >
-                  Vezi punctele
+                  Vezi NIX-ul
                 </button>
                 <button
                   onClick={() => navigate("/home")}

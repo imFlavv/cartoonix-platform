@@ -1,7 +1,8 @@
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { NavBar } from "@/components/NavBar";
-import { ShoppingBag, Coins, Sparkles, Heart } from "lucide-react";
+import { ShoppingBag, Sparkles, Heart } from "lucide-react";
+import { NixCoin } from "@/components/NixCoin";
 
 const Shop = () => {
   const { user } = useAuth();
@@ -23,18 +24,18 @@ const Shop = () => {
               </div>
               <h1 className="font-display text-4xl sm:text-5xl mb-4">Magazinul Cartoonix</h1>
               <p className="text-white/60 mb-3">
-                Aici vei putea <b className="text-white">cheltui punctele tale</b> pe avataruri premium,
+                Aici vei putea <b className="text-white">cheltui NIX-ul tău</b> pe avataruri premium,
                 beneficii exclusive și multe alte surprize.
               </p>
               <p className="text-white/40 text-sm mb-8">
                 Lucrăm la el chiar acum — revino curând! 🛍️
               </p>
 
-              <div className="flex items-center justify-center gap-2 rounded-2xl bg-[#ffcc00]/10 border border-[#ffcc00]/30 px-5 py-4 mb-7">
-                <Coins className="h-6 w-6 text-[#ffcc00]" />
+              <div className="flex items-center justify-center gap-2 rounded-2xl bg-[#a855f7]/10 border border-[#a855f7]/30 px-5 py-4 mb-7">
+                <NixCoin className="h-6 w-6" />
                 <span className="text-sm text-white/70">Ai acum</span>
-                <span data-testid="shop-points" className="text-2xl font-extrabold text-[#ffcc00]">{user?.points ?? 0}</span>
-                <span className="text-sm text-white/70">puncte</span>
+                <span data-testid="shop-points" className="text-2xl font-extrabold text-[#c084fc]">{user?.points ?? 0}</span>
+                <span className="text-sm text-white/70">NIX</span>
               </div>
 
               <button
@@ -42,7 +43,7 @@ const Shop = () => {
                 onClick={() => navigate("/doneaza")}
                 className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full bg-[#ec1c24] font-bold hover:bg-[#ff2d36] transition-colors duration-200"
               >
-                <Heart className="h-5 w-5" /> Strânge puncte donând
+                <Heart className="h-5 w-5" /> Strânge NIX donând
               </button>
             </div>
           </div>

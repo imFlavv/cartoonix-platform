@@ -3,7 +3,8 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
-import { Truck, Hammer, Gift, Plus, Minus, Loader2, Check, Lock, Copy, Clock, Coins, Key, Sparkles, Crown } from "lucide-react";
+import { Truck, Hammer, Gift, Plus, Minus, Loader2, Check, Lock, Copy, Clock, Key, Sparkles, Crown } from "lucide-react";
+import { NixCoin } from "@/components/NixCoin";
 
 const PUMPKIN = "/halloween/pumpkin-normal.png";
 const CARVED = "/halloween/pumpkin-carved.png";
@@ -17,12 +18,12 @@ const fmtDur = (s) => {
 };
 
 const rewardIcon = (r) => {
-  if (r.reward === "points") return <Coins className="h-5 w-5 text-[#ffcc00]" />;
+  if (r.reward === "points") return <NixCoin className="h-5 w-5" />;
   if (r.reward === "avatar") return <Sparkles className="h-5 w-5 text-[#a855f7]" />;
   return <Key className="h-5 w-5 text-[#00e0ff]" />;
 };
 const rewardText = (r) => {
-  if (r.reward === "points") return `${r.points} puncte`;
+  if (r.reward === "points") return `${r.points} NIX`;
   if (r.reward === "avatar") return "Avatar special Halloween";
   return "1 cheie cutia misterioasă";
 };
@@ -302,7 +303,7 @@ export const HalloweenEventModal = ({ open, onClose }) => {
                   <Crown className="h-5 w-5 text-[#ffcc00]" />
                   <p className="font-display text-lg">Mare premiu final</p>
                 </div>
-                <p className="text-xs text-white/60 mb-3">Finalizează toate cele 6 activități și primești: <span className="text-white font-semibold">cod voucher abonament PLUS + 20 puncte</span>.</p>
+                <p className="text-xs text-white/60 mb-3">Finalizează toate cele 6 activități și primești: <span className="text-white font-semibold">cod voucher abonament PLUS + 20 NIX</span>.</p>
                 {status.final.claimed ? (
                   <div className="flex items-center gap-2 bg-black/40 rounded-lg px-3 py-2">
                     <span className="text-xs text-white/50">Cod PLUS:</span>

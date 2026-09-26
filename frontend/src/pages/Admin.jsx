@@ -3,7 +3,7 @@ import { NavBar } from "@/components/NavBar";
 import { api } from "@/lib/api";
 import { CHANNELS } from "@/data/constants";
 import { toast } from "sonner";
-import { FolderSearch, Plus, Film, Lightbulb, Users, Pencil, ChevronUp, ChevronDown, ServerCog, Inbox, ImageOff, MessagesSquare, Megaphone, RotateCcw, RotateCw, Crown, Heart, Tv, Gift } from "lucide-react";
+import { FolderSearch, Plus, Film, Lightbulb, Users, Pencil, ChevronUp, ChevronDown, ServerCog, Inbox, ImageOff, MessagesSquare, Megaphone, RotateCcw, Crown, Heart, Tv, Gift } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { AdminMembers } from "@/components/AdminMembers";
@@ -336,7 +336,7 @@ const Admin = () => {
               <Gift className="h-4 w-4 mr-2" /> Recompense
             </TabsTrigger>
             <TabsTrigger value="spin" data-testid="admin-tab-spin" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
-              <RotateCw className="h-4 w-4 mr-2" /> Roata
+              <Gift className="h-4 w-4 mr-2" /> Mystery Box
             </TabsTrigger>
             <TabsTrigger value="cinema" data-testid="admin-tab-cinema" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
               <Film className="h-4 w-4 mr-2" /> Cinema

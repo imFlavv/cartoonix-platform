@@ -7,7 +7,8 @@ import { api } from "@/lib/api";
 import { setQueue } from "@/lib/queue";
 import { AVATAR_SEEDS } from "@/data/constants";
 import { PlusIcon } from "@/components/PlusIcon";
-import { Check, Play, Heart, Trash2, ListMusic, Film, Clock, Lock, KeyRound, Eye, EyeOff, User, Gift, PlayCircle, Coins, Ticket, FileText, Building2, Download, Crown, Copy, Plus, Award, MessageCircle } from "lucide-react";
+import { Check, Play, Heart, Trash2, ListMusic, Film, Clock, Lock, KeyRound, Eye, EyeOff, User, Gift, PlayCircle, Ticket, FileText, Building2, Download, Crown, Copy, Plus, Award, MessageCircle } from "lucide-react";
+import { NixCoin } from "@/components/NixCoin";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { rankInfo } from "@/lib/roles";
 import { toast } from "sonner";
@@ -204,7 +205,7 @@ const Profile = () => {
                 <User className="h-4 w-4 mr-2" /> Contul meu
               </TabsTrigger>
               <TabsTrigger value="wallet" data-testid="tab-wallet" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
-                <Coins className="h-4 w-4 mr-2" /> Wallet
+                <NixCoin className="h-4 w-4 mr-2" /> Wallet
               </TabsTrigger>
               <TabsTrigger value="rewards" data-testid="tab-rewards" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
                 <Gift className="h-4 w-4 mr-2" /> Inventar
@@ -358,25 +359,25 @@ const Profile = () => {
 
             <TabsContent value="wallet" className="mt-6" data-testid="wallet-content">
               <div className="rounded-3xl p-6 sm:p-8 mb-6 relative overflow-hidden bg-gradient-to-br from-[#ffcc00]/15 to-[#ec1c24]/10 border border-[#ffcc00]/30">
-                <p className="text-sm uppercase tracking-widest text-[#ffcc00] font-bold mb-2">Punctele mele</p>
+                <p className="text-sm uppercase tracking-widest text-[#c084fc] font-bold mb-2">NIX-urile mele</p>
                 <div className="flex items-center gap-3">
-                  <Coins className="h-10 w-10 text-[#ffcc00]" />
+                  <NixCoin className="h-10 w-10" />
                   <span data-testid="wallet-points" className="font-display text-5xl">{wallet.points}</span>
-                  <span className="text-white/50 text-lg self-end mb-1">puncte</span>
+                  <span className="text-white/50 text-lg self-end mb-1">NIX</span>
                 </div>
                 <button
                   data-testid="wallet-donate-cta"
                   onClick={() => navigate("/doneaza")}
                   className="mt-5 inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#ec1c24] font-bold hover:bg-[#ff2d36] transition-colors duration-200"
                 >
-                  <Heart className="h-4 w-4" /> Donează pentru mai multe puncte
+                  <Heart className="h-4 w-4" /> Donează pentru mai mulți NIX
                 </button>
               </div>
 
               <h3 className="font-display text-2xl mb-3">Istoric donații</h3>
               {(!wallet.history || wallet.history.length === 0) ? (
                 <div className="flex flex-col items-center justify-center py-14 text-center text-white/50">
-                  <Coins className="h-10 w-10 text-white/20 mb-3" />
+                  <NixCoin className="h-10 w-10 opacity-40 mb-3" />
                   <p>Nu ai făcut încă nicio donație.</p>
                   <p className="text-sm">1 RON donat = 1 punct în cont.</p>
                 </div>
@@ -393,8 +394,8 @@ const Profile = () => {
                           <p className="text-xs text-white/40">{h.created_at ? new Date(h.created_at).toLocaleDateString("ro-RO", { day: "numeric", month: "long", year: "numeric" }) : ""}{h.amount ? ` · ${h.amount} ${(h.currency || "RON").toUpperCase()}` : ""}</p>
                         </div>
                       </div>
-                      <span className="flex items-center gap-1.5 font-bold text-[#ffcc00]">
-                        <Coins className="h-4 w-4" /> +{h.points}
+                      <span className="flex items-center gap-1.5 font-bold text-[#c084fc]">
+                        <NixCoin className="h-4 w-4" /> +{h.points}
                       </span>
                     </div>
                   ))}
@@ -407,7 +408,7 @@ const Profile = () => {
                 const claims = rewards?.claims || [];
                 const kindMeta = (k) => {
                   if (k === "plus_invite") return { icon: Crown, color: "#a855f7", label: "Invitație PLUS" };
-                  if (k === "points") return { icon: Coins, color: "#ffcc00", label: "Puncte" };
+                  if (k === "points") return { icon: NixCoin, color: "#c084fc", label: "NIX" };
                   return { icon: Gift, color: "#ec1c24", label: "Recompensă" };
                 };
                 const pumpkinItems = [];
@@ -428,7 +429,7 @@ const Profile = () => {
                       </div>
                       <div className="flex items-center gap-2">
                         <span data-testid="rewards-points" className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#141414] border border-white/10 font-bold">
-                          <Coins className="h-4 w-4 text-[#ffcc00]" /> {rewards?.points ?? 0} <span className="text-white/50 font-normal">puncte</span>
+                          <NixCoin className="h-4 w-4" /> {rewards?.points ?? 0} <span className="text-white/50 font-normal">NIX</span>
                         </span>
                         {hwInv && (
                           <button data-testid="hw-go-event" onClick={() => navigate("/land")} className="px-4 py-2 rounded-xl bg-[#ff7a18] text-black font-bold text-sm hover:brightness-110 transition-colors">
@@ -476,7 +477,7 @@ const Profile = () => {
                                 <button data-testid="reward-copy" onClick={() => copyCode(c.voucher_code)} className="h-9 w-9 grid place-items-center rounded-lg bg-white/10 hover:bg-white/20 transition shrink-0"><Copy className="h-4 w-4" /></button>
                               </div>
                             ) : (
-                              <p className="mt-auto text-sm text-white/50">{c.points ? `+${c.points} puncte` : "Revendicată"}</p>
+                              <p className="mt-auto text-sm text-white/50">{c.points ? `+${c.points} NIX` : "Revendicată"}</p>
                             )}
                           </div>
                         );
