@@ -410,7 +410,11 @@ const Profile = () => {
                   if (k === "points") return { icon: Coins, color: "#ffcc00", label: "Puncte" };
                   return { icon: Gift, color: "#ec1c24", label: "Recompensă" };
                 };
-                const emptySlots = claims.length >= 6 ? 3 : 6 - claims.length;
+                const pumpkinItems = [];
+                if (hwInv?.pumpkins > 0) pumpkinItems.push({ key: "pk-normal", img: "/halloween/pumpkin-normal.png", label: "Dovleci", count: hwInv.pumpkins });
+                if (hwInv?.carved > 0) pumpkinItems.push({ key: "pk-carved", img: "/halloween/pumpkin-carved.png", label: "Dovleci sculptați", count: hwInv.carved });
+                const occupied = pumpkinItems.length + claims.length;
+                const emptySlots = occupied >= 6 ? 3 : 6 - occupied;
                 const copyCode = async (code) => {
                   try { await navigator.clipboard.writeText(code); toast.success("Cod copiat!"); }
                   catch { toast.error("Nu am putut copia codul"); }
@@ -426,38 +430,30 @@ const Profile = () => {
                         <span data-testid="rewards-points" className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#141414] border border-white/10 font-bold">
                           <Coins className="h-4 w-4 text-[#ffcc00]" /> {rewards?.points ?? 0} <span className="text-white/50 font-normal">puncte</span>
                         </span>
+                        {hwInv && (
+                          <button data-testid="hw-go-event" onClick={() => navigate("/land")} className="px-4 py-2 rounded-xl bg-[#ff7a18] text-black font-bold text-sm hover:brightness-110 transition-colors">
+                            🎃 Mergi la eveniment
+                          </button>
+                        )}
                         <button data-testid="rewards-go-spin" onClick={() => navigate("/spin")} className="px-4 py-2 rounded-xl bg-[#ec1c24] font-bold text-sm hover:bg-[#ff2d36] transition-colors">
                           Câștigă mai multe
                         </button>
                       </div>
                     </div>
 
-                    {hwInv && (
-                      <div data-testid="hw-inventory" className="mb-6 rounded-2xl border border-[#ff7a18]/30 bg-gradient-to-r from-[#ff7a18]/10 to-transparent p-5">
-                        <p className="font-display text-lg mb-3 flex items-center gap-2">🎃 Inventar Halloween</p>
-                        <div className="flex flex-wrap gap-3">
-                          <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-[#141414] border border-white/10">
-                            <img src="/halloween/pumpkin-normal.png" alt="Dovleci" className="h-12 w-12 object-contain" />
-                            <div>
-                              <p className="font-display text-2xl leading-none">{hwInv.pumpkins}</p>
-                              <p className="text-xs text-white/50">Dovleci</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-[#141414] border border-white/10">
-                            <img src="/halloween/pumpkin-carved.png" alt="Sculptați" className="h-12 w-12 object-contain" />
-                            <div>
-                              <p className="font-display text-2xl leading-none">{hwInv.carved}</p>
-                              <p className="text-xs text-white/50">Dovleci sculptați</p>
-                            </div>
-                          </div>
-                          <button onClick={() => navigate("/land")} className="ml-auto self-center px-4 py-2 rounded-xl bg-[#ff7a18] text-black font-bold text-sm hover:brightness-110 transition">
-                            Mergi la eveniment
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {pumpkinItems.map((p) => (
+                        <div key={p.key} data-testid={`hw-slot-${p.key}`} className="relative rounded-2xl bg-[#141414] border border-[#ff7a18]/40 p-5 flex flex-col items-center justify-center min-h-[168px]">
+                          {p.count > 1 && (
+                            <span data-testid={`hw-count-${p.key}`} className="absolute top-3 right-3 min-w-[28px] h-7 px-2 grid place-items-center rounded-lg bg-[#ff7a18] text-black font-display text-sm leading-none">
+                              ×{p.count}
+                            </span>
+                          )}
+                          <img src={p.img} alt={p.label} className="h-16 w-16 object-contain mb-2" />
+                          <p className="font-bold text-sm text-center">{p.label}</p>
+                          <p className="text-xs text-white/50">{p.count} în total</p>
+                        </div>
+                      ))}
                       {claims.map((c, i) => {
                         const m = kindMeta(c.kind);
                         const Icon = m.icon;
