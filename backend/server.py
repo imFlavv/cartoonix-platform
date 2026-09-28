@@ -474,6 +474,11 @@ async def register_start(data: RegisterStartInput, request: Request):
     email = data.email.lower()
     if await db.users.find_one({"email": email}):
         raise HTTPException(status_code=400, detail="Acest email este deja folosit")
+    name_clean = (data.name or "").strip()
+    if not name_clean:
+        raise HTTPException(status_code=400, detail="Numele nu poate fi gol")
+    if await db.users.find_one({"nickname": {"$regex": f"^{re.escape(name_clean)}$", "$options": "i"}}):
+        raise HTTPException(status_code=400, detail="Acest nume de utilizator este deja folosit. Încearcă altul.")
     ip = get_client_ip(request)
     if await db.banned_ips.find_one({"ip": ip}):
         raise HTTPException(status_code=403, detail="Acces interzis")
@@ -543,6 +548,10 @@ async def register_verify(data: RegisterVerifyInput, request: Request):
         if await db.users.find_one({"email": email}):
             await db.otp_verifications.delete_one({"email": email})
             raise HTTPException(status_code=400, detail="Acest email este deja folosit")
+        name_clean = (record.get("name") or "").strip()
+        if await db.users.find_one({"nickname": {"$regex": f"^{re.escape(name_clean)}$", "$options": "i"}}):
+            await db.otp_verifications.delete_one({"email": email})
+            raise HTTPException(status_code=400, detail="Acest nume de utilizator este deja folosit. Încearcă altul.")
         ip = get_client_ip(request)
         now_iso = datetime.now(timezone.utc).isoformat()
         new_id = str(uuid.uuid4())

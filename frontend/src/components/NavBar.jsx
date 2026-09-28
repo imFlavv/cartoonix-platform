@@ -97,7 +97,7 @@ export const NavBar = () => {
     { to: "/cinema", label: "Cinema", icon: Film },
     ...((donateEnabled || isAdmin) ? [{ to: "/doneaza", label: donateEnabled ? "Donează" : "Donează (inactiv)", icon: Heart }] : []),
     { to: "/plus", label: "Cartoonix PLUS", plus: true },
-    { to: "/land", label: "Halloween", pumpkin: true },
+    { to: "/halloween", label: "Halloween", pumpkin: true },
   ];
 
   const isActive = (to) => location.pathname === to || location.pathname.startsWith(to + "/");
