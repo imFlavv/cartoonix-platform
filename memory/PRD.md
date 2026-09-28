@@ -93,6 +93,18 @@ with chat, Halloween seasonal event, custom currency "NIX", Mystery Box spin/cas
 ## 2026-06 Update
 - /spin: applied new Halloween scenic background (`/halloween/spin-bg.jpg`, generated to match user's attached scene — purple sunset, castle, pumpkins, coins, crown cards, stone platform). Darkened with lateral shadow vignette overlays in `Spin.jsx`. Verified via login screenshot.
 
+## 2026-06 Update — Pagină de test Cast (/cast-test)
+- Adăugat clip de test furnizat de user ("Batman Neînfricat și Cutezător - Intro", 30s .mkv) —
+  convertit cu ffmpeg în mp4 (h264 copy + audio AAC, faststart) și plasat public la
+  `/app/frontend/public/test-cast.mp4` (servit direct de CRA, `Accept-Ranges: bytes`, fără auth).
+- Pagină nouă publică `/cast-test` (`CastTest.jsx`, adăugată la `PUBLIC_PATHS` din `AuthGate.jsx`,
+  fără login necesar) cu player video + buton "Transmite pe TV" ce reutilizează logica de
+  AirPlay/Remote Playback API adăugată în `Live.jsx`. Verificat: DOM confirmă randare corectă
+  (`data-testid="cast-test-page"` prezent), fișierul mp4 răspunde 200 cu range support.
+  Tool-ul de screenshot rămâne blocat vizual pe splash (problemă cunoscută a mediului, nu a codului).
+- User trebuie să deschidă `/cast-test` pe telefon/PC (Chrome sau Safari) conectat la aceeași
+  rețea ca TV-ul/Chromecast-ul, apasă "Transmite pe TV" și confirmă vizual pe ecranul propriu.
+
 ## 2026-06 Update — Cast to TV pe /live
 - Adăugat buton "Cast" (icon `Cast` din lucide-react) în bara de control a player-ului video de pe `/live`,
   lângă fullscreen. Folosește API-uri native de browser (fără SDK extern, fără integrare 3rd-party):

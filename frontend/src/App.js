@@ -43,6 +43,7 @@ import Donate from "@/pages/Donate";
 import Shop from "@/pages/Shop";
 import MySupport from "@/pages/MySupport";
 import TvAccount from "@/pages/TvAccount";
+import CastTest from "@/pages/CastTest";
 
 // Cartoonix Land is code-split so it never bloats the main streaming bundle
 const Land = lazy(() => import("@/pages/Land"));
@@ -105,6 +106,7 @@ function App() {
             <Route path="/confidentialitate" element={<Privacy />} />
             <Route path="/regulament" element={<Rules />} />
             <Route path="/cookies" element={<Cookies />} />
+            <Route path="/cast-test" element={<CastTest />} />
             <Route path="/support" element={<ProtectedRoute><MySupport /></ProtectedRoute>} />
             <Route path="/cont-tv" element={<ProtectedRoute><TvAccount /></ProtectedRoute>} />
             <Route path="/land" element={<ProtectedRoute><Suspense fallback={<div className="h-screen flex items-center justify-center bg-[#63b7e4] text-white/80">Se încarcă Cartoonix Land...</div>}><Land /></Suspense></ProtectedRoute>} />

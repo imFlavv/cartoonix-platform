@@ -3,7 +3,7 @@ import { useAuth } from "@/context/AuthContext";
 import LockScreen from "@/pages/LockScreen";
 
 // Paths reachable without being logged in.
-const PUBLIC_PATHS = ["/login", "/register", "/reset-password", "/termeni", "/confidentialitate", "/regulament", "/cookies"];
+const PUBLIC_PATHS = ["/login", "/register", "/reset-password", "/termeni", "/confidentialitate", "/regulament", "/cookies", "/cast-test"];
 
 export const AuthGate = ({ children }) => {
   const { user, loading } = useAuth();
