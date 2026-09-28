@@ -93,6 +93,18 @@ with chat, Halloween seasonal event, custom currency "NIX", Mystery Box spin/cas
 ## 2026-06 Update
 - /spin: applied new Halloween scenic background (`/halloween/spin-bg.jpg`, generated to match user's attached scene — purple sunset, castle, pumpkins, coins, crown cards, stone platform). Darkened with lateral shadow vignette overlays in `Spin.jsx`. Verified via login screenshot.
 
+## 2026-06 Update — Pagină /changelog
+- Pagină publică nouă `/changelog` ("Noutăți Cartoonix"), cu design de timeline (linie verticală,
+  puncte colorate, carduri per zi), grupată pe luni (Iulie–Septembrie 2026). Conținutul e curatoriat
+  din `git log` (mesajele descriptive ale agenților, excluzând commit-urile auto-generate) —
+  40+ intrări reduse la ~25 intrări citibile, orientate spre utilizator (fără detalii tehnice
+  de genul „verificat prin curl X/X”). Sursa datelor: `frontend/src/data/changelog.js`.
+- Rută publică (adăugată la `PUBLIC_PATHS` din `AuthGate.jsx`, fără login necesar) + link nou
+  „Noutăți” în meniul Help din `NavBar.jsx` (icon `Rss`).
+- Verificat: DOM confirmă randare corectă (`data-testid="changelog-page"` prezent), compilare
+  frontend OK. Pentru actualizări viitoare, adaugă o intrare nouă în `CHANGELOG` din
+  `changelog.js` — nu e nevoie de alt cod.
+
 ## 2026-06 Update — Cast bug fix + hardware limitation clarified
 - **Bug fixat**: butonul de Cast (`Live.jsx` + `CastTest.jsx`) era ascuns complet când
   `remote.watchAvailability()` raporta "niciun dispozitiv găsit", afișând mesajul greșit

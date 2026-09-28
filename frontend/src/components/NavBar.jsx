@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   Search, Menu, X, LogOut, Shield, HelpCircle, Bell,
   Facebook, Instagram, Youtube, Music2, MessageCircle, User, Settings, CheckCheck, Inbox,
-  Home, Clapperboard, Users, Film, Tv, Heart, ShoppingBag,
+  Home, Clapperboard, Users, Film, Tv, Heart, ShoppingBag, Rss,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api";
@@ -191,6 +191,9 @@ export const NavBar = () => {
               </button>
               <button data-testid="help-tickets" onClick={() => navigate("/support")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/10 transition-colors duration-200 text-sm font-semibold">
                 <Inbox className="h-4 w-4 text-white/70" /> Solicitările mele
+              </button>
+              <button data-testid="help-changelog" onClick={() => navigate("/changelog")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/10 transition-colors duration-200 text-sm font-semibold">
+                <Rss className="h-4 w-4 text-white/70" /> Noutăți
               </button>
               <a href="https://discord.gg" target="_blank" rel="noreferrer" data-testid="help-discord" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/10 transition-colors duration-200 text-sm font-semibold">
                 <MessageCircle className="h-4 w-4 text-white/70" /> Discord
