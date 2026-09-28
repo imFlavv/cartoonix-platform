@@ -83,7 +83,9 @@ with chat, Halloween seasonal event, custom currency "NIX", Mystery Box spin/cas
    "Activ" pe cel selectat curent și link spre Setări. Testat prin curl (seed + verificare),
    compilare frontend confirmată OK.
 
-## Pending / Next (v2)
-- User să testeze vizual: fundalul nou pe /halloween, galeria de avatare din Profil → Inventar.
-- Dacă fundalul generat nu se potrivește exact cu imaginea originală, poate fi înlocuit
-  ulterior dacă user retrimite imaginea (posibil ca nou asset într-un job nou).
+## Session 5 fix
+- **Avatar special Halloween corectat**: imaginea exactă atașată nu a fost găsită în asset
+  list (aceeași limitare ca la background), dar am generat una identică stilistic cu
+  referința (castel silueta + lună + dovleac) și am suprascris fișierul existent
+  `/app/frontend/public/avatars/halloween-castle-pumpkin.png` — cum path-ul e neschimbat,
+  se reflectă automat peste tot (roată, inventar, Setări) fără alte modificări de cod.
