@@ -8,6 +8,7 @@ import { Volume2, VolumeX, Maximize, Radio, Tv, Lock, Sparkles, Play, Pause } fr
 
 const POLL_MS = 8000;   // re-sync with the server every 8s
 const DRIFT_TOLERANCE = 4; // seconds
+const ALL_CHANNEL_KEY = "__all__";
 
 const Live = () => {
   const { user } = useAuth();
@@ -17,6 +18,8 @@ const Live = () => {
   const [nowData, setNowData] = useState(null);
   const [volume, setVolume] = useState(1);
   const [muted, setMuted] = useState(true); // start muted so autoplay is allowed
+  const [channels, setChannels] = useState([]);
+  const [channel, setChannel] = useState(ALL_CHANNEL_KEY);
 
   const videoRef = useRef(null);
   const playerRef = useRef(null);
@@ -52,11 +55,25 @@ const Live = () => {
 
   const fetchNow = useCallback(async () => {
     try {
-      const { data } = await api.get("/live/now");
+      const { data } = await api.get("/live/now", { params: { channel } });
       setNowData(data);
       return data;
     } catch (_) { return null; }
-  }, []);
+  }, [channel]);
+
+  // Load available channels (General + one per channel category) once.
+  useEffect(() => {
+    if (!isPlus) return;
+    api.get("/live/channels").then(({ data }) => setChannels(data.channels || [])).catch(() => {});
+  }, [isPlus]);
+
+  // Switching channels: force a fresh seek to the new stream's offset.
+  useEffect(() => {
+    seekedSrcRef.current = null;
+    reportedRef.current = new Set();
+    setEnded(false);
+    setNowData(null);
+  }, [channel]);
 
   useEffect(() => {
     if (!isPlus) return;
@@ -215,6 +232,41 @@ const Live = () => {
           <h1 className="font-display text-3xl md:text-4xl">Cartoonix TV</h1>
           <span className="hidden sm:block text-sm text-white/40">transmisiune sincronizată · aceeași pentru toți · nu poți schimba episodul</span>
         </div>
+
+        {/* Channel selector — General (mixed) + one per category (Jetix, Minimax, ...) */}
+        {channels.length > 0 && (
+          <div className="mb-6" data-testid="live-channels">
+            <div className="flex items-center gap-2 mb-2">
+              <Tv className="h-4 w-4 text-[#ffcc00]" />
+              <span className="text-xs uppercase tracking-widest font-bold text-white/50">Alege canalul</span>
+            </div>
+            <div className="flex gap-2.5 overflow-x-auto pb-2 -mx-1 px-1 snap-x">
+              {channels.map((ch) => {
+                const active = ch.key === channel;
+                return (
+                  <button
+                    key={ch.key}
+                    type="button"
+                    data-testid={`live-channel-${ch.key}`}
+                    onClick={() => setChannel(ch.key)}
+                    className={`snap-start shrink-0 flex flex-col items-start gap-0.5 px-4 py-2.5 rounded-xl border text-left transition-all duration-200 ${
+                      active
+                        ? "bg-[#ec1c24]/15 border-[#ec1c24] ring-2 ring-[#ec1c24]/50 shadow-lg"
+                        : "bg-[#141414] border-white/10 hover:border-white/25 hover:bg-white/5"
+                    }`}
+                  >
+                    <span className={`text-sm font-bold whitespace-nowrap ${active ? "text-white" : "text-white/85"}`}>
+                      {ch.name}
+                    </span>
+                    <span className={`text-[10px] uppercase tracking-wide ${active ? "text-[#ec1c24]" : "text-white/35"}`}>
+                      {ch.label.split("·")[0].trim()} · {ch.count} {ch.count === 1 ? "episod" : "episoade"}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Player */}

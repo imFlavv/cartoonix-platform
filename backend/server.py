@@ -1644,7 +1644,9 @@ async def live_playlist(count: int = 60, user: dict = Depends(get_current_user))
 # the server clock, so every viewer sees the exact same episode at the same second.
 import bisect as _bisect
 
-_LIVE_SCHED = {"epoch": None, "seed": None, "n": -1, "items": [], "cum": [], "total": 1, "dver": -1}
+# One synchronized schedule PER CHANNEL (keyed by channel name; ALL_CHANNEL_KEY = mixed "General").
+ALL_CHANNEL_KEY = "__all__"
+_LIVE_SCHED_BY_CH = {}    # channel_key -> {epoch, seed, n, items, cum, total, dver}
 _LIVE_SCHED_MAX_AGE = 24 * 3600  # rotate the shuffle once a day
 _LIVE_DUR = {}            # measured real durations: "show_id:ep" -> seconds
 _LIVE_DUR_LOADED = False  # loaded the durations from DB into memory yet?
@@ -1675,7 +1677,7 @@ def _dur_to_seconds(s) -> int:
     return val * 60  # "22 min" / bare number -> minutes
 
 
-async def _ensure_live_schedule():
+async def _ensure_live_schedule(channel: Optional[str] = None):
     global _LIVE_DUR_LOADED
     now = _time.time()
     doc = await db.settings.find_one({"key": "live_schedule"})
@@ -1701,13 +1703,19 @@ async def _ensure_live_schedule():
             if s and s >= LIVE_MIN_DURATION:
                 _LIVE_DUR[d["_id"]] = s
         _LIVE_DUR_LOADED = True
+    # per-channel filtered timeline ("General" = all channels mixed)
+    ch_key = (channel or "").strip() or ALL_CHANNEL_KEY
+    if ch_key == ALL_CHANNEL_KEY:
+        ch_items = idx_items
+    else:
+        ch_items = [it for it in idx_items if (it.get("channel") or "").strip() == ch_key]
+    sched = _LIVE_SCHED_BY_CH.get(ch_key)
     # (re)build the in-memory schedule deterministically from the persisted seed.
     # The timeline is FROZEN during a broadcast (rebuild only on rotation/restart/library change),
     # NOT on every duration report — otherwise offsets shift and playback jumps mid-episode.
-    if (_LIVE_SCHED["seed"] != seed or _LIVE_SCHED["epoch"] != epoch
-            or _LIVE_SCHED["n"] != len(idx_items)
-            or not _LIVE_SCHED["items"]):
-        order = list(idx_items)
+    if (sched is None or sched["seed"] != seed or sched["epoch"] != epoch
+            or sched["n"] != len(ch_items) or not sched["items"]):
+        order = list(ch_items)
         _random.Random(seed).shuffle(order)
         items, cum, t = [], [], 0
         for it in order:
@@ -1720,9 +1728,10 @@ async def _ensure_live_schedule():
             items.append(item)
             cum.append(t)
             t += d
-        _LIVE_SCHED.update({"seed": seed, "epoch": epoch, "n": len(idx_items),
-                            "dver": _LIVE_DUR_VER, "items": items, "cum": cum, "total": max(1, t)})
-    return epoch
+        sched = {"seed": seed, "epoch": epoch, "n": len(ch_items),
+                 "dver": _LIVE_DUR_VER, "items": items, "cum": cum, "total": max(1, t)}
+        _LIVE_SCHED_BY_CH[ch_key] = sched
+    return epoch, sched
 
 
 def _slim_sched_item(x: dict) -> dict:
@@ -1730,12 +1739,35 @@ def _slim_sched_item(x: dict) -> dict:
                                   "episode_number", "episode_title", "duration_seconds")}
 
 
-@api_router.get("/live/now")
-async def live_now(user: dict = Depends(get_current_user)):
+@api_router.get("/live/channels")
+async def live_channels(user: dict = Depends(get_current_user)):
     if not user_is_plus(user):
         raise HTTPException(status_code=403, detail="Cartoonix TV este disponibil momentan doar pentru membrii PLUS (BETA)")
-    epoch = await _ensure_live_schedule()
-    items, cum, total = _LIVE_SCHED["items"], _LIVE_SCHED["cum"], _LIVE_SCHED["total"]
+    now = _time.time()
+    if now - _LIVE_CACHE["at"] > _LIVE_TTL_SECONDS or not _LIVE_CACHE["items"]:
+        _LIVE_CACHE["items"] = await _build_live_index()
+        _LIVE_CACHE["at"] = now
+    items = _LIVE_CACHE["items"]
+    counts = {}
+    for it in items:
+        ch = (it.get("channel") or "").strip()
+        if ch:
+            counts[ch] = counts.get(ch, 0) + 1
+    names = sorted(counts.keys(), key=lambda s: s.lower())
+    channels = [{"key": ALL_CHANNEL_KEY, "name": "General",
+                 "label": "Canalul 01 · General", "count": len(items)}]
+    for i, ch in enumerate(names):
+        channels.append({"key": ch, "name": ch,
+                         "label": f"Canalul {i + 2:02d} · {ch}", "count": counts[ch]})
+    return {"channels": channels}
+
+
+@api_router.get("/live/now")
+async def live_now(channel: Optional[str] = None, user: dict = Depends(get_current_user)):
+    if not user_is_plus(user):
+        raise HTTPException(status_code=403, detail="Cartoonix TV este disponibil momentan doar pentru membrii PLUS (BETA)")
+    epoch, sched = await _ensure_live_schedule(channel)
+    items, cum, total = sched["items"], sched["cum"], sched["total"]
     if not items:
         return {"current": None, "next": [], "prev": None, "index": 0, "offset": 0}
     now = _time.time()
@@ -1882,7 +1914,7 @@ async def _run_live_precalc():
         # rebuild the broadcast schedule with the fresh real durations
         _LIVE_DUR_LOADED = True
         _LIVE_DUR_VER += 1
-        _LIVE_SCHED["items"] = []
+        _LIVE_SCHED_BY_CH.clear()
     except Exception as e:  # pragma: no cover
         _LIVE_PRECALC["error"] = str(e)
     finally:
