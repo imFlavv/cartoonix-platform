@@ -22,6 +22,27 @@ const formatTime = (sec) => {
   return `${sec}s`;
 };
 
+// --- Envelope reveal chime (Web Audio, no asset files needed) ---
+let _envCtx = null;
+const _getEnvCtx = () => {
+  if (typeof window === "undefined") return null;
+  if (!_envCtx) { try { _envCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch { _envCtx = null; } }
+  if (_envCtx && _envCtx.state === "suspended") _envCtx.resume().catch(() => {});
+  return _envCtx;
+};
+const playEnvelopeChime = () => {
+  const ctx = _getEnvCtx(); if (!ctx) return;
+  [420, 660, 880].forEach((freq, i) => {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = "triangle"; o.frequency.value = freq; o.connect(g); g.connect(ctx.destination);
+    const t = ctx.currentTime + i * 0.11;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.13, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.3);
+    o.start(t); o.stop(t + 0.32);
+  });
+};
+
 const EpItem = ({ item, onPlay, right }) => (
   <div className="group flex items-center gap-3 p-2.5 rounded-xl bg-[#141414] border border-white/5 hover:bg-[#1c1c1c] transition-colors duration-200">
     <div className="relative shrink-0 cursor-pointer" onClick={onPlay}>
@@ -53,9 +74,32 @@ const Profile = () => {
   const [chatCount, setChatCount] = useState(null);
   const [hwInv, setHwInv] = useState(null);
   const [invModal, setInvModal] = useState(null);
+  const [invStage, setInvStage] = useState("sealed"); // sealed | opening | opened
   const [invBusy, setInvBusy] = useState(false);
+  const [avatarModal, setAvatarModal] = useState(null);
+  const [avatarBusy, setAvatarBusy] = useState(false);
 
   const fetchRewards = () => api.get("/rewards").then((res) => setRewards(res.data)).catch(() => {});
+
+  const openEnvelope = () => {
+    playEnvelopeChime();
+    setInvStage("opening");
+    setTimeout(() => setInvStage("opened"), 850);
+  };
+
+  const claimAvatar = async (claimId) => {
+    setAvatarBusy(true);
+    try {
+      await api.post("/rewards/claim-avatar", { claim_id: claimId });
+      toast.success("Avatar deblocat! Îl găsești în Setări → Personalizare 🎃");
+      setAvatarModal((m) => (m ? { ...m, unlocked: true } : m));
+      await Promise.all([fetchRewards(), refreshUser().catch(() => {})]);
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Nu am putut debloca avatarul");
+    } finally {
+      setAvatarBusy(false);
+    }
+  };
 
   const copyInvCode = async (code) => {
     try { await navigator.clipboard.writeText(code); toast.success("Cod copiat! Trimite-l cui dorești."); }
@@ -479,12 +523,31 @@ const Profile = () => {
                         </div>
                       ))}
                       {claims.map((c, i) => {
+                        if (c.kind === "avatar_unlock" && c.avatar_path) {
+                          return (
+                            <button
+                              key={c.id || i}
+                              data-testid="reward-card-avatar"
+                              onClick={() => setAvatarModal(c)}
+                              className="relative rounded-2xl bg-[#141414] border border-[#a855f7]/40 p-5 flex flex-col items-center justify-center min-h-[168px] text-center hover:border-[#a855f7] hover:bg-[#a855f7]/5 transition-colors"
+                            >
+                              {c.unlocked && (
+                                <span className="absolute top-3 right-3 h-6 w-6 rounded-full bg-[#22c55e] grid place-items-center">
+                                  <Check className="h-3.5 w-3.5 text-black" />
+                                </span>
+                              )}
+                              <img src={c.avatar_path} alt="Avatar Halloween Special" className="h-16 w-16 rounded-xl object-cover mb-2" />
+                              <p className="font-bold text-sm">Avatar Halloween</p>
+                              <p className="text-xs text-[#c084fc]">{c.unlocked ? "Deblocat" : "Apasă pentru REVENDICĂ"}</p>
+                            </button>
+                          );
+                        }
                         if (c.kind === "plus_invite" && c.voucher_code) {
                           return (
                             <button
                               key={c.id || i}
                               data-testid="reward-card-invite"
-                              onClick={() => setInvModal(c)}
+                              onClick={() => { setInvModal(c); setInvStage("sealed"); }}
                               className="relative rounded-2xl bg-[#141414] border border-[#a855f7]/40 p-5 flex flex-col items-center justify-center min-h-[168px] text-center hover:border-[#a855f7] hover:bg-[#a855f7]/5 transition-colors"
                             >
                               <img src="/nix/scroll.png" alt="Invitație PLUS" className="h-16 w-16 object-contain mb-2" />
@@ -529,25 +592,77 @@ const Profile = () => {
 
                     {invModal && (
                       <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm" data-testid="invite-modal" onClick={() => setInvModal(null)}>
+                        <div className="relative w-full max-w-sm bg-[#141414] border border-[#a855f7]/40 rounded-3xl p-8 text-center shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                          <button onClick={() => setInvModal(null)} data-testid="invite-modal-close" className="absolute top-4 right-4 text-white/40 hover:text-white z-10"><X className="h-5 w-5" /></button>
+
+                          {invStage !== "opened" ? (
+                            <button
+                              data-testid="invite-envelope-open"
+                              onClick={invStage === "sealed" ? openEnvelope : undefined}
+                              disabled={invStage === "opening"}
+                              className="w-full flex flex-col items-center py-4 cursor-pointer"
+                            >
+                              <div className={`relative h-24 w-24 mb-4 grid place-items-center ${invStage === "opening" ? "cx-env-shake" : ""}`}>
+                                {invStage === "opening" && (
+                                  <span className="absolute inset-0 rounded-full bg-[#a855f7]/60 cx-env-burst" />
+                                )}
+                                <img
+                                  src="/nix/scroll.png"
+                                  alt="Invitație PLUS"
+                                  className={`relative h-24 w-24 object-contain drop-shadow-[0_0_18px_rgba(168,85,247,0.5)] ${invStage === "sealed" ? "cx-env-idle" : "cx-env-scroll-out"}`}
+                                />
+                              </div>
+                              <h2 className="font-display text-2xl mb-1">Ai o invitație Cartoonix PLUS!</h2>
+                              <p className="text-white/50 text-sm">
+                                {invStage === "sealed" ? "Apasă plicul pentru a-l deschide" : "Se deschide..."}
+                              </p>
+                            </button>
+                          ) : (
+                            <div className="cx-env-content-in">
+                              <img src="/nix/scroll.png" alt="Invitație PLUS" className="mx-auto h-20 w-20 object-contain mb-3 drop-shadow-[0_0_18px_rgba(168,85,247,0.5)]" />
+                              <h2 className="font-display text-2xl mb-1">Invitație Cartoonix PLUS</h2>
+                              <p className="text-white/50 text-sm mb-5">Trimite acest cod cui dorești sau revendică-l pe contul tău.</p>
+                              <div className="flex items-center gap-2 mb-5">
+                                <code data-testid="invite-code" className="flex-1 min-w-0 truncate px-4 py-2.5 rounded-lg bg-black/40 border border-[#a855f7]/40 text-[#c084fc] font-mono tracking-widest">{invModal.voucher_code}</code>
+                                <button data-testid="invite-copy" onClick={() => copyInvCode(invModal.voucher_code)} className="h-11 w-11 grid place-items-center rounded-lg bg-white/10 hover:bg-white/20 transition shrink-0"><Copy className="h-4 w-4" /></button>
+                              </div>
+                              {rewards?.plus ? (
+                                <p className="text-xs text-white/40">Ai deja acces PLUS — poți dărui acest cod altcuiva.</p>
+                              ) : (
+                                <button
+                                  data-testid="invite-redeem"
+                                  onClick={() => redeemInvite(invModal.voucher_code)}
+                                  disabled={invBusy}
+                                  className="w-full py-3 rounded-xl bg-[#a855f7] text-white font-bold hover:bg-[#9333ea] transition-colors disabled:opacity-50"
+                                >
+                                  {invBusy ? "Se revendică..." : "Revendică pe contul meu"}
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {avatarModal && (
+                      <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm" data-testid="avatar-modal" onClick={() => setAvatarModal(null)}>
                         <div className="relative w-full max-w-sm bg-[#141414] border border-[#a855f7]/40 rounded-3xl p-8 text-center shadow-2xl" onClick={(e) => e.stopPropagation()}>
-                          <button onClick={() => setInvModal(null)} data-testid="invite-modal-close" className="absolute top-4 right-4 text-white/40 hover:text-white"><X className="h-5 w-5" /></button>
-                          <img src="/nix/scroll.png" alt="Invitație PLUS" className="mx-auto h-20 w-20 object-contain mb-3 drop-shadow-[0_0_18px_rgba(168,85,247,0.5)]" />
-                          <h2 className="font-display text-2xl mb-1">Invitație Cartoonix PLUS</h2>
-                          <p className="text-white/50 text-sm mb-5">Trimite acest cod cui dorești sau revendică-l pe contul tău.</p>
-                          <div className="flex items-center gap-2 mb-5">
-                            <code data-testid="invite-code" className="flex-1 min-w-0 truncate px-4 py-2.5 rounded-lg bg-black/40 border border-[#a855f7]/40 text-[#c084fc] font-mono tracking-widest">{invModal.voucher_code}</code>
-                            <button data-testid="invite-copy" onClick={() => copyInvCode(invModal.voucher_code)} className="h-11 w-11 grid place-items-center rounded-lg bg-white/10 hover:bg-white/20 transition shrink-0"><Copy className="h-4 w-4" /></button>
-                          </div>
-                          {rewards?.plus ? (
-                            <p className="text-xs text-white/40">Ai deja acces PLUS — poți dărui acest cod altcuiva.</p>
+                          <button onClick={() => setAvatarModal(null)} data-testid="avatar-modal-close" className="absolute top-4 right-4 text-white/40 hover:text-white"><X className="h-5 w-5" /></button>
+                          <img src={avatarModal.avatar_path} alt="Avatar Halloween Special" className="mx-auto h-24 w-24 rounded-2xl object-cover mb-4 drop-shadow-[0_0_18px_rgba(168,85,247,0.5)]" />
+                          <h2 className="font-display text-2xl mb-1">Avatar Halloween Special</h2>
+                          <p className="text-white/50 text-sm mb-5">Un avatar exclusiv câștigat la Cutia Misterioasă. Revendică-l ca să apară în Setări → Personalizare.</p>
+                          {avatarModal.unlocked ? (
+                            <button data-testid="avatar-go-settings" onClick={() => navigate("/settings")} className="w-full py-3 rounded-xl bg-[#22c55e] text-black font-bold hover:brightness-110 transition-colors">
+                              Deblocat — vezi în Setări
+                            </button>
                           ) : (
                             <button
-                              data-testid="invite-redeem"
-                              onClick={() => redeemInvite(invModal.voucher_code)}
-                              disabled={invBusy}
+                              data-testid="avatar-claim"
+                              onClick={() => claimAvatar(avatarModal.id)}
+                              disabled={avatarBusy}
                               className="w-full py-3 rounded-xl bg-[#a855f7] text-white font-bold hover:bg-[#9333ea] transition-colors disabled:opacity-50"
                             >
-                              {invBusy ? "Se revendică..." : "Revendică pe contul meu"}
+                              {avatarBusy ? "Se revendică..." : "REVENDICĂ"}
                             </button>
                           )}
                         </div>

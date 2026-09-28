@@ -1,0 +1,8 @@
+crons:
+  - name: hw-carve-notify
+    description: "Notifies users when their Halloween pumpkin carving is ready to claim"
+    cron: "*/15 * * * *"
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    endpoint: "{{BASE_URL}}/api/cron/halloween-carve-notify"
+    method: POST
+    enabled: true

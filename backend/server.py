@@ -1270,6 +1270,24 @@ async def redeem_code(body: RedeemCode, user: dict = Depends(get_current_user)):
     return {"ok": True, "granted": granted, "points": int(fresh.get("points", 0)), "plus": user_is_plus(fresh)}
 
 
+class ClaimAvatarInput(BaseModel):
+    claim_id: str
+
+
+@api_router.post("/rewards/claim-avatar")
+async def claim_avatar_reward(data: ClaimAvatarInput, user: dict = Depends(get_current_user)):
+    claim = await db.reward_claims.find_one({"id": data.claim_id, "user_id": uid_of(user), "kind": "avatar_unlock"})
+    if not claim:
+        raise HTTPException(status_code=404, detail="Recompensă inexistentă")
+    if claim.get("unlocked"):
+        raise HTTPException(status_code=400, detail="Avatar deja deblocat")
+    avatar_path = claim.get("avatar_path")
+    await db.users.update_one({"_id": user["_id"]}, {"$addToSet": {"event_avatars": avatar_path}})
+    await db.reward_claims.update_one({"_id": claim["_id"]}, {"$set": {"unlocked": True}})
+    fresh = await find_user_by_id(uid_of(user))
+    return {"ok": True, "user": serialize_user(fresh)}
+
+
 # ---------- Spin the Wheel ----------
 # Display order of the wheel slices (fixed). Weights are server-side only (never exposed).
 SPIN_SEGMENTS = [
@@ -1283,11 +1301,12 @@ SPIN_SEGMENTS = [
     {"key": "key",   "label": "1 Cheie",    "color": "#4a3a0a", "text": "#ffe08a"},
     {"key": "pumpkin","label": "1 Dovleac",  "color": "#5e2f0a", "text": "#ffcf9e"},
     {"key": "plus",  "label": "Invitație PLUS","color": "#5e1220", "text": "#ffd0d6"},
+    {"key": "avatar_special", "label": "Avatar Halloween","color": "#3a0a5e", "text": "#e0c7ff"},
 ]
 
 # prize key -> (weight, points). "plus", "key", "pumpkin" and "retry" handled specially.
 SPIN_PRIZES = [
-    ("retry", 15),
+    ("retry", 12),
     ("p5", 20),
     ("key", 15),
     ("pumpkin", 25),
@@ -1295,10 +1314,12 @@ SPIN_PRIZES = [
     ("p15", 7),
     ("p50", 4),
     ("plus", 2),
+    ("avatar_special", 3),
 ]
 SPIN_DEFAULT_WEIGHTS = {k: w for k, w in SPIN_PRIZES}
-SPIN_LABELS = {"retry": "Mai încearcă", "p5": "5 NIX", "key": "1 Cheie Mystery Box", "pumpkin": "1 Dovleac", "p10": "10 NIX", "p15": "15 NIX", "p50": "50 NIX", "plus": "Invitație PLUS"}
+SPIN_LABELS = {"retry": "Mai încearcă", "p5": "5 NIX", "key": "1 Cheie Mystery Box", "pumpkin": "1 Dovleac", "p10": "10 NIX", "p15": "15 NIX", "p50": "50 NIX", "plus": "Invitație PLUS", "avatar_special": "Avatar Halloween Special"}
 _SPIN_POINTS = {"p5": 5, "p10": 10, "p15": 15, "p50": 50}
+SPIN_AVATAR_SPECIAL = "/avatars/halloween-castle-pumpkin.png"
 
 
 async def _get_spin_weights() -> dict:
@@ -1381,6 +1402,17 @@ async def do_spin(user: dict = Depends(get_current_user)):
             "voucher_code": code, "created_at": now_iso, "fulfilled_at": now_iso,
         })
         result.update({"type": "plus", "voucher_code": code})
+    elif key == "avatar_special":
+        oid = ObjectId()
+        await db.reward_claims.insert_one({
+            "_id": oid, "id": str(oid), "user_id": uid,
+            "user_name": user_name(user), "user_email": user.get("email", ""),
+            "product_id": "spin_avatar_special", "product_title": "Avatar Halloween Special (roată)",
+            "cost": 0, "kind": "avatar_unlock", "status": "fulfilled",
+            "avatar_path": SPIN_AVATAR_SPECIAL, "unlocked": False,
+            "created_at": now_iso, "fulfilled_at": now_iso,
+        })
+        result.update({"type": "avatar", "avatar_path": SPIN_AVATAR_SPECIAL})
 
     await db.spin_history.insert_one({
         "user_id": uid, "key": key, "result": result.get("type"),
@@ -3362,6 +3394,77 @@ async def leaderboard(q: Optional[str] = None, user: dict = Depends(get_current_
     return resp
 
 
+def _hw_pumpkin_total(doc: dict) -> int:
+    return (
+        int(doc.get("pumpkins", 0) or 0)
+        + int(doc.get("carved", 0) or 0)
+        + int(doc.get("delivered", 0) or 0)
+        + len(doc.get("carvings") or [])
+    )
+
+
+@api_router.get("/leaderboard/halloween")
+async def leaderboard_halloween(user: dict = Depends(get_current_user)):
+    now = datetime.now(timezone.utc)
+    threshold = (now - timedelta(seconds=60)).isoformat()
+    admin_ids = [d.get("id") for d in await db.users.find({"role": "admin"}, {"id": 1}).to_list(1000)]
+    pipeline = [
+        {"$match": {"user_id": {"$nin": admin_ids}}},
+        {"$addFields": {"total_pumpkins": {"$add": [
+            {"$ifNull": ["$pumpkins", 0]},
+            {"$ifNull": ["$carved", 0]},
+            {"$ifNull": ["$delivered", 0]},
+            {"$size": {"$ifNull": ["$carvings", []]}},
+        ]}}},
+        {"$match": {"total_pumpkins": {"$gt": 0}}},
+        {"$sort": {"total_pumpkins": -1}},
+        {"$limit": 25},
+    ]
+    docs = await db.halloween.aggregate(pipeline).to_list(25)
+    top = []
+    for d in docs:
+        u = await find_user_by_id(d.get("user_id"))
+        if not u:
+            continue
+        la = u.get("last_active") or u.get("last_seen")
+        top.append({
+            "rank": len(top) + 1,
+            "id": uid_of(u),
+            "name": user_name(u),
+            "avatar": user_avatar(u),
+            "plus": user_is_plus(u),
+            "pumpkins": int(d.get("total_pumpkins", 0)),
+            "online": bool(la and str(la) >= threshold),
+        })
+        if len(top) >= 10:
+            break
+
+    me = None
+    if str(user.get("role", "user")).lower() != "admin":
+        my_doc = await db.halloween.find_one({"user_id": uid_of(user)})
+        my_total = _hw_pumpkin_total(my_doc) if my_doc else 0
+        if my_total > 0:
+            higher = await db.halloween.aggregate([
+                {"$match": {"user_id": {"$nin": admin_ids}}},
+                {"$addFields": {"total_pumpkins": {"$add": [
+                    {"$ifNull": ["$pumpkins", 0]},
+                    {"$ifNull": ["$carved", 0]},
+                    {"$ifNull": ["$delivered", 0]},
+                    {"$size": {"$ifNull": ["$carvings", []]}},
+                ]}}},
+                {"$match": {"total_pumpkins": {"$gt": my_total}}},
+                {"$count": "n"},
+            ]).to_list(1)
+            my_rank = (higher[0]["n"] if higher else 0) + 1
+            me = {
+                "rank": my_rank, "id": uid_of(user), "name": user_name(user),
+                "avatar": user_avatar(user), "plus": user_is_plus(user),
+                "pumpkins": my_total, "online": True,
+            }
+
+    return {"top": top, "me": me}
+
+
 # ---------- WatchParty ----------
 def _wp_max_others(user: dict) -> int:
     return 4 if user_is_plus(user) else 1
@@ -4040,6 +4143,40 @@ async def halloween_carve_claim(data: CarveClaimInput, user: dict = Depends(get_
     await db.halloween.update_one({"user_id": uid_of(user)}, {"$inc": {"carved": 1, "sculpted": 1}, "$set": {"carvings": carvings}})
     doc = await db.halloween.find_one({"user_id": uid_of(user)})
     return _hw_status_payload(doc, await _hw_sync_earn(user, doc), _hw_max_slots(user))
+
+
+async def _hw_notify_ready_carvings():
+    now_iso = datetime.now(timezone.utc).isoformat()
+    cursor = db.halloween.find({"carvings.0": {"$exists": True}})
+    async for doc in cursor:
+        carvings = doc.get("carvings") or []
+        ready_idx = [i for i, c in enumerate(carvings) if c.get("ready_at", "") <= now_iso and not c.get("notified")]
+        if not ready_idx:
+            continue
+        for i in ready_idx:
+            carvings[i]["notified"] = True
+        await db.halloween.update_one({"_id": doc["_id"]}, {"$set": {"carvings": carvings}})
+        n = len(ready_idx)
+        await db.notifications.insert_one({
+            "user_id": doc.get("user_id"),
+            "title": "Dovleac sculptat! 🎃",
+            "body": f"{'Un dovleac este' if n == 1 else f'{n} dovleci sunt'} gata de revendicat la evenimentul Halloween.",
+            "cta_label": "Revendică",
+            "cta_link": "/halloween",
+            "created_at": now_iso,
+        })
+
+
+@api_router.post("/cron/halloween-carve-notify")
+async def cron_halloween_carve_notify(request: Request):
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    secret = os.environ.get("WEBHOOK_CRON_SECRET", "")
+    auth = request.headers.get("authorization", "")
+    token = auth[7:] if auth.lower().startswith("bearer ") else ""
+    if not secret or not token or not hmac.compare_digest(token, secret):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    asyncio.create_task(_hw_notify_ready_carvings())
+    return {"ok": True}
 
 
 class ClaimRewardInput(BaseModel):

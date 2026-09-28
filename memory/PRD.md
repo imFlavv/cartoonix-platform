@@ -41,7 +41,33 @@ with chat, Halloween seasonal event, custom currency "NIX", Mystery Box spin/cas
   injection — likely a tool/proxy caching quirk, not a live app bug (curl and backend
   logs confirm the app itself compiles and serves correctly). User will self-test in browser.
 
+## Session 2 additions (this round)
+1. **Envelope opening animation for PLUS voucher** (`Profile.jsx`): clicking the PLUS
+   invite card now opens a modal with a sealed "envelope" (pulsing glow), tap to open
+   → shake + burst + scroll pop-out animation + Web Audio chime (~850ms) → reveals the
+   code/copy/redeem UI. New CSS keyframes in `index.css` (`cx-env-*`).
+2. **Halloween leaderboard tab** (`Clasament.jsx` + backend `GET /api/leaderboard/halloween`):
+   page now has a Tabs UI ("General" / "🎃 Halloween"). Halloween tab ranks users by total
+   pumpkins ever collected (`pumpkins + carved + delivered + carvings-in-progress`),
+   excluding admins, with a "your position" banner. Verified via curl (rank + admin exclusion).
+3. **Carving-ready bell notification**: new recurring cron `hw-carve-notify` (`.emergent/crons.yml`,
+   every 15 min) hits `POST /api/cron/halloween-carve-notify` (bearer-secured with
+   `WEBHOOK_CRON_SECRET` in `backend/.env`), which scans `halloween.carvings` for newly-ready
+   slots and inserts a bell notification (title "Dovleac sculptat! 🎃", CTA → `/halloween`).
+   Verified end-to-end via curl (401 without secret, 200 + notification created with secret).
+   No frontend change needed — existing NavBar bell already renders generic notifications.
+
+## Session 3 additions (this round)
+4. **Avatar special Halloween ca premiu la roată (3%)**: nou avatar (`/avatars/halloween-castle-pumpkin.png`,
+   descărcat din asset-ul furnizat de user) adăugat ca segment `avatar_special` în `/api/spin`
+   cu pondere exactă 3/100 (redus "Mai încearcă" de la 15→12 pentru a păstra totalul la 100).
+   La câștig, se creează un `reward_claims` cu `kind="avatar_unlock"`, `unlocked:false` —
+   apare în inventar (`Profile.jsx`) ca o casetă nouă; click → modal cu buton **REVENDICĂ**
+   → `POST /api/rewards/claim-avatar` → `$addToSet event_avatars` pe user → avatarul apare
+   automat în Setări → Personalizare (mecanism `event_avatars` deja existent, reutilizat).
+   Testat integral prin curl: spin repetat până la câștig, claim, re-claim blocat (400),
+   `event_avatars` confirmat pe `/auth/me`.
+
 ## Pending / Next
-- User will self-test `/halloween` hub, the info modal, and the registration duplicate-name
-  error in the real browser and report back.
-- No other open bugs from handoff remain outstanding.
+- User să testeze vizual în browser: roata (segmentul nou mov "Avatar Halloween"), modalul
+  de revendicare din inventar, și apariția avatarului în Setări → Personalizare după revendicare.

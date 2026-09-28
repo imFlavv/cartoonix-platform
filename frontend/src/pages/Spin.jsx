@@ -18,6 +18,7 @@ const PRIZES = {
   p15:   { label: "15 NIX", short: "15 NIX", img: "/nix/coin.png", color: "#c084fc", tint: "rgba(168,85,247,0.24)", rarity: "RAR" },
   p50:   { label: "50 NIX", short: "50 NIX", img: "/nix/pile.png", color: "#d8b4fe", tint: "rgba(192,132,252,0.24)", rarity: "EPIC" },
   plus:  { label: "Invitație PLUS", short: "INVITAȚIE PLUS", img: "/nix/scroll.png", color: "#ffcc00", tint: "rgba(255,204,0,0.20)", rarity: "LEGENDAR" },
+  avatar_special: { label: "Avatar Halloween", short: "AVATAR SPECIAL", img: "/avatars/halloween-castle-pumpkin.png", color: "#a855f7", tint: "rgba(168,85,247,0.22)", rarity: "MITIC" },
 };
 const PRIZE_KEYS = Object.keys(PRIZES);
 
@@ -165,6 +166,9 @@ const Spin = () => {
         } else if (data.result.type === "plus") {
           setTimeout(playLegendary, 180);
           toast.success("Ai câștigat o Invitație Cartoonix PLUS! 👑");
+        } else if (data.result.type === "avatar") {
+          setTimeout(playLegendary, 180);
+          toast.success("Ai câștigat un Avatar Halloween Special! 🎃👑");
         }
       }, SPIN_MS + 250);
     } catch (err) {
@@ -310,7 +314,7 @@ const Spin = () => {
                 <h2 className="font-display text-4xl mb-2 text-[#c084fc]">+{result.points} NIX!</h2>
                 <p className="text-white/50">NIX-ul a fost adăugat în portofelul tău.</p>
               </>
-            ) : (
+            ) : result.type === "plus" ? (
               <>
                 <div className="mx-auto mb-4 h-24 w-24 grid place-items-center">
                   <img src="/nix/scroll.png" alt="Invitație PLUS" className="h-24 w-24 object-contain drop-shadow-[0_0_18px_rgba(255,204,0,0.4)]" />
@@ -321,8 +325,19 @@ const Spin = () => {
                   Vezi în inventar
                 </button>
               </>
+            ) : (
+              <>
+                <div className="mx-auto mb-4 h-24 w-24 rounded-2xl overflow-hidden border border-[#a855f7]/50 shadow-[0_0_24px_rgba(168,85,247,0.5)]">
+                  <img src="/avatars/halloween-castle-pumpkin.png" alt="Avatar Halloween Special" className="h-24 w-24 object-cover" />
+                </div>
+                <h2 className="font-display text-3xl mb-1 text-[#c084fc]">Avatar Halloween Special! 🎃</h2>
+                <p className="text-white/50 mb-5">A fost adăugat în inventarul tău. Apasă „REVENDICĂ" din inventar pentru a-l debloca în Setări → Personalizare.</p>
+                <button data-testid="spin-go-inventory" onClick={() => navigate("/profile")} className="w-full py-3 rounded-xl bg-[#a855f7] text-white font-bold hover:bg-[#9333ea] transition-colors">
+                  Vezi în inventar
+                </button>
+              </>
             )}
-            {result.type !== "plus" && (
+            {result.type !== "plus" && result.type !== "avatar" && (
               <button
                 data-testid="spin-again"
                 onClick={() => { setResult(null); setFinished(false); }}
