@@ -46,6 +46,13 @@ const Halloween = () => {
     <div data-testid="halloween-hub-page" className="min-h-screen bg-[#0b0616] text-white relative overflow-hidden">
       <NavBar />
 
+      {/* Background photo, darkened + faded into page bg */}
+      <div className="pointer-events-none fixed inset-0">
+        <img src="/halloween/hub-bg.jpg" alt="" className="w-full h-full object-cover opacity-[0.38]" />
+        <div className="absolute inset-0 bg-[#0b0616]/70" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0b0616]/40 via-[#0b0616]/75 to-[#0b0616]" />
+      </div>
+
       {/* ambient glow */}
       <div className="pointer-events-none fixed inset-0 opacity-70" style={{
         background: "radial-gradient(circle at 15% 10%, rgba(255,122,24,0.20), transparent 45%), radial-gradient(circle at 85% 30%, rgba(168,85,247,0.16), transparent 50%), radial-gradient(circle at 50% 100%, rgba(255,122,24,0.10), transparent 50%)",

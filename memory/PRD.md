@@ -71,3 +71,19 @@ with chat, Halloween seasonal event, custom currency "NIX", Mystery Box spin/cas
 ## Pending / Next
 - User să testeze vizual în browser: roata (segmentul nou mov "Avatar Halloween"), modalul
   de revendicare din inventar, și apariția avatarului în Setări → Personalizare după revendicare.
+
+## Session 4 additions (this round)
+5. **Background pe /halloween**: imaginea exactă atașată de user NU a fost găsită în
+   sistemul de asset-uri al job-ului (verificat toate cele 31 de artefacte, niciunul nu se
+   potrivea). S-a generat o imagine similară stilistic (stradă suburbană, case, coș de
+   baschet, dovleci, bannere, apus portocaliu) și integrată ca fundal fix (`hub-bg.jpg`)
+   cu overlay întunecat, conform cererii.
+6. **Galerie Avatare Câștigate în Profil** (tab Inventar): secțiune nouă sub grila de
+   recompense, arată toate avatarele din `user.event_avatars` ca o colecție, cu badge
+   "Activ" pe cel selectat curent și link spre Setări. Testat prin curl (seed + verificare),
+   compilare frontend confirmată OK.
+
+## Pending / Next (v2)
+- User să testeze vizual: fundalul nou pe /halloween, galeria de avatare din Profil → Inventar.
+- Dacă fundalul generat nu se potrivește exact cu imaginea originală, poate fi înlocuit
+  ulterior dacă user retrimite imaginea (posibil ca nou asset într-un job nou).

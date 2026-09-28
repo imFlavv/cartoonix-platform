@@ -590,6 +590,42 @@ const Profile = () => {
                       ))}
                     </div>
 
+                    <div className="mt-10" data-testid="avatar-gallery">
+                      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                        <div>
+                          <h3 className="font-display text-xl flex items-center gap-2">🏆 Galerie Avatare Câștigate</h3>
+                          <p className="text-sm text-white/50">Colecția ta de avatare speciale, deblocate din evenimente.</p>
+                        </div>
+                        <button data-testid="avatar-gallery-settings" onClick={() => navigate("/settings")} className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-sm font-bold hover:bg-white/10 transition-colors">
+                          Alege avatar în Setări
+                        </button>
+                      </div>
+                      {(user?.event_avatars || []).length === 0 ? (
+                        <div className="rounded-2xl border-2 border-dashed border-white/10 p-8 text-center text-white/40 text-sm">
+                          Nu ai deblocat niciun avatar special încă. Încearcă norocul la{" "}
+                          <button data-testid="avatar-gallery-go-spin" onClick={() => navigate("/spin")} className="text-[#a855f7] font-bold hover:underline">Cutia Misterioasă</button>.
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
+                          {(user?.event_avatars || []).map((av, i) => (
+                            <div
+                              key={av || i}
+                              data-testid={`avatar-gallery-item-${i}`}
+                              className={`relative rounded-2xl p-3 flex flex-col items-center gap-2 border ${user?.avatar === av ? "border-[#a855f7] bg-[#a855f7]/10" : "border-white/10 bg-[#141414]"}`}
+                            >
+                              {user?.avatar === av && (
+                                <span className="absolute top-2 right-2 h-5 w-5 rounded-full bg-[#a855f7] grid place-items-center">
+                                  <Check className="h-3 w-3 text-white" />
+                                </span>
+                              )}
+                              <img src={av} alt="Avatar special" className="h-16 w-16 rounded-xl object-cover" />
+                              <p className="text-[11px] text-white/50 text-center">{user?.avatar === av ? "Activ" : "Deblocat"}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
                     {invModal && (
                       <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm" data-testid="invite-modal" onClick={() => setInvModal(null)}>
                         <div className="relative w-full max-w-sm bg-[#141414] border border-[#a855f7]/40 rounded-3xl p-8 text-center shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
