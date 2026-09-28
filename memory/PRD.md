@@ -93,6 +93,22 @@ with chat, Halloween seasonal event, custom currency "NIX", Mystery Box spin/cas
 ## 2026-06 Update
 - /spin: applied new Halloween scenic background (`/halloween/spin-bg.jpg`, generated to match user's attached scene — purple sunset, castle, pumpkins, coins, crown cards, stone platform). Darkened with lateral shadow vignette overlays in `Spin.jsx`. Verified via login screenshot.
 
+## 2026-06 Update — Cast bug fix + hardware limitation clarified
+- **Bug fixat**: butonul de Cast (`Live.jsx` + `CastTest.jsx`) era ascuns complet când
+  `remote.watchAvailability()` raporta "niciun dispozitiv găsit", afișând mesajul greșit
+  "browser-ul nu suportă cast" chiar pe Chrome. Corectat: butonul apare mereu când API-ul
+  există (indiferent de rezultatul discovery-ului), cu un hint separat "niciun TV găsit încă"
+  sub buton dacă `deviceHint === false`.
+- **Testat cu userul**: pe Samsung/LG Smart TV obișnuit (fără Chromecast încorporat, fără
+  AirPlay 2 activ) — Chrome nu găsește niciun dispozitiv (confirmat: limitare de protocol,
+  NU bug de cod — Remote Playback API detectează exclusiv Google Cast, AirPlay detectează
+  exclusiv AirPlay; niciun API web nu poate "arunca" video pe un TV obișnuit fără unul din
+  aceste protocoale). Userul a confirmat să păstrăm feature-ul așa cum e (funcționează corect
+  pentru TV-uri cu Chromecast/Android TV/Google TV sau AirPlay 2 activ).
+- **IMPORTANT pentru agenți viitori**: NU reîncerca să "repari" cast-ul care nu găsește TV-ul
+  userului — e limitare hardware confirmată, nu bug. Dacă userul revine cu asta, sugerează
+  dongle Chromecast sau activare AirPlay din setările TV.
+
 ## 2026-06 Update — Pagină de test Cast (/cast-test)
 - Adăugat clip de test furnizat de user ("Batman Neînfricat și Cutezător - Intro", 30s .mkv) —
   convertit cu ffmpeg în mp4 (h264 copy + audio AAC, faststart) și plasat public la

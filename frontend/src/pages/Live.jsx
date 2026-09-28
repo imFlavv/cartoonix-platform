@@ -32,6 +32,7 @@ const Live = () => {
   const [uiVisible, setUiVisible] = useState(true);
   const hideTimerRef = useRef(null);
   const [castAvailable, setCastAvailable] = useState(false);
+  const [deviceHint, setDeviceHint] = useState(null); // null=unknown, true/false=device found or not
   const castKindRef = useRef(null); // "airplay" | "remote"
   const castSetupRef = useRef(false);
 
@@ -144,6 +145,9 @@ const Live = () => {
 
   // Detect "cast to TV" support once the <video> element exists: Safari AirPlay
   // (webkitShowPlaybackTargetPicker) or Chrome/Edge Remote Playback API (Chromecast).
+  // Note: the button is shown whenever the API itself exists — NOT gated on a device
+  // being currently found, since discovery can be slow/unreliable; users still need to
+  // click and pick a device (or find out none is on the network) themselves.
   useEffect(() => {
     const v = videoRef.current;
     if (!v || castSetupRef.current) return;
@@ -151,12 +155,12 @@ const Live = () => {
     if (typeof v.webkitShowPlaybackTargetPicker === "function") {
       castKindRef.current = "airplay";
       setCastAvailable(true);
-    } else if (v.remote && typeof v.remote.watchAvailability === "function") {
-      castKindRef.current = "remote";
-      v.remote.watchAvailability((available) => setCastAvailable(available)).catch(() => setCastAvailable(true));
     } else if (v.remote && typeof v.remote.prompt === "function") {
       castKindRef.current = "remote";
       setCastAvailable(true);
+      if (typeof v.remote.watchAvailability === "function") {
+        v.remote.watchAvailability((available) => setDeviceHint(available)).catch(() => {});
+      }
     }
   }, [nowData]);
 
@@ -386,8 +390,8 @@ const Live = () => {
                       type="button"
                       onClick={handleCast}
                       data-testid="live-cast"
-                      title="Transmite pe TV"
-                      className="text-white/90 hover:text-white shrink-0"
+                      title={deviceHint === false ? "Niciun TV/Chromecast găsit — apasă pentru a căuta" : "Transmite pe TV"}
+                      className={`shrink-0 ${deviceHint === false ? "text-white/50 hover:text-white/80" : "text-white/90 hover:text-white"}`}
                     >
                       <Cast className="h-5 w-5" />
                     </button>
@@ -398,6 +402,12 @@ const Live = () => {
                 </div>
               </div>
             </div>
+
+            {castAvailable && deviceHint === false && (
+              <p className="mt-2 text-[11px] text-white/35" data-testid="live-cast-hint">
+                Niciun TV/Chromecast detectat pe rețeaua ta încă — apasă totuși pe <Cast className="inline h-3 w-3 -mt-0.5" />, Chrome mai poate găsi dispozitivul. Ai nevoie de un TV/dongle cu Chromecast (Google Cast) încorporat.
+              </p>
+            )}
 
             {muted && current && (
               <button data-testid="live-unmute-hint" onClick={toggleMute} className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#ec1c24] text-white text-sm font-bold hover:bg-[#ff2d36] transition-colors duration-200">

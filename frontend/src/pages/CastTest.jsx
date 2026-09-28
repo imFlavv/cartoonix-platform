@@ -6,6 +6,7 @@ import { Cast, Tv } from "lucide-react";
 const CastTest = () => {
   const videoRef = useRef(null);
   const [castAvailable, setCastAvailable] = useState(false);
+  const [deviceHint, setDeviceHint] = useState(null); // null=unknown, true/false=device found or not
   const [castKind, setCastKind] = useState(null); // "airplay" | "remote" | null
   const [status, setStatus] = useState("");
 
@@ -15,12 +16,15 @@ const CastTest = () => {
     if (typeof v.webkitShowPlaybackTargetPicker === "function") {
       setCastKind("airplay");
       setCastAvailable(true);
-    } else if (v.remote && typeof v.remote.watchAvailability === "function") {
-      setCastKind("remote");
-      v.remote.watchAvailability((available) => setCastAvailable(available)).catch(() => setCastAvailable(true));
+      v.addEventListener("webkitplaybacktargetavailabilitychanged", (e) => {
+        setDeviceHint(e.availability === "available");
+      });
     } else if (v.remote && typeof v.remote.prompt === "function") {
       setCastKind("remote");
       setCastAvailable(true);
+      if (typeof v.remote.watchAvailability === "function") {
+        v.remote.watchAvailability((available) => setDeviceHint(available)).catch(() => {});
+      }
     }
   }, []);
 
@@ -62,14 +66,24 @@ const CastTest = () => {
         </div>
 
         {castAvailable ? (
-          <button
-            type="button"
-            onClick={handleCast}
-            data-testid="cast-test-button"
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#ec1c24] text-white font-bold hover:bg-[#ff2d36] transition-colors duration-200"
-          >
-            <Cast className="h-5 w-5" /> Transmite pe TV
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={handleCast}
+              data-testid="cast-test-button"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#ec1c24] text-white font-bold hover:bg-[#ff2d36] transition-colors duration-200"
+            >
+              <Cast className="h-5 w-5" /> Transmite pe TV
+            </button>
+            {deviceHint === false && (
+              <p className="mt-3 text-xs text-white/40" data-testid="cast-test-no-device">
+                Niciun TV/Chromecast detectat pe rețeaua ta încă — apasă totuși butonul, s-ar putea
+                să apară în listă. Dacă lista e goală, TV-ul tău probabil nu are Chromecast (Google Cast)
+                încorporat — ai nevoie de un TV/dongle compatibil (Chromecast, Android TV, Google TV) pe
+                aceeași rețea Wi-Fi, sau de un TV cu AirPlay (folosind Safari pe iPhone/Mac).
+              </p>
+            )}
+          </>
         ) : (
           <p className="text-white/40 text-sm" data-testid="cast-test-unavailable">
             Browser-ul tău nu suportă cast (necesită Chrome sau Safari, nu Firefox).
