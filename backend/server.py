@@ -1319,7 +1319,7 @@ SPIN_PRIZES = [
 SPIN_DEFAULT_WEIGHTS = {k: w for k, w in SPIN_PRIZES}
 SPIN_LABELS = {"retry": "Mai încearcă", "p5": "5 NIX", "key": "1 Cheie Mystery Box", "pumpkin": "1 Dovleac", "p10": "10 NIX", "p15": "15 NIX", "p50": "50 NIX", "plus": "Invitație PLUS", "avatar_special": "Avatar Halloween Special"}
 _SPIN_POINTS = {"p5": 5, "p10": 10, "p15": 15, "p50": 50}
-SPIN_AVATAR_SPECIAL = "/avatars/halloween-castle-pumpkin.png"
+SPIN_AVATAR_SPECIAL = "/avatars/halloween-castle-pumpkin.gif"
 
 
 async def _get_spin_weights() -> dict:
