@@ -89,3 +89,6 @@ with chat, Halloween seasonal event, custom currency "NIX", Mystery Box spin/cas
   referința (castel silueta + lună + dovleac) și am suprascris fișierul existent
   `/app/frontend/public/avatars/halloween-castle-pumpkin.png` — cum path-ul e neschimbat,
   se reflectă automat peste tot (roată, inventar, Setări) fără alte modificări de cod.
+
+## 2026-06 Update
+- /spin: applied new Halloween scenic background (`/halloween/spin-bg.jpg`, generated to match user's attached scene — purple sunset, castle, pumpkins, coins, crown cards, stone platform). Darkened with lateral shadow vignette overlays in `Spin.jsx`. Verified via login screenshot.

@@ -210,8 +210,14 @@ const Spin = () => {
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white overflow-hidden">
       <NavBar />
-      <div className="pointer-events-none fixed inset-0 opacity-50" style={{
-        background: "radial-gradient(circle at 50% 15%, rgba(255,122,24,0.22), transparent 55%), radial-gradient(circle at 80% 90%, rgba(236,28,36,0.18), transparent 55%)",
+      {/* Halloween scenic background */}
+      <div
+        className="pointer-events-none fixed inset-0 bg-cover bg-center"
+        style={{ backgroundImage: "url('/halloween/spin-bg.jpg')" }}
+      />
+      {/* darken + lateral shadows so content stays readable */}
+      <div className="pointer-events-none fixed inset-0" style={{
+        background: "linear-gradient(90deg, rgba(5,3,12,0.92) 0%, rgba(5,3,12,0.45) 22%, rgba(5,3,12,0.25) 50%, rgba(5,3,12,0.45) 78%, rgba(5,3,12,0.92) 100%), linear-gradient(180deg, rgba(5,3,12,0.7) 0%, rgba(5,3,12,0.25) 40%, rgba(5,3,12,0.85) 100%)",
       }} />
 
       <div className="relative pt-24 px-4 pb-16 max-w-4xl mx-auto text-center">
