@@ -93,6 +93,19 @@ with chat, Halloween seasonal event, custom currency "NIX", Mystery Box spin/cas
 ## 2026-06 Update
 - /spin: applied new Halloween scenic background (`/halloween/spin-bg.jpg`, generated to match user's attached scene — purple sunset, castle, pumpkins, coins, crown cards, stone platform). Darkened with lateral shadow vignette overlays in `Spin.jsx`. Verified via login screenshot.
 
+## 2026-06 Update — Cast to TV pe /live
+- Adăugat buton "Cast" (icon `Cast` din lucide-react) în bara de control a player-ului video de pe `/live`,
+  lângă fullscreen. Folosește API-uri native de browser (fără SDK extern, fără integrare 3rd-party):
+  - Safari (desktop/iOS): `video.webkitShowPlaybackTargetPicker()` → AirPlay nativ.
+  - Chrome/Edge (desktop + Android): Remote Playback API (`video.remote.prompt()`) → detectează
+    Chromecast-uri pe rețeaua locală, arată selector nativ de dispozitiv.
+  - Firefox: API indisponibil → butonul e ascuns automat (feature-detection cu `watchAvailability`).
+  - Video sursă (`resolveVideoUrl`) e deja un URL https public prin backend, deci compatibil cu cast.
+  - Verificat: compilare frontend OK (fără erori, 1 warning eslint minor rezolvat). Tool-ul de
+    screenshot din acest mediu rămâne blocat pe boot-screen static (limitare cunoscută, documentată
+    anterior) — user trebuie să verifice vizual în Chrome/Safari cu un dispozitiv Chromecast/AirPlay
+    real pe aceeași rețea.
+
 ## 2026-06 Update — Live TV channels
 - /live: added channel selection. New backend endpoint `GET /api/live/channels` (General + one per distinct `channel` field: Cartoon Network, Jetix, Minimax, ...). `GET /api/live/now?channel=<name>` now serves a per-channel synchronized schedule (deterministic shuffle from shared epoch/seed, filtered by `channel`). "General" (Canalul 01) keeps all shows mixed.
 - Frontend `Live.jsx`: channel picker row; switching channel resets seek/EPG and refetches. Program (EPG) reflects only the selected channel.

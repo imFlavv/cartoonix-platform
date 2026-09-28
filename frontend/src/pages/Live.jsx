@@ -4,7 +4,7 @@ import { api, resolveVideoUrl } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { NavBar } from "@/components/NavBar";
 import { PlusIcon } from "@/components/PlusIcon";
-import { Volume2, VolumeX, Maximize, Radio, Tv, Lock, Sparkles, Play, Pause } from "lucide-react";
+import { Volume2, VolumeX, Maximize, Radio, Tv, Lock, Sparkles, Play, Pause, Cast } from "lucide-react";
 
 const POLL_MS = 8000;   // re-sync with the server every 8s
 const DRIFT_TOLERANCE = 4; // seconds
@@ -31,6 +31,9 @@ const Live = () => {
   const [playing, setPlaying] = useState(true);
   const [uiVisible, setUiVisible] = useState(true);
   const hideTimerRef = useRef(null);
+  const [castAvailable, setCastAvailable] = useState(false);
+  const castKindRef = useRef(null); // "airplay" | "remote"
+  const castSetupRef = useRef(false);
 
   const showUi = useCallback(() => {
     setUiVisible(true);
@@ -138,6 +141,34 @@ const Live = () => {
     tick();
   };
   const onError = () => { /* keep the schedule; next poll / rotation recovers */ };
+
+  // Detect "cast to TV" support once the <video> element exists: Safari AirPlay
+  // (webkitShowPlaybackTargetPicker) or Chrome/Edge Remote Playback API (Chromecast).
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v || castSetupRef.current) return;
+    castSetupRef.current = true;
+    if (typeof v.webkitShowPlaybackTargetPicker === "function") {
+      castKindRef.current = "airplay";
+      setCastAvailable(true);
+    } else if (v.remote && typeof v.remote.watchAvailability === "function") {
+      castKindRef.current = "remote";
+      v.remote.watchAvailability((available) => setCastAvailable(available)).catch(() => setCastAvailable(true));
+    } else if (v.remote && typeof v.remote.prompt === "function") {
+      castKindRef.current = "remote";
+      setCastAvailable(true);
+    }
+  }, [nowData]);
+
+  const handleCast = () => {
+    const v = videoRef.current;
+    if (!v) return;
+    if (castKindRef.current === "airplay" && v.webkitShowPlaybackTargetPicker) {
+      v.webkitShowPlaybackTargetPicker();
+    } else if (v.remote?.prompt) {
+      v.remote.prompt().catch(() => {});
+    }
+  };
 
   const onVolume = (e) => {
     const val = parseFloat(e.target.value);
@@ -286,6 +317,7 @@ const Live = () => {
                   autoPlay
                   playsInline
                   muted={muted}
+                  x-webkit-airplay="allow"
                   onLoadedMetadata={onLoadedMetadata}
                   onEnded={onEnded}
                   onError={onError}
@@ -348,9 +380,22 @@ const Live = () => {
                   {muted || volume === 0 ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
                 </button>
                 <input type="range" min="0" max="1" step="0.05" value={muted ? 0 : volume} onChange={onVolume} data-testid="live-volume" className="w-28 sm:w-40 accent-[#ec1c24] cursor-pointer" title="Volum" />
-                <button type="button" onClick={toggleFullscreen} data-testid="live-fullscreen" title="Ecran complet" className="ml-auto text-white/90 hover:text-white shrink-0">
-                  <Maximize className="h-5 w-5" />
-                </button>
+                <div className="ml-auto flex items-center gap-3">
+                  {castAvailable && (
+                    <button
+                      type="button"
+                      onClick={handleCast}
+                      data-testid="live-cast"
+                      title="Transmite pe TV"
+                      className="text-white/90 hover:text-white shrink-0"
+                    >
+                      <Cast className="h-5 w-5" />
+                    </button>
+                  )}
+                  <button type="button" onClick={toggleFullscreen} data-testid="live-fullscreen" title="Ecran complet" className="text-white/90 hover:text-white shrink-0">
+                    <Maximize className="h-5 w-5" />
+                  </button>
+                </div>
               </div>
             </div>
 
