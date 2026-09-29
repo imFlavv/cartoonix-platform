@@ -268,40 +268,55 @@ const Live = () => {
           <span className="hidden sm:block text-sm text-white/40">transmisiune sincronizată · aceeași pentru toți · nu poți schimba episodul</span>
         </div>
 
-        {/* Channel selector — General (mixed) + one per category (Jetix, Minimax, ...) */}
-        {channels.length > 0 && (
-          <div className="mb-6" data-testid="live-channels">
-            <div className="flex items-center gap-2 mb-2">
-              <Tv className="h-4 w-4 text-[#ffcc00]" />
-              <span className="text-xs uppercase tracking-widest font-bold text-white/50">Alege canalul</span>
-            </div>
-            <div className="flex gap-2.5 overflow-x-auto pb-2 -mx-1 px-1 snap-x">
-              {channels.map((ch) => {
-                const active = ch.key === channel;
-                return (
-                  <button
-                    key={ch.key}
-                    type="button"
-                    data-testid={`live-channel-${ch.key}`}
-                    onClick={() => setChannel(ch.key)}
-                    className={`snap-start shrink-0 flex flex-col items-start gap-0.5 px-4 py-2.5 rounded-xl border text-left transition-all duration-200 ${
-                      active
-                        ? "bg-[#ec1c24]/15 border-[#ec1c24] ring-2 ring-[#ec1c24]/50 shadow-lg"
-                        : "bg-[#141414] border-white/10 hover:border-white/25 hover:bg-white/5"
-                    }`}
-                  >
-                    <span className={`text-sm font-bold whitespace-nowrap ${active ? "text-white" : "text-white/85"}`}>
-                      {ch.name}
-                    </span>
-                    <span className={`text-[10px] uppercase tracking-wide ${active ? "text-[#ec1c24]" : "text-white/35"}`}>
-                      {ch.label.split("·")[0].trim()} · {ch.count} {ch.count === 1 ? "episod" : "episoade"}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+        {/* Program (EPG) — shown as a horizontal strip above the player: what played, what's on now, what's next */}
+        <div className="mb-6" data-testid="live-program">
+          <div className="flex items-center gap-2 mb-2">
+            <Tv className="h-4 w-4 text-[#ec1c24]" />
+            <span className="text-xs uppercase tracking-widest font-bold text-white/50">Program</span>
           </div>
-        )}
+          <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 snap-x">
+            {(programRows.length ? programRows : Array.from({ length: 5 })).map((row, ri) => {
+              const item = row?.item;
+              const isNow = row?.kind === "now";
+              const isPrev = row?.kind === "prev";
+              if (!item) {
+                return (
+                  <div key={ri} className="shrink-0 w-[150px] sm:w-auto sm:flex-1 rounded-xl bg-white/[0.02] border border-white/5 p-2.5 opacity-40">
+                    <div className="h-16 w-full rounded-lg bg-white/5 mb-2" />
+                    <p className="text-xs text-white/30">se încarcă...</p>
+                  </div>
+                );
+              }
+              return (
+                <div
+                  key={ri}
+                  data-testid={isNow ? "live-program-now" : `live-program-${ri}`}
+                  className={`shrink-0 w-[150px] sm:w-auto sm:flex-1 snap-start rounded-xl border p-2.5 transition-all duration-300 ${
+                    isNow
+                      ? "bg-[#ec1c24]/15 border-[#ec1c24] ring-2 ring-[#ec1c24]/50 scale-[1.02] shadow-lg"
+                      : isPrev
+                      ? "bg-white/[0.03] border-white/5 opacity-60"
+                      : "bg-white/5 border-transparent"
+                  }`}
+                >
+                  <div className="relative mb-2">
+                    <img src={item.thumbnail} alt="" className="w-full h-16 rounded-lg object-cover bg-white/10" />
+                    {isNow && (
+                      <span className="absolute -top-1.5 -left-1.5 h-4 w-4 rounded-full bg-[#ec1c24] flex items-center justify-center">
+                        <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
+                      </span>
+                    )}
+                  </div>
+                  <p className={`text-[10px] uppercase tracking-wide font-bold ${isNow ? "text-[#ec1c24]" : isPrev ? "text-white/40" : "text-[#ffcc00]"}`}>
+                    {isNow ? "Acum" : isPrev ? "A rulat" : "Urmează"}
+                  </p>
+                  <p className={`text-sm font-semibold truncate ${isNow ? "text-white" : "text-white/80"}`}>{item.show_title}</p>
+                  <p className="text-xs text-white/40 truncate">{item.episode_title || `Ep ${item.episode_number}`} · {item.channel}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
 
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Player */}
@@ -416,56 +431,41 @@ const Live = () => {
             )}
           </div>
 
-          {/* Program (EPG) */}
-          <aside className="lg:col-span-1" data-testid="live-program">
+          {/* Channels — General (mixed) + one per category (Jetix, Minimax, ...) */}
+          <aside className="lg:col-span-1" data-testid="live-channels">
             <div className="bg-[#141414] border border-white/10 rounded-2xl p-4 lg:sticky lg:top-24">
               <h3 className="font-display text-xl flex items-center gap-2 mb-4">
-                <Tv className="h-5 w-5 text-[#ec1c24]" /> Program
+                <Tv className="h-5 w-5 text-[#ffcc00]" /> Canale
               </h3>
-              <div className="space-y-2">
-                {programRows.map((row, ri) => {
-                  const item = row.item;
-                  const isNow = row.kind === "now";
-                  const isPrev = row.kind === "prev";
-                  if (!item) {
+              {channels.length > 0 ? (
+                <div className="space-y-2">
+                  {channels.map((ch) => {
+                    const active = ch.key === channel;
                     return (
-                      <div key={ri} className="flex items-center gap-3 p-2.5 rounded-xl bg-white/[0.02] border border-white/5 opacity-40">
-                        <div className="h-12 w-9 rounded bg-white/5 shrink-0" />
-                        <div className="flex-1"><p className="text-xs text-white/30">se încarcă...</p></div>
-                      </div>
+                      <button
+                        key={ch.key}
+                        type="button"
+                        data-testid={`live-channel-${ch.key}`}
+                        onClick={() => setChannel(ch.key)}
+                        className={`w-full flex flex-col items-start gap-0.5 px-4 py-3 rounded-xl border text-left transition-all duration-200 ${
+                          active
+                            ? "bg-[#ec1c24]/15 border-[#ec1c24] ring-2 ring-[#ec1c24]/50 shadow-lg"
+                            : "bg-white/[0.03] border-white/10 hover:border-white/25 hover:bg-white/5"
+                        }`}
+                      >
+                        <span className={`text-sm font-bold ${active ? "text-white" : "text-white/85"}`}>
+                          {ch.name}
+                        </span>
+                        <span className={`text-[10px] uppercase tracking-wide ${active ? "text-[#ec1c24]" : "text-white/35"}`}>
+                          {ch.label.split("·")[0].trim()} · {ch.count} {ch.count === 1 ? "episod" : "episoade"}
+                        </span>
+                      </button>
                     );
-                  }
-                  return (
-                    <div
-                      key={ri}
-                      data-testid={isNow ? "live-program-now" : `live-program-${ri}`}
-                      className={`flex items-center gap-3 p-2.5 rounded-xl border transition-all duration-300 ${
-                        isNow
-                          ? "bg-[#ec1c24]/15 border-[#ec1c24] ring-2 ring-[#ec1c24]/50 scale-[1.02] shadow-lg"
-                          : isPrev
-                          ? "bg-white/[0.03] border-white/5 opacity-60"
-                          : "bg-white/5 border-transparent"
-                      }`}
-                    >
-                      <div className="relative shrink-0">
-                        <img src={item.thumbnail} alt="" className="h-12 w-9 rounded object-cover bg-white/10" />
-                        {isNow && (
-                          <span className="absolute -top-1.5 -left-1.5 h-4 w-4 rounded-full bg-[#ec1c24] flex items-center justify-center">
-                            <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-[10px] uppercase tracking-wide font-bold ${isNow ? "text-[#ec1c24]" : isPrev ? "text-white/40" : "text-[#ffcc00]"}`}>
-                          {isNow ? "Acum" : isPrev ? "A rulat" : "Urmează"}
-                        </p>
-                        <p className={`text-sm font-semibold truncate ${isNow ? "text-white" : "text-white/80"}`}>{item.show_title}</p>
-                        <p className="text-xs text-white/40 truncate">{item.episode_title || `Ep ${item.episode_number}`} · {item.channel}</p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                  })}
+                </div>
+              ) : (
+                <p className="text-xs text-white/30">Niciun canal disponibil momentan.</p>
+              )}
               <p className="mt-4 text-[11px] text-white/30 text-center">Transmisiune sincronizată pentru toți. Nu poți schimba manual episodul.</p>
             </div>
           </aside>
