@@ -6,6 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { ArrowLeft, Gift, Crown, Ticket, Tag, Clock, ChevronRight, Copy, Check, Sparkles, Loader2, X } from "lucide-react";
 import { NixCoin } from "@/components/NixCoin";
+import { KeyIcon } from "@/components/KeyIcon";
 
 const timeAgo = (iso) => {
   if (!iso) return "";
@@ -93,6 +94,7 @@ const Rewards = () => {
       const { data: res } = await api.post("/rewards/redeem-code", { code: code.trim() });
       if (res.granted?.type === "plus") toast.success("Felicitări! Ai primit acces Cartoonix PLUS pe viață! 👑");
       else if (res.granted?.type === "points") toast.success(`Ai primit ${res.granted.points} NIX!`);
+      else if (res.granted?.type === "keys") toast.success(`Ai primit ${res.granted.keys} ${res.granted.keys === 1 ? "cheie" : "chei"} Mystery Box! 🔑`);
       else toast.success("Cod valorificat!");
       setCode("");
       setPreview(null);
@@ -215,7 +217,9 @@ const Rewards = () => {
                         ? <Crown className="h-7 w-7 text-[#ffcc00]" />
                         : preview.type === "points"
                           ? <NixCoin className="h-7 w-7" />
-                          : <Gift className="h-7 w-7 text-[#ec4899]" />}
+                          : preview.type === "keys"
+                            ? <KeyIcon className="h-7 w-7" />
+                            : <Gift className="h-7 w-7 text-[#ec4899]" />}
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-[11px] uppercase tracking-wide text-[#ffcc00]/70 font-bold mb-0.5">Codul tău oferă</p>

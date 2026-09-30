@@ -1251,6 +1251,11 @@ async def preview_code(body: RedeemCode, user: dict = Depends(get_current_user))
         reward["points"] = pts
         reward["title"] = f"{pts} NIX"
         reward["desc"] = "Monedă care se adaugă instant în portofelul tău."
+    elif vtype == "keys":
+        n = int(v.get("keys", 0))
+        reward["keys"] = n
+        reward["title"] = f"{n} {'Cheie' if n == 1 else 'Chei'} Mystery Box"
+        reward["desc"] = "Le folosești în /spin pentru a deschide cutii misterioase."
     else:
         reward["title"] = "Recompensă specială"
         reward["desc"] = "Un cadou din partea echipei Cartoonix."
@@ -1303,14 +1308,19 @@ async def redeem_code(body: RedeemCode, user: dict = Depends(get_current_user)):
             "code": code, "created_at": now_iso,
         })
         granted["points"] = pts
+    elif vtype == "keys":
+        n = int(v.get("keys", 0))
+        await db.users.update_one({"_id": user["_id"]}, {"$inc": {"spins": n}})
+        granted["keys"] = n
     await db.voucher_redemptions.insert_one({
         "code": code, "user_id": uid, "user_name": user_name(user),
         "user_email": user.get("email", ""), "type": vtype,
         "points": int(v.get("points", 0)) if vtype == "points" else 0,
+        "keys": int(v.get("keys", 0)) if vtype == "keys" else 0,
         "redeemed_at": now_iso,
     })
     fresh = await find_user_by_id(uid) or user
-    return {"ok": True, "granted": granted, "points": int(fresh.get("points", 0)), "plus": user_is_plus(fresh)}
+    return {"ok": True, "granted": granted, "points": int(fresh.get("points", 0)), "spins": int(fresh.get("spins", 0)), "plus": user_is_plus(fresh)}
 
 
 class ClaimAvatarInput(BaseModel):
@@ -1513,8 +1523,9 @@ async def admin_set_spin_config(data: SpinConfig, admin: dict = Depends(require_
 
 # ---------- Admin: vouchers + reward claims ----------
 class VoucherCreate(BaseModel):
-    type: str                       # "plus" | "points"
+    type: str                       # "plus" | "points" | "keys"
     points: Optional[int] = 0
+    keys: Optional[int] = 0
     scope: str = "universal"        # "universal" | "specific"
     target_email: Optional[str] = None
     max_uses: Optional[int] = None  # universal only; None = unlimited
@@ -1523,10 +1534,12 @@ class VoucherCreate(BaseModel):
 
 @api_router.post("/admin/vouchers")
 async def admin_create_voucher(data: VoucherCreate, admin: dict = Depends(require_admin)):
-    if data.type not in ("plus", "points"):
-        raise HTTPException(status_code=400, detail="Tip invalid (plus / points)")
+    if data.type not in ("plus", "points", "keys"):
+        raise HTTPException(status_code=400, detail="Tip invalid (plus / points / keys)")
     if data.type == "points" and int(data.points or 0) <= 0:
         raise HTTPException(status_code=400, detail="Setează un număr de NIX > 0")
+    if data.type == "keys" and int(data.keys or 0) <= 0:
+        raise HTTPException(status_code=400, detail="Setează un număr de chei > 0")
     if data.scope not in ("universal", "specific"):
         raise HTTPException(status_code=400, detail="Scop invalid")
     target_uid = None
@@ -1541,6 +1554,7 @@ async def admin_create_voucher(data: VoucherCreate, admin: dict = Depends(requir
     doc = {
         "code": code, "type": data.type,
         "points": int(data.points or 0) if data.type == "points" else 0,
+        "keys": int(data.keys or 0) if data.type == "keys" else 0,
         "scope": data.scope, "target_user_id": target_uid,
         "target_email": data.target_email.strip().lower() if (data.scope == "specific" and data.target_email) else None,
         "max_uses": (None if data.scope == "specific" else data.max_uses),

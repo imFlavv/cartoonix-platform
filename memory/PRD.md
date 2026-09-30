@@ -198,3 +198,14 @@ with chat, Halloween seasonal event, custom currency "NIX", Mystery Box spin/cas
   - Nou endpoint backend `POST /api/rewards/preview-code` (validează codul FĂRĂ a-l consuma, returnează {reward: {type,title,desc,points}}). Aceeași validare ca redeem-code (invalid/inactiv/deja folosit/limită/PLUS deja activ).
   - UI: input + buton „Verifică" → card preview cu ce oferă codul (PLUS pe viață / X NIX) → buton „Revendică recompensa" (apelează `/rewards/redeem-code`) + buton anulare.
   - Verificat e2e prin curl: preview(points)→ok, preview(invalid)→400, redeem→grant 100 NIX, preview după redeem→„deja folosit". Date de test curățate.
+
+## 2026-09-30 — Vouchere pentru Chei (Mystery Box) + Lobby fix + /spin & /live text
+- Spin.jsx: eliminat badge-ul „Mystery Box" de deasupra titlului; text „iese la reveal!" → „iese la iveală!".
+- Rewards.jsx: eliminat titlul „Recompensele tale".
+- Live.jsx: fix rama episodului „Acum" (containerul `overflow-x-auto` tăia vertical) → adăugat `pt-3 pb-3 px-2`; eliminat nota „Transmisiune sincronizată... Nu poți schimba manual episodul." din zona canalelor. (Header-ul de sus „Live/Cartoonix TV" era deja eliminat din cod.)
+- Lobby.jsx: cardul „Cartoonix Land" navighează acum la `/halloween` (nu `/land`).
+- VOUCHERE CHEI: adăugat tip nou de voucher `keys` (chei Mystery Box). Cheile = câmpul `users.spins`.
+  - Backend: `VoucherCreate` + `keys` field; `POST /admin/vouchers` acceptă type `keys` (validare keys>0, stochează `keys` în doc); `preview-code` → title „N Chei Mystery Box"; `redeem-code` → `$inc spins` cu N, returnează `spins`. Redemption log salvează și `keys`.
+  - Frontend AdminRewards.jsx: al treilea buton tip „Chei" (grid-cols-3, KeyIcon, portocaliu #ff7a18), input „Câte chei Mystery Box oferă", payload.keys, afișare în cod generat + tabel istoric.
+  - Rewards.jsx: toast la redeem pentru chei + iconiță KeyIcon în card preview.
+  - Verificat e2e prin curl: admin creează voucher 3 chei → preview „3 Chei Mystery Box" → redeem → spins 10→13. Date de test curățate.

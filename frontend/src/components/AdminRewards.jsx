@@ -3,6 +3,7 @@ import { api, formatApiErrorDetail } from "@/lib/api";
 import { toast } from "sonner";
 import { Gift, Ticket, Crown, Copy, Check, Power, ClipboardList } from "lucide-react";
 import { NixCoin } from "@/components/NixCoin";
+import { KeyIcon } from "@/components/KeyIcon";
 
 const input = "w-full px-3 py-2.5 rounded-lg bg-white/5 border border-white/10 focus:border-[#ec1c24] outline-none text-sm";
 
@@ -30,7 +31,7 @@ const CopyCode = ({ code }) => {
 };
 
 export const AdminRewards = () => {
-  const [form, setForm] = useState({ type: "plus", points: 100, scope: "universal", target_email: "", max_uses: "", note: "" });
+  const [form, setForm] = useState({ type: "plus", points: 100, keys: 5, scope: "universal", target_email: "", max_uses: "", note: "" });
   const [creating, setCreating] = useState(false);
   const [vouchers, setVouchers] = useState([]);
   const [claims, setClaims] = useState([]);
@@ -58,6 +59,7 @@ export const AdminRewards = () => {
       const payload = {
         type: form.type,
         points: form.type === "points" ? parseInt(form.points || 0, 10) : 0,
+        keys: form.type === "keys" ? parseInt(form.keys || 0, 10) : 0,
         scope: form.scope,
         target_email: form.scope === "specific" ? form.target_email.trim() : null,
         max_uses: form.scope === "universal" && form.max_uses !== "" ? parseInt(form.max_uses, 10) : null,
@@ -110,17 +112,20 @@ export const AdminRewards = () => {
       {/* Create voucher */}
       <div className="bg-[#141414] border border-[#ec1c24]/30 rounded-2xl p-6">
         <h2 className="font-display text-2xl mb-1 flex items-center gap-2"><Gift className="h-6 w-6 text-[#ec1c24]" /> Creează voucher</h2>
-        <p className="text-sm text-white/50 mb-5">Generează un cod de forma <code className="text-white/70">XXX-XXX-XXX</code> care oferă acces PLUS sau NIX. Poate fi universal (mai mulți utilizatori) sau specific unui utilizator.</p>
+        <p className="text-sm text-white/50 mb-5">Generează un cod de forma <code className="text-white/70">XXX-XXX-XXX</code> care oferă acces PLUS, NIX sau chei Mystery Box. Poate fi universal (mai mulți utilizatori) sau specific unui utilizator.</p>
         <div className="grid md:grid-cols-2 gap-4">
           <div className="space-y-3">
             <div>
               <label className="text-xs text-white/50 mb-1 block">Tip recompensă</label>
-              <div className="grid grid-cols-2 gap-2">
-                <button data-testid="voucher-type-plus" onClick={() => set("type", "plus")} className={`py-2.5 rounded-lg border text-sm font-bold flex items-center justify-center gap-2 ${form.type === "plus" ? "bg-[#ffcc00] text-black border-[#ffcc00]" : "bg-white/5 border-white/10 text-white/70"}`}>
-                  <Crown className="h-4 w-4" /> Acces PLUS
+              <div className="grid grid-cols-3 gap-2">
+                <button data-testid="voucher-type-plus" onClick={() => set("type", "plus")} className={`py-2.5 rounded-lg border text-sm font-bold flex items-center justify-center gap-1.5 ${form.type === "plus" ? "bg-[#ffcc00] text-black border-[#ffcc00]" : "bg-white/5 border-white/10 text-white/70"}`}>
+                  <Crown className="h-4 w-4" /> PLUS
                 </button>
-                <button data-testid="voucher-type-points" onClick={() => set("type", "points")} className={`py-2.5 rounded-lg border text-sm font-bold flex items-center justify-center gap-2 ${form.type === "points" ? "bg-[#ec4899] text-white border-[#ec4899]" : "bg-white/5 border-white/10 text-white/70"}`}>
+                <button data-testid="voucher-type-points" onClick={() => set("type", "points")} className={`py-2.5 rounded-lg border text-sm font-bold flex items-center justify-center gap-1.5 ${form.type === "points" ? "bg-[#ec4899] text-white border-[#ec4899]" : "bg-white/5 border-white/10 text-white/70"}`}>
                   <NixCoin className="h-4 w-4" /> NIX
+                </button>
+                <button data-testid="voucher-type-keys" onClick={() => set("type", "keys")} className={`py-2.5 rounded-lg border text-sm font-bold flex items-center justify-center gap-1.5 ${form.type === "keys" ? "bg-[#ff7a18] text-black border-[#ff7a18]" : "bg-white/5 border-white/10 text-white/70"}`}>
+                  <KeyIcon className="h-4 w-4" /> Chei
                 </button>
               </div>
             </div>
@@ -128,6 +133,13 @@ export const AdminRewards = () => {
               <div>
                 <label className="text-xs text-white/50 mb-1 block">Câți NIX oferă</label>
                 <input data-testid="voucher-points" type="number" min="1" value={form.points} onChange={(e) => set("points", e.target.value)} className={input} placeholder="Ex: 100" />
+              </div>
+            )}
+            {form.type === "keys" && (
+              <div>
+                <label className="text-xs text-white/50 mb-1 block">Câte chei Mystery Box oferă</label>
+                <input data-testid="voucher-keys" type="number" min="1" value={form.keys} onChange={(e) => set("keys", e.target.value)} className={input} placeholder="Ex: 5" />
+                <p className="text-[11px] text-white/30 mt-1">Cheile se folosesc în /spin pentru a deschide Mystery Box.</p>
               </div>
             )}
             <div>
@@ -164,7 +176,7 @@ export const AdminRewards = () => {
         {lastCreated && (
           <div data-testid="voucher-created" className="mt-4 flex items-center justify-between gap-3 rounded-xl bg-black/40 border border-[#ffcc00]/40 px-4 py-3">
             <div>
-              <p className="text-xs text-white/50">Cod generat ({lastCreated.type === "plus" ? "Acces PLUS pe viață" : `${lastCreated.points} NIX`}):</p>
+              <p className="text-xs text-white/50">Cod generat ({lastCreated.type === "plus" ? "Acces PLUS pe viață" : lastCreated.type === "keys" ? `${lastCreated.keys} chei Mystery Box` : `${lastCreated.points} NIX`}):</p>
               <CopyCode code={lastCreated.code} />
             </div>
           </div>
@@ -228,7 +240,7 @@ export const AdminRewards = () => {
                 {pagedVouchers.map((v) => (
                   <tr key={v.code} data-testid={`admin-voucher-${v.code}`} className="border-b border-white/5">
                     <td className="py-2.5 pr-3"><CopyCode code={v.code} /></td>
-                    <td className="py-2.5 pr-3">{v.type === "plus" ? <span className="text-[#ffcc00] font-semibold">PLUS pe viață</span> : <span className="text-[#c084fc] font-semibold">{v.points} NIX</span>}</td>
+                    <td className="py-2.5 pr-3">{v.type === "plus" ? <span className="text-[#ffcc00] font-semibold">PLUS pe viață</span> : v.type === "keys" ? <span className="text-[#ff7a18] font-semibold">{v.keys} chei</span> : <span className="text-[#c084fc] font-semibold">{v.points} NIX</span>}</td>
                     <td className="py-2.5 pr-3 text-white/60">{v.scope === "specific" ? `Specific: ${v.target_email || "—"}` : `Universal${v.max_uses ? ` (max ${v.max_uses})` : ""}`}</td>
                     <td className="py-2.5 pr-3 text-white/60">{v.used_count || 0}{v.scope === "specific" ? "/1" : v.max_uses ? `/${v.max_uses}` : ""}</td>
                     <td className="py-2.5 pr-3">{v.active ? <span className="text-[#22c55e]">Activ</span> : <span className="text-white/40">Inactiv</span>}</td>

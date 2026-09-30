@@ -279,7 +279,7 @@ const Lobby = () => {
             image={IMG.cartoonixland}
             span="lg:col-span-1"
             countdown={<LandCountdown />}
-            onClick={() => navigate("/land")}
+            onClick={() => navigate("/halloween")}
           />
           <LobbyCard
             testid="lobby-clasament"
