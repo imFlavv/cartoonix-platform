@@ -312,9 +312,8 @@ const ChatRoom = () => {
         style={{ backgroundImage: "url('/halloween/chat-bg.jpg')" }}
       />
       <div className="absolute inset-0 bg-black/55" />
-      <div className="relative z-10 h-full">
       <NavBar />
-      <div className="mt-16 h-[calc(100vh-4rem)] flex">
+      <div className="relative z-10 mt-16 h-[calc(100vh-4rem)] flex">
         {/* ---------- LEFT SIDEBAR ---------- */}
         <aside data-testid="chat-left" className="hidden lg:flex flex-col w-64 shrink-0 border-r border-white/10 bg-[#0c0c0f]/60 backdrop-blur-xl">
           <div className="px-4 py-4 border-b border-white/10">
@@ -655,7 +654,6 @@ const ChatRoom = () => {
             </button>
           </div>
         </aside>
-      </div>
       </div>
     </div>
   );
