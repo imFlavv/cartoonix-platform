@@ -6,7 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import {
   ArrowLeft, Send, Hash, Lock, Users, Gift, Plus, Star, Megaphone, AlertTriangle,
-  CheckCircle2, Info, MoreVertical, Ban, VolumeX, Trash2, Tv, X, Pin, PinOff, Trophy, MessageSquare, Radio, Hexagon, Crown, Shield,
+  CheckCircle2, Info, MoreVertical, Ban, VolumeX, Trash2, Tv, X, Pin, PinOff, Trophy, MessageSquare, MessageCircle, Radio, Hexagon, Crown, Shield,
 } from "lucide-react";
 import { PlusIcon } from "@/components/PlusIcon";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
@@ -465,7 +465,7 @@ const ChatRoom = () => {
                           {m.sender_online && <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-[#22c55e] border-2 border-[#0a0a0a]" />}
                         </div>
                         <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-white/45 leading-none" title="Total mesaje">
-                          <MessageSquare className="h-3 w-3 text-white/40 shrink-0" />
+                          <MessageCircle className="h-3.5 w-3.5 text-[#a855f7] shrink-0" fill="currentColor" strokeWidth={0} />
                           <span>{compact(m.sender_msg_count)}</span>
                         </span>
                       </div>
