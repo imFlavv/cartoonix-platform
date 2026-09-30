@@ -22,6 +22,8 @@ export const AVATAR_SEEDS = [
   "/avatars/unicorn.png",
   "/avatars/dragon.png",
   "/avatars/mermaid.png",
+  "/avatars/dracula-boy.png",
+  "/avatars/pumpkin-robot.png",
 ];
 
 // Premium avatars - only for Cartoonix PLUS members. Animated GIFs with pastel backgrounds.

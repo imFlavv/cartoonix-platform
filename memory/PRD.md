@@ -105,7 +105,13 @@ with chat, Halloween seasonal event, custom currency "NIX", Mystery Box spin/cas
   (title + description, fără dată) la ÎNCEPUTUL array-ului din `changelog.js`; nu recrea logica
   de timeline cu date.
 
-## 2026-06 Update — Fix chenar EPG tăiat + header /live simplificat
+## 2026-06 Update — 2 avatare noi gratuite (Halloween)
+- Adăugate 2 avatare noi în `AVATAR_SEEDS` (`frontend/src/data/constants.js`): "dracula-boy.png"
+  (băiat vampir) și "pumpkin-robot.png" (robot-dovleac) — disponibile pentru TOȚI utilizatorii
+  (free + PLUS), fără restricție (backend nu le validează contra unei whiteliste, doar blochează
+  `PREMIUM_AVATARS`). Imagini optimizate la 400x400px, salvate în `frontend/public/avatars/`.
+- Verificat vizual în Settings → Personalizare → Alege avatar: ambele apar în grila „Avatare
+  standard”, fără lacăt, selectabile de orice cont.
 - **Bug fixat**: cardul „ACUM” din strip-ul de Program (EPG) pe `/live` avea `scale-[1.02]` +
   `ring-2`, dar fără stacking context propriu — vecinul din dreapta (randat după, în DOM) îl
   acoperea parțial, tăind rama roșie. Fix: adăugat `relative z-10` pe cardul activ în `Live.jsx`.
