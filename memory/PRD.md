@@ -105,6 +105,16 @@ with chat, Halloween seasonal event, custom currency "NIX", Mystery Box spin/cas
   (title + description, fără dată) la ÎNCEPUTUL array-ului din `changelog.js`; nu recrea logica
   de timeline cu date.
 
+## 2026-06 Update — 2 avatare animate noi, exclusiv PLUS (Halloween)
+- Adăugate 2 avatare GIF animate în `PREMIUM_AVATARS` (frontend `constants.js` + backend
+  `server.py`, ambele liste actualizate): „plus-graveyard-bg.gif” (cimitir + bufniță + lună) și
+  „plus-skeleton-yoga-bg.gif” (schelet meditând, cadru center-cropat la pătrat păstrând animația).
+  Fișiere în `frontend/public/avatars/`.
+- Corectat și un gap pre-existent: `plus-skeleton-v2.gif` era în lista frontend dar lipsea din
+  whitelist-ul backend — adăugat acum, altfel un cont free putea seta acel avatar direct prin API.
+- Verificat: cont free primește 403 la `PUT /auth/avatar` cu noile avatare; cont PLUS le vede
+  deblocate în Settings → Personalizare → Alege avatar (screenshot confirmat).
+
 ## 2026-06 Update — 2 avatare noi gratuite (Halloween)
 - Adăugate 2 avatare noi în `AVATAR_SEEDS` (`frontend/src/data/constants.js`): "dracula-boy.png"
   (băiat vampir) și "pumpkin-robot.png" (robot-dovleac) — disponibile pentru TOȚI utilizatorii

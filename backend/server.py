@@ -289,6 +289,9 @@ PREMIUM_AVATARS = {
     "/avatars/plus-cat-bg.gif",
     "/avatars/plus-mickey-bg.gif",
     "/avatars/plus-pig-bg.gif",
+    "/avatars/plus-skeleton-v2.gif",
+    "/avatars/plus-graveyard-bg.gif",
+    "/avatars/plus-skeleton-yoga-bg.gif",
 }
 
 

@@ -34,6 +34,8 @@ export const PREMIUM_AVATARS = [
   "/avatars/plus-mickey-bg.gif",
   "/avatars/plus-pig-bg.gif",
   "/avatars/plus-skeleton-v2.gif",
+  "/avatars/plus-graveyard-bg.gif",
+  "/avatars/plus-skeleton-yoga-bg.gif",
 ];
 
 export const CHANNELS = ["Cartoon Network", "Jetix", "Minimax", "Boomerang"];
