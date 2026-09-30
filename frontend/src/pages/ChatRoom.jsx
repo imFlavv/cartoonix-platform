@@ -465,7 +465,7 @@ const ChatRoom = () => {
                           {m.sender_online && <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-[#22c55e] border-2 border-[#0a0a0a]" />}
                         </div>
                         <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-white/45 leading-none" title="Total mesaje">
-                          <Hexagon className="h-3 w-3 text-white/40 shrink-0" fill="currentColor" />
+                          <MessageSquare className="h-3 w-3 text-white/40 shrink-0" />
                           <span>{compact(m.sender_msg_count)}</span>
                         </span>
                       </div>
