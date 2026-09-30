@@ -293,15 +293,6 @@ const Settings = () => {
                     <span className={`block h-24 w-24 rounded-full overflow-hidden ${PREMIUM_AVATARS.includes(avatar) && isPlus ? "cx-premium-ring" : "border-2 border-[#ffcc00]/60"}`}>
                       <img src={avatar} alt="avatar" className="h-full w-full object-cover bg-[#141414]" />
                     </span>
-                    <button
-                      type="button"
-                      data-testid="open-avatar-picker-icon"
-                      onClick={() => setAvatarOpen(true)}
-                      className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full bg-[#1c1c1c] border border-white/20 flex items-center justify-center hover:bg-[#2a2a2a] transition-colors"
-                      title="Alege avatar"
-                    >
-                      <Camera className="h-4 w-4" />
-                    </button>
                   </div>
                   <div className="flex-1 min-w-0">
                     <label className="text-sm text-white/60">Nume afișat</label>

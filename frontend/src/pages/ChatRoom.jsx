@@ -306,11 +306,17 @@ const ChatRoom = () => {
   const visiblePins = pinned.filter((p) => !dismissed.has(p.id));
 
   return (
-    <div className="h-screen overflow-hidden bg-[#0a0a0a] text-white">
+    <div className="h-screen overflow-hidden bg-[#0a0a0a] text-white relative">
+      <div
+        className="absolute inset-0 bg-cover bg-center"
+        style={{ backgroundImage: "url('/halloween/chat-bg.jpg')" }}
+      />
+      <div className="absolute inset-0 bg-black/55" />
+      <div className="relative z-10 h-full">
       <NavBar />
       <div className="mt-16 h-[calc(100vh-4rem)] flex">
         {/* ---------- LEFT SIDEBAR ---------- */}
-        <aside data-testid="chat-left" className="hidden lg:flex flex-col w-64 shrink-0 border-r border-white/10 bg-[#0c0c0f]">
+        <aside data-testid="chat-left" className="hidden lg:flex flex-col w-64 shrink-0 border-r border-white/10 bg-[#0c0c0f]/60 backdrop-blur-xl">
           <div className="px-4 py-4 border-b border-white/10">
             <p className="font-display text-lg tracking-wide">CHAT LOBBY</p>
             <p className="text-xs text-white/50 flex items-center gap-1.5 mt-1">
@@ -579,7 +585,7 @@ const ChatRoom = () => {
         </section>
 
         {/* ---------- RIGHT SIDEBAR ---------- */}
-        <aside data-testid="chat-right" className="hidden xl:flex flex-col w-80 shrink-0 border-l border-white/10 bg-[#0c0c0f] overflow-y-auto">
+        <aside data-testid="chat-right" className="hidden xl:flex flex-col w-80 shrink-0 border-l border-white/10 bg-[#0c0c0f]/60 backdrop-blur-xl overflow-y-auto">
           <div className="px-4 py-4 border-b border-white/10">
             <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-3">
               Utilizatori <span className="text-white/60">({roNum(stats?.online_platform ?? 0)})</span>
@@ -649,6 +655,7 @@ const ChatRoom = () => {
             </button>
           </div>
         </aside>
+      </div>
       </div>
     </div>
   );

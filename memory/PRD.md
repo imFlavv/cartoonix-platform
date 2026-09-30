@@ -105,7 +105,17 @@ with chat, Halloween seasonal event, custom currency "NIX", Mystery Box spin/cas
   (title + description, fără dată) la ÎNCEPUTUL array-ului din `changelog.js`; nu recrea logica
   de timeline cu date.
 
-## 2026-06 Update — 2 avatare animate noi, exclusiv PLUS (Halloween)
+## 2026-06 Update — Camera icon eliminat + fundal nou pe /lobby/chat
+- **P1 recurent, FIX FINAL**: eliminat cercul-camera din colțul avatarului în Settings →
+  Personalizare (`Settings.jsx`, `data-testid="open-avatar-picker-icon"` + wrapper). Butonul
+  „Alege avatar” de sub profil rămâne funcțional neschimbat. Verificat vizual — absent din DOM.
+- Fundal nou pe toată pagina `/lobby/chat` (`ChatRoom.jsx`): imagine cosmică (castel + lună +
+  personaj cu coroană) întunecată (`ImageEnhance.Brightness 0.55`), salvată la
+  `frontend/public/halloween/chat-bg.jpg`, aplicată pe `<div className="absolute inset-0">`
+  + overlay `bg-black/55` peste tot root-ul paginii (nu doar zona centrală). Aside-urile
+  stânga/dreapta (`bg-[#0c0c0f]`) au fost făcute semi-transparente (`/60 backdrop-blur-xl`)
+  ca fundalul să se vadă pe toată lățimea, de la stânga la dreapta. Verificat vizual — background
+  vizibil uniform în sidebar-uri + zona de chat, text tot lizibil.
 - Adăugate 2 avatare GIF animate în `PREMIUM_AVATARS` (frontend `constants.js` + backend
   `server.py`, ambele liste actualizate): „plus-graveyard-bg.gif” (cimitir + bufniță + lună) și
   „plus-skeleton-yoga-bg.gif” (schelet meditând, cadru center-cropat la pătrat păstrând animația).
