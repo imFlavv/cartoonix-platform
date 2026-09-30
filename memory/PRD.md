@@ -105,7 +105,20 @@ with chat, Halloween seasonal event, custom currency "NIX", Mystery Box spin/cas
   (title + description, fără dată) la ÎNCEPUTUL array-ului din `changelog.js`; nu recrea logica
   de timeline cu date.
 
-## 2026-06 Update — Cast bug fix + hardware limitation clarified
+## 2026-06 Update — Fix chenar EPG tăiat + header /live simplificat
+- **Bug fixat**: cardul „ACUM” din strip-ul de Program (EPG) pe `/live` avea `scale-[1.02]` +
+  `ring-2`, dar fără stacking context propriu — vecinul din dreapta (randat după, în DOM) îl
+  acoperea parțial, tăind rama roșie. Fix: adăugat `relative z-10` pe cardul activ în `Live.jsx`.
+- **Header simplificat**: eliminat complet rândul de sus cu badge-ul „Live”, titlul „Cartoonix TV”
+  și subtitlul „transmisiune sincronizată · aceeași pentru toți · nu poți schimba episodul” —
+  la cererea userului. Pagina începe direct cu strip-ul „Program”.
+- **IMPORTANT — descoperire de mediu (NU e bug)**: `db.shows` are 0 documente în acest sandbox
+  de preview (confirmat prin query direct + `GET /api/shows`). Seed-ul demo (`DEMO_SHOWS`) e
+  condiționat de `SEED_DEMO=true` în `backend/.env` (absent aici), deci nu se populează automat.
+  Userul vede conținut real (mii de episoade) doar pe site-ul LIVE/producție, unde fișierele
+  video există fizic pe VPS (`vps_path`) — preview-ul nu va avea niciodată acel catalog. Nu
+  încerca să „repari” lipsa de conținut din preview; e normal. Verificarea vizuală a fixului de
+  z-index nu s-a putut face cu date reale în preview (confirmat doar structural prin DOM/clase).
 - **Bug fixat**: butonul de Cast (`Live.jsx` + `CastTest.jsx`) era ascuns complet când
   `remote.watchAvailability()` raporta "niciun dispozitiv găsit", afișând mesajul greșit
   "browser-ul nu suportă cast" chiar pe Chrome. Corectat: butonul apare mereu când API-ul

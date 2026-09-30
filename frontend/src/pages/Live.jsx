@@ -260,14 +260,6 @@ const Live = () => {
     <div className="min-h-screen bg-[#0a0a0a] text-white" data-testid="live-page">
       <NavBar />
       <div className="pt-20 pb-10 px-4 md:px-8 max-w-7xl mx-auto">
-        <div className="flex items-center gap-3 mb-5">
-          <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#ec1c24] text-white text-xs font-bold uppercase tracking-wider">
-            <Radio className="h-4 w-4 animate-pulse" /> Live
-          </span>
-          <h1 className="font-display text-3xl md:text-4xl">Cartoonix TV</h1>
-          <span className="hidden sm:block text-sm text-white/40">transmisiune sincronizată · aceeași pentru toți · nu poți schimba episodul</span>
-        </div>
-
         {/* Program (EPG) — shown as a horizontal strip above the player: what played, what's on now, what's next */}
         <div className="mb-6" data-testid="live-program">
           <div className="flex items-center gap-2 mb-2">
@@ -293,7 +285,7 @@ const Live = () => {
                   data-testid={isNow ? "live-program-now" : `live-program-${ri}`}
                   className={`shrink-0 w-[150px] sm:w-auto sm:flex-1 snap-start rounded-xl border p-2.5 transition-all duration-300 ${
                     isNow
-                      ? "bg-[#ec1c24]/15 border-[#ec1c24] ring-2 ring-[#ec1c24]/50 scale-[1.02] shadow-lg"
+                      ? "relative z-10 bg-[#ec1c24]/15 border-[#ec1c24] ring-2 ring-[#ec1c24]/50 scale-[1.02] shadow-lg"
                       : isPrev
                       ? "bg-white/[0.03] border-white/5 opacity-60"
                       : "bg-white/5 border-transparent"
