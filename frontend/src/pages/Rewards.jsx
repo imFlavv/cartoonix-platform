@@ -119,9 +119,6 @@ const Rewards = () => {
         >
           <ArrowLeft className="h-5 w-5" /> Lobby
         </button>
-        <h1 className="font-display text-4xl md:text-5xl mb-7 flex items-center gap-3">
-          <Gift className="h-9 w-9 text-[#ec4899]" /> Recompensele tale
-        </h1>
 
         {/* Top stats */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">

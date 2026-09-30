@@ -4,7 +4,7 @@ import { NavBar } from "@/components/NavBar";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import { X, RotateCw, Gift } from "lucide-react";
+import { X, RotateCw } from "lucide-react";
 import { NixCoin } from "@/components/NixCoin";
 import { KeyIcon } from "@/components/KeyIcon";
 
@@ -221,11 +221,8 @@ const Spin = () => {
       }} />
 
       <div className="relative pt-24 px-4 pb-16 max-w-4xl mx-auto text-center">
-        <div className="inline-flex items-center gap-2 mb-3 px-4 py-1.5 rounded-full bg-[#ff7a18]/15 border border-[#ff7a18]/40 text-[#ff7a18] text-xs font-bold uppercase tracking-widest">
-          <Gift className="h-4 w-4" /> Mystery Box
-        </div>
         <h1 className="font-display text-5xl md:text-7xl mb-2 tracking-wide">Deschide cutia</h1>
-        <p className="text-white/50 mb-8">Folosește o Cheie Mystery Box și descoperă ce premiu îți iese la reveal!</p>
+        <p className="text-white/50 mb-8">Folosește o Cheie Mystery Box și descoperă ce premiu îți iese la iveală!</p>
 
         {/* keys + points badges */}
         <div className="flex items-center justify-center gap-3 mb-8 flex-wrap">

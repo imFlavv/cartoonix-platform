@@ -266,7 +266,7 @@ const Live = () => {
             <Tv className="h-4 w-4 text-[#ec1c24]" />
             <span className="text-xs uppercase tracking-widest font-bold text-white/50">Program</span>
           </div>
-          <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 snap-x">
+          <div className="flex gap-3 overflow-x-auto pt-3 pb-3 -mx-2 px-2 snap-x">
             {(programRows.length ? programRows : Array.from({ length: 5 })).map((row, ri) => {
               const item = row?.item;
               const isNow = row?.kind === "now";
@@ -458,7 +458,6 @@ const Live = () => {
               ) : (
                 <p className="text-xs text-white/30">Niciun canal disponibil momentan.</p>
               )}
-              <p className="mt-4 text-[11px] text-white/30 text-center">Transmisiune sincronizată pentru toți. Nu poți schimba manual episodul.</p>
             </div>
           </aside>
         </div>
