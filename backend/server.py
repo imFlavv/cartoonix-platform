@@ -1217,6 +1217,46 @@ class RedeemCode(BaseModel):
     code: str
 
 
+@api_router.post("/rewards/preview-code")
+async def preview_code(body: RedeemCode, user: dict = Depends(get_current_user)):
+    """Validate a code WITHOUT consuming it, returning what it grants."""
+    code = (body.code or "").strip().upper()
+    if not code:
+        raise HTTPException(status_code=400, detail="Introdu un cod")
+    v = await db.vouchers.find_one({"code": code})
+    if not v or not v.get("active", True):
+        raise HTTPException(status_code=400, detail="Cod invalid sau inactiv")
+    uid = uid_of(user)
+    if v.get("type") == "plus" and user_is_plus(user):
+        raise HTTPException(status_code=400, detail="Ai deja acces PLUS activ. Poți dărui codul altcuiva.")
+    scope = v.get("scope", "universal")
+    if scope == "specific":
+        if v.get("target_user_id") and v["target_user_id"] != uid:
+            raise HTTPException(status_code=400, detail="Acest cod nu îți este destinat")
+        if int(v.get("used_count", 0)) >= 1:
+            raise HTTPException(status_code=400, detail="Acest cod a fost deja folosit")
+    else:
+        if await db.voucher_redemptions.find_one({"code": code, "user_id": uid}):
+            raise HTTPException(status_code=400, detail="Ai folosit deja acest cod")
+        mx = v.get("max_uses")
+        if mx is not None and int(v.get("used_count", 0)) >= int(mx):
+            raise HTTPException(status_code=400, detail="Acest cod și-a atins limita de utilizări")
+    vtype = v.get("type")
+    reward = {"type": vtype}
+    if vtype == "plus":
+        reward["title"] = "Acces Cartoonix PLUS pe viață"
+        reward["desc"] = "Deblochezi toate beneficiile premium, permanent."
+    elif vtype == "points":
+        pts = int(v.get("points", 0))
+        reward["points"] = pts
+        reward["title"] = f"{pts} NIX"
+        reward["desc"] = "Monedă care se adaugă instant în portofelul tău."
+    else:
+        reward["title"] = "Recompensă specială"
+        reward["desc"] = "Un cadou din partea echipei Cartoonix."
+    return {"ok": True, "code": code, "reward": reward}
+
+
 @api_router.post("/rewards/redeem-code")
 async def redeem_code(body: RedeemCode, user: dict = Depends(get_current_user)):
     code = (body.code or "").strip().upper()

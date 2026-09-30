@@ -4,14 +4,8 @@ import { NavBar } from "@/components/NavBar";
 import { api, formatApiErrorDetail } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import { ArrowLeft, Gift, Crown, Ticket, Tag, Clock, ChevronRight, Copy, Check } from "lucide-react";
+import { ArrowLeft, Gift, Crown, Ticket, Tag, Clock, ChevronRight, Copy, Check, Sparkles, Loader2, X } from "lucide-react";
 import { NixCoin } from "@/components/NixCoin";
-
-const PRODUCT_IMG = {
-  plus_invite: "https://static.prod-images.emergentagent.com/jobs/9e14088f-8d65-46e8-8761-dcb2cff76665/images/fdc68784e35b6a112f20a5dfdcd46b1b5f2c3a1ff89a720e32d92be60a14c83c.jpeg",
-  cinema_ticket: "https://static.prod-images.emergentagent.com/jobs/9e14088f-8d65-46e8-8761-dcb2cff76665/images/ce5c90a1fc41980587c5020b1a137bf1ce66bf2403e43d4605031adb17a8e915.jpeg",
-  emag_voucher: "https://static.prod-images.emergentagent.com/jobs/9e14088f-8d65-46e8-8761-dcb2cff76665/images/d2c3006de9e6f365358dcad0138d5c7fa280431967ad671690084c4cc5fa1289.jpeg",
-};
 
 const timeAgo = (iso) => {
   if (!iso) return "";
@@ -63,9 +57,10 @@ const Rewards = () => {
   const navigate = useNavigate();
   const { refreshUser } = useAuth();
   const [data, setData] = useState(null);
-  const [busy, setBusy] = useState(null);
   const [code, setCode] = useState("");
   const [redeeming, setRedeeming] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [preview, setPreview] = useState(null);
   const [lastGiftCode, setLastGiftCode] = useState(null);
 
   const load = useCallback(async () => {
@@ -77,32 +72,22 @@ const Rewards = () => {
 
   useEffect(() => { load(); }, [load]);
 
-  const redeem = async (p) => {
-    if ((data?.points ?? 0) < p.cost) {
-      toast.error("Nu ai suficient NIX pentru această recompensă");
-      return;
-    }
-    if (!window.confirm(`Revendici „${p.title}" pentru ${p.cost} NIX?`)) return;
-    setBusy(p.id);
+  const checkCode = async () => {
+    if (!code.trim()) return;
+    setChecking(true);
+    setPreview(null);
     try {
-      const { data: res } = await api.post("/rewards/redeem", { product_id: p.id });
-      if (res.claim?.voucher_code) {
-        setLastGiftCode({ title: p.title, code: res.claim.voucher_code });
-        toast.success("Cod PLUS generat! Îl poți dărui unui prieten.");
-      } else {
-        toast.success("Recompensă revendicată! O vei primi în curând.");
-      }
-      await load();
-      refreshUser?.();
+      const { data: res } = await api.post("/rewards/preview-code", { code: code.trim() });
+      setPreview(res.reward);
     } catch (e) {
-      toast.error(formatApiErrorDetail(e?.response?.data?.detail) || "Nu s-a putut revendica");
+      toast.error(formatApiErrorDetail(e?.response?.data?.detail) || "Cod invalid");
     } finally {
-      setBusy(null);
+      setChecking(false);
     }
   };
 
   const redeemCode = async () => {
-    if (!code.trim()) return;
+    if (!code.trim() || !preview) return;
     setRedeeming(true);
     try {
       const { data: res } = await api.post("/rewards/redeem-code", { code: code.trim() });
@@ -110,6 +95,7 @@ const Rewards = () => {
       else if (res.granted?.type === "points") toast.success(`Ai primit ${res.granted.points} NIX!`);
       else toast.success("Cod valorificat!");
       setCode("");
+      setPreview(null);
       await load();
       refreshUser?.();
     } catch (e) {
@@ -166,72 +152,110 @@ const Rewards = () => {
           />
         </div>
 
-        {/* Products */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8" data-testid="rewards-products">
-          {(data?.products || []).map((p) => {
-            const affordable = points >= p.cost;
-            return (
-              <div
-                key={p.id}
-                data-testid={`reward-product-${p.id}`}
-                className="bg-[#0f0f0f] border border-white/10 rounded-2xl p-4 flex flex-col hover:border-white/20 transition-colors duration-200"
-              >
-                <div className="rounded-xl overflow-hidden bg-black mb-4 aspect-square">
-                  <img src={PRODUCT_IMG[p.id]} alt={p.title} className="w-full h-full object-cover" draggable={false} />
-                </div>
-                <h3 className="font-display text-xl mb-1">{p.title}</h3>
-                <p className="text-sm text-white/50 flex-1 mb-3">{p.desc}</p>
-                <div className="flex items-center gap-1.5 text-[#c084fc] font-bold mb-3">
-                  <NixCoin className="h-4 w-4" /> Cost: {p.cost} NIX
-                </div>
-                <button
-                  data-testid={`redeem-${p.id}`}
-                  onClick={() => redeem(p)}
-                  disabled={busy === p.id || !affordable}
-                  className="w-full py-2.5 rounded-lg bg-[#ec1c24] text-white font-bold hover:bg-[#ff2d36] transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {busy === p.id ? "Se revendică..." : affordable ? "Revendică" : "NIX insuficient"}
-                </button>
+        {/* Products — dezactivat momentan */}
+        <div className="mb-8" data-testid="rewards-products">
+          <div
+            data-testid="rewards-empty-state"
+            className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#140f1c] via-[#0f0f0f] to-[#1a0f1a] px-6 py-14 text-center"
+          >
+            <div className="pointer-events-none absolute -top-16 left-1/2 -translate-x-1/2 h-48 w-48 rounded-full bg-[#ec4899]/20 blur-3xl" />
+            <div className="relative">
+              <div className="mx-auto mb-5 h-20 w-20 rounded-3xl bg-black/40 border border-white/10 flex items-center justify-center">
+                <Gift className="h-10 w-10 text-[#ec4899]" />
               </div>
-            );
-          })}
+              <h2 className="font-display text-2xl md:text-3xl mb-2">Momentan nu există recompense disponibile</h2>
+              <p className="text-white/50 max-w-md mx-auto text-sm md:text-base">
+                Lucrăm la o economie NIX nouă și echilibrată. Recompensele vor reveni în curând — între timp, continuă să aduni NIX!
+              </p>
+              <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-[#ffcc00]/30 bg-[#ffcc00]/10 px-4 py-1.5 text-xs font-semibold text-[#ffcc00]">
+                <Clock className="h-3.5 w-3.5" /> În curând
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Redeem code + recent activity */}
         <div className="grid lg:grid-cols-2 gap-4">
           {/* Redeem code */}
-          <div className="bg-[#0f0f0f] border border-[#ec1c24]/30 rounded-2xl p-6" data-testid="rewards-redeem-code">
-            <h3 className="font-display text-2xl flex items-center gap-2 mb-1">
-              <Tag className="h-6 w-6 text-[#ec1c24]" /> Valorifică Codul
-            </h3>
-            <p className="text-sm text-white/50 mb-4">Folosește un cod promoțional pentru a primi recompense exclusive.</p>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="relative flex-1">
-                <Gift className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
-                <input
-                  data-testid="redeem-code-input"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value.toUpperCase())}
-                  onKeyDown={(e) => e.key === "Enter" && redeemCode()}
-                  placeholder="Introdu codul tău (ex: ABC-123-XYZ)"
-                  className="w-full pl-9 pr-3 py-3 rounded-xl bg-white/5 border border-white/10 focus:border-[#ec1c24] outline-none font-mono tracking-wider uppercase"
-                />
+          <div className="relative overflow-hidden bg-gradient-to-br from-[#1a0b0c] via-[#0f0f0f] to-[#12080f] border border-[#ec1c24]/30 rounded-2xl p-6" data-testid="rewards-redeem-code">
+            <div className="pointer-events-none absolute -top-12 -right-10 h-40 w-40 rounded-full bg-[#ec1c24]/15 blur-3xl" />
+            <div className="relative">
+              <h3 className="font-display text-2xl flex items-center gap-2 mb-1">
+                <Tag className="h-6 w-6 text-[#ec1c24]" /> Valorifică Codul
+              </h3>
+              <p className="text-sm text-white/50 mb-4">Introdu un cod promoțional, verifică ce primești, apoi revendică-l.</p>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="relative flex-1">
+                  <Gift className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
+                  <input
+                    data-testid="redeem-code-input"
+                    value={code}
+                    onChange={(e) => { setCode(e.target.value.toUpperCase()); setPreview(null); }}
+                    onKeyDown={(e) => e.key === "Enter" && (preview ? redeemCode() : checkCode())}
+                    placeholder="Introdu codul tău (ex: ABC-123-XYZ)"
+                    className="w-full pl-9 pr-3 py-3 rounded-xl bg-white/5 border border-white/10 focus:border-[#ec1c24] outline-none font-mono tracking-wider uppercase"
+                  />
+                </div>
+                {!preview && (
+                  <button
+                    data-testid="check-code-btn"
+                    onClick={checkCode}
+                    disabled={checking || !code.trim()}
+                    className="px-6 py-3 rounded-xl bg-white/10 border border-white/15 text-white font-bold hover:bg-white/15 transition-colors duration-200 disabled:opacity-50 shrink-0 flex items-center justify-center gap-2"
+                  >
+                    {checking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4 text-[#ffcc00]" />}
+                    {checking ? "Se verifică..." : "Verifică"}
+                  </button>
+                )}
               </div>
-              <button
-                data-testid="redeem-code-btn"
-                onClick={redeemCode}
-                disabled={redeeming || !code.trim()}
-                className="px-6 py-3 rounded-xl bg-[#ec1c24] text-white font-bold hover:bg-[#ff2d36] transition-colors duration-200 disabled:opacity-50 shrink-0"
-              >
-                {redeeming ? "..." : "Valorifică"}
-              </button>
+
+              {/* Preview a ceea ce oferă codul */}
+              {preview && (
+                <div data-testid="code-preview" className="mt-4 rounded-2xl border border-[#ffcc00]/30 bg-gradient-to-br from-[#1a1607] to-[#0f0f0f] p-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <div className="flex items-center gap-4">
+                    <div className="h-14 w-14 rounded-2xl bg-black/40 border border-[#ffcc00]/30 flex items-center justify-center shrink-0">
+                      {preview.type === "plus"
+                        ? <Crown className="h-7 w-7 text-[#ffcc00]" />
+                        : preview.type === "points"
+                          ? <NixCoin className="h-7 w-7" />
+                          : <Gift className="h-7 w-7 text-[#ec4899]" />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] uppercase tracking-wide text-[#ffcc00]/70 font-bold mb-0.5">Codul tău oferă</p>
+                      <p className="font-display text-xl leading-tight truncate" data-testid="code-preview-title">{preview.title}</p>
+                      <p className="text-xs text-white/50 truncate">{preview.desc}</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 mt-4">
+                    <button
+                      data-testid="redeem-code-btn"
+                      onClick={redeemCode}
+                      disabled={redeeming}
+                      className="flex-1 py-3 rounded-xl bg-[#ec1c24] text-white font-bold hover:bg-[#ff2d36] transition-colors duration-200 disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {redeeming ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                      {redeeming ? "Se revendică..." : "Revendică recompensa"}
+                    </button>
+                    <button
+                      data-testid="cancel-code-btn"
+                      onClick={() => setPreview(null)}
+                      disabled={redeeming}
+                      className="px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white/60 hover:text-white hover:bg-white/10 transition-colors duration-200 disabled:opacity-50"
+                      title="Anulează"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {lastGiftCode && (
+                <div className="mt-4">
+                  <p className="text-xs text-white/50">Cod PLUS generat pentru „{lastGiftCode.title}" — dăruiește-l unui prieten FREE:</p>
+                  <CodeResult code={lastGiftCode.code} />
+                </div>
+              )}
             </div>
-            {lastGiftCode && (
-              <div className="mt-4">
-                <p className="text-xs text-white/50">Cod PLUS generat pentru „{lastGiftCode.title}" — dăruiește-l unui prieten FREE:</p>
-                <CodeResult code={lastGiftCode.code} />
-              </div>
-            )}
           </div>
 
           {/* Recent activity */}

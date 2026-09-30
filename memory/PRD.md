@@ -189,3 +189,12 @@ with chat, Halloween seasonal event, custom currency "NIX", Mystery Box spin/cas
 - /live: added channel selection. New backend endpoint `GET /api/live/channels` (General + one per distinct `channel` field: Cartoon Network, Jetix, Minimax, ...). `GET /api/live/now?channel=<name>` now serves a per-channel synchronized schedule (deterministic shuffle from shared epoch/seed, filtered by `channel`). "General" (Canalul 01) keeps all shows mixed.
 - Frontend `Live.jsx`: channel picker row; switching channel resets seek/EPG and refetches. Program (EPG) reflects only the selected channel.
 - Verified with seeded multi-channel shows (filtering + EPG correct); seed data removed after test.
+
+## 2026-06 Update — Chat icons + layout fix + Rewards restructurare
+- ChatRoom.jsx layout fix: eliminat wrapper-ul extra `<div className="relative z-10 h-full">` adăugat la introducerea fundalului cosmic (rupsese BFC-ul din `overflow-hidden` → conținutul urca și lăsa spațiu gol în footer). Acum `relative z-10` e direct pe containerul de conținut (`mt-16 h-[calc(100vh-4rem)]`). Confirmat vizual de user.
+- Chat: sub avatarul din dreptul fiecărui mesaj, rombul (Hexagon) înlocuit cu bulă de mesaj plină `MessageCircle` (fill currentColor, strokeWidth 0), violet `#a855f7`, lângă numărul de mesaje.
+- /lobby/rewards (Rewards.jsx): eliminat grid-ul de produse/recompense; afișat empty-state elegant „Momentan nu există recompense disponibile" (economia NIX se va redefini ulterior). Stat cards + Activitate recentă păstrate.
+- Caseta „Valorifică Codul" redesenată cu flux preview→claim:
+  - Nou endpoint backend `POST /api/rewards/preview-code` (validează codul FĂRĂ a-l consuma, returnează {reward: {type,title,desc,points}}). Aceeași validare ca redeem-code (invalid/inactiv/deja folosit/limită/PLUS deja activ).
+  - UI: input + buton „Verifică" → card preview cu ce oferă codul (PLUS pe viață / X NIX) → buton „Revendică recompensa" (apelează `/rewards/redeem-code`) + buton anulare.
+  - Verificat e2e prin curl: preview(points)→ok, preview(invalid)→400, redeem→grant 100 NIX, preview după redeem→„deja folosit". Date de test curățate.
