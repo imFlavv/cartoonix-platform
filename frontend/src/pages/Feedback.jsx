@@ -122,11 +122,11 @@ const Feedback = () => {
                   </span>
                 </div>
               )}
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <button data-testid="feedback-go-spin" onClick={() => navigate("/spin")} className="px-6 py-3 rounded-full bg-[#ffcc00] text-black font-bold hover:brightness-110 transition-all duration-200 inline-flex items-center justify-center gap-2">
-                  <KeyIcon className="h-5 w-5" /> Folosește cheia în Mystery Box
+              <div className="flex flex-col gap-3">
+                <button data-testid="feedback-go-spin" onClick={() => navigate("/spin")} className="w-full px-6 py-3.5 rounded-2xl bg-[#ffcc00] text-black font-bold text-base hover:brightness-110 active:scale-[0.99] transition-all duration-200 inline-flex items-center justify-center gap-2.5 shadow-lg shadow-[#ffcc00]/20">
+                  <KeyIcon className="h-5 w-5" /> Deschide Mystery Box
                 </button>
-                <button data-testid="feedback-go-lobby" onClick={() => navigate("/lobby")} className="px-6 py-3 rounded-full bg-white/5 border border-white/15 text-white font-bold hover:bg-white/10 transition-colors duration-200">
+                <button data-testid="feedback-go-lobby" onClick={() => navigate("/lobby")} className="w-full px-6 py-3 rounded-2xl bg-white/[0.04] border border-white/10 text-white/70 font-semibold hover:bg-white/[0.08] hover:text-white transition-all duration-200">
                   Înapoi la Lobby
                 </button>
               </div>

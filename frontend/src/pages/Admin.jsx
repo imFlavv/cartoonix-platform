@@ -3,7 +3,7 @@ import { NavBar } from "@/components/NavBar";
 import { api } from "@/lib/api";
 import { CHANNELS } from "@/data/constants";
 import { toast } from "sonner";
-import { FolderSearch, Plus, Film, Lightbulb, Users, Pencil, ChevronUp, ChevronDown, ServerCog, Inbox, ImageOff, MessagesSquare, Megaphone, RotateCcw, Crown, Heart, Tv, Gift } from "lucide-react";
+import { FolderSearch, Plus, Film, Lightbulb, Users, Pencil, ChevronUp, ChevronDown, ServerCog, Inbox, ImageOff, MessagesSquare, Megaphone, RotateCcw, Crown, Heart, Tv, Gift, MessageSquareHeart } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { AdminMembers } from "@/components/AdminMembers";
@@ -12,6 +12,7 @@ import { AdminChat } from "@/components/AdminChat";
 import { AdminAnnouncements } from "@/components/AdminAnnouncements";
 import { AdminShowEditor } from "@/components/AdminShowEditor";
 import { AdminRewards } from "@/components/AdminRewards";
+import { AdminFeedback } from "@/components/AdminFeedback";
 import { AdminSpin } from "@/components/AdminSpin";
 import { CinemaAdmin } from "@/components/CinemaAdmin";
 
@@ -343,6 +344,9 @@ const Admin = () => {
             </TabsTrigger>
             <TabsTrigger value="platform" data-testid="admin-tab-platform" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
               <ServerCog className="h-4 w-4 mr-2" /> Platformă
+            </TabsTrigger>
+            <TabsTrigger value="feedback" data-testid="admin-tab-feedback" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
+              <MessageSquareHeart className="h-4 w-4 mr-2" /> Feedback
             </TabsTrigger>
           </TabsList>
 
@@ -704,6 +708,10 @@ const Admin = () => {
 
           <TabsContent value="cinema">
             <CinemaAdmin />
+          </TabsContent>
+
+          <TabsContent value="feedback">
+            <AdminFeedback />
           </TabsContent>
         </Tabs>
       </div>
