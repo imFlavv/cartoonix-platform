@@ -1323,6 +1323,65 @@ async def redeem_code(body: RedeemCode, user: dict = Depends(get_current_user)):
     return {"ok": True, "granted": granted, "points": int(fresh.get("points", 0)), "spins": int(fresh.get("spins", 0)), "plus": user_is_plus(fresh)}
 
 
+# ---------- Feedback survey (one per user, rewards 10 NIX + 1 key) ----------
+FEEDBACK_REWARD_POINTS = 10
+FEEDBACK_REWARD_KEYS = 1
+
+
+class FeedbackSubmit(BaseModel):
+    answers: dict
+
+
+@api_router.get("/feedback/status")
+async def feedback_status(user: dict = Depends(get_current_user)):
+    existing = await db.feedback.find_one({"user_id": uid_of(user)})
+    return {"submitted": bool(existing)}
+
+
+@api_router.post("/feedback")
+async def submit_feedback(data: FeedbackSubmit, user: dict = Depends(get_current_user)):
+    if not isinstance(data.answers, dict) or len(data.answers) == 0:
+        raise HTTPException(status_code=400, detail="Formularul este gol")
+    uid = uid_of(user)
+    now_iso = datetime.now(timezone.utc).isoformat()
+    # atomic one-per-user guard: only the first insert wins the reward
+    res = await db.feedback.update_one(
+        {"user_id": uid},
+        {"$setOnInsert": {
+            "user_id": uid, "user_name": user_name(user),
+            "user_email": user.get("email", ""), "answers": data.answers,
+            "created_at": now_iso,
+            "reward_points": FEEDBACK_REWARD_POINTS, "reward_keys": FEEDBACK_REWARD_KEYS,
+        }},
+        upsert=True,
+    )
+    if res.upserted_id is None:
+        raise HTTPException(status_code=400, detail="Ai completat deja acest formular. Mulțumim!")
+    await db.users.update_one(
+        {"_id": user["_id"]},
+        {"$inc": {"points": FEEDBACK_REWARD_POINTS, "spins": FEEDBACK_REWARD_KEYS}},
+    )
+    await db.points_ledger.insert_one({
+        "user_id": uid, "type": "feedback", "points": FEEDBACK_REWARD_POINTS,
+        "created_at": now_iso,
+    })
+    fresh = await find_user_by_id(uid) or user
+    return {
+        "ok": True,
+        "reward": {"points": FEEDBACK_REWARD_POINTS, "keys": FEEDBACK_REWARD_KEYS},
+        "points": int(fresh.get("points", 0)), "spins": int(fresh.get("spins", 0)),
+    }
+
+
+@api_router.get("/admin/feedback")
+async def admin_list_feedback(admin: dict = Depends(require_admin)):
+    docs = await db.feedback.find({}).sort("created_at", -1).to_list(2000)
+    for d in docs:
+        d.pop("_id", None)
+    return docs
+
+
+
 class ClaimAvatarInput(BaseModel):
     claim_id: str
 
