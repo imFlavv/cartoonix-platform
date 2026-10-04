@@ -296,7 +296,7 @@ PREMIUM_AVATARS = {
 
 # Avatars that must be unlocked (bought / earned) before a user can equip them.
 LIMITED_AVATARS = {
-    "/halloween/avatar-scarecrow.png",
+    "/halloween/avatar-scarecrow.gif",
 }
 
 
@@ -1130,58 +1130,63 @@ REWARD_PRODUCTS = {
 }
 
 # NIX shop — auto-granted items shown in /lobby/rewards, grouped by category.
-# max_per_user = how many times a single user may buy it (lifetime).
-# cooldown_hours = minimum time between two purchases of the same item by the same user.
+# limit + window_hours: max `limit` purchases per rolling `window_hours` window
+# (window_hours = 0 means a lifetime limit, e.g. one-time avatars).
 SHOP_CATALOG = {
     "key_1": {"category": "key", "title": "Mystery Box Key", "cost": 20, "kind": "keys", "keys": 1,
               "desc": "O cheie pentru Mystery Box.", "img": "/nix/key.png",
-              "max_per_user": 3, "cooldown_hours": 24},
+              "limit": 3, "window_hours": 24},
     "key_3": {"category": "key", "title": "3× Mystery Box Key", "cost": 50, "kind": "keys", "keys": 3,
               "desc": "Trei chei pentru Mystery Box.", "img": "/nix/key.png",
-              "max_per_user": 3, "cooldown_hours": 24},
+              "limit": 3, "window_hours": 24},
     "key_5": {"category": "key", "title": "5× Mystery Box Key", "cost": 75, "kind": "keys", "keys": 5,
               "desc": "Cinci chei pentru Mystery Box.", "img": "/nix/key.png",
-              "max_per_user": 3, "cooldown_hours": 24},
+              "limit": 3, "window_hours": 24},
     "avatar_halloween": {"category": "limited", "title": "Avatar Halloween", "cost": 50, "kind": "avatar",
-                         "avatar": "/halloween/avatar-scarecrow.png", "desc": "Avatar exclusiv de Halloween. Ediție limitată.",
-                         "img": "/halloween/avatar-scarecrow.png", "max_per_user": 1, "cooldown_hours": 0},
+                         "avatar": "/halloween/avatar-scarecrow.gif", "desc": "Avatar exclusiv de Halloween. Ediție limitată.",
+                         "img": "/halloween/avatar-scarecrow.gif", "limit": 1, "window_hours": 0},
 }
 
 
-async def _shop_state_for_user(uid: str):
-    """Returns per-item purchase state (count + last purchase time) for a user."""
+async def _shop_timestamps_for_user(uid: str):
+    """Returns {item_id: [iso_timestamps...]} for a user's shop purchases."""
     state = {}
     async for p in db.shop_purchases.find({"user_id": uid}):
-        iid = p.get("item_id")
-        s = state.setdefault(iid, {"count": 0, "last": None})
-        s["count"] += 1
-        ts = p.get("created_at")
-        if ts and (s["last"] is None or ts > s["last"]):
-            s["last"] = ts
+        state.setdefault(p.get("item_id"), []).append(p.get("created_at"))
     return state
+
+
+def _recent_in_window(timestamps, window_hours):
+    """Timestamps within the rolling window (all of them if window_hours == 0)."""
+    ts = [t for t in (timestamps or []) if t]
+    if window_hours <= 0:
+        return sorted(ts)
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=window_hours)).isoformat()
+    return sorted([t for t in ts if t >= cutoff])
 
 
 def _shop_items_payload(state: dict, event_avatars: list):
     items = []
     for iid, it in SHOP_CATALOG.items():
-        s = state.get(iid, {"count": 0, "last": None})
-        count = s["count"]
-        maxp = int(it["max_per_user"])
+        window = int(it.get("window_hours", 0))
+        limit = int(it["limit"])
+        recent = _recent_in_window(state.get(iid, []), window)
+        count = len(recent)
+        at_limit = count >= limit
         next_at = None
-        cd = int(it.get("cooldown_hours", 0))
-        if cd > 0 and s["last"] and count < maxp:
+        if at_limit and window > 0 and recent:
+            # the window frees up when the OLDEST purchase in the window ages out
             try:
-                last_dt = datetime.fromisoformat(s["last"])
-                next_at = (last_dt + timedelta(hours=cd)).isoformat()
+                next_at = (datetime.fromisoformat(recent[0]) + timedelta(hours=window)).isoformat()
             except Exception:
                 next_at = None
         items.append({
             "id": iid, "category": it["category"], "title": it["title"], "cost": it["cost"],
             "kind": it["kind"], "desc": it["desc"], "img": it.get("img"),
             "keys": it.get("keys", 0), "avatar": it.get("avatar"),
-            "max_per_user": maxp, "cooldown_hours": cd,
+            "max_per_user": limit, "window_hours": window,
             "purchased_count": count,
-            "sold_out": count >= maxp,
+            "sold_out": at_limit,
             "next_available_at": next_at,
             "owned": bool(it.get("avatar") and it["avatar"] in (event_avatars or [])),
         })
@@ -1221,7 +1226,7 @@ async def get_rewards(user: dict = Depends(get_current_user)):
     claims = [c for c in claims if not (c.get("kind") == "plus_invite" and c.get("voucher_code") in used_codes)]
     products = [{"id": pid, **{k: p[k] for k in ("title", "cost", "kind", "desc")}}
                 for pid, p in REWARD_PRODUCTS.items()]
-    shop_state = await _shop_state_for_user(uid)
+    shop_state = await _shop_timestamps_for_user(uid)
     shop = _shop_items_payload(shop_state, fresh.get("event_avatars") or [])
     return {
         "points": int(fresh.get("points", 0)),
@@ -1245,28 +1250,31 @@ async def shop_purchase(body: ShopPurchase, user: dict = Depends(get_current_use
     if not item:
         raise HTTPException(status_code=404, detail="Produs inexistent")
     uid = uid_of(user)
-    # Purchase limits (lifetime count + cooldown) — checked before taking NIX.
-    purchases = await db.shop_purchases.find({"user_id": uid, "item_id": body.item_id}).sort("created_at", -1).to_list(100)
-    maxp = int(item["max_per_user"])
-    if len(purchases) >= maxp:
-        raise HTTPException(status_code=400, detail="Ai atins limita de achiziții pentru acest produs")
+    window = int(item.get("window_hours", 0))
+    limit = int(item["limit"])
     if item.get("kind") == "avatar" and item.get("avatar") in (user.get("event_avatars") or []):
         raise HTTPException(status_code=400, detail="Deții deja acest avatar")
-    cd = int(item.get("cooldown_hours", 0))
-    if cd > 0 and purchases:
-        try:
-            last_dt = datetime.fromisoformat(purchases[0]["created_at"])
-            ready_at = last_dt + timedelta(hours=cd)
-            now = datetime.now(timezone.utc)
-            if now < ready_at:
-                mins = int((ready_at - now).total_seconds() // 60)
-                hrs = mins // 60
-                when = f"{hrs}h {mins % 60}min" if hrs else f"{mins} min"
-                raise HTTPException(status_code=400, detail=f"Mai poți cumpăra acest produs peste {when}")
-        except HTTPException:
-            raise
-        except Exception:
-            pass
+    # Rolling-window limit: at most `limit` purchases per `window_hours` (lifetime if 0).
+    all_ts = []
+    async for p in db.shop_purchases.find({"user_id": uid, "item_id": body.item_id}):
+        if p.get("created_at"):
+            all_ts.append(p["created_at"])
+    recent = _recent_in_window(all_ts, window)
+    if len(recent) >= limit:
+        if window > 0 and recent:
+            try:
+                ready_at = datetime.fromisoformat(recent[0]) + timedelta(hours=window)
+                now = datetime.now(timezone.utc)
+                if now < ready_at:
+                    mins = int((ready_at - now).total_seconds() // 60)
+                    hrs = mins // 60
+                    when = f"{hrs}h {mins % 60}min" if hrs else f"{mins} min"
+                    raise HTTPException(status_code=400, detail=f"Ai cumpărat deja de {limit} ori în ultimele 24h. Revino peste {when}")
+            except HTTPException:
+                raise
+            except Exception:
+                pass
+        raise HTTPException(status_code=400, detail="Ai atins limita de achiziții pentru acest produs")
     cost = int(item["cost"])
     updated = await db.users.find_one_and_update(
         {"_id": user["_id"], "points": {"$gte": cost}},
@@ -1293,7 +1301,7 @@ async def shop_purchase(body: ShopPurchase, user: dict = Depends(get_current_use
         "item_id": body.item_id, "item_title": item["title"], "created_at": now_iso,
     })
     fresh = await find_user_by_id(uid) or user
-    shop_state = await _shop_state_for_user(uid)
+    shop_state = await _shop_timestamps_for_user(uid)
     shop = _shop_items_payload(shop_state, fresh.get("event_avatars") or [])
     return {
         "ok": True, "granted": granted,

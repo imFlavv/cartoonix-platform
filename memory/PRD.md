@@ -209,3 +209,13 @@ with chat, Halloween seasonal event, custom currency "NIX", Mystery Box spin/cas
   - Frontend AdminRewards.jsx: al treilea buton tip „Chei" (grid-cols-3, KeyIcon, portocaliu #ff7a18), input „Câte chei Mystery Box oferă", payload.keys, afișare în cod generat + tabel istoric.
   - Rewards.jsx: toast la redeem pentru chei + iconiță KeyIcon în card preview.
   - Verificat e2e prin curl: admin creează voucher 3 chei → preview „3 Chei Mystery Box" → redeem → spins 10→13. Date de test curățate.
+
+## 2026-10 — NIX Shop + Feedback admin tab + done-card redesign
+- /feedback: done-card buttons redesenate (full-width, o linie: „Deschide Mystery Box" + „Înapoi la Lobby").
+- Admin: tab nou „Feedback" (AdminFeedback.jsx): rating mediu (media stelelor din Q13+Q19), notă medie (media din Q24 x/10), nr. total răspunsuri, listă respondenți (username + dată + notă) cu icon ochi → modal cu toate răspunsurile. Listă paginată 25/pagină. Backend GET /api/admin/feedback.
+- NIX SHOP în /lobby/rewards (înlocuiește empty-state). Backend: SHOP_CATALOG + POST /api/shop/purchase + shop în GET /api/rewards. db.shop_purchases + points_ledger type=shop.
+  - Categoria „Chei Mystery Box": key_1 (Mystery Box Key, 20 NIX, +1 cheie), key_3 (3× , 50 NIX, +3), key_5 (5×, 75 NIX, +5). Limită: max 3 achiziții per produs la fiecare 24h (fereastră glisantă: 1/3,2/3,3/3, apoi se resetează pe măsură ce achizițiile ies din fereastra de 24h). next_available_at = cea mai veche achiziție din fereastră + 24h.
+  - Categoria „Ediție Limitată": avatar_halloween (Avatar Halloween, 50 NIX, o singură dată/lifetime). La cumpărare se adaugă în event_avatars; se echipează din Settings → Personalizare. Gate nou LIMITED_AVATARS în PUT /auth/avatar (403 dacă nu e deblocat).
+  - Avatarul: /halloween/avatar-scarecrow.png (generat flat-silhouette: sperietoare cu cap de dovleac + joben pe cruce, lună plină, brazi, lilieci, „HAPPY HALLOWEEN").
+  - Verificat curl: buy 3× key_1 OK (spins 10→13), a 4-a blocată „de 3 ori în ultimele 24h", avatar buy OK + a 2-a „deții deja/limită", gate echipare avatar funcționează.
+- NU verificat vizual (tool-ul de screenshot e blocat de intro splash 2.8s în mediu). Backend verificat integral prin curl; frontend compilează curat.

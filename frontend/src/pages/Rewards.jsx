@@ -146,15 +146,15 @@ const Rewards = () => {
     const remaining = item.next_available_at ? fmtRemaining(item.next_available_at) : null;
     const owned = item.owned;
     const soldOut = item.sold_out && !owned;
-    const onCooldown = !!remaining && !soldOut && !owned;
+    const limitedByWindow = soldOut && item.window_hours > 0;
     const affordable = points >= item.cost;
-    const disabled = owned || soldOut || onCooldown || !affordable || buying === item.id;
+    const disabled = owned || soldOut || !affordable || buying === item.id;
     const isAvatar = item.kind === "avatar";
 
     let label = `Cumpără · ${item.cost} NIX`;
     if (owned) label = "Deținut";
+    else if (limitedByWindow) label = remaining ? `Revine în ${remaining}` : "Revino mai târziu";
     else if (soldOut) label = "Limită atinsă";
-    else if (onCooldown) label = `Disponibil peste ${remaining}`;
     else if (!affordable) label = "NIX insuficient";
 
     return (
@@ -204,7 +204,7 @@ const Rewards = () => {
         >
           {buying === item.id ? <Loader2 className="h-4 w-4 animate-spin" />
             : owned ? <Check className="h-4 w-4" />
-            : onCooldown ? <Clock className="h-4 w-4" />
+            : limitedByWindow ? <Clock className="h-4 w-4" />
             : soldOut ? <Lock className="h-4 w-4" />
             : <ShoppingCart className="h-4 w-4" />}
           {label}
