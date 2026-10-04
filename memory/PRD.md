@@ -219,3 +219,9 @@ with chat, Halloween seasonal event, custom currency "NIX", Mystery Box spin/cas
   - Avatarul: /halloween/avatar-scarecrow.png (generat flat-silhouette: sperietoare cu cap de dovleac + joben pe cruce, lună plină, brazi, lilieci, „HAPPY HALLOWEEN").
   - Verificat curl: buy 3× key_1 OK (spins 10→13), a 4-a blocată „de 3 ori în ultimele 24h", avatar buy OK + a 2-a „deții deja/limită", gate echipare avatar funcționează.
 - NU verificat vizual (tool-ul de screenshot e blocat de intro splash 2.8s în mediu). Backend verificat integral prin curl; frontend compilează curat.
+
+## 2026-10 — Rewards UI: shop cards compacte + layout + activitate expandabilă
+- Shop cards (`ShopCard` în `Rewards.jsx`) redesenate din cartonașe mari verticale (aspect-square) în carduri compacte orizontale (icon mic 56px + titlu/preț + buton pe un rând). Grid shop redus de la 3 la 2 coloane.
+- Layout `/lobby/rewards` restructurat: grid 3 coloane — stânga (col-span-2) are stats + shop, dreapta (col-span-1, sticky) are „Valorifică Codul" (cu glow, mai vizibil) + „Activitate recentă" — astfel codul promoțional e mereu vizibil, chiar la scroll.
+- „Activitate recentă" transformată în secțiune expandabilă (closed by default): header-ul (cu nr. claims) e buton clickabil cu chevron animat, conținutul se deschide/închide cu tranziție max-height.
+- NU verificat vizual prin screenshot tool (blocat pe splash-ul static al mediului, cunoscut din sesiuni anterioare) — frontend compilează fără erori. User să confirme vizual pe `/lobby/rewards`.

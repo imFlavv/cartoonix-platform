@@ -4,7 +4,7 @@ import { NavBar } from "@/components/NavBar";
 import { api, formatApiErrorDetail } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import { ArrowLeft, Gift, Crown, Ticket, Tag, Clock, ChevronRight, Copy, Check, Sparkles, Loader2, X, Lock, ShoppingCart } from "lucide-react";
+import { ArrowLeft, Gift, Crown, Ticket, Tag, Clock, ChevronRight, ChevronDown, Copy, Check, Sparkles, Loader2, X, Lock, ShoppingCart } from "lucide-react";
 import { NixCoin } from "@/components/NixCoin";
 import { KeyIcon } from "@/components/KeyIcon";
 
@@ -65,6 +65,7 @@ const Rewards = () => {
   const [lastGiftCode, setLastGiftCode] = useState(null);
   const [buying, setBuying] = useState(null);
   const [now, setNow] = useState(Date.now());
+  const [activityOpen, setActivityOpen] = useState(false);
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 30000);
@@ -378,35 +379,50 @@ const Rewards = () => {
               </div>
             </div>
 
-            {/* Recent activity */}
-            <div className="bg-[#0f0f0f] border border-white/10 rounded-2xl p-5" data-testid="rewards-activity">
-              <h3 className="font-display text-lg flex items-center gap-2 mb-3">
-                <Clock className="h-5 w-5 text-white/60" /> Activitate recentă
-              </h3>
-              {claims.length === 0 ? (
-                <div className="flex flex-col items-center justify-center text-center py-8 text-white/40">
-                  <Gift className="h-10 w-10 mb-2 text-white/20" />
-                  <p className="text-sm">Nu ai revendicat încă nicio recompensă.</p>
-                </div>
-              ) : (
-                <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                  {claims.map((c) => (
-                    <div key={c.id} data-testid={`activity-${c.id}`} className="flex items-center gap-3 p-2.5 rounded-xl bg-white/[0.03] border border-white/5">
-                      <div className="h-9 w-9 rounded-lg bg-black/40 border border-white/10 flex items-center justify-center shrink-0">
-                        {c.kind === "plus_invite" ? <Crown className="h-4 w-4 text-[#ffcc00]" /> : <Ticket className="h-4 w-4 text-[#ec4899]" />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold truncate">Ai revendicat {c.product_title}</p>
-                        <p className="text-xs text-white/40">
-                          {c.status === "fulfilled" ? "Onorat" : c.status === "canceled" ? "Anulat" : "În procesare"} · {timeAgo(c.created_at)}
-                        </p>
-                        {c.voucher_code && <div className="mt-1"><CodeResult code={c.voucher_code} /></div>}
-                      </div>
-                      <span className="text-[#ec1c24] font-bold text-sm shrink-0">- {c.cost}</span>
+            {/* Recent activity (expandable) */}
+            <div className="bg-[#0f0f0f] border border-white/10 rounded-2xl overflow-hidden" data-testid="rewards-activity">
+              <button
+                type="button"
+                data-testid="activity-toggle"
+                onClick={() => setActivityOpen((v) => !v)}
+                className="w-full flex items-center justify-between gap-2 p-5 text-left"
+              >
+                <h3 className="font-display text-lg flex items-center gap-2">
+                  <Clock className="h-5 w-5 text-white/60" /> Activitate recentă
+                  {claims.length > 0 && <span className="text-xs font-normal text-white/40">({claims.length})</span>}
+                </h3>
+                <ChevronDown className={`h-5 w-5 text-white/50 shrink-0 transition-transform duration-200 ${activityOpen ? "rotate-180" : ""}`} />
+              </button>
+              <div
+                className={`transition-all duration-300 ease-in-out overflow-hidden ${activityOpen ? "max-h-[420px]" : "max-h-0"}`}
+              >
+                <div className="px-5 pb-5">
+                  {claims.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center text-center py-8 text-white/40">
+                      <Gift className="h-10 w-10 mb-2 text-white/20" />
+                      <p className="text-sm">Nu ai revendicat încă nicio recompensă.</p>
                     </div>
-                  ))}
+                  ) : (
+                    <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                      {claims.map((c) => (
+                        <div key={c.id} data-testid={`activity-${c.id}`} className="flex items-center gap-3 p-2.5 rounded-xl bg-white/[0.03] border border-white/5">
+                          <div className="h-9 w-9 rounded-lg bg-black/40 border border-white/10 flex items-center justify-center shrink-0">
+                            {c.kind === "plus_invite" ? <Crown className="h-4 w-4 text-[#ffcc00]" /> : <Ticket className="h-4 w-4 text-[#ec4899]" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold truncate">Ai revendicat {c.product_title}</p>
+                            <p className="text-xs text-white/40">
+                              {c.status === "fulfilled" ? "Onorat" : c.status === "canceled" ? "Anulat" : "În procesare"} · {timeAgo(c.created_at)}
+                            </p>
+                            {c.voucher_code && <div className="mt-1"><CodeResult code={c.voucher_code} /></div>}
+                          </div>
+                          <span className="text-[#ec1c24] font-bold text-sm shrink-0">- {c.cost}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
           </div>
         </div>
