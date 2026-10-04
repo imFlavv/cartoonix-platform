@@ -160,41 +160,44 @@ const Rewards = () => {
     return (
       <div
         data-testid={`shop-item-${item.id}`}
-        className="group relative flex flex-col bg-[#111] border border-white/10 rounded-2xl p-4 hover:border-white/20 transition-colors duration-200"
+        className="group relative flex items-center gap-3 bg-[#111] border border-white/10 rounded-xl p-3 hover:border-white/20 transition-colors duration-200"
       >
-        <div className={`relative rounded-xl overflow-hidden mb-3 aspect-square ${isAvatar ? "bg-black" : "bg-gradient-to-br from-[#1a1206] to-[#0f0f0f] flex items-center justify-center"}`}>
+        <div className={`relative h-14 w-14 rounded-lg overflow-hidden shrink-0 ${isAvatar ? "bg-black" : "bg-gradient-to-br from-[#1a1206] to-[#0f0f0f] flex items-center justify-center"}`}>
           {isAvatar ? (
             <img src={item.img} alt={item.title} className="w-full h-full object-cover" draggable={false} />
           ) : (
             <div className="relative flex items-center justify-center">
-              <KeyIcon className="h-20 w-20 drop-shadow-[0_0_18px_rgba(255,122,24,0.5)]" />
+              <KeyIcon className="h-9 w-9 drop-shadow-[0_0_10px_rgba(255,122,24,0.5)]" />
               {item.keys > 1 && (
-                <span className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full bg-[#ff7a18] text-black text-sm font-black grid place-items-center border-2 border-[#111]">×{item.keys}</span>
+                <span className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-[#ff7a18] text-black text-[10px] font-black grid place-items-center border-2 border-[#111]">×{item.keys}</span>
               )}
             </div>
           )}
           {owned && (
             <div className="absolute inset-0 bg-black/55 flex items-center justify-center">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#22c55e]/90 text-black text-xs font-bold"><Check className="h-4 w-4" /> Deținut</span>
+              <Check className="h-5 w-5 text-[#22c55e]" />
             </div>
           )}
         </div>
-        <div className="flex items-start justify-between gap-2">
-          <h3 className="font-display text-lg leading-tight">{item.title}</h3>
-          {isAvatar && <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-[#ff7a18]/15 text-[#ffb37a] border border-[#ff7a18]/30">Limitat</span>}
-        </div>
-        <p className="text-xs text-white/50 flex-1 mt-1 mb-3">{item.desc}</p>
-        <div className="flex items-center gap-1.5 text-[#c084fc] font-bold mb-3">
-          <NixCoin className="h-4 w-4" /> {item.cost} NIX
-          {item.max_per_user > 1 && (
-            <span className="ml-auto text-[11px] text-white/40 font-normal">{item.purchased_count}/{item.max_per_user} cumpărate</span>
-          )}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <h3 className="font-display text-sm leading-tight truncate">{item.title}</h3>
+            {isAvatar && <span className="shrink-0 text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-[#ff7a18]/15 text-[#ffb37a] border border-[#ff7a18]/30">Limitat</span>}
+          </div>
+          <p className="text-[11px] text-white/40 truncate">{item.desc}</p>
+          <div className="flex items-center gap-1 text-[#c084fc] font-bold text-xs mt-1">
+            <NixCoin className="h-3.5 w-3.5" /> {item.cost} NIX
+            {item.max_per_user > 1 && (
+              <span className="ml-1 text-white/40 font-normal">({item.purchased_count}/{item.max_per_user})</span>
+            )}
+          </div>
         </div>
         <button
           data-testid={`shop-buy-${item.id}`}
           onClick={() => buy(item)}
           disabled={disabled}
-          className={`w-full py-2.5 rounded-lg font-bold transition-colors duration-200 inline-flex items-center justify-center gap-2 ${
+          title={label}
+          className={`shrink-0 px-3 py-2 rounded-lg text-xs font-bold transition-colors duration-200 inline-flex items-center justify-center gap-1.5 whitespace-nowrap ${
             owned
               ? "bg-[#22c55e]/15 text-[#22c55e] cursor-default"
               : disabled
@@ -202,12 +205,12 @@ const Rewards = () => {
                 : "bg-[#ec1c24] text-white hover:bg-[#ff2d36]"
           }`}
         >
-          {buying === item.id ? <Loader2 className="h-4 w-4 animate-spin" />
-            : owned ? <Check className="h-4 w-4" />
-            : limitedByWindow ? <Clock className="h-4 w-4" />
-            : soldOut ? <Lock className="h-4 w-4" />
-            : <ShoppingCart className="h-4 w-4" />}
-          {label}
+          {buying === item.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            : owned ? <Check className="h-3.5 w-3.5" />
+            : limitedByWindow ? <Clock className="h-3.5 w-3.5" />
+            : soldOut ? <Lock className="h-3.5 w-3.5" />
+            : <ShoppingCart className="h-3.5 w-3.5" />}
+          <span className="hidden sm:inline">{label}</span>
         </button>
       </div>
     );
@@ -229,177 +232,182 @@ const Rewards = () => {
           <ArrowLeft className="h-5 w-5" /> Lobby
         </button>
 
-        {/* Top stats */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-          <StatCard
-            testid="rewards-points-card"
-            icon={<NixCoin className="h-7 w-7" />}
-            label="NIX disponibil"
-            value={points.toLocaleString("ro-RO")}
-            sub="Adună NIX și descoperă recompense noi!"
-            accent="bg-[#1a0f1a] border-[#ec4899]/40 shadow-[0_0_40px_rgba(236,72,153,0.12)]"
-          />
-          <StatCard
-            testid="rewards-claimed-card"
-            icon={<Gift className="h-7 w-7 text-[#a855f7]" />}
-            label="Recompense revendicate"
-            value={data?.claimed_count ?? 0}
-            sub="Continuă să colecționezi recompense!"
-            accent="bg-[#140f1c] border-[#a855f7]/40 shadow-[0_0_40px_rgba(168,85,247,0.12)]"
-          />
-          <StatCard
-            testid="rewards-level-card"
-            icon={<Crown className={`h-7 w-7 ${data?.plus ? "text-[#ffcc00]" : "text-white/40"}`} />}
-            label="Nivel cont"
-            value={data?.plus ? "PLUS" : "FREE"}
-            sub={data?.plus ? "Beneficii premium active" : "Deblochează beneficiile PLUS"}
-            accent={data?.plus ? "bg-[#1a1607] border-[#ffcc00]/50 shadow-[0_0_40px_rgba(255,204,0,0.12)]" : "bg-[#111] border-white/10"}
-            onClick={data?.plus ? undefined : () => navigate("/plus")}
-          />
-        </div>
+        <div className="grid lg:grid-cols-3 gap-6">
+          {/* Main column: stats + shop */}
+          <div className="lg:col-span-2 space-y-8">
+            {/* Top stats */}
+            <div className="grid sm:grid-cols-3 gap-4">
+              <StatCard
+                testid="rewards-points-card"
+                icon={<NixCoin className="h-7 w-7" />}
+                label="NIX disponibil"
+                value={points.toLocaleString("ro-RO")}
+                sub="Adună NIX și descoperă recompense noi!"
+                accent="bg-[#1a0f1a] border-[#ec4899]/40 shadow-[0_0_40px_rgba(236,72,153,0.12)]"
+              />
+              <StatCard
+                testid="rewards-claimed-card"
+                icon={<Gift className="h-7 w-7 text-[#a855f7]" />}
+                label="Recompense revendicate"
+                value={data?.claimed_count ?? 0}
+                sub="Continuă să colecționezi recompense!"
+                accent="bg-[#140f1c] border-[#a855f7]/40 shadow-[0_0_40px_rgba(168,85,247,0.12)]"
+              />
+              <StatCard
+                testid="rewards-level-card"
+                icon={<Crown className={`h-7 w-7 ${data?.plus ? "text-[#ffcc00]" : "text-white/40"}`} />}
+                label="Nivel cont"
+                value={data?.plus ? "PLUS" : "FREE"}
+                sub={data?.plus ? "Beneficii premium active" : "Deblochează beneficiile PLUS"}
+                accent={data?.plus ? "bg-[#1a1607] border-[#ffcc00]/50 shadow-[0_0_40px_rgba(255,204,0,0.12)]" : "bg-[#111] border-white/10"}
+                onClick={data?.plus ? undefined : () => navigate("/plus")}
+              />
+            </div>
 
-        {/* Shop */}
-        <div className="mb-8 space-y-8" data-testid="rewards-shop">
-          {keyItems.length > 0 && (
-            <section data-testid="shop-category-key">
-              <div className="flex items-center gap-3 mb-4">
-                <KeyIcon className="h-6 w-6" />
-                <h2 className="font-display text-2xl text-[#ff7a18]">Chei Mystery Box</h2>
-              </div>
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {keyItems.map((item) => <ShopCard key={item.id} item={item} />)}
-              </div>
-            </section>
-          )}
-
-          {limitedItems.length > 0 && (
-            <section data-testid="shop-category-limited">
-              <div className="flex items-center gap-3 mb-4">
-                <Sparkles className="h-6 w-6 text-[#ffcc00]" />
-                <h2 className="font-display text-2xl text-[#ffcc00]">Ediție Limitată</h2>
-              </div>
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {limitedItems.map((item) => <ShopCard key={item.id} item={item} />)}
-              </div>
-            </section>
-          )}
-        </div>
-
-        {/* Redeem code + recent activity */}
-        <div className="grid lg:grid-cols-2 gap-4">
-          {/* Redeem code */}
-          <div className="relative overflow-hidden bg-gradient-to-br from-[#1a0b0c] via-[#0f0f0f] to-[#12080f] border border-[#ec1c24]/30 rounded-2xl p-6" data-testid="rewards-redeem-code">
-            <div className="pointer-events-none absolute -top-12 -right-10 h-40 w-40 rounded-full bg-[#ec1c24]/15 blur-3xl" />
-            <div className="relative">
-              <h3 className="font-display text-2xl flex items-center gap-2 mb-1">
-                <Tag className="h-6 w-6 text-[#ec1c24]" /> Valorifică Codul
-              </h3>
-              <p className="text-sm text-white/50 mb-4">Introdu un cod promoțional, verifică ce primești, apoi revendică-l.</p>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <div className="relative flex-1">
-                  <Gift className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
-                  <input
-                    data-testid="redeem-code-input"
-                    value={code}
-                    onChange={(e) => { setCode(e.target.value.toUpperCase()); setPreview(null); }}
-                    onKeyDown={(e) => e.key === "Enter" && (preview ? redeemCode() : checkCode())}
-                    placeholder="Introdu codul tău (ex: ABC-123-XYZ)"
-                    className="w-full pl-9 pr-3 py-3 rounded-xl bg-white/5 border border-white/10 focus:border-[#ec1c24] outline-none font-mono tracking-wider uppercase"
-                  />
-                </div>
-                {!preview && (
-                  <button
-                    data-testid="check-code-btn"
-                    onClick={checkCode}
-                    disabled={checking || !code.trim()}
-                    className="px-6 py-3 rounded-xl bg-white/10 border border-white/15 text-white font-bold hover:bg-white/15 transition-colors duration-200 disabled:opacity-50 shrink-0 flex items-center justify-center gap-2"
-                  >
-                    {checking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4 text-[#ffcc00]" />}
-                    {checking ? "Se verifică..." : "Verifică"}
-                  </button>
-                )}
-              </div>
-
-              {/* Preview a ceea ce oferă codul */}
-              {preview && (
-                <div data-testid="code-preview" className="mt-4 rounded-2xl border border-[#ffcc00]/30 bg-gradient-to-br from-[#1a1607] to-[#0f0f0f] p-4 animate-in fade-in slide-in-from-top-2 duration-300">
-                  <div className="flex items-center gap-4">
-                    <div className="h-14 w-14 rounded-2xl bg-black/40 border border-[#ffcc00]/30 flex items-center justify-center shrink-0">
-                      {preview.type === "plus"
-                        ? <Crown className="h-7 w-7 text-[#ffcc00]" />
-                        : preview.type === "points"
-                          ? <NixCoin className="h-7 w-7" />
-                          : preview.type === "keys"
-                            ? <KeyIcon className="h-7 w-7" />
-                            : <Gift className="h-7 w-7 text-[#ec4899]" />}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[11px] uppercase tracking-wide text-[#ffcc00]/70 font-bold mb-0.5">Codul tău oferă</p>
-                      <p className="font-display text-xl leading-tight truncate" data-testid="code-preview-title">{preview.title}</p>
-                      <p className="text-xs text-white/50 truncate">{preview.desc}</p>
-                    </div>
+            {/* Shop */}
+            <div className="space-y-6" data-testid="rewards-shop">
+              {keyItems.length > 0 && (
+                <section data-testid="shop-category-key">
+                  <div className="flex items-center gap-2.5 mb-3">
+                    <KeyIcon className="h-5 w-5" />
+                    <h2 className="font-display text-lg text-[#ff7a18]">Chei Mystery Box</h2>
                   </div>
-                  <div className="flex gap-2 mt-4">
-                    <button
-                      data-testid="redeem-code-btn"
-                      onClick={redeemCode}
-                      disabled={redeeming}
-                      className="flex-1 py-3 rounded-xl bg-[#ec1c24] text-white font-bold hover:bg-[#ff2d36] transition-colors duration-200 disabled:opacity-50 flex items-center justify-center gap-2"
-                    >
-                      {redeeming ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                      {redeeming ? "Se revendică..." : "Revendică recompensa"}
-                    </button>
-                    <button
-                      data-testid="cancel-code-btn"
-                      onClick={() => setPreview(null)}
-                      disabled={redeeming}
-                      className="px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white/60 hover:text-white hover:bg-white/10 transition-colors duration-200 disabled:opacity-50"
-                      title="Anulează"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    {keyItems.map((item) => <ShopCard key={item.id} item={item} />)}
                   </div>
-                </div>
+                </section>
               )}
 
-              {lastGiftCode && (
-                <div className="mt-4">
-                  <p className="text-xs text-white/50">Cod PLUS generat pentru „{lastGiftCode.title}" — dăruiește-l unui prieten FREE:</p>
-                  <CodeResult code={lastGiftCode.code} />
-                </div>
+              {limitedItems.length > 0 && (
+                <section data-testid="shop-category-limited">
+                  <div className="flex items-center gap-2.5 mb-3">
+                    <Sparkles className="h-5 w-5 text-[#ffcc00]" />
+                    <h2 className="font-display text-lg text-[#ffcc00]">Ediție Limitată</h2>
+                  </div>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    {limitedItems.map((item) => <ShopCard key={item.id} item={item} />)}
+                  </div>
+                </section>
               )}
             </div>
           </div>
 
-          {/* Recent activity */}
-          <div className="bg-[#0f0f0f] border border-white/10 rounded-2xl p-6" data-testid="rewards-activity">
-            <h3 className="font-display text-2xl flex items-center gap-2 mb-4">
-              <Clock className="h-6 w-6 text-white/60" /> Activitate recentă
-            </h3>
-            {claims.length === 0 ? (
-              <div className="flex flex-col items-center justify-center text-center py-8 text-white/40">
-                <Gift className="h-10 w-10 mb-2 text-white/20" />
-                <p className="text-sm">Nu ai revendicat încă nicio recompensă.</p>
-              </div>
-            ) : (
-              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                {claims.map((c) => (
-                  <div key={c.id} data-testid={`activity-${c.id}`} className="flex items-center gap-3 p-2.5 rounded-xl bg-white/[0.03] border border-white/5">
-                    <div className="h-9 w-9 rounded-lg bg-black/40 border border-white/10 flex items-center justify-center shrink-0">
-                      {c.kind === "plus_invite" ? <Crown className="h-4 w-4 text-[#ffcc00]" /> : <Ticket className="h-4 w-4 text-[#ec4899]" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold truncate">Ai revendicat {c.product_title}</p>
-                      <p className="text-xs text-white/40">
-                        {c.status === "fulfilled" ? "Onorat" : c.status === "canceled" ? "Anulat" : "În procesare"} · {timeAgo(c.created_at)}
-                      </p>
-                      {c.voucher_code && <div className="mt-1"><CodeResult code={c.voucher_code} /></div>}
-                    </div>
-                    <span className="text-[#ec1c24] font-bold text-sm shrink-0">- {c.cost}</span>
+          {/* Right sidebar: redeem code (priority) + recent activity */}
+          <div className="lg:col-span-1 space-y-4 lg:sticky lg:top-24 lg:self-start">
+            {/* Redeem code */}
+            <div className="relative overflow-hidden bg-gradient-to-br from-[#1a0b0c] via-[#0f0f0f] to-[#12080f] border border-[#ec1c24]/40 rounded-2xl p-5 shadow-[0_0_50px_rgba(236,28,36,0.15)]" data-testid="rewards-redeem-code">
+              <div className="pointer-events-none absolute -top-12 -right-10 h-40 w-40 rounded-full bg-[#ec1c24]/15 blur-3xl" />
+              <div className="relative">
+                <h3 className="font-display text-xl flex items-center gap-2 mb-1">
+                  <Tag className="h-5 w-5 text-[#ec1c24]" /> Valorifică Codul
+                </h3>
+                <p className="text-xs text-white/50 mb-4">Introdu un cod promoțional, verifică ce primești, apoi revendică-l.</p>
+                <div className="flex flex-col gap-2.5">
+                  <div className="relative">
+                    <Gift className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
+                    <input
+                      data-testid="redeem-code-input"
+                      value={code}
+                      onChange={(e) => { setCode(e.target.value.toUpperCase()); setPreview(null); }}
+                      onKeyDown={(e) => e.key === "Enter" && (preview ? redeemCode() : checkCode())}
+                      placeholder="Codul tău (ex: ABC-123-XYZ)"
+                      className="w-full pl-9 pr-3 py-3 rounded-xl bg-white/5 border border-white/10 focus:border-[#ec1c24] outline-none font-mono tracking-wider uppercase text-sm"
+                    />
                   </div>
-                ))}
+                  {!preview && (
+                    <button
+                      data-testid="check-code-btn"
+                      onClick={checkCode}
+                      disabled={checking || !code.trim()}
+                      className="w-full px-6 py-3 rounded-xl bg-white/10 border border-white/15 text-white font-bold hover:bg-white/15 transition-colors duration-200 disabled:opacity-50 shrink-0 flex items-center justify-center gap-2"
+                    >
+                      {checking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4 text-[#ffcc00]" />}
+                      {checking ? "Se verifică..." : "Verifică"}
+                    </button>
+                  )}
+                </div>
+
+                {/* Preview a ceea ce oferă codul */}
+                {preview && (
+                  <div data-testid="code-preview" className="mt-4 rounded-2xl border border-[#ffcc00]/30 bg-gradient-to-br from-[#1a1607] to-[#0f0f0f] p-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <div className="flex items-center gap-3">
+                      <div className="h-12 w-12 rounded-2xl bg-black/40 border border-[#ffcc00]/30 flex items-center justify-center shrink-0">
+                        {preview.type === "plus"
+                          ? <Crown className="h-6 w-6 text-[#ffcc00]" />
+                          : preview.type === "points"
+                            ? <NixCoin className="h-6 w-6" />
+                            : preview.type === "keys"
+                              ? <KeyIcon className="h-6 w-6" />
+                              : <Gift className="h-6 w-6 text-[#ec4899]" />}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] uppercase tracking-wide text-[#ffcc00]/70 font-bold mb-0.5">Codul tău oferă</p>
+                        <p className="font-display text-lg leading-tight truncate" data-testid="code-preview-title">{preview.title}</p>
+                        <p className="text-xs text-white/50 truncate">{preview.desc}</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 mt-4">
+                      <button
+                        data-testid="redeem-code-btn"
+                        onClick={redeemCode}
+                        disabled={redeeming}
+                        className="flex-1 py-3 rounded-xl bg-[#ec1c24] text-white font-bold hover:bg-[#ff2d36] transition-colors duration-200 disabled:opacity-50 flex items-center justify-center gap-2"
+                      >
+                        {redeeming ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                        {redeeming ? "Se revendică..." : "Revendică recompensa"}
+                      </button>
+                      <button
+                        data-testid="cancel-code-btn"
+                        onClick={() => setPreview(null)}
+                        disabled={redeeming}
+                        className="px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white/60 hover:text-white hover:bg-white/10 transition-colors duration-200 disabled:opacity-50"
+                        title="Anulează"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {lastGiftCode && (
+                  <div className="mt-4">
+                    <p className="text-xs text-white/50">Cod PLUS generat pentru „{lastGiftCode.title}" — dăruiește-l unui prieten FREE:</p>
+                    <CodeResult code={lastGiftCode.code} />
+                  </div>
+                )}
               </div>
-            )}
+            </div>
+
+            {/* Recent activity */}
+            <div className="bg-[#0f0f0f] border border-white/10 rounded-2xl p-5" data-testid="rewards-activity">
+              <h3 className="font-display text-lg flex items-center gap-2 mb-3">
+                <Clock className="h-5 w-5 text-white/60" /> Activitate recentă
+              </h3>
+              {claims.length === 0 ? (
+                <div className="flex flex-col items-center justify-center text-center py-8 text-white/40">
+                  <Gift className="h-10 w-10 mb-2 text-white/20" />
+                  <p className="text-sm">Nu ai revendicat încă nicio recompensă.</p>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                  {claims.map((c) => (
+                    <div key={c.id} data-testid={`activity-${c.id}`} className="flex items-center gap-3 p-2.5 rounded-xl bg-white/[0.03] border border-white/5">
+                      <div className="h-9 w-9 rounded-lg bg-black/40 border border-white/10 flex items-center justify-center shrink-0">
+                        {c.kind === "plus_invite" ? <Crown className="h-4 w-4 text-[#ffcc00]" /> : <Ticket className="h-4 w-4 text-[#ec4899]" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold truncate">Ai revendicat {c.product_title}</p>
+                        <p className="text-xs text-white/40">
+                          {c.status === "fulfilled" ? "Onorat" : c.status === "canceled" ? "Anulat" : "În procesare"} · {timeAgo(c.created_at)}
+                        </p>
+                        {c.voucher_code && <div className="mt-1"><CodeResult code={c.voucher_code} /></div>}
+                      </div>
+                      <span className="text-[#ec1c24] font-bold text-sm shrink-0">- {c.cost}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
