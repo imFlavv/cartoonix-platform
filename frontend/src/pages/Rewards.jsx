@@ -222,9 +222,14 @@ const Rewards = () => {
   const limitedItems = shop.filter((i) => i.category === "limited");
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white" data-testid="rewards-page">
+    <div className="min-h-screen bg-[#0a0a0a] text-white relative" data-testid="rewards-page">
+      <div
+        className="fixed inset-0 bg-cover bg-center"
+        style={{ backgroundImage: "url('/halloween/rewards-bg.jpg')" }}
+      />
+      <div className="fixed inset-0 bg-black/65" />
       <NavBar />
-      <div className="pt-24 px-4 md:px-12 pb-16 max-w-6xl mx-auto">
+      <div className="relative z-10 pt-24 px-4 md:px-12 pb-16 max-w-6xl mx-auto">
         <button
           data-testid="rewards-back"
           onClick={() => navigate("/lobby")}
