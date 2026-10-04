@@ -26,6 +26,8 @@ export const AdminFeedback = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
+  const [page, setPage] = useState(1);
+  const PER_PAGE = 25;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -99,7 +101,7 @@ export const AdminFeedback = () => {
           <p className="text-white/40 text-sm py-6 text-center">Niciun feedback încă.</p>
         ) : (
           <div className="space-y-2" data-testid="feedback-respondents">
-            {items.map((f) => {
+            {items.slice((page - 1) * PER_PAGE, page * PER_PAGE).map((f) => {
               const grade = parseGrade((f.answers || {})[GRADE_QUESTION]);
               return (
                 <div key={f.user_id + f.created_at} data-testid={`feedback-row-${f.user_id}`} className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/5">
@@ -122,6 +124,13 @@ export const AdminFeedback = () => {
                 </div>
               );
             })}
+          </div>
+        )}
+        {items.length > PER_PAGE && (
+          <div className="flex items-center justify-center gap-3 mt-4" data-testid="feedback-pager">
+            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1} className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white/70 hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed">Înapoi</button>
+            <span className="text-sm text-white/50">Pagina {page} / {Math.ceil(items.length / PER_PAGE)}</span>
+            <button onClick={() => setPage((p) => Math.min(Math.ceil(items.length / PER_PAGE), p + 1))} disabled={page >= Math.ceil(items.length / PER_PAGE)} className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white/70 hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed">Înainte</button>
           </div>
         )}
       </div>

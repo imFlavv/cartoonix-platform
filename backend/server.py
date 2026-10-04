@@ -294,6 +294,11 @@ PREMIUM_AVATARS = {
     "/avatars/plus-skeleton-yoga-bg.gif",
 }
 
+# Avatars that must be unlocked (bought / earned) before a user can equip them.
+LIMITED_AVATARS = {
+    "/halloween/avatar-scarecrow.png",
+}
+
 
 def get_client_ip(request: Request) -> str:
     fwd = request.headers.get("x-forwarded-for", "")
@@ -653,6 +658,8 @@ async def me(user: dict = Depends(get_current_user)):
 async def update_avatar(data: AvatarInput, user: dict = Depends(get_current_user)):
     if data.avatar in PREMIUM_AVATARS and not user_is_plus(user):
         raise HTTPException(status_code=403, detail="Acest avatar este disponibil doar pentru membrii Cartoonix PLUS")
+    if data.avatar in LIMITED_AVATARS and data.avatar not in (user.get("event_avatars") or []):
+        raise HTTPException(status_code=403, detail="Acest avatar trebuie deblocat mai întâi din magazin")
     await db.users.update_one({"_id": user["_id"]}, {"$set": {"avatar_url": data.avatar}})
     user["avatar_url"] = data.avatar
     return serialize_user(user)
@@ -1122,6 +1129,65 @@ REWARD_PRODUCTS = {
                       "desc": "Voucher eMAG în valoare de 100 RON."},
 }
 
+# NIX shop — auto-granted items shown in /lobby/rewards, grouped by category.
+# max_per_user = how many times a single user may buy it (lifetime).
+# cooldown_hours = minimum time between two purchases of the same item by the same user.
+SHOP_CATALOG = {
+    "key_1": {"category": "key", "title": "Mystery Box Key", "cost": 20, "kind": "keys", "keys": 1,
+              "desc": "O cheie pentru Mystery Box.", "img": "/nix/key.png",
+              "max_per_user": 3, "cooldown_hours": 24},
+    "key_3": {"category": "key", "title": "3× Mystery Box Key", "cost": 50, "kind": "keys", "keys": 3,
+              "desc": "Trei chei pentru Mystery Box.", "img": "/nix/key.png",
+              "max_per_user": 3, "cooldown_hours": 24},
+    "key_5": {"category": "key", "title": "5× Mystery Box Key", "cost": 75, "kind": "keys", "keys": 5,
+              "desc": "Cinci chei pentru Mystery Box.", "img": "/nix/key.png",
+              "max_per_user": 3, "cooldown_hours": 24},
+    "avatar_halloween": {"category": "limited", "title": "Avatar Halloween", "cost": 50, "kind": "avatar",
+                         "avatar": "/halloween/avatar-scarecrow.png", "desc": "Avatar exclusiv de Halloween. Ediție limitată.",
+                         "img": "/halloween/avatar-scarecrow.png", "max_per_user": 1, "cooldown_hours": 0},
+}
+
+
+async def _shop_state_for_user(uid: str):
+    """Returns per-item purchase state (count + last purchase time) for a user."""
+    state = {}
+    async for p in db.shop_purchases.find({"user_id": uid}):
+        iid = p.get("item_id")
+        s = state.setdefault(iid, {"count": 0, "last": None})
+        s["count"] += 1
+        ts = p.get("created_at")
+        if ts and (s["last"] is None or ts > s["last"]):
+            s["last"] = ts
+    return state
+
+
+def _shop_items_payload(state: dict, event_avatars: list):
+    items = []
+    for iid, it in SHOP_CATALOG.items():
+        s = state.get(iid, {"count": 0, "last": None})
+        count = s["count"]
+        maxp = int(it["max_per_user"])
+        next_at = None
+        cd = int(it.get("cooldown_hours", 0))
+        if cd > 0 and s["last"] and count < maxp:
+            try:
+                last_dt = datetime.fromisoformat(s["last"])
+                next_at = (last_dt + timedelta(hours=cd)).isoformat()
+            except Exception:
+                next_at = None
+        items.append({
+            "id": iid, "category": it["category"], "title": it["title"], "cost": it["cost"],
+            "kind": it["kind"], "desc": it["desc"], "img": it.get("img"),
+            "keys": it.get("keys", 0), "avatar": it.get("avatar"),
+            "max_per_user": maxp, "cooldown_hours": cd,
+            "purchased_count": count,
+            "sold_out": count >= maxp,
+            "next_available_at": next_at,
+            "owned": bool(it.get("avatar") and it["avatar"] in (event_avatars or [])),
+        })
+    return items
+
+
 _VOUCHER_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no ambiguous I/O/0/1
 
 
@@ -1155,12 +1221,84 @@ async def get_rewards(user: dict = Depends(get_current_user)):
     claims = [c for c in claims if not (c.get("kind") == "plus_invite" and c.get("voucher_code") in used_codes)]
     products = [{"id": pid, **{k: p[k] for k in ("title", "cost", "kind", "desc")}}
                 for pid, p in REWARD_PRODUCTS.items()]
+    shop_state = await _shop_state_for_user(uid)
+    shop = _shop_items_payload(shop_state, fresh.get("event_avatars") or [])
     return {
         "points": int(fresh.get("points", 0)),
+        "spins": int(fresh.get("spins", 0)),
         "plus": user_is_plus(fresh),
         "products": products,
+        "shop": shop,
         "claims": claims,
         "claimed_count": len(claims),
+    }
+
+
+class ShopPurchase(BaseModel):
+    item_id: str
+
+
+@api_router.post("/shop/purchase")
+async def shop_purchase(body: ShopPurchase, user: dict = Depends(get_current_user)):
+    from pymongo import ReturnDocument
+    item = SHOP_CATALOG.get(body.item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Produs inexistent")
+    uid = uid_of(user)
+    # Purchase limits (lifetime count + cooldown) — checked before taking NIX.
+    purchases = await db.shop_purchases.find({"user_id": uid, "item_id": body.item_id}).sort("created_at", -1).to_list(100)
+    maxp = int(item["max_per_user"])
+    if len(purchases) >= maxp:
+        raise HTTPException(status_code=400, detail="Ai atins limita de achiziții pentru acest produs")
+    if item.get("kind") == "avatar" and item.get("avatar") in (user.get("event_avatars") or []):
+        raise HTTPException(status_code=400, detail="Deții deja acest avatar")
+    cd = int(item.get("cooldown_hours", 0))
+    if cd > 0 and purchases:
+        try:
+            last_dt = datetime.fromisoformat(purchases[0]["created_at"])
+            ready_at = last_dt + timedelta(hours=cd)
+            now = datetime.now(timezone.utc)
+            if now < ready_at:
+                mins = int((ready_at - now).total_seconds() // 60)
+                hrs = mins // 60
+                when = f"{hrs}h {mins % 60}min" if hrs else f"{mins} min"
+                raise HTTPException(status_code=400, detail=f"Mai poți cumpăra acest produs peste {when}")
+        except HTTPException:
+            raise
+        except Exception:
+            pass
+    cost = int(item["cost"])
+    updated = await db.users.find_one_and_update(
+        {"_id": user["_id"], "points": {"$gte": cost}},
+        {"$inc": {"points": -cost}},
+        return_document=ReturnDocument.AFTER,
+    )
+    if not updated:
+        raise HTTPException(status_code=400, detail="Nu ai suficient NIX pentru acest produs")
+    now_iso = datetime.now(timezone.utc).isoformat()
+    granted = {"kind": item["kind"]}
+    if item["kind"] == "keys":
+        n = int(item.get("keys", 0))
+        await db.users.update_one({"_id": user["_id"]}, {"$inc": {"spins": n}})
+        granted["keys"] = n
+    elif item["kind"] == "avatar":
+        await db.users.update_one({"_id": user["_id"]}, {"$addToSet": {"event_avatars": item["avatar"]}})
+        granted["avatar"] = item["avatar"]
+    await db.shop_purchases.insert_one({
+        "user_id": uid, "user_name": user_name(user), "item_id": body.item_id,
+        "title": item["title"], "cost": cost, "created_at": now_iso,
+    })
+    await db.points_ledger.insert_one({
+        "user_id": uid, "type": "shop", "points": -cost,
+        "item_id": body.item_id, "item_title": item["title"], "created_at": now_iso,
+    })
+    fresh = await find_user_by_id(uid) or user
+    shop_state = await _shop_state_for_user(uid)
+    shop = _shop_items_payload(shop_state, fresh.get("event_avatars") or [])
+    return {
+        "ok": True, "granted": granted,
+        "points": int(fresh.get("points", 0)), "spins": int(fresh.get("spins", 0)),
+        "shop": shop,
     }
 
 

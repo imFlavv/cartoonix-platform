@@ -4,7 +4,7 @@ import { NavBar } from "@/components/NavBar";
 import { api, formatApiErrorDetail } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import { ArrowLeft, Gift, Crown, Ticket, Tag, Clock, ChevronRight, Copy, Check, Sparkles, Loader2, X } from "lucide-react";
+import { ArrowLeft, Gift, Crown, Ticket, Tag, Clock, ChevronRight, Copy, Check, Sparkles, Loader2, X, Lock, ShoppingCart } from "lucide-react";
 import { NixCoin } from "@/components/NixCoin";
 import { KeyIcon } from "@/components/KeyIcon";
 
@@ -63,6 +63,13 @@ const Rewards = () => {
   const [checking, setChecking] = useState(false);
   const [preview, setPreview] = useState(null);
   const [lastGiftCode, setLastGiftCode] = useState(null);
+  const [buying, setBuying] = useState(null);
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(t);
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -110,6 +117,106 @@ const Rewards = () => {
   const points = data?.points ?? 0;
   const claims = data?.claims ?? [];
 
+  const buy = async (item) => {
+    setBuying(item.id);
+    try {
+      const { data: res } = await api.post("/shop/purchase", { item_id: item.id });
+      if (res.granted?.kind === "keys") toast.success(`Ai primit ${res.granted.keys} ${res.granted.keys === 1 ? "cheie" : "chei"} Mystery Box! 🔑`);
+      else if (res.granted?.kind === "avatar") toast.success("Avatar deblocat! Îl poți pune din Setări → Personalizare. 🎃");
+      else toast.success("Achiziție reușită!");
+      await load();
+      refreshUser?.();
+    } catch (e) {
+      toast.error(formatApiErrorDetail(e?.response?.data?.detail) || "Nu s-a putut finaliza achiziția");
+    } finally {
+      setBuying(null);
+    }
+  };
+
+  const fmtRemaining = (iso) => {
+    const ms = new Date(iso).getTime() - now;
+    if (ms <= 0) return null;
+    const mins = Math.ceil(ms / 60000);
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return h ? `${h}h ${m}min` : `${m} min`;
+  };
+
+  const ShopCard = ({ item }) => {
+    const remaining = item.next_available_at ? fmtRemaining(item.next_available_at) : null;
+    const owned = item.owned;
+    const soldOut = item.sold_out && !owned;
+    const onCooldown = !!remaining && !soldOut && !owned;
+    const affordable = points >= item.cost;
+    const disabled = owned || soldOut || onCooldown || !affordable || buying === item.id;
+    const isAvatar = item.kind === "avatar";
+
+    let label = `Cumpără · ${item.cost} NIX`;
+    if (owned) label = "Deținut";
+    else if (soldOut) label = "Limită atinsă";
+    else if (onCooldown) label = `Disponibil peste ${remaining}`;
+    else if (!affordable) label = "NIX insuficient";
+
+    return (
+      <div
+        data-testid={`shop-item-${item.id}`}
+        className="group relative flex flex-col bg-[#111] border border-white/10 rounded-2xl p-4 hover:border-white/20 transition-colors duration-200"
+      >
+        <div className={`relative rounded-xl overflow-hidden mb-3 aspect-square ${isAvatar ? "bg-black" : "bg-gradient-to-br from-[#1a1206] to-[#0f0f0f] flex items-center justify-center"}`}>
+          {isAvatar ? (
+            <img src={item.img} alt={item.title} className="w-full h-full object-cover" draggable={false} />
+          ) : (
+            <div className="relative flex items-center justify-center">
+              <KeyIcon className="h-20 w-20 drop-shadow-[0_0_18px_rgba(255,122,24,0.5)]" />
+              {item.keys > 1 && (
+                <span className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full bg-[#ff7a18] text-black text-sm font-black grid place-items-center border-2 border-[#111]">×{item.keys}</span>
+              )}
+            </div>
+          )}
+          {owned && (
+            <div className="absolute inset-0 bg-black/55 flex items-center justify-center">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#22c55e]/90 text-black text-xs font-bold"><Check className="h-4 w-4" /> Deținut</span>
+            </div>
+          )}
+        </div>
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="font-display text-lg leading-tight">{item.title}</h3>
+          {isAvatar && <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-[#ff7a18]/15 text-[#ffb37a] border border-[#ff7a18]/30">Limitat</span>}
+        </div>
+        <p className="text-xs text-white/50 flex-1 mt-1 mb-3">{item.desc}</p>
+        <div className="flex items-center gap-1.5 text-[#c084fc] font-bold mb-3">
+          <NixCoin className="h-4 w-4" /> {item.cost} NIX
+          {item.max_per_user > 1 && (
+            <span className="ml-auto text-[11px] text-white/40 font-normal">{item.purchased_count}/{item.max_per_user} cumpărate</span>
+          )}
+        </div>
+        <button
+          data-testid={`shop-buy-${item.id}`}
+          onClick={() => buy(item)}
+          disabled={disabled}
+          className={`w-full py-2.5 rounded-lg font-bold transition-colors duration-200 inline-flex items-center justify-center gap-2 ${
+            owned
+              ? "bg-[#22c55e]/15 text-[#22c55e] cursor-default"
+              : disabled
+                ? "bg-white/5 text-white/40 cursor-not-allowed"
+                : "bg-[#ec1c24] text-white hover:bg-[#ff2d36]"
+          }`}
+        >
+          {buying === item.id ? <Loader2 className="h-4 w-4 animate-spin" />
+            : owned ? <Check className="h-4 w-4" />
+            : onCooldown ? <Clock className="h-4 w-4" />
+            : soldOut ? <Lock className="h-4 w-4" />
+            : <ShoppingCart className="h-4 w-4" />}
+          {label}
+        </button>
+      </div>
+    );
+  };
+
+  const shop = data?.shop ?? [];
+  const keyItems = shop.filter((i) => i.category === "key");
+  const limitedItems = shop.filter((i) => i.category === "limited");
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white" data-testid="rewards-page">
       <NavBar />
@@ -151,26 +258,31 @@ const Rewards = () => {
           />
         </div>
 
-        {/* Products — dezactivat momentan */}
-        <div className="mb-8" data-testid="rewards-products">
-          <div
-            data-testid="rewards-empty-state"
-            className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#140f1c] via-[#0f0f0f] to-[#1a0f1a] px-6 py-14 text-center"
-          >
-            <div className="pointer-events-none absolute -top-16 left-1/2 -translate-x-1/2 h-48 w-48 rounded-full bg-[#ec4899]/20 blur-3xl" />
-            <div className="relative">
-              <div className="mx-auto mb-5 h-20 w-20 rounded-3xl bg-black/40 border border-white/10 flex items-center justify-center">
-                <Gift className="h-10 w-10 text-[#ec4899]" />
+        {/* Shop */}
+        <div className="mb-8 space-y-8" data-testid="rewards-shop">
+          {keyItems.length > 0 && (
+            <section data-testid="shop-category-key">
+              <div className="flex items-center gap-3 mb-4">
+                <KeyIcon className="h-6 w-6" />
+                <h2 className="font-display text-2xl text-[#ff7a18]">Chei Mystery Box</h2>
               </div>
-              <h2 className="font-display text-2xl md:text-3xl mb-2">Momentan nu există recompense disponibile</h2>
-              <p className="text-white/50 max-w-md mx-auto text-sm md:text-base">
-                Lucrăm la o economie NIX nouă și echilibrată. Recompensele vor reveni în curând — între timp, continuă să aduni NIX!
-              </p>
-              <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-[#ffcc00]/30 bg-[#ffcc00]/10 px-4 py-1.5 text-xs font-semibold text-[#ffcc00]">
-                <Clock className="h-3.5 w-3.5" /> În curând
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {keyItems.map((item) => <ShopCard key={item.id} item={item} />)}
               </div>
-            </div>
-          </div>
+            </section>
+          )}
+
+          {limitedItems.length > 0 && (
+            <section data-testid="shop-category-limited">
+              <div className="flex items-center gap-3 mb-4">
+                <Sparkles className="h-6 w-6 text-[#ffcc00]" />
+                <h2 className="font-display text-2xl text-[#ffcc00]">Ediție Limitată</h2>
+              </div>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {limitedItems.map((item) => <ShopCard key={item.id} item={item} />)}
+              </div>
+            </section>
+          )}
         </div>
 
         {/* Redeem code + recent activity */}
