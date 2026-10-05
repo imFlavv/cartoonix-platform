@@ -4,6 +4,7 @@ import { NavBar } from "@/components/NavBar";
 import { api } from "@/lib/api";
 import { PlusIcon } from "@/components/PlusIcon";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
+import { AvatarFrame } from "@/components/AvatarFrame";
 import { rankInfo } from "@/lib/roles";
 import { ArrowLeft, Clock, Calendar, MessageCircle, Crown, Shield, Loader2, UserX, Trophy, Sparkles } from "lucide-react";
 
@@ -111,15 +112,17 @@ const PublicProfile = () => {
             <div className="relative bg-[#0f0f0f] px-5 md:px-10 pb-8">
               <div className="flex flex-col sm:flex-row items-center sm:items-end gap-5 -mt-12 sm:-mt-14">
                 <div className="relative shrink-0">
-                  <img
+                  <AvatarFrame
                     src={profile.avatar || `https://api.dicebear.com/9.x/bottts/svg?seed=${profile.name}`}
                     alt={profile.name}
-                    data-testid="public-profile-avatar"
-                    className="h-24 w-24 sm:h-28 sm:w-28 rounded-full bg-[#141414] border-4 border-[#0f0f0f] object-cover shadow-lg"
+                    testId="public-profile-avatar"
+                    frame={profile.avatar_frame}
+                    size="h-24 w-24 sm:h-28 sm:w-28"
+                    ringClassName="border-4 border-[#0f0f0f]"
                   />
                   <span
                     data-testid="public-profile-online-dot"
-                    className={`absolute bottom-1 right-1 h-4 w-4 rounded-full border-2 border-[#0f0f0f] ${profile.online ? "bg-[#22c55e]" : "bg-white/30"}`}
+                    className={`absolute bottom-1 right-1 h-4 w-4 rounded-full border-2 border-[#0f0f0f] z-[3] ${profile.online ? "bg-[#22c55e]" : "bg-white/30"}`}
                     title={profile.online ? "Online acum" : "Offline"}
                   />
                 </div>

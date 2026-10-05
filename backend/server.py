@@ -235,6 +235,7 @@ def serialize_user(doc: dict) -> dict:
         "chat_style": doc.get("chat_style") or default_chat_style(),
         "nickname_updated_at": doc.get("nickname_updated_at"),
         "event_avatars": doc.get("event_avatars", []),
+        "avatar_frame": doc.get("avatar_frame"),
     }
 
 
@@ -297,6 +298,11 @@ PREMIUM_AVATARS = {
 # Avatars that must be unlocked (bought / earned) before a user can equip them.
 LIMITED_AVATARS = {
     "/halloween/avatar-scarecrow.gif",
+}
+
+# Avatar frames (decorative overlay on top of the avatar circle). Free for all users.
+AVATAR_FRAMES = {
+    "/frames/witch-hat.png",
 }
 
 
@@ -371,6 +377,10 @@ class LoginInput(BaseModel):
 
 class AvatarInput(BaseModel):
     avatar: str
+
+
+class AvatarFrameInput(BaseModel):
+    frame: Optional[str] = None
 
 
 class ProfileInput(BaseModel):
@@ -673,6 +683,7 @@ async def get_public_profile(user_id: str, current_user: dict = Depends(get_curr
         "id": uid,
         "name": user_name(target),
         "avatar": user_avatar(target),
+        "avatar_frame": target.get("avatar_frame"),
         "plus": user_is_plus(target),
         "donor": user_is_donor(target),
         "role": target.get("role", "user"),
@@ -693,6 +704,16 @@ async def update_avatar(data: AvatarInput, user: dict = Depends(get_current_user
         raise HTTPException(status_code=403, detail="Acest avatar trebuie deblocat mai întâi din magazin")
     await db.users.update_one({"_id": user["_id"]}, {"$set": {"avatar_url": data.avatar}})
     user["avatar_url"] = data.avatar
+    return serialize_user(user)
+
+
+@api_router.put("/auth/avatar-frame")
+async def update_avatar_frame(data: AvatarFrameInput, user: dict = Depends(get_current_user)):
+    frame = (data.frame or "").strip() or None
+    if frame and frame not in AVATAR_FRAMES:
+        raise HTTPException(status_code=400, detail="Ramă invalidă")
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {"avatar_frame": frame}})
+    user["avatar_frame"] = frame
     return serialize_user(user)
 
 
@@ -3162,6 +3183,7 @@ async def post_chat(data: ChatInput, user: dict = Depends(get_current_user)):
         "user_id": uid_of(user),
         "name": user_name(user) or "Anonim",
         "avatar": user_avatar(user),
+        "avatar_frame": user.get("avatar_frame"),
         "plus": user_is_plus(user),
         "donor": user_is_donor(user),
         "role": user.get("role", "user"),

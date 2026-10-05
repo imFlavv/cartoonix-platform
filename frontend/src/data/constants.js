@@ -38,6 +38,11 @@ export const PREMIUM_AVATARS = [
   "/avatars/plus-skeleton-yoga-bg.gif",
 ];
 
+// Avatar frames - decorative overlay worn around the avatar circle. Free for all users.
+export const AVATAR_FRAMES = [
+  { id: "/frames/witch-hat.png", name: "Pălărie de Vrăjitoare" },
+];
+
 export const CHANNELS = ["Cartoon Network", "Jetix", "Minimax", "Boomerang"];
 
 export const PLUS_ICON = "/plus-icon.png";

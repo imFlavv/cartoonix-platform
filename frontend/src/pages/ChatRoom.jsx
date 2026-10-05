@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { PlusIcon } from "@/components/PlusIcon";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
+import { AvatarFrame } from "@/components/AvatarFrame";
 import { MessageText } from "@/components/MessageText";
 import { EmojiPicker } from "@/components/EmojiPicker";
 import { chatStyleClasses } from "@/lib/chatStyle";
@@ -349,8 +350,8 @@ const ChatRoom = () => {
           <div className="px-3 py-3 border-t border-white/10">
             <div className="flex items-center gap-3 px-2 py-2 rounded-xl bg-white/5">
               <div className="relative shrink-0">
-                <img src={user?.avatar || `https://api.dicebear.com/9.x/bottts/svg?seed=${user?.name}`} alt="" className="h-10 w-10 rounded-full bg-[#141414]" />
-                <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-[#22c55e] border-2 border-[#0c0c0f]" />
+                <AvatarFrame src={user?.avatar || `https://api.dicebear.com/9.x/bottts/svg?seed=${user?.name}`} frame={user?.avatar_frame} size="h-10 w-10" />
+                <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-[#22c55e] border-2 border-[#0c0c0f] z-[3]" />
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-bold truncate flex items-center gap-1.5">
@@ -461,8 +462,8 @@ const ChatRoom = () => {
                       {/* left: avatar + online + count */}
                       <div className="flex flex-col items-center gap-2 shrink-0 w-16">
                         <div className="relative">
-                          <img src={m.avatar || `https://api.dicebear.com/9.x/bottts/svg?seed=${m.name}`} alt="" className="h-14 w-14 rounded-full bg-[#141414] object-cover" />
-                          {m.sender_online && <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-[#22c55e] border-2 border-[#0a0a0a]" />}
+                          <AvatarFrame src={m.avatar || `https://api.dicebear.com/9.x/bottts/svg?seed=${m.name}`} frame={m.avatar_frame} size="h-14 w-14" />
+                          {m.sender_online && <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-[#22c55e] border-2 border-[#0a0a0a] z-[3]" />}
                         </div>
                         <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-white/45 leading-none" title="Total mesaje">
                           <MessageCircle className="h-3.5 w-3.5 text-[#a855f7] shrink-0" fill="currentColor" strokeWidth={0} />

@@ -26,7 +26,8 @@ import {
 } from "@/lib/chatStyle";
 import { SkinnedBubble } from "@/components/SkinnedBubble";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
-import { AVATAR_SEEDS, PREMIUM_AVATARS } from "@/data/constants";
+import { AvatarFrame } from "@/components/AvatarFrame";
+import { AVATAR_SEEDS, PREMIUM_AVATARS, AVATAR_FRAMES } from "@/data/constants";
 
 const Card = ({ icon: Icon, title, subtitle, children }) => (
   <div className="bg-[#0f0f0f] border border-white/10 rounded-2xl p-6 mb-5">
@@ -68,6 +69,9 @@ const Settings = () => {
   const [avatar, setAvatar] = useState(user?.avatar || AVATAR_SEEDS[0]);
   const [avatarOpen, setAvatarOpen] = useState(false);
   const [savingAvatar, setSavingAvatar] = useState(false);
+  const [avatarFrame, setAvatarFrame] = useState(user?.avatar_frame || null);
+  const [frameOpen, setFrameOpen] = useState(false);
+  const [savingFrame, setSavingFrame] = useState(false);
 
   const isPlus = !!user?.plus;
 
@@ -102,6 +106,21 @@ const Settings = () => {
       toast.error(err.response?.data?.detail || "Eroare");
     } finally {
       setSavingAvatar(false);
+    }
+  };
+
+  const saveAvatarFrame = async (frame) => {
+    setSavingFrame(true);
+    try {
+      const { data } = await api.put("/auth/avatar-frame", { frame });
+      setUser(data);
+      setAvatarFrame(frame);
+      toast.success(frame ? "Ramă avatar activată!" : "Rama a fost scoasă");
+      setFrameOpen(false);
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Eroare la salvarea ramei");
+    } finally {
+      setSavingFrame(false);
     }
   };
 
@@ -290,9 +309,12 @@ const Settings = () => {
               <Card icon={User} title="Profil & Avatar" subtitle="Personalizează-ți identitatea în chat-ul Cartoonix.">
                 <div className="flex items-start gap-5">
                   <div className="relative shrink-0">
-                    <span className={`block h-24 w-24 rounded-full overflow-hidden ${PREMIUM_AVATARS.includes(avatar) && isPlus ? "cx-premium-ring" : "border-2 border-[#ffcc00]/60"}`}>
-                      <img src={avatar} alt="avatar" className="h-full w-full object-cover bg-[#141414]" />
-                    </span>
+                    <AvatarFrame
+                      src={avatar}
+                      frame={avatarFrame}
+                      size="h-24 w-24"
+                      ringClassName={PREMIUM_AVATARS.includes(avatar) && isPlus ? "cx-premium-ring" : "border-2 border-[#ffcc00]/60"}
+                    />
                   </div>
                   <div className="flex-1 min-w-0">
                     <label className="text-sm text-white/60">Nume afișat</label>
@@ -344,6 +366,17 @@ const Settings = () => {
                   </button>
                 </div>
 
+                <div className="mt-2.5">
+                  <button
+                    type="button"
+                    data-testid="open-avatar-frame-picker"
+                    onClick={() => setFrameOpen(true)}
+                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 font-semibold text-sm transition-colors"
+                  >
+                    <Sparkles className="h-4 w-4 text-[#a855f7]" /> Alege ramă avatar
+                  </button>
+                </div>
+
                 {/* Culoare nume (PLUS) */}
                 <div className="mt-5">
                   <label className="text-sm text-white/60 flex items-center gap-1.5">
@@ -372,9 +405,12 @@ const Settings = () => {
               <Card icon={Eye} title="Previzualizare chat" subtitle="Vezi cum va arăta profilul și mesajele tale în chat.">
                 <div data-testid="chat-style-preview" className="rounded-2xl bg-[#0a0a0a] border border-white/10 p-4">
                   <div className="flex items-start gap-2.5">
-                    <span className={`block h-9 w-9 rounded-full overflow-hidden shrink-0 ${PREMIUM_AVATARS.includes(avatar) && isPlus ? "cx-premium-ring" : ""}`}>
-                      <img src={avatar} alt="" className="h-full w-full object-cover bg-[#141414]" />
-                    </span>
+                    <AvatarFrame
+                      src={avatar}
+                      frame={avatarFrame}
+                      size="h-9 w-9"
+                      ringClassName={PREMIUM_AVATARS.includes(avatar) && isPlus ? "cx-premium-ring" : ""}
+                    />
                     <div className="min-w-0">
                       <p className="text-xs mb-0.5 px-1 flex items-center gap-1.5">
                         <span className="font-semibold" style={isPlus && nameColorHex(chatStyle.name_color) ? { color: nameColorHex(chatStyle.name_color) } : { color: "#e5e5e5" }}>
@@ -661,6 +697,61 @@ const Settings = () => {
                       Deblochează avatarele PLUS <ChevronRight className="h-4 w-4" />
                     </button>
                   )}
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            {/* Avatar frame picker dialog */}
+            <Dialog open={frameOpen} onOpenChange={setFrameOpen}>
+              <DialogContent className="bg-[#141414] border-white/10 text-white max-w-lg">
+                <DialogHeader><DialogTitle className="font-display text-2xl">Alege ramă avatar</DialogTitle></DialogHeader>
+                <div>
+                  <p className="text-sm text-white/50 mb-3">Ramele sunt decorații animate afișate în jurul avatarului tău, vizibile și în chat.</p>
+                  <div className="grid grid-cols-4 sm:grid-cols-5 gap-4">
+                    <button
+                      type="button"
+                      data-testid="avatar-frame-none"
+                      onClick={() => saveAvatarFrame(null)}
+                      disabled={savingFrame}
+                      className={`relative rounded-full transition-all ${!avatarFrame ? "scale-105" : ""}`}
+                    >
+                      <span className={`block rounded-full overflow-hidden aspect-square border-2 ${!avatarFrame ? "border-[#ffcc00]" : "border-white/10 hover:border-white/30"}`}>
+                        <img src={avatar} alt="fără ramă" className="w-full h-full object-cover bg-[#141414]" />
+                      </span>
+                      {!avatarFrame && (
+                        <span className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-full">
+                          <Check className="h-5 w-5 text-[#ffcc00]" />
+                        </span>
+                      )}
+                      <p className="text-[10px] text-white/50 mt-1">Fără ramă</p>
+                    </button>
+                    {AVATAR_FRAMES.map((f) => {
+                      const selected = avatarFrame === f.id;
+                      return (
+                        <button
+                          key={f.id}
+                          type="button"
+                          data-testid="avatar-frame-option"
+                          onClick={() => saveAvatarFrame(f.id)}
+                          disabled={savingFrame}
+                          className={`relative rounded-full transition-all ${selected ? "scale-105" : ""}`}
+                        >
+                          <AvatarFrame
+                            src={avatar}
+                            frame={f.id}
+                            size="w-full aspect-square"
+                            ringClassName={`border-2 ${selected ? "border-[#ffcc00]" : "border-white/10 hover:border-white/30"}`}
+                          />
+                          {selected && (
+                            <span className="absolute inset-0 flex items-center justify-center">
+                              <Check className="h-5 w-5 text-[#ffcc00] drop-shadow" />
+                            </span>
+                          )}
+                          <p className="text-[10px] text-white/50 mt-1 truncate">{f.name}</p>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </DialogContent>
             </Dialog>

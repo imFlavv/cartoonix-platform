@@ -290,6 +290,25 @@ body.cx-no-avatar-frames .cx-premium-ring::before {
   display: none !important;
 }
 
+/* Decorative avatar frame overlay (e.g. witch hat) — worn around the avatar circle */
+@keyframes cx-frame-float {
+  0%, 100% { transform: translateY(0) rotate(-1.5deg); }
+  50% { transform: translateY(-4%) rotate(1.5deg); }
+}
+.cx-avatar-frame-overlay {
+  position: absolute;
+  inset: -22%;
+  width: 144%;
+  height: 144%;
+  pointer-events: none;
+  user-select: none;
+  animation: cx-frame-float 3s ease-in-out infinite;
+  z-index: 2;
+}
+body.cx-no-avatar-frames .cx-avatar-frame-overlay {
+  display: none !important;
+}
+
 /* -------- Lobby cards -------- */
 .cx-lobby-card {
   transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
