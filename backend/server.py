@@ -303,6 +303,8 @@ LIMITED_AVATARS = {
 # Avatar frames (decorative overlay on top of the avatar circle). Free for all users.
 AVATAR_FRAMES = {
     "/frames/witch-hat.png",
+    "/frames/pumpkin-ring.png",
+    "/frames/fire-ring.png",
 }
 
 

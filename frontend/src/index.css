@@ -297,9 +297,6 @@ body.cx-no-avatar-frames .cx-premium-ring::before {
 }
 .cx-avatar-frame-overlay {
   position: absolute;
-  inset: -22%;
-  width: 144%;
-  height: 144%;
   pointer-events: none;
   user-select: none;
   animation: cx-frame-float 3s ease-in-out infinite;
