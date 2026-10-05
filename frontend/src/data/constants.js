@@ -43,6 +43,8 @@ export const AVATAR_FRAMES = [
   { id: "/frames/witch-hat.png", name: "Pălărie de Vrăjitoare" },
   { id: "/frames/pumpkin-ring.png", name: "Cercul Dovlecilor" },
   { id: "/frames/fire-ring.png", name: "Cercul de Foc" },
+  { id: "/frames/dragon-ring.png", name: "Cercul de Dragon" },
+  { id: "/frames/zombie-hands.png", name: "Mâinile Zombie" },
 ];
 
 export const CHANNELS = ["Cartoon Network", "Jetix", "Minimax", "Boomerang"];

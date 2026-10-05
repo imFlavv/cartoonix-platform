@@ -305,6 +305,8 @@ AVATAR_FRAMES = {
     "/frames/witch-hat.png",
     "/frames/pumpkin-ring.png",
     "/frames/fire-ring.png",
+    "/frames/dragon-ring.png",
+    "/frames/zombie-hands.png",
 }
 
 
