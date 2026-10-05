@@ -661,6 +661,14 @@ async def get_public_profile(user_id: str, current_user: dict = Depends(get_curr
         raise HTTPException(status_code=404, detail="Utilizator inexistent")
     uid = uid_of(target)
     msg_count = await db.chat_messages.count_documents({"user_id": uid})
+    online_threshold = (datetime.now(timezone.utc) - timedelta(seconds=60)).isoformat()
+    last_active = target.get("last_active") or target.get("last_seen")
+    leaderboard_rank = None
+    if str(target.get("role", "user")).lower() != "admin":
+        my_secs = target.get("presence_seconds", target.get("total_time_seconds", 0)) or 0
+        leaderboard_rank = await db.users.count_documents({
+            "role": {"$ne": "admin"}, "presence_seconds": {"$gt": my_secs},
+        }) + 1
     return {
         "id": uid,
         "name": user_name(target),
@@ -671,6 +679,9 @@ async def get_public_profile(user_id: str, current_user: dict = Depends(get_curr
         "created_at": target.get("created_at"),
         "total_time_seconds": target.get("presence_seconds", target.get("total_time_seconds", 0)),
         "chat_msg_count": msg_count,
+        "event_avatars": target.get("event_avatars", []),
+        "online": bool(last_active and str(last_active) >= online_threshold),
+        "leaderboard_rank": leaderboard_rank,
     }
 
 

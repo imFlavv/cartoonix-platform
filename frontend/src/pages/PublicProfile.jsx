@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 import { PlusIcon } from "@/components/PlusIcon";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { rankInfo } from "@/lib/roles";
-import { ArrowLeft, Clock, Calendar, MessageCircle, Crown, Shield, Loader2, UserX } from "lucide-react";
+import { ArrowLeft, Clock, Calendar, MessageCircle, Crown, Shield, Loader2, UserX, Trophy, Sparkles } from "lucide-react";
 
 const formatTime = (sec) => {
   sec = Math.floor(sec || 0);
@@ -110,14 +110,24 @@ const PublicProfile = () => {
 
             <div className="relative bg-[#0f0f0f] px-5 md:px-10 pb-8">
               <div className="flex flex-col sm:flex-row items-center sm:items-end gap-5 -mt-12 sm:-mt-14">
-                <img
-                  src={profile.avatar || `https://api.dicebear.com/9.x/bottts/svg?seed=${profile.name}`}
-                  alt={profile.name}
-                  data-testid="public-profile-avatar"
-                  className="h-24 w-24 sm:h-28 sm:w-28 rounded-full bg-[#141414] border-4 border-[#0f0f0f] object-cover shadow-lg"
-                />
+                <div className="relative shrink-0">
+                  <img
+                    src={profile.avatar || `https://api.dicebear.com/9.x/bottts/svg?seed=${profile.name}`}
+                    alt={profile.name}
+                    data-testid="public-profile-avatar"
+                    className="h-24 w-24 sm:h-28 sm:w-28 rounded-full bg-[#141414] border-4 border-[#0f0f0f] object-cover shadow-lg"
+                  />
+                  <span
+                    data-testid="public-profile-online-dot"
+                    className={`absolute bottom-1 right-1 h-4 w-4 rounded-full border-2 border-[#0f0f0f] ${profile.online ? "bg-[#22c55e]" : "bg-white/30"}`}
+                    title={profile.online ? "Online acum" : "Offline"}
+                  />
+                </div>
                 <div className="text-center sm:text-left flex-1 pb-1">
                   <h1 className="font-display text-3xl md:text-4xl leading-tight" data-testid="public-profile-name">{profile.name}</h1>
+                  <p className="text-xs mt-1 font-semibold" data-testid="public-profile-online-status">
+                    <span className={profile.online ? "text-[#22c55e]" : "text-white/40"}>{profile.online ? "● Online acum" : "○ Offline"}</span>
+                  </p>
                   <div className="mt-2">
                     <RoleBadge role={profile.role} plus={profile.plus} donor={profile.donor} />
                   </div>
@@ -129,7 +139,7 @@ const PublicProfile = () => {
                 Membru din: <span className="text-white/80 font-semibold">{formatJoinDate(profile.created_at)}</span>
               </div>
 
-              <div className="mt-6 grid sm:grid-cols-2 gap-4">
+              <div className="mt-6 grid sm:grid-cols-3 gap-4">
                 <div className="rounded-2xl border border-white/10 bg-black/30 p-4 flex items-center gap-4" data-testid="public-profile-time-spent">
                   <div className="h-11 w-11 rounded-xl bg-[#ec1c24]/15 border border-[#ec1c24]/30 flex items-center justify-center shrink-0">
                     <Clock className="h-5 w-5 text-[#ec1c24]" />
@@ -140,6 +150,16 @@ const PublicProfile = () => {
                   </div>
                 </div>
 
+                <div className="rounded-2xl border border-white/10 bg-black/30 p-4 flex items-center gap-4" data-testid="public-profile-leaderboard-rank">
+                  <div className="h-11 w-11 rounded-xl bg-[#a855f7]/15 border border-[#a855f7]/30 flex items-center justify-center shrink-0">
+                    <Trophy className="h-5 w-5 text-[#a855f7]" />
+                  </div>
+                  <div>
+                    <p className="font-display text-xl leading-none">{profile.leaderboard_rank ? `#${profile.leaderboard_rank}` : "—"}</p>
+                    <p className="text-xs text-white/50 mt-1">În Clasament general</p>
+                  </div>
+                </div>
+
                 <div className="rounded-2xl border border-white/10 bg-black/30 p-4" data-testid="public-profile-rank">
                   <div className="flex items-center gap-3 mb-2.5">
                     <div className="h-11 w-11 rounded-xl bg-[#ffcc00]/15 border border-[#ffcc00]/30 flex items-center justify-center shrink-0">
@@ -147,13 +167,34 @@ const PublicProfile = () => {
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="font-display text-lg leading-tight truncate">{rank.title}</p>
-                      <p className="text-xs text-white/50">{(profile.chat_msg_count || 0).toLocaleString("ro-RO")} mesaje pe chat</p>
+                      <p className="text-xs text-white/50">{(profile.chat_msg_count || 0).toLocaleString("ro-RO")} mesaje</p>
                     </div>
                   </div>
                   <div className="h-2 w-full rounded-full bg-white/10 overflow-hidden">
                     <div className="h-full rounded-full bg-gradient-to-r from-[#ffcc00] to-[#ff8a00] transition-all duration-500" style={{ width: `${rank.progress}%` }} />
                   </div>
                 </div>
+              </div>
+
+              <div className="mt-8" data-testid="public-profile-avatar-gallery">
+                <h3 className="font-display text-lg flex items-center gap-2 mb-1">
+                  <Sparkles className="h-4 w-4 text-[#a855f7]" /> Avatare Câștigate
+                </h3>
+                {(profile.event_avatars || []).length === 0 ? (
+                  <p className="text-sm text-white/40 mt-2">Niciun avatar special deblocat încă.</p>
+                ) : (
+                  <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3 mt-3">
+                    {profile.event_avatars.map((av, i) => (
+                      <div
+                        key={av || i}
+                        data-testid={`public-avatar-gallery-item-${i}`}
+                        className={`relative rounded-xl p-2 flex items-center justify-center border ${profile.avatar === av ? "border-[#a855f7] bg-[#a855f7]/10" : "border-white/10 bg-[#141414]"}`}
+                      >
+                        <img src={av} alt="Avatar special" className="h-12 w-12 rounded-lg object-cover" />
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
