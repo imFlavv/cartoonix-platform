@@ -46,6 +46,7 @@ import TvAccount from "@/pages/TvAccount";
 import CastTest from "@/pages/CastTest";
 import Changelog from "@/pages/Changelog";
 import Feedback from "@/pages/Feedback";
+import PublicProfile from "@/pages/PublicProfile";
 
 // Cartoonix Land is code-split so it never bloats the main streaming bundle
 const Land = lazy(() => import("@/pages/Land"));
@@ -119,6 +120,7 @@ function App() {
             <Route path="/show/:id" element={<ShowDetail />} />
             <Route path="/watch/:id/:ep" element={<ProtectedRoute><Watch /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+            <Route path="/profile/:userId" element={<ProtectedRoute><PublicProfile /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
             <Route path="/lobby" element={<ProtectedRoute><Lobby /></ProtectedRoute>} />
             <Route path="/lobby/chat" element={<ProtectedRoute><ChatRoom /></ProtectedRoute>} />

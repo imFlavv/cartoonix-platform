@@ -654,6 +654,26 @@ async def me(user: dict = Depends(get_current_user)):
     return serialize_user(user)
 
 
+@api_router.get("/users/{user_id}/profile")
+async def get_public_profile(user_id: str, current_user: dict = Depends(get_current_user)):
+    target = await find_user_by_id(user_id)
+    if not target:
+        raise HTTPException(status_code=404, detail="Utilizator inexistent")
+    uid = uid_of(target)
+    msg_count = await db.chat_messages.count_documents({"user_id": uid})
+    return {
+        "id": uid,
+        "name": user_name(target),
+        "avatar": user_avatar(target),
+        "plus": user_is_plus(target),
+        "donor": user_is_donor(target),
+        "role": target.get("role", "user"),
+        "created_at": target.get("created_at"),
+        "total_time_seconds": target.get("presence_seconds", target.get("total_time_seconds", 0)),
+        "chat_msg_count": msg_count,
+    }
+
+
 @api_router.put("/auth/avatar")
 async def update_avatar(data: AvatarInput, user: dict = Depends(get_current_user)):
     if data.avatar in PREMIUM_AVATARS and not user_is_plus(user):

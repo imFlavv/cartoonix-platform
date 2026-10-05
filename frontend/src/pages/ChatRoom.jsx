@@ -473,7 +473,12 @@ const ChatRoom = () => {
                       {/* middle */}
                       <div className="flex-1 min-w-0">
                         <p className="text-xs text-white/40 mb-0.5 px-1 flex items-center gap-1.5">
-                          <span className="text-white/70 font-semibold" style={m.plus && nameColorHex(m.chat_style?.name_color) ? { color: nameColorHex(m.chat_style.name_color) } : undefined}>{m.name}</span>
+                          <span
+                            data-testid="chat-username-link"
+                            onClick={() => m.user_id && navigate(`/profile/${m.user_id}`)}
+                            className="text-white/70 font-semibold cursor-pointer hover:underline"
+                            style={m.plus && nameColorHex(m.chat_style?.name_color) ? { color: nameColorHex(m.chat_style.name_color) } : undefined}
+                          >{m.name}</span>
                           <NameBadges m={m} />
                         </p>
                         <p className="text-[10px] text-white/35 mb-1 px-1 leading-none" data-testid="chat-rank-title">{rankTitle(m.sender_msg_count)}</p>
@@ -619,20 +624,24 @@ const ChatRoom = () => {
             <p className="text-xs font-bold text-white/40 uppercase tracking-wider px-1 mb-2 flex items-center gap-1"><Trophy className="h-3.5 w-3.5 text-[#ffcc00]" /> Clasament</p>
             <div className="space-y-1" data-testid="chat-leaderboard">
               {board.map((u) => (
-                <div key={u.id} className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-white/5 transition-colors">
-                  <span className={`w-5 text-center text-xs font-bold shrink-0 ${u.rank === 1 ? "text-[#ffcc00]" : u.rank === 2 ? "text-white/70" : u.rank === 3 ? "text-[#cd7f32]" : "text-white/30"}`}>{u.rank}</span>
-                  <div className="relative shrink-0">
-                    <img src={u.avatar || `https://api.dicebear.com/9.x/bottts/svg?seed=${u.name}`} alt="" className="h-8 w-8 rounded-full bg-[#141414]" />
-                    {u.online && <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-[#22c55e] border-2 border-[#0c0c0f]" />}
+                  <div key={u.id} className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-white/5 transition-colors">
+                    <span className={`w-5 text-center text-xs font-bold shrink-0 ${u.rank === 1 ? "text-[#ffcc00]" : u.rank === 2 ? "text-white/70" : u.rank === 3 ? "text-[#cd7f32]" : "text-white/30"}`}>{u.rank}</span>
+                    <div className="relative shrink-0">
+                      <img src={u.avatar || `https://api.dicebear.com/9.x/bottts/svg?seed=${u.name}`} alt="" className="h-8 w-8 rounded-full bg-[#141414]" />
+                      {u.online && <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-[#22c55e] border-2 border-[#0c0c0f]" />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold truncate flex items-center gap-1.5">
+                        <span
+                          data-testid="chat-leaderboard-username-link"
+                          onClick={() => u.id && navigate(`/profile/${u.id}`)}
+                          className="cursor-pointer hover:underline truncate"
+                        >{u.name}</span>
+                        <NameBadges m={u} />
+                      </p>
+                      <p className="text-[11px] text-white/40">{roNum(u.count)} mesaje</p>
+                    </div>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold truncate flex items-center gap-1.5">
-                      {u.name}
-                      <NameBadges m={u} />
-                    </p>
-                    <p className="text-[11px] text-white/40">{roNum(u.count)} mesaje</p>
-                  </div>
-                </div>
               ))}
               {board.length === 0 && <p className="text-xs text-white/30 px-2 py-3">Niciun mesaj încă.</p>}
             </div>
