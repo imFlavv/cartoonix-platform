@@ -225,3 +225,11 @@ with chat, Halloween seasonal event, custom currency "NIX", Mystery Box spin/cas
 - Layout `/lobby/rewards` restructurat: grid 3 coloane — stânga (col-span-2) are stats + shop, dreapta (col-span-1, sticky) are „Valorifică Codul" (cu glow, mai vizibil) + „Activitate recentă" — astfel codul promoțional e mereu vizibil, chiar la scroll.
 - „Activitate recentă" transformată în secțiune expandabilă (closed by default): header-ul (cu nr. claims) e buton clickabil cu chevron animat, conținutul se deschide/închide cu tranziție max-height.
 - NU verificat vizual prin screenshot tool (blocat pe splash-ul static al mediului, cunoscut din sesiuni anterioare) — frontend compilează fără erori. User să confirme vizual pe `/lobby/rewards`.
+
+## 2026-10 — Pagină de profil public (/profile/:userId) + background Rewards
+- Background nou pe `/lobby/rewards` (imaginea atașată de user: comoară Halloween violet/portocaliu cu monede/cheie/castel), aplicat `fixed inset-0` + overlay `bg-black/65` (mai întunecat, cerut explicit). Layout-ul widening cerut inițial a fost revertit la cererea userului — rămas `max-w-6xl` centrat ca înainte; doar fundalul a rămas.
+- **Pagină nouă `/profile/:userId`** (`PublicProfile.jsx`, rută protejată): afișează banner (reutilizează `/halloween/rewards-bg.jpg`), avatar, nume, badge-uri rol (Hall of Fame/Admin/Moderator/PLUS/FREE/Donator), „Membru din: <dată>", timp petrecut pe platformă, rang chat (titlu + progres, reutilizează `rankInfo`), poziție în Clasament general, status online/offline (dot verde + text), galerie avatare speciale câștigate (`event_avatars`).
+- Backend: `GET /api/users/{user_id}/profile` (nou, necesită auth) — returnează date publice: name, avatar, plus, donor, role, created_at, total_time_seconds, chat_msg_count, event_avatars, online, leaderboard_rank. 404 dacă userul nu există. Verificat prin curl.
+- Click pe nume → navighează la profil, adăugat în: `ChatRoom.jsx` (mesaje + leaderboard sidebar), `Clasament.jsx` (toate cele 3 tipuri de rânduri + bannerele „Poziția ta" pe tab General și Halloween).
+- Banner-ul de profil rămâne fix (userul a confirmat să NU adauge opțiune de schimbare în Setări).
+- NU verificat vizual prin screenshot tool (blocat pe splash, limitare de mediu documentată) — backend verificat integral prin curl, frontend compilează curat. User a confirmat manual că funcționează.

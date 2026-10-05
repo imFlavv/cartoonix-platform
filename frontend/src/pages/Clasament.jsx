@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { NavBar } from "@/components/NavBar";
 import { api } from "@/lib/api";
 import { Trophy, Search, Crown, Medal } from "lucide-react";
@@ -10,6 +11,19 @@ const rankStyle = (rank) => {
   if (rank === 2) return { color: "#c0c0c0", ring: "ring-[#c0c0c0]" };
   if (rank === 3) return { color: "#cd7f32", ring: "ring-[#cd7f32]" };
   return { color: "#ffffff55", ring: "ring-white/10" };
+};
+
+const NameLink = ({ e, className = "" }) => {
+  const navigate = useNavigate();
+  return (
+    <span
+      data-testid={`lb-username-link-${e.id}`}
+      onClick={(ev) => { ev.stopPropagation(); e.id && navigate(`/profile/${e.id}`); }}
+      className={`cursor-pointer hover:underline truncate ${className}`}
+    >
+      {e.name}
+    </span>
+  );
 };
 
 const Row = ({ e, highlight = false }) => {
@@ -31,7 +45,7 @@ const Row = ({ e, highlight = false }) => {
       <img src={e.avatar} alt={e.name} className={`h-9 w-9 rounded-full object-cover ring-2 ${rs.ring}`} />
       <div className="flex-1 min-w-0">
         <p className="font-semibold text-sm truncate flex items-center gap-2">
-          {e.name}
+          <NameLink e={e} />
           {e.online && <span className="h-2 w-2 rounded-full bg-[#22c55e] shrink-0" title="Online" />}
         </p>
       </div>
@@ -59,7 +73,7 @@ const PointsRow = ({ e, highlight = false }) => {
       <img src={e.avatar} alt={e.name} className={`h-9 w-9 rounded-full object-cover ring-2 ${rs.ring}`} />
       <div className="flex-1 min-w-0">
         <p className="font-semibold text-sm truncate flex items-center gap-2">
-          {e.name}
+          <NameLink e={e} />
           {e.online && <span className="h-2 w-2 rounded-full bg-[#22c55e] shrink-0" title="Online" />}
         </p>
       </div>
@@ -89,7 +103,7 @@ const PumpkinRow = ({ e, highlight = false }) => {
       <img src={e.avatar} alt={e.name} className={`h-9 w-9 rounded-full object-cover ring-2 ${rs.ring}`} />
       <div className="flex-1 min-w-0">
         <p className="font-semibold text-sm truncate flex items-center gap-2">
-          {e.name}
+          <NameLink e={e} />
           {e.online && <span className="h-2 w-2 rounded-full bg-[#22c55e] shrink-0" title="Online" />}
         </p>
       </div>
@@ -101,6 +115,7 @@ const PumpkinRow = ({ e, highlight = false }) => {
 };
 
 const Clasament = () => {
+  const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [hwData, setHwData] = useState(null);
   const [q, setQ] = useState("");
@@ -186,7 +201,9 @@ const Clasament = () => {
                   <img src={data.me.avatar} alt={data.me.name} className="h-9 w-9 rounded-full object-cover ring-2 ring-[#ffcc00]" />
                   <div className="min-w-0">
                     <p className="text-[11px] text-white/50 uppercase tracking-wide leading-none mb-0.5">Poziția ta</p>
-                    <p className="font-semibold text-sm truncate">{data.me.name} · locul #{data.me.rank}</p>
+                    <p className="font-semibold text-sm truncate">
+                      <span data-testid="lb-me-username-link" onClick={() => data.me.id && navigate(`/profile/${data.me.id}`)} className="cursor-pointer hover:underline">{data.me.name}</span> · locul #{data.me.rank}
+                    </p>
                   </div>
                 </div>
                 <div className="text-right shrink-0">
@@ -231,7 +248,9 @@ const Clasament = () => {
                   <img src={hwData.me.avatar} alt={hwData.me.name} className="h-9 w-9 rounded-full object-cover ring-2 ring-[#ff7a18]" />
                   <div className="min-w-0">
                     <p className="text-[11px] text-white/50 uppercase tracking-wide leading-none mb-0.5">Poziția ta</p>
-                    <p className="font-semibold text-sm truncate">{hwData.me.name} · locul #{hwData.me.rank}</p>
+                    <p className="font-semibold text-sm truncate">
+                      <span data-testid="lb-hw-me-username-link" onClick={() => hwData.me.id && navigate(`/profile/${hwData.me.id}`)} className="cursor-pointer hover:underline">{hwData.me.name}</span> · locul #{hwData.me.rank}
+                    </p>
                   </div>
                 </div>
                 <div className="text-right shrink-0 flex items-center gap-1.5">
