@@ -292,13 +292,10 @@ body.cx-no-avatar-frames .cx-premium-ring::before {
 
 /* Decorative avatar frame overlay (animated PNG decorations, e.g. witch hat / fire ring) — same bounding box as the avatar */
 .cx-avatar-frame-overlay {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
   pointer-events: none;
   user-select: none;
   z-index: 2;
+  object-fit: cover;
 }
 body.cx-no-avatar-frames .cx-avatar-frame-overlay {
   display: none !important;
