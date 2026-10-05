@@ -297,6 +297,8 @@ body.cx-no-avatar-frames .cx-premium-ring::before {
   left: 50%;
   width: 120%;
   height: 120%;
+  max-width: none;
+  max-height: none;
   transform: translate(-50%, -50%);
   object-fit: contain;
   pointer-events: none;
