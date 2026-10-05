@@ -40,9 +40,9 @@ export const PREMIUM_AVATARS = [
 
 // Avatar frames - decorative overlay worn around the avatar circle. Free for all users.
 export const AVATAR_FRAMES = [
-  { id: "/frames/witch-hat.png", name: "Pălărie de Vrăjitoare", scale: 144 },
-  { id: "/frames/pumpkin-ring.png", name: "Cercul Dovlecilor", scale: 120 },
-  { id: "/frames/fire-ring.png", name: "Cercul de Foc", scale: 120 },
+  { id: "/frames/witch-hat.png", name: "Pălărie de Vrăjitoare" },
+  { id: "/frames/pumpkin-ring.png", name: "Cercul Dovlecilor" },
+  { id: "/frames/fire-ring.png", name: "Cercul de Foc" },
 ];
 
 export const CHANNELS = ["Cartoon Network", "Jetix", "Minimax", "Boomerang"];
