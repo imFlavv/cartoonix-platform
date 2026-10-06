@@ -29,6 +29,8 @@ import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { AvatarFrame } from "@/components/AvatarFrame";
 import { AVATAR_SEEDS, PREMIUM_AVATARS, AVATAR_FRAMES } from "@/data/constants";
 
+const LOCKED_AVATAR_FRAMES = new Set(["/frames/witch-hat.png", "/frames/pumpkin-ring.png", "/frames/zombie-hands.png"]);
+
 const Card = ({ icon: Icon, title, subtitle, children }) => (
   <div className="bg-[#0f0f0f] border border-white/10 rounded-2xl p-6 mb-5">
     <div className="mb-4">
@@ -72,8 +74,29 @@ const Settings = () => {
   const [avatarFrame, setAvatarFrame] = useState(user?.avatar_frame || null);
   const [frameOpen, setFrameOpen] = useState(false);
   const [savingFrame, setSavingFrame] = useState(false);
+  const [hideWidgets, setHideWidgets] = useState(!!user?.hide_widgets);
+  const [savingHideWidgets, setSavingHideWidgets] = useState(false);
 
   const isPlus = !!user?.plus;
+
+  const toggleHideWidgets = async (checked) => {
+    if (!isPlus) {
+      toast.error("Opțiunea este disponibilă doar pentru membrii Cartoonix PLUS");
+      navigate("/plus");
+      return;
+    }
+    setSavingHideWidgets(true);
+    try {
+      const { data } = await api.put("/auth/hide-widgets", { hide_widgets: checked });
+      setUser(data);
+      setHideWidgets(checked);
+      toast.success(checked ? "Casetele promoționale au fost ascunse" : "Casetele promoționale sunt din nou vizibile");
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Eroare la salvarea preferinței");
+    } finally {
+      setSavingHideWidgets(false);
+    }
+  };
 
   const saveAvatar = async (chosen) => {
     const a = chosen || avatar;
@@ -110,6 +133,10 @@ const Settings = () => {
   };
 
   const saveAvatarFrame = async (frame) => {
+    if (frame && LOCKED_AVATAR_FRAMES.has(frame) && !(user?.frames_unlocked || []).includes(frame)) {
+      toast.error("Rama e blocată. Câștig-o la /spin sau cumpăr-o din magazin (/lobby/rewards).");
+      return;
+    }
     setSavingFrame(true);
     try {
       const { data } = await api.put("/auth/avatar-frame", { frame });
@@ -225,6 +252,21 @@ const Settings = () => {
                 <span className="text-sm">Redare automată episod următor</span>
                 <Switch checked={autoplay} onCheckedChange={setAutoplay} data-testid="settings-autoplay" />
               </div>
+              <div className="flex items-center justify-between py-2 border-t border-white/10 mt-2 pt-4">
+                <span className="text-sm flex items-center gap-2">
+                  Ascunde casetele promoționale (dreapta jos)
+                  {!isPlus && <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase text-[#ffcc00]"><Lock className="h-3 w-3" /> PLUS</span>}
+                </span>
+                <Switch
+                  checked={isPlus && hideWidgets}
+                  disabled={!isPlus || savingHideWidgets}
+                  onCheckedChange={toggleHideWidgets}
+                  data-testid="settings-hide-widgets"
+                />
+              </div>
+              {!isPlus && (
+                <p className="text-xs text-white/40 mt-1">Doar membrii Cartoonix PLUS pot dezactiva aceste casete care se rotesc în colțul din dreapta jos.</p>
+              )}
             </Card>
 
             <button data-testid="settings-logout" onClick={() => { logout(); navigate("/home"); }} className="flex items-center gap-2 px-6 py-3 rounded-full bg-white/10 hover:bg-[#ec1c24] font-bold transition-colors duration-200">
@@ -706,7 +748,7 @@ const Settings = () => {
               <DialogContent className="bg-[#141414] border-white/10 text-white max-w-lg">
                 <DialogHeader><DialogTitle className="font-display text-2xl">Alege ramă avatar</DialogTitle></DialogHeader>
                 <div>
-                  <p className="text-sm text-white/50 mb-3">Ramele sunt decorații animate afișate în jurul avatarului tău, vizibile și în chat.</p>
+                  <p className="text-sm text-white/50 mb-3">Ramele sunt decorații animate afișate în jurul avatarului tău, vizibile și în chat. Ramele cu 🔒 se deblochează la /spin sau din magazin (/lobby/rewards).</p>
                   <div className="grid grid-cols-4 sm:grid-cols-5 gap-4">
                     <button
                       type="button"
@@ -727,27 +769,41 @@ const Settings = () => {
                     </button>
                     {AVATAR_FRAMES.map((f) => {
                       const selected = avatarFrame === f.id;
+                      const locked = LOCKED_AVATAR_FRAMES.has(f.id) && !(user?.frames_unlocked || []).includes(f.id);
                       return (
                         <button
                           key={f.id}
                           type="button"
                           data-testid="avatar-frame-option"
-                          onClick={() => saveAvatarFrame(f.id)}
+                          onClick={() => {
+                            if (locked) {
+                              toast.error("Rama e blocată. Câștig-o la /spin sau cumpăr-o din /lobby/rewards.");
+                              return;
+                            }
+                            saveAvatarFrame(f.id);
+                          }}
                           disabled={savingFrame}
                           className={`relative rounded-full transition-all ${selected ? "scale-105" : ""}`}
                         >
-                          <AvatarFrame
-                            src={avatar}
-                            frame={f.id}
-                            size="w-full aspect-square"
-                            ringClassName={`border-2 ${selected ? "border-[#ffcc00]" : "border-white/10 hover:border-white/30"}`}
-                          />
-                          {selected && (
-                            <span className="absolute inset-0 flex items-center justify-center">
-                              <Check className="h-5 w-5 text-[#ffcc00] drop-shadow" />
-                            </span>
-                          )}
-                          <p className="text-[10px] text-white/50 mt-1 truncate">{f.name}</p>
+                          <div className="relative w-full aspect-square">
+                            <AvatarFrame
+                              src={avatar}
+                              frame={f.id}
+                              size="w-full h-full"
+                              ringClassName={`border-2 ${selected ? "border-[#ffcc00]" : "border-white/10 hover:border-white/30"}`}
+                            />
+                            {locked && (
+                              <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/60">
+                                <Lock className="h-4 w-4 text-white/80" />
+                              </span>
+                            )}
+                            {selected && !locked && (
+                              <span className="absolute inset-0 flex items-center justify-center">
+                                <Check className="h-5 w-5 text-[#ffcc00] drop-shadow" />
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-white/50 mt-1 truncate">{f.name}{locked && " 🔒"}</p>
                         </button>
                       );
                     })}

@@ -7,6 +7,9 @@ import { toast } from "sonner";
 import { ArrowLeft, Gift, Crown, Ticket, Tag, Clock, ChevronRight, ChevronDown, Copy, Check, Sparkles, Loader2, X, Lock, ShoppingCart } from "lucide-react";
 import { NixCoin } from "@/components/NixCoin";
 import { KeyIcon } from "@/components/KeyIcon";
+import { AvatarFrame } from "@/components/AvatarFrame";
+
+const DEFAULT_PREVIEW_AVATAR = "/default-avatar.jpg";
 
 const timeAgo = (iso) => {
   if (!iso) return "";
@@ -124,6 +127,7 @@ const Rewards = () => {
       const { data: res } = await api.post("/shop/purchase", { item_id: item.id });
       if (res.granted?.kind === "keys") toast.success(`Ai primit ${res.granted.keys} ${res.granted.keys === 1 ? "cheie" : "chei"} Mystery Box! 🔑`);
       else if (res.granted?.kind === "avatar") toast.success("Avatar deblocat! Îl poți pune din Setări → Personalizare. 🎃");
+      else if (res.granted?.kind === "frame") toast.success("Ramă deblocată! O poți pune din Setări → Personalizare. ✨");
       else toast.success("Achiziție reușită!");
       await load();
       refreshUser?.();
@@ -151,6 +155,7 @@ const Rewards = () => {
     const affordable = points >= item.cost;
     const disabled = owned || soldOut || !affordable || buying === item.id;
     const isAvatar = item.kind === "avatar";
+    const isFrame = item.kind === "frame";
 
     let label = `Cumpără · ${item.cost} NIX`;
     if (owned) label = "Deținut";
@@ -163,9 +168,11 @@ const Rewards = () => {
         data-testid={`shop-item-${item.id}`}
         className="group relative flex items-center gap-3 bg-[#111] border border-white/10 rounded-xl p-3 hover:border-white/20 transition-colors duration-200"
       >
-        <div className={`relative h-14 w-14 rounded-lg overflow-hidden shrink-0 ${isAvatar ? "bg-black" : "bg-gradient-to-br from-[#1a1206] to-[#0f0f0f] flex items-center justify-center"}`}>
+        <div className={`relative h-14 w-14 shrink-0 ${isFrame ? "" : "rounded-lg overflow-hidden"} ${isAvatar ? "bg-black" : isFrame ? "" : "bg-gradient-to-br from-[#1a1206] to-[#0f0f0f] flex items-center justify-center"}`}>
           {isAvatar ? (
             <img src={item.img} alt={item.title} className="w-full h-full object-cover" draggable={false} />
+          ) : isFrame ? (
+            <AvatarFrame src={DEFAULT_PREVIEW_AVATAR} frame={item.frame} alt={item.title} size="h-14 w-14" />
           ) : (
             <div className="relative flex items-center justify-center">
               <KeyIcon className="h-9 w-9 drop-shadow-[0_0_10px_rgba(255,122,24,0.5)]" />
@@ -175,7 +182,7 @@ const Rewards = () => {
             </div>
           )}
           {owned && (
-            <div className="absolute inset-0 bg-black/55 flex items-center justify-center">
+            <div className={`absolute inset-0 bg-black/55 flex items-center justify-center ${isFrame ? "rounded-full" : ""}`}>
               <Check className="h-5 w-5 text-[#22c55e]" />
             </div>
           )}
@@ -183,7 +190,7 @@ const Rewards = () => {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <h3 className="font-display text-sm leading-tight truncate">{item.title}</h3>
-            {isAvatar && <span className="shrink-0 text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-[#ff7a18]/15 text-[#ffb37a] border border-[#ff7a18]/30">Limitat</span>}
+            {(isAvatar || isFrame) && <span className="shrink-0 text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-[#ff7a18]/15 text-[#ffb37a] border border-[#ff7a18]/30">Limitat</span>}
           </div>
           <p className="text-[11px] text-white/40 truncate">{item.desc}</p>
           <div className="flex items-center gap-1 text-[#c084fc] font-bold text-xs mt-1">

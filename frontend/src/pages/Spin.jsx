@@ -19,6 +19,7 @@ const PRIZES = {
   p50:   { label: "50 NIX", short: "50 NIX", img: "/nix/pile.png", color: "#d8b4fe", tint: "rgba(192,132,252,0.24)", rarity: "EPIC" },
   plus:  { label: "Invitație PLUS", short: "INVITAȚIE PLUS", img: "/nix/scroll.png", color: "#ffcc00", tint: "rgba(255,204,0,0.20)", rarity: "LEGENDAR" },
   avatar_special: { label: "Avatar Halloween", short: "AVATAR SPECIAL", img: "/avatars/halloween-castle-pumpkin.gif", color: "#ef4444", tint: "rgba(239,68,68,0.22)", rarity: "MITIC" },
+  frame_witch: { label: "Ramă: Pălărie Vrăjitoare", short: "RAMĂ VRĂJITOARE", img: "/frames/witch-hat.png", color: "#22c55e", tint: "rgba(34,197,94,0.22)", rarity: "MITIC" },
 };
 const PRIZE_KEYS = Object.keys(PRIZES);
 
@@ -169,6 +170,9 @@ const Spin = () => {
         } else if (data.result.type === "avatar") {
           setTimeout(playLegendary, 180);
           toast.success("Ai câștigat un Avatar Halloween Special! 🎃👑");
+        } else if (data.result.type === "frame") {
+          setTimeout(playLegendary, 180);
+          toast.success("Ai câștigat Rama: Pălărie de Vrăjitoare! 🎃✨");
         }
       }, SPIN_MS + 250);
     } catch (err) {
@@ -328,7 +332,7 @@ const Spin = () => {
                   Vezi în inventar
                 </button>
               </>
-            ) : (
+            ) : result.type === "avatar" ? (
               <>
                 <div className="mx-auto mb-4 h-24 w-24 rounded-2xl overflow-hidden border border-[#ef4444]/50 shadow-[0_0_24px_rgba(239,68,68,0.5)]">
                   <img src="/avatars/halloween-castle-pumpkin.gif" alt="Avatar Halloween Special" className="h-24 w-24 object-cover" />
@@ -339,8 +343,19 @@ const Spin = () => {
                   Vezi în inventar
                 </button>
               </>
+            ) : (
+              <>
+                <div className="mx-auto mb-4 h-24 w-24 rounded-2xl overflow-hidden border border-[#22c55e]/50 shadow-[0_0_24px_rgba(34,197,94,0.5)] bg-black">
+                  <img src="/frames/witch-hat.png" alt="Ramă Pălărie de Vrăjitoare" className="h-24 w-24 object-contain" />
+                </div>
+                <h2 className="font-display text-3xl mb-1 text-[#22c55e]">Ramă: Pălărie de Vrăjitoare! 🎃</h2>
+                <p className="text-white/50 mb-5">Rama a fost deblocată. O poți activa din Setări → Personalizare → Alege ramă avatar.</p>
+                <button data-testid="spin-go-settings" onClick={() => navigate("/settings")} className="w-full py-3 rounded-xl bg-[#22c55e] text-white font-bold hover:bg-[#16a34a] transition-colors">
+                  Vezi în Setări
+                </button>
+              </>
             )}
-            {result.type !== "plus" && result.type !== "avatar" && (
+            {result.type !== "plus" && result.type !== "avatar" && result.type !== "frame" && (
               <button
                 data-testid="spin-again"
                 onClick={() => { setResult(null); setFinished(false); }}

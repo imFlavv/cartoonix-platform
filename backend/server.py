@@ -236,6 +236,8 @@ def serialize_user(doc: dict) -> dict:
         "nickname_updated_at": doc.get("nickname_updated_at"),
         "event_avatars": doc.get("event_avatars", []),
         "avatar_frame": doc.get("avatar_frame"),
+        "frames_unlocked": doc.get("frames_unlocked", []),
+        "hide_widgets": bool(doc.get("hide_widgets", False)) if user_is_plus(doc) else False,
     }
 
 
@@ -306,6 +308,13 @@ AVATAR_FRAMES = {
     "/frames/pumpkin-ring.png",
     "/frames/fire-ring.png",
     "/frames/dragon-ring.png",
+    "/frames/zombie-hands.png",
+}
+
+# Frames that must be unlocked (won at /spin or bought in /lobby/rewards) before equipping.
+LOCKED_AVATAR_FRAMES = {
+    "/frames/witch-hat.png",
+    "/frames/pumpkin-ring.png",
     "/frames/zombie-hands.png",
 }
 
@@ -385,6 +394,10 @@ class AvatarInput(BaseModel):
 
 class AvatarFrameInput(BaseModel):
     frame: Optional[str] = None
+
+
+class HideWidgetsInput(BaseModel):
+    hide_widgets: bool
 
 
 class ProfileInput(BaseModel):
@@ -716,8 +729,19 @@ async def update_avatar_frame(data: AvatarFrameInput, user: dict = Depends(get_c
     frame = (data.frame or "").strip() or None
     if frame and frame not in AVATAR_FRAMES:
         raise HTTPException(status_code=400, detail="Ramă invalidă")
+    if frame and frame in LOCKED_AVATAR_FRAMES and frame not in (user.get("frames_unlocked") or []):
+        raise HTTPException(status_code=403, detail="Trebuie să deblochezi această ramă mai întâi (câștig-o la /spin sau cumpăr-o din magazin)")
     await db.users.update_one({"_id": user["_id"]}, {"$set": {"avatar_frame": frame}})
     user["avatar_frame"] = frame
+    return serialize_user(user)
+
+
+@api_router.put("/auth/hide-widgets")
+async def update_hide_widgets(data: HideWidgetsInput, user: dict = Depends(get_current_user)):
+    if not user_is_plus(user):
+        raise HTTPException(status_code=403, detail="Această opțiune este disponibilă doar pentru membrii Cartoonix PLUS")
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {"hide_widgets": bool(data.hide_widgets)}})
+    user["hide_widgets"] = bool(data.hide_widgets)
     return serialize_user(user)
 
 
@@ -1201,6 +1225,12 @@ SHOP_CATALOG = {
     "avatar_halloween": {"category": "limited", "title": "Avatar Halloween", "cost": 50, "kind": "avatar",
                          "avatar": "/halloween/avatar-scarecrow.gif", "desc": "Avatar exclusiv de Halloween. Ediție limitată.",
                          "img": "/halloween/avatar-scarecrow.gif", "limit": 1, "window_hours": 0},
+    "frame_pumpkin_ring": {"category": "limited", "title": "Ramă: Cercul Dovlecilor", "cost": 50, "kind": "frame",
+                           "frame": "/frames/pumpkin-ring.png", "desc": "Ramă avatar animată cu dovleci. Ediție limitată.",
+                           "img": "/frames/pumpkin-ring.png", "limit": 1, "window_hours": 0},
+    "frame_zombie_hands": {"category": "limited", "title": "Ramă: Mâinile Zombie", "cost": 50, "kind": "frame",
+                           "frame": "/frames/zombie-hands.png", "desc": "Ramă avatar animată cu mâini de zombie. Ediție limitată.",
+                           "img": "/frames/zombie-hands.png", "limit": 1, "window_hours": 0},
 }
 
 
@@ -1221,7 +1251,7 @@ def _recent_in_window(timestamps, window_hours):
     return sorted([t for t in ts if t >= cutoff])
 
 
-def _shop_items_payload(state: dict, event_avatars: list):
+def _shop_items_payload(state: dict, event_avatars: list, frames_unlocked: list):
     items = []
     for iid, it in SHOP_CATALOG.items():
         window = int(it.get("window_hours", 0))
@@ -1239,12 +1269,13 @@ def _shop_items_payload(state: dict, event_avatars: list):
         items.append({
             "id": iid, "category": it["category"], "title": it["title"], "cost": it["cost"],
             "kind": it["kind"], "desc": it["desc"], "img": it.get("img"),
-            "keys": it.get("keys", 0), "avatar": it.get("avatar"),
+            "keys": it.get("keys", 0), "avatar": it.get("avatar"), "frame": it.get("frame"),
             "max_per_user": limit, "window_hours": window,
             "purchased_count": count,
             "sold_out": at_limit,
             "next_available_at": next_at,
-            "owned": bool(it.get("avatar") and it["avatar"] in (event_avatars or [])),
+            "owned": bool((it.get("avatar") and it["avatar"] in (event_avatars or []))
+                          or (it.get("frame") and it["frame"] in (frames_unlocked or []))),
         })
     return items
 
@@ -1283,7 +1314,7 @@ async def get_rewards(user: dict = Depends(get_current_user)):
     products = [{"id": pid, **{k: p[k] for k in ("title", "cost", "kind", "desc")}}
                 for pid, p in REWARD_PRODUCTS.items()]
     shop_state = await _shop_timestamps_for_user(uid)
-    shop = _shop_items_payload(shop_state, fresh.get("event_avatars") or [])
+    shop = _shop_items_payload(shop_state, fresh.get("event_avatars") or [], fresh.get("frames_unlocked") or [])
     return {
         "points": int(fresh.get("points", 0)),
         "spins": int(fresh.get("spins", 0)),
@@ -1310,6 +1341,8 @@ async def shop_purchase(body: ShopPurchase, user: dict = Depends(get_current_use
     limit = int(item["limit"])
     if item.get("kind") == "avatar" and item.get("avatar") in (user.get("event_avatars") or []):
         raise HTTPException(status_code=400, detail="Deții deja acest avatar")
+    if item.get("kind") == "frame" and item.get("frame") in (user.get("frames_unlocked") or []):
+        raise HTTPException(status_code=400, detail="Deții deja această ramă")
     # Rolling-window limit: at most `limit` purchases per `window_hours` (lifetime if 0).
     all_ts = []
     async for p in db.shop_purchases.find({"user_id": uid, "item_id": body.item_id}):
@@ -1348,6 +1381,9 @@ async def shop_purchase(body: ShopPurchase, user: dict = Depends(get_current_use
     elif item["kind"] == "avatar":
         await db.users.update_one({"_id": user["_id"]}, {"$addToSet": {"event_avatars": item["avatar"]}})
         granted["avatar"] = item["avatar"]
+    elif item["kind"] == "frame":
+        await db.users.update_one({"_id": user["_id"]}, {"$addToSet": {"frames_unlocked": item["frame"]}})
+        granted["frame"] = item["frame"]
     await db.shop_purchases.insert_one({
         "user_id": uid, "user_name": user_name(user), "item_id": body.item_id,
         "title": item["title"], "cost": cost, "created_at": now_iso,
@@ -1358,7 +1394,7 @@ async def shop_purchase(body: ShopPurchase, user: dict = Depends(get_current_use
     })
     fresh = await find_user_by_id(uid) or user
     shop_state = await _shop_timestamps_for_user(uid)
-    shop = _shop_items_payload(shop_state, fresh.get("event_avatars") or [])
+    shop = _shop_items_payload(shop_state, fresh.get("event_avatars") or [], fresh.get("frames_unlocked") or [])
     return {
         "ok": True, "granted": granted,
         "points": int(fresh.get("points", 0)), "spins": int(fresh.get("spins", 0)),
@@ -1616,6 +1652,7 @@ SPIN_SEGMENTS = [
     {"key": "pumpkin","label": "1 Dovleac",  "color": "#5e2f0a", "text": "#ffcf9e"},
     {"key": "plus",  "label": "Invitație PLUS","color": "#5e1220", "text": "#ffd0d6"},
     {"key": "avatar_special", "label": "Avatar Halloween","color": "#3a0a5e", "text": "#e0c7ff"},
+    {"key": "frame_witch", "label": "Ramă Vrăjitoare","color": "#1a3a0a", "text": "#d4ffb8"},
 ]
 
 # prize key -> (weight, points). "plus", "key", "pumpkin" and "retry" handled specially.
@@ -1629,11 +1666,13 @@ SPIN_PRIZES = [
     ("p50", 4),
     ("plus", 2),
     ("avatar_special", 3),
+    ("frame_witch", 3),
 ]
 SPIN_DEFAULT_WEIGHTS = {k: w for k, w in SPIN_PRIZES}
-SPIN_LABELS = {"retry": "Mai încearcă", "p5": "5 NIX", "key": "1 Cheie Mystery Box", "pumpkin": "1 Dovleac", "p10": "10 NIX", "p15": "15 NIX", "p50": "50 NIX", "plus": "Invitație PLUS", "avatar_special": "Avatar Halloween Special"}
+SPIN_LABELS = {"retry": "Mai încearcă", "p5": "5 NIX", "key": "1 Cheie Mystery Box", "pumpkin": "1 Dovleac", "p10": "10 NIX", "p15": "15 NIX", "p50": "50 NIX", "plus": "Invitație PLUS", "avatar_special": "Avatar Halloween Special", "frame_witch": "Ramă: Pălărie de Vrăjitoare"}
 _SPIN_POINTS = {"p5": 5, "p10": 10, "p15": 15, "p50": 50}
 SPIN_AVATAR_SPECIAL = "/avatars/halloween-castle-pumpkin.gif"
+SPIN_FRAME_WITCH = "/frames/witch-hat.png"
 
 
 async def _get_spin_weights() -> dict:
@@ -1727,6 +1766,17 @@ async def do_spin(user: dict = Depends(get_current_user)):
             "created_at": now_iso, "fulfilled_at": now_iso,
         })
         result.update({"type": "avatar", "avatar_path": SPIN_AVATAR_SPECIAL})
+    elif key == "frame_witch":
+        await db.users.update_one({"_id": user["_id"]}, {"$addToSet": {"frames_unlocked": SPIN_FRAME_WITCH}})
+        oid = ObjectId()
+        await db.reward_claims.insert_one({
+            "_id": oid, "id": str(oid), "user_id": uid,
+            "user_name": user_name(user), "user_email": user.get("email", ""),
+            "product_id": "spin_frame_witch", "product_title": "Ramă: Pălărie de Vrăjitoare (roată)",
+            "cost": 0, "kind": "frame_unlock", "status": "fulfilled",
+            "frame_path": SPIN_FRAME_WITCH, "created_at": now_iso, "fulfilled_at": now_iso,
+        })
+        result.update({"type": "frame", "frame_path": SPIN_FRAME_WITCH})
 
     await db.spin_history.insert_one({
         "user_id": uid, "key": key, "result": result.get("type"),
