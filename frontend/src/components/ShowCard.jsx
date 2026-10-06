@@ -20,6 +20,9 @@ export const ShowCard = ({ show }) => {
         <span className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/60 backdrop-blur text-[10px] font-bold uppercase tracking-wide">
           {show.channel}
         </span>
+        <span data-testid={`show-card-audio-${show.id}`} className="absolute top-2 right-2 px-1.5 py-0.5 rounded bg-black/60 backdrop-blur text-[10px] font-bold uppercase tracking-wide text-[#ffcc00]">
+          {(show.audio_lang || "ro") === "en" ? "EN" : "RO"}
+        </span>
       </div>
       <p className="mt-2 text-sm font-semibold text-white/90 truncate group-hover:text-[#ffcc00] transition-colors duration-200">
         {show.title}

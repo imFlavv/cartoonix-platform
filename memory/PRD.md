@@ -62,6 +62,19 @@ fully standalone Cartoonix Wiki at /wiki.
      announcements, updates, faq accordion, Cmd+K search, footer link) — user opted for
      manual testing over testing_agent for this feature.
 
+## Implemented (2026-10-06, session 2)
+8. **Audio language badge (RO/EN)**: New `audio_lang` field on Show (`ShowInput`/`ShowUpdate`,
+   default `"ro"`, `serialize_show` falls back to `"ro"` if missing). Admin "Adaugă desen"
+   form + `AdminShowEditor.jsx` both have a Română/Engleză select. Badge shown on
+   `ShowCard.jsx` (top-right corner), `ShowDetail.jsx` (info row) and `Watch.jsx` (player
+   header). Existing shows default to RO (DB was empty at migration time, nothing to
+   backfill).
+9. **Admin Feedback pagination**: Already implemented (25/page, `AdminFeedback.jsx`,
+   pre-existing from an earlier session) — confirmed working, no change needed; pager
+   auto-hides when ≤25 entries.
+10. **Admin Statistics tab**: New `GET /api/admin/stats` (total_shows, total_episodes via
+    aggregation) + new `AdminStats.jsx` component + "Statistici" tab in Admin.jsx.
+
 ## Known Pending Issues (carried over, not yet done this session)
 - **P0**: `/spin` rapid-click exploit — testing_agent verification still not run
   (recurring across many sessions).

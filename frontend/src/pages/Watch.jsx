@@ -221,7 +221,12 @@ const Watch = () => {
         <div className="flex flex-wrap items-center justify-between gap-4 mt-6">
           <div>
             <h1 className="font-display text-3xl">{episode?.title}</h1>
-            <p className="text-white/50 text-sm">{show.channel} · {episode?.duration}</p>
+            <p className="text-white/50 text-sm flex items-center gap-2">
+              {show.channel} · {episode?.duration}
+              <span data-testid="watch-audio-lang" className="px-2 py-0.5 rounded-full bg-white/10 text-[11px] font-bold uppercase text-[#ffcc00]">
+                Audio: {(show.audio_lang || "ro") === "en" ? "Engleză" : "Română"}
+              </span>
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <label className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/10 text-sm font-semibold cursor-pointer select-none" data-testid="watch-autoplay-toggle">

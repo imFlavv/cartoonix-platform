@@ -426,12 +426,14 @@ class ShowInput(BaseModel):
     year: Optional[str] = ""
     genres: List[str] = []
     vps_path: Optional[str] = ""
+    audio_lang: Optional[str] = "ro"
     episodes: List[Episode] = []
 
 
 def serialize_show(doc: dict) -> dict:
     doc = dict(doc)
     doc["id"] = str(doc.pop("_id"))
+    doc["audio_lang"] = doc.get("audio_lang") or "ro"
     return doc
 
 
@@ -3460,6 +3462,7 @@ class ShowUpdate(BaseModel):
     order: Optional[int] = None
     episodes: Optional[List[Episode]] = None
     download_disabled: Optional[bool] = None
+    audio_lang: Optional[str] = None
 
 
 @api_router.put("/admin/shows/{sid}")
@@ -3484,6 +3487,18 @@ async def admin_update_show(sid: str, data: ShowUpdate, admin: dict = Depends(re
 async def admin_delete_show(sid: str, admin: dict = Depends(require_admin)):
     await db.shows.delete_one({"_id": ObjectId(sid)})
     return {"ok": True}
+
+
+@api_router.get("/admin/stats")
+async def admin_stats(admin: dict = Depends(require_admin)):
+    total_shows = await db.shows.count_documents({})
+    episode_count_cursor = db.shows.aggregate([
+        {"$project": {"n": {"$size": {"$ifNull": ["$episodes", []]}}}},
+        {"$group": {"_id": None, "total": {"$sum": "$n"}}},
+    ])
+    agg = await episode_count_cursor.to_list(1)
+    total_episodes = agg[0]["total"] if agg else 0
+    return {"total_shows": total_shows, "total_episodes": total_episodes}
 
 
 class ReorderInput(BaseModel):

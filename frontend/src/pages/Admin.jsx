@@ -3,7 +3,7 @@ import { NavBar } from "@/components/NavBar";
 import { api } from "@/lib/api";
 import { CHANNELS } from "@/data/constants";
 import { toast } from "sonner";
-import { FolderSearch, Plus, Film, Lightbulb, Users, Pencil, ChevronUp, ChevronDown, ServerCog, Inbox, ImageOff, MessagesSquare, Megaphone, RotateCcw, Crown, Heart, Tv, Gift, MessageSquareHeart } from "lucide-react";
+import { FolderSearch, Plus, Film, Lightbulb, Users, Pencil, ChevronUp, ChevronDown, ServerCog, Inbox, ImageOff, MessagesSquare, Megaphone, RotateCcw, Crown, Heart, Tv, Gift, MessageSquareHeart, BarChart3 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { AdminMembers } from "@/components/AdminMembers";
@@ -15,6 +15,7 @@ import { AdminRewards } from "@/components/AdminRewards";
 import { AdminFeedback } from "@/components/AdminFeedback";
 import { AdminSpin } from "@/components/AdminSpin";
 import { CinemaAdmin } from "@/components/CinemaAdmin";
+import { AdminStats } from "@/components/AdminStats";
 
 const empty = {
   title: "",
@@ -26,6 +27,7 @@ const empty = {
   year: "",
   genres: "",
   vps_path: "",
+  audio_lang: "ro",
 };
 
 const Admin = () => {
@@ -348,6 +350,9 @@ const Admin = () => {
             <TabsTrigger value="feedback" data-testid="admin-tab-feedback" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
               <MessageSquareHeart className="h-4 w-4 mr-2" /> Feedback
             </TabsTrigger>
+            <TabsTrigger value="stats" data-testid="admin-tab-stats" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
+              <BarChart3 className="h-4 w-4 mr-2" /> Statistici
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="shows">
@@ -402,6 +407,13 @@ const Admin = () => {
                 </div>
                 <input data-testid="admin-category" required placeholder="Categorie (ex: Acțiune)" value={form.category} onChange={(e) => set("category", e.target.value)} className={input} />
                 <input data-testid="admin-genres" placeholder="Genuri (separate prin virgulă)" value={form.genres} onChange={(e) => set("genres", e.target.value)} className={input} />
+                <div>
+                  <label className="text-xs text-white/50 mb-1 block">Audio</label>
+                  <select data-testid="admin-audio-lang" value={form.audio_lang} onChange={(e) => set("audio_lang", e.target.value)} className={input}>
+                    <option value="ro" className="bg-[#141414]">Română</option>
+                    <option value="en" className="bg-[#141414]">Engleză</option>
+                  </select>
+                </div>
 
                 <div className="flex gap-2">
                   <input data-testid="admin-vps-path" placeholder="Path folder (ex: /media/videos/ATOM sau /mnt/cartoonix-storage/desene/ATOM)" value={form.vps_path} onChange={(e) => set("vps_path", e.target.value)} className={input} />
@@ -440,7 +452,7 @@ const Admin = () => {
                       <img src={s.thumbnail} alt={s.title} className="h-14 w-10 rounded object-cover" />
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold truncate">{s.title}</p>
-                        <p className="text-xs text-white/50">{s.channel} · {s.episodes?.length || 0} ep.</p>
+                        <p className="text-xs text-white/50">{s.channel} · {s.episodes?.length || 0} ep. · <span className="uppercase">{s.audio_lang || "ro"}</span></p>
                       </div>
                       <button data-testid={`edit-show-${s.id}`} onClick={() => setEditingShow(s)} className="h-9 w-9 flex items-center justify-center rounded-lg hover:bg-white/10 shrink-0">
                         <Pencil className="h-4 w-4" />
@@ -712,6 +724,10 @@ const Admin = () => {
 
           <TabsContent value="feedback">
             <AdminFeedback />
+          </TabsContent>
+
+          <TabsContent value="stats">
+            <AdminStats />
           </TabsContent>
         </Tabs>
       </div>

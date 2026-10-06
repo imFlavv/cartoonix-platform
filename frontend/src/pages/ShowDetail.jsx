@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api, resolveVideoUrl } from "@/lib/api";
 import { NavBar } from "@/components/NavBar";
-import { Play, Calendar, Tv, Heart, Plus, Download, CheckCircle2 } from "lucide-react";
+import { Play, Calendar, Tv, Heart, Plus, Download, CheckCircle2, Languages } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useLibrary } from "@/context/LibraryContext";
 import { PlusIcon } from "@/components/PlusIcon";
@@ -191,6 +191,9 @@ const ShowDetail = () => {
               <span className="flex items-center gap-1"><Tv className="h-4 w-4" /> {show.channel}</span>
               {show.year && <span className="flex items-center gap-1"><Calendar className="h-4 w-4" /> {show.year}</span>}
               <span>{show.episodes?.length || 0} episoade</span>
+              <span data-testid="show-detail-audio-lang" className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/10 text-xs font-bold uppercase">
+                <Languages className="h-3.5 w-3.5" /> Audio: {(show.audio_lang || "ro") === "en" ? "Engleză" : "Română"}
+              </span>
             </div>
             <div className="flex flex-wrap gap-2 mb-5">
               {(show.genres || []).map((g) => (

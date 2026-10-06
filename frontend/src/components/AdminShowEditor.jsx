@@ -26,6 +26,7 @@ export const AdminShowEditor = ({ show, open, onOpenChange, onSaved }) => {
         thumbnail: show.thumbnail || "",
         vps_path: show.vps_path || "",
         download_disabled: !!show.download_disabled,
+        audio_lang: show.audio_lang || "ro",
         episodes: (show.episodes || []).map((e) => ({ ...e })),
       });
     }
@@ -122,6 +123,7 @@ export const AdminShowEditor = ({ show, open, onOpenChange, onSaved }) => {
         thumbnail: form.thumbnail,
         vps_path: form.vps_path,
         download_disabled: form.download_disabled,
+        audio_lang: form.audio_lang,
         episodes: form.episodes,
       });
       toast.success("Desen actualizat");
@@ -158,6 +160,13 @@ export const AdminShowEditor = ({ show, open, onOpenChange, onSaved }) => {
             <input placeholder="An" value={form.year} onChange={(e) => set("year", e.target.value)} className={inputCls} />
           </div>
           <input placeholder="Genuri (virgulă)" value={form.genres} onChange={(e) => set("genres", e.target.value)} className={inputCls} />
+          <div>
+            <label className="text-xs text-white/50 mb-1 block">Audio</label>
+            <select data-testid="edit-show-audio-lang" value={form.audio_lang} onChange={(e) => set("audio_lang", e.target.value)} className={inputCls}>
+              <option value="ro" className="bg-[#141414]">Română</option>
+              <option value="en" className="bg-[#141414]">Engleză</option>
+            </select>
+          </div>
 
           {/* Download toggle */}
           <div className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/10">
