@@ -47,12 +47,31 @@ import CastTest from "@/pages/CastTest";
 import Changelog from "@/pages/Changelog";
 import Feedback from "@/pages/Feedback";
 import PublicProfile from "@/pages/PublicProfile";
+import { useLocation } from "react-router-dom";
+import WikiLayout from "@/wiki/WikiLayout";
+import WikiHome from "@/wiki/pages/WikiHome";
+import WikiArticlePage from "@/wiki/pages/WikiArticlePage";
+import AnnouncementsPage from "@/wiki/pages/AnnouncementsPage";
+import AnnouncementArticlePage from "@/wiki/pages/AnnouncementArticlePage";
+import UpdatesPage from "@/wiki/pages/UpdatesPage";
 
 // Cartoonix Land is code-split so it never bloats the main streaming bundle
 const Land = lazy(() => import("@/pages/Land"));
 const Halloween = lazy(() => import("@/pages/Halloween"));
 // Cartoonix TV (Live) is also code-split — isolated from the main app bundle
 const Live = lazy(() => import("@/pages/Live"));
+
+// Cartoonix Wiki is a fully standalone public section — no chat widget / announcement popup there.
+const GlobalWidgets = () => {
+  const { pathname } = useLocation();
+  if (pathname.startsWith("/wiki")) return null;
+  return (
+    <>
+      <AnnouncementPopup />
+      <ChatWidget />
+    </>
+  );
+};
 
 function App() {
   const [showSplash, setShowSplash] = useState(() => !sessionStorage.getItem("cx_splash_seen"));
@@ -133,12 +152,16 @@ function App() {
             <Route path="/cinema" element={<ProtectedRoute><Cinema /></ProtectedRoute>} />
             <Route path="/concursuri" element={<ProtectedRoute><Concursuri /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute adminOnly><Admin /></ProtectedRoute>} />
+            <Route path="/wiki" element={<WikiLayout><WikiHome /></WikiLayout>} />
+            <Route path="/wiki/announcements" element={<WikiLayout><AnnouncementsPage /></WikiLayout>} />
+            <Route path="/wiki/announcements/:slug" element={<WikiLayout><AnnouncementArticlePage /></WikiLayout>} />
+            <Route path="/wiki/updates" element={<WikiLayout><UpdatesPage /></WikiLayout>} />
+            <Route path="/wiki/:slug" element={<WikiLayout><WikiArticlePage /></WikiLayout>} />
             <Route path="*" element={<Navigate to="/home" replace />} />
             </Routes>
             </AuthGate>
           </MaintenanceGate>
-          <AnnouncementPopup />
-          <ChatWidget />
+          <GlobalWidgets />
         </BrowserRouter>
       </LibraryProvider>
     </AuthProvider>

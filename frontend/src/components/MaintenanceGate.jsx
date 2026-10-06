@@ -24,8 +24,8 @@ export const MaintenanceGate = ({ children }) => {
 
   const isAdmin = user?.role === "admin";
   if (enabled && !isAdmin) {
-    // allow admins to reach the login page
-    if (location.pathname === "/login") return children;
+    // allow admins to reach the login page, and keep the public Wiki reachable during maintenance
+    if (location.pathname === "/login" || location.pathname.startsWith("/wiki")) return children;
     return <MaintenancePage />;
   }
   return children;

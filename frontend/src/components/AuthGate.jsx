@@ -17,7 +17,7 @@ export const AuthGate = ({ children }) => {
     );
   }
 
-  const isPublic = PUBLIC_PATHS.includes(location.pathname);
+  const isPublic = PUBLIC_PATHS.includes(location.pathname) || location.pathname.startsWith("/wiki");
   if (!user && !isPublic) {
     return <LockScreen />;
   }

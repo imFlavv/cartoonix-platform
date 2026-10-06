@@ -97,6 +97,7 @@ const Home = () => {
           <Link data-testid="footer-rules-link" to="/regulament" className="text-white/60 hover:text-[#ffcc00] transition-colors duration-200">Regulamentul Comunității</Link>
           <Link data-testid="footer-cookies-link" to="/cookies" className="text-white/60 hover:text-[#ffcc00] transition-colors duration-200">Politică Cookie-uri</Link>
           <Link data-testid="footer-help-link" to="/help" className="text-white/60 hover:text-[#ffcc00] transition-colors duration-200">Suport</Link>
+          <Link data-testid="footer-wiki-link" to="/wiki" className="text-white/60 hover:text-[#ffcc00] transition-colors duration-200">Wiki</Link>
         </div>
         <p className="text-xs text-white/30 mt-4">© 2026 Cartoonix. Toate drepturile rezervate.</p>
       </footer>

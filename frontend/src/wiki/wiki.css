@@ -1,0 +1,65 @@
+.cx-wiki {
+  --w-bg: #0a0817;
+  --w-bg2: #120f28;
+  --w-card: #16132e;
+  --w-card-hover: #1d1840;
+  --w-border: rgba(255, 255, 255, 0.08);
+  --w-purple: #a855f7;
+  --w-purple-dim: #7c3aed;
+  --w-pink: #ec4899;
+  --w-gold: #fbbf24;
+  --w-text: #f4f2ff;
+  --w-text-dim: #9b93c2;
+  background: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(124, 58, 237, 0.18), transparent), var(--w-bg);
+  color: var(--w-text);
+  min-height: 100vh;
+}
+
+.cx-wiki-gradient-text {
+  background: linear-gradient(90deg, var(--w-purple), var(--w-pink), var(--w-gold));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.cx-wiki-card {
+  background: var(--w-card);
+  border: 1px solid var(--w-border);
+  border-radius: 16px;
+  transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease;
+}
+
+.cx-wiki-card:hover {
+  border-color: rgba(168, 85, 247, 0.4);
+  background: var(--w-card-hover);
+}
+
+.cx-wiki-glow {
+  box-shadow: 0 0 0 1px rgba(168, 85, 247, 0.15), 0 8px 30px -10px rgba(168, 85, 247, 0.25);
+}
+
+@keyframes cx-wiki-fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.cx-wiki-fade-up {
+  animation: cx-wiki-fade-up 0.45s ease both;
+}
+
+.cx-wiki-scroll::-webkit-scrollbar { width: 6px; }
+.cx-wiki-scroll::-webkit-scrollbar-thumb { background: rgba(168, 85, 247, 0.35); border-radius: 999px; }
+.cx-wiki-scroll::-webkit-scrollbar-track { background: transparent; }
+
+.cx-wiki a { text-decoration: none; }
+
+.cx-wiki-prose p {
+  color: var(--w-text-dim);
+  line-height: 1.75;
+  margin-bottom: 1rem;
+}
+
+.cx-wiki-prose li {
+  color: var(--w-text-dim);
+  line-height: 1.7;
+}
