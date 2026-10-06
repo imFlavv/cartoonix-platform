@@ -3,8 +3,9 @@ import { NavBar } from "@/components/NavBar";
 import { api } from "@/lib/api";
 import { CHANNELS } from "@/data/constants";
 import { toast } from "sonner";
-import { FolderSearch, Plus, Film, Lightbulb, Users, Pencil, ChevronUp, ChevronDown, ServerCog, Inbox, ImageOff, MessagesSquare, Megaphone, RotateCcw, Crown, Heart, Tv, Gift, MessageSquareHeart, BarChart3 } from "lucide-react";
+import { FolderSearch, Plus, Film, Lightbulb, Users, Pencil, ChevronUp, ChevronDown, ServerCog, Inbox, ImageOff, MessagesSquare, Megaphone, RotateCcw, Crown, Heart, Tv, Gift, MessageSquareHeart, BarChart3, Layers, Trash2, X } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { AdminMembers } from "@/components/AdminMembers";
 import { AdminTickets } from "@/components/AdminTickets";
@@ -50,6 +51,10 @@ const Admin = () => {
   const [donateWidget, setDonateWidget] = useState({ enabled: false, text: "", image_url: "", link: "https://cartoonix.ro/doneaza" });
   const [savingDonateWidget, setSavingDonateWidget] = useState(false);
   const [resettingAvatars, setResettingAvatars] = useState(false);
+  const [addShowOpen, setAddShowOpen] = useState(false);
+  const [multiSeason, setMultiSeason] = useState(false);
+  const [seasonRows, setSeasonRows] = useState([{ label: "Sezonul 1", path: "" }]);
+  const [detectingSeasons, setDetectingSeasons] = useState(false);
 
   const resetAvatars = async () => {
     if (!window.confirm("Sigur vrei să resetezi avatarul TUTUROR utilizatorilor la cel default? Acțiunea este ireversibilă.")) return;
@@ -286,6 +291,44 @@ const Admin = () => {
     }
   };
 
+  const addSeasonRow = () => {
+    setSeasonRows((rows) => [...rows, { label: `Sezonul ${rows.length + 1}`, path: "" }]);
+  };
+  const removeSeasonRow = (i) => {
+    setSeasonRows((rows) => rows.filter((_, idx) => idx !== i));
+  };
+  const updateSeasonRow = (i, key, val) => {
+    setSeasonRows((rows) => rows.map((r, idx) => (idx === i ? { ...r, [key]: val } : r)));
+  };
+
+  // Detectare pe mai multe sezoane: fiecare rând are propriul path de folder,
+  // episoadele sunt concatenate în ordine și renumerotate global.
+  const detectAllSeasons = async () => {
+    const rows = seasonRows.filter((r) => r.path.trim());
+    if (rows.length === 0) {
+      toast.error("Adaugă cel puțin un path de sezon");
+      return;
+    }
+    setDetectingSeasons(true);
+    try {
+      let all = [];
+      for (const row of rows) {
+        const { data } = await api.post("/admin/import-season", {
+          folder: row.path.trim(),
+          season_label: row.label.trim() || "Sezon",
+        });
+        all = all.concat(data.episodes || []);
+      }
+      const renumbered = all.map((ep, i) => ({ ...ep, number: i + 1 }));
+      setDetected(renumbered);
+      toast.success(`${renumbered.length} episoade detectate din ${rows.length} sezoane`);
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Eroare la detectarea sezoanelor");
+    } finally {
+      setDetectingSeasons(false);
+    }
+  };
+
   const submit = async (e) => {
     e.preventDefault();
     setBusy(true);
@@ -299,6 +342,9 @@ const Admin = () => {
       toast.success("Desen adăugat!");
       setForm(empty);
       setDetected(null);
+      setMultiSeason(false);
+      setSeasonRows([{ label: "Sezonul 1", path: "" }]);
+      setAddShowOpen(false);
       load();
     } catch (err) {
       toast.error(err.response?.data?.detail || "Eroare la salvare");
@@ -393,50 +439,22 @@ const Admin = () => {
             </div>
 
             <div className="grid md:grid-cols-2 gap-8">
-              <form onSubmit={submit} className="space-y-3 bg-[#141414] border border-white/10 rounded-2xl p-6">
-                <h2 className="font-display text-2xl mb-2">Adaugă desen</h2>
-                <input data-testid="admin-title" required placeholder="Titlu" value={form.title} onChange={(e) => set("title", e.target.value)} className={input} />
-                <textarea data-testid="admin-description" required placeholder="Descriere" value={form.description} onChange={(e) => set("description", e.target.value)} rows={3} className={input} />
-                <input data-testid="admin-thumbnail" required placeholder="URL thumbnail (poster)" value={form.thumbnail} onChange={(e) => set("thumbnail", e.target.value)} className={input} />
-                <input data-testid="admin-banner" placeholder="URL banner (opțional)" value={form.banner} onChange={(e) => set("banner", e.target.value)} className={input} />
-                <div className="grid grid-cols-2 gap-3">
-                  <select data-testid="admin-channel" value={form.channel} onChange={(e) => set("channel", e.target.value)} className={input}>
-                    {CHANNELS.map((c) => <option key={c} value={c} className="bg-[#141414]">{c}</option>)}
-                  </select>
-                  <input data-testid="admin-year" placeholder="An" value={form.year} onChange={(e) => set("year", e.target.value)} className={input} />
+              <div className="bg-[#141414] border border-white/10 rounded-2xl p-6 flex flex-col items-center justify-center text-center gap-4 min-h-[220px]">
+                <div className="h-14 w-14 rounded-2xl bg-[#ec1c24]/15 flex items-center justify-center">
+                  <Plus className="h-7 w-7 text-[#ec1c24]" />
                 </div>
-                <input data-testid="admin-category" required placeholder="Categorie (ex: Acțiune)" value={form.category} onChange={(e) => set("category", e.target.value)} className={input} />
-                <input data-testid="admin-genres" placeholder="Genuri (separate prin virgulă)" value={form.genres} onChange={(e) => set("genres", e.target.value)} className={input} />
                 <div>
-                  <label className="text-xs text-white/50 mb-1 block">Audio</label>
-                  <select data-testid="admin-audio-lang" value={form.audio_lang} onChange={(e) => set("audio_lang", e.target.value)} className={input}>
-                    <option value="ro" className="bg-[#141414]">Română</option>
-                    <option value="en" className="bg-[#141414]">Engleză</option>
-                  </select>
+                  <h2 className="font-display text-2xl mb-1">Adaugă desen</h2>
+                  <p className="text-sm text-white/50">Completează detaliile unui desen nou, cu unul sau mai multe sezoane.</p>
                 </div>
-
-                <div className="flex gap-2">
-                  <input data-testid="admin-vps-path" placeholder="Path folder (ex: /media/videos/ATOM sau /mnt/cartoonix-storage/desene/ATOM)" value={form.vps_path} onChange={(e) => set("vps_path", e.target.value)} className={input} />
-                  <button type="button" data-testid="admin-detect" onClick={detectEpisodes} disabled={detecting} className="shrink-0 px-4 rounded-lg bg-white/10 hover:bg-white/20 transition-colors duration-200 flex items-center gap-1 text-sm font-semibold disabled:opacity-60">
-                    <FolderSearch className="h-4 w-4" /> {detecting ? "Se scanează..." : "Detectează"}
-                  </button>
-                </div>
-                {detected && detected.length > 0 && (
-                  <div data-testid="admin-detected" className="text-xs text-[#ffcc00] space-y-1 max-h-40 overflow-y-auto pr-1">
-                    <p className="font-semibold">{detected.length} episoade detectate din folder:</p>
-                    {detected.map((ep, i) => (
-                      <p key={i} className="text-white/60 truncate">
-                        {ep.season ? <span className="text-[#ffcc00]/70">[{ep.season}] </span> : null}
-                        {ep.number}. {ep.title}{ep.duration ? <span className="text-white/40"> · {ep.duration}</span> : null}
-                      </p>
-                    ))}
-                  </div>
-                )}
-
-                <button data-testid="admin-submit" type="submit" disabled={busy} className="w-full py-3 rounded-lg bg-[#ec1c24] font-bold hover:bg-[#ff2d36] transition-colors duration-200 disabled:opacity-60 flex items-center justify-center gap-2">
-                  <Plus className="h-5 w-5" /> {busy ? "Se salvează..." : "Adaugă desen"}
+                <button
+                  data-testid="admin-open-add-show"
+                  onClick={() => setAddShowOpen(true)}
+                  className="px-6 py-3 rounded-lg bg-[#ec1c24] font-bold hover:bg-[#ff2d36] transition-colors duration-200 flex items-center gap-2"
+                >
+                  <Plus className="h-5 w-5" /> Adaugă desen
                 </button>
-              </form>
+              </div>
 
               <div>
                 <h2 className="font-display text-2xl mb-3">Desene existente ({shows.length})</h2>
@@ -462,6 +480,120 @@ const Admin = () => {
                 </div>
               </div>
             </div>
+
+            <Dialog open={addShowOpen} onOpenChange={setAddShowOpen}>
+              <DialogContent className="bg-[#141414] border border-white/10 text-white max-w-4xl max-h-[88vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle className="font-display text-2xl">Adaugă desen</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={submit} className="space-y-4">
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div className="space-y-3">
+                      <input data-testid="admin-title" required placeholder="Titlu" value={form.title} onChange={(e) => set("title", e.target.value)} className={input} />
+                      <textarea data-testid="admin-description" required placeholder="Descriere" value={form.description} onChange={(e) => set("description", e.target.value)} rows={3} className={input} />
+                      <input data-testid="admin-thumbnail" required placeholder="URL thumbnail (poster)" value={form.thumbnail} onChange={(e) => set("thumbnail", e.target.value)} className={input} />
+                      <input data-testid="admin-banner" placeholder="URL banner (opțional)" value={form.banner} onChange={(e) => set("banner", e.target.value)} className={input} />
+                    </div>
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <select data-testid="admin-channel" value={form.channel} onChange={(e) => set("channel", e.target.value)} className={input}>
+                          {CHANNELS.map((c) => <option key={c} value={c} className="bg-[#141414]">{c}</option>)}
+                        </select>
+                        <input data-testid="admin-year" placeholder="An" value={form.year} onChange={(e) => set("year", e.target.value)} className={input} />
+                      </div>
+                      <input data-testid="admin-category" required placeholder="Categorie (ex: Acțiune)" value={form.category} onChange={(e) => set("category", e.target.value)} className={input} />
+                      <input data-testid="admin-genres" placeholder="Genuri (separate prin virgulă)" value={form.genres} onChange={(e) => set("genres", e.target.value)} className={input} />
+                      <div>
+                        <label className="text-xs text-white/50 mb-1 block">Audio</label>
+                        <select data-testid="admin-audio-lang" value={form.audio_lang} onChange={(e) => set("audio_lang", e.target.value)} className={input}>
+                          <option value="ro" className="bg-[#141414]">Română</option>
+                          <option value="en" className="bg-[#141414]">Engleză</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-white/10 pt-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <label className="flex items-center gap-2 text-sm font-semibold">
+                        <Layers className="h-4 w-4 text-[#ffcc00]" /> Acest desen are mai multe sezoane
+                      </label>
+                      <Switch data-testid="admin-multi-season-toggle" checked={multiSeason} onCheckedChange={setMultiSeason} />
+                    </div>
+
+                    {!multiSeason ? (
+                      <div className="flex gap-2">
+                        <input data-testid="admin-vps-path" placeholder="Path folder (ex: /media/videos/ATOM sau /mnt/cartoonix-storage/desene/ATOM)" value={form.vps_path} onChange={(e) => set("vps_path", e.target.value)} className={input} />
+                        <button type="button" data-testid="admin-detect" onClick={detectEpisodes} disabled={detecting} className="shrink-0 px-4 rounded-lg bg-white/10 hover:bg-white/20 transition-colors duration-200 flex items-center gap-1 text-sm font-semibold disabled:opacity-60">
+                          <FolderSearch className="h-4 w-4" /> {detecting ? "Se scanează..." : "Detectează"}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <p className="text-xs text-white/50">Adaugă câte un path de folder pentru fiecare sezon (ex: /media/videos/ATOM/Sezonul 1).</p>
+                        {seasonRows.map((row, i) => (
+                          <div key={i} className="flex gap-2" data-testid={`admin-season-row-${i}`}>
+                            <input
+                              data-testid={`admin-season-label-${i}`}
+                              placeholder="Denumire sezon"
+                              value={row.label}
+                              onChange={(e) => updateSeasonRow(i, "label", e.target.value)}
+                              className={`${input} max-w-[180px]`}
+                            />
+                            <input
+                              data-testid={`admin-season-path-${i}`}
+                              placeholder="Path folder sezon"
+                              value={row.path}
+                              onChange={(e) => updateSeasonRow(i, "path", e.target.value)}
+                              className={input}
+                            />
+                            <button
+                              type="button"
+                              data-testid={`admin-remove-season-${i}`}
+                              onClick={() => removeSeasonRow(i)}
+                              disabled={seasonRows.length === 1}
+                              className="shrink-0 h-10 w-10 flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/10 text-white/60 hover:text-[#ff5555] disabled:opacity-30 transition-colors"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ))}
+                        <div className="flex gap-2 pt-1">
+                          <button type="button" data-testid="admin-add-season-row" onClick={addSeasonRow} className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-sm font-semibold flex items-center gap-1.5">
+                            <Plus className="h-4 w-4" /> Adaugă sezon
+                          </button>
+                          <button
+                            type="button"
+                            data-testid="admin-detect-seasons"
+                            onClick={detectAllSeasons}
+                            disabled={detectingSeasons}
+                            className="px-4 py-2 rounded-lg bg-[#ffcc00] text-black font-bold hover:bg-[#ffd633] transition-colors text-sm flex items-center gap-1.5 disabled:opacity-60"
+                          >
+                            <FolderSearch className="h-4 w-4" /> {detectingSeasons ? "Se scanează..." : "Detectează toate sezoanele"}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {detected && detected.length > 0 && (
+                      <div data-testid="admin-detected" className="text-xs text-[#ffcc00] space-y-1 max-h-40 overflow-y-auto pr-1 mt-3">
+                        <p className="font-semibold">{detected.length} episoade detectate:</p>
+                        {detected.map((ep, i) => (
+                          <p key={i} className="text-white/60 truncate">
+                            {ep.season ? <span className="text-[#ffcc00]/70">[{ep.season}] </span> : null}
+                            {ep.number}. {ep.title}{ep.duration ? <span className="text-white/40"> · {ep.duration}</span> : null}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <button data-testid="admin-submit" type="submit" disabled={busy} className="w-full py-3 rounded-lg bg-[#ec1c24] font-bold hover:bg-[#ff2d36] transition-colors duration-200 disabled:opacity-60 flex items-center justify-center gap-2">
+                    <Plus className="h-5 w-5" /> {busy ? "Se salvează..." : "Adaugă desen"}
+                  </button>
+                </form>
+              </DialogContent>
+            </Dialog>
           </TabsContent>
 
           <TabsContent value="suggestions">

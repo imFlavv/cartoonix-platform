@@ -75,6 +75,19 @@ fully standalone Cartoonix Wiki at /wiki.
 10. **Admin Statistics tab**: New `GET /api/admin/stats` (total_shows, total_episodes via
     aggregation) + new `AdminStats.jsx` component + "Statistici" tab in Admin.jsx.
 
+## Implemented (2026-10-06, session 3)
+11. **Multi-season import**: New `POST /api/admin/import-season` (scans one folder, tags all
+    episodes with a fixed `season_label`, no subfolder recursion). Admin "Adaugă desen" form
+    now has a "Acest desen are mai multe sezoane" toggle (Switch) — when off, behaves exactly
+    as before (single `vps_path` + Detectează, which already auto-detects "Sezonul X"
+    subfolders on its own); when on, shows dynamic season rows (label + folder path, add/
+    remove), with "Detectează toate sezoanele" scanning each path and concatenating +
+    renumbering episodes globally, tagged per season.
+12. **"Adaugă desen" → modal dialog**: Converted the inline add-show form into a wide
+    `Dialog` (`max-w-4xl`), triggered by a dedicated button card in the Desene tab. Same
+    fields/logic, just relocated; existing shows list and "Import rapid" bulk-folder import
+    are unchanged.
+
 ## Known Pending Issues (carried over, not yet done this session)
 - **P0**: `/spin` rapid-click exploit — testing_agent verification still not run
   (recurring across many sessions).

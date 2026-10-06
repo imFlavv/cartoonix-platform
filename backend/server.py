@@ -2534,6 +2534,37 @@ class ImportFolderInput(BaseModel):
     folder: str
 
 
+class ImportSeasonInput(BaseModel):
+    folder: str
+    season_label: str
+
+
+@api_router.post("/admin/import-season")
+async def admin_import_season(data: ImportSeasonInput, admin: dict = Depends(require_admin)):
+    """Scan a single season folder (flat video files, no further subfolder recursion) and
+    tag every detected episode with the given `season_label`. Used by the multi-season
+    import UI, where each season has its own explicit folder path."""
+    base, full_dir, url_key = _resolve_media_dir(data.folder)
+    if not os.path.isdir(full_dir):
+        raise HTTPException(status_code=404, detail=f"Folder inexistent pe server: {full_dir}")
+
+    label = (data.season_label or "").strip() or None
+    episodes = []
+    for i, fname in enumerate(_list_video_files(full_dir), start=1):
+        fpath = os.path.join(full_dir, fname)
+        rel = os.path.relpath(fpath, base).replace(os.sep, "/")
+        episodes.append({
+            "number": i,
+            "title": _prettify_title(fname),
+            "video_url": f"/media/{url_key}/{rel}",
+            "duration": "",
+            "season": label,
+            "_path": fpath,
+        })
+    episodes = await _finalize_episodes(episodes, probe=True)
+    return {"count": len(episodes), "episodes": episodes, "folder": full_dir}
+
+
 @api_router.post("/admin/import-folder")
 async def admin_import_folder(data: ImportFolderInput, admin: dict = Depends(require_admin)):
     """Scan a real folder under VIDEO_DIR (with season subfolders + durations) and return
