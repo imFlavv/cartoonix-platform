@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CHANNELS } from "@/data/constants";
-import { Trash2, Film, GripVertical, FolderSearch, Download } from "lucide-react";
+import { Trash2, Film, GripVertical, FolderSearch, Download, Layers, Plus } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 
@@ -13,6 +13,8 @@ export const AdminShowEditor = ({ show, open, onOpenChange, onSaved }) => {
   const [dragIndex, setDragIndex] = useState(null);
   const [overIndex, setOverIndex] = useState(null);
   const [reimporting, setReimporting] = useState(false);
+  const [newSeasonRows, setNewSeasonRows] = useState([{ label: "", path: "" }]);
+  const [detectingNewSeason, setDetectingNewSeason] = useState(false);
 
   useEffect(() => {
     if (show) {
@@ -29,6 +31,9 @@ export const AdminShowEditor = ({ show, open, onOpenChange, onSaved }) => {
         audio_lang: show.audio_lang || "ro",
         episodes: (show.episodes || []).map((e) => ({ ...e })),
       });
+      const existingSeasons = Array.from(new Set((show.episodes || []).map((e) => e.season).filter(Boolean)));
+      const nextNum = existingSeasons.length > 0 ? existingSeasons.length + 1 : 2;
+      setNewSeasonRows([{ label: `Sezonul ${nextNum}`, path: "" }]);
     }
   }, [show]);
 
@@ -108,6 +113,48 @@ export const AdminShowEditor = ({ show, open, onOpenChange, onSaved }) => {
       toast.error(e.response?.data?.detail || "Eroare la reimport");
     } finally {
       setReimporting(false);
+    }
+  };
+
+  const addNewSeasonRow = () => {
+    setNewSeasonRows((rows) => {
+      const existingSeasons = Array.from(new Set(form.episodes.map((e) => e.season).filter(Boolean)));
+      const nextNum = existingSeasons.length + rows.length + 1;
+      return [...rows, { label: `Sezonul ${nextNum}`, path: "" }];
+    });
+  };
+  const removeNewSeasonRow = (i) => setNewSeasonRows((rows) => rows.filter((_, idx) => idx !== i));
+  const updateNewSeasonRow = (i, k, v) =>
+    setNewSeasonRows((rows) => rows.map((r, idx) => (idx === i ? { ...r, [k]: v } : r)));
+
+  // Scan each new-season folder and append the detected episodes to the existing list,
+  // continuing the numbering from the last episode. Does not touch existing episodes.
+  const detectAndAppendSeasons = async () => {
+    const rows = newSeasonRows.filter((r) => r.path.trim());
+    if (rows.length === 0) {
+      toast.error("Adaugă cel puțin un path de sezon");
+      return;
+    }
+    setDetectingNewSeason(true);
+    try {
+      let collected = [];
+      for (const row of rows) {
+        const { data } = await api.post("/admin/import-season", {
+          folder: row.path.trim(),
+          season_label: row.label.trim() || "Sezon nou",
+        });
+        collected = collected.concat(data.episodes || []);
+      }
+      setForm((f) => {
+        const merged = [...f.episodes, ...collected].map((e, i) => ({ ...e, number: i + 1 }));
+        return { ...f, episodes: merged };
+      });
+      toast.success(`${collected.length} episoade adăugate din ${rows.length} sezon(oane) noi. Nu uita să salvezi.`);
+      setNewSeasonRows([{ label: "", path: "" }]);
+    } catch (e) {
+      toast.error(e.response?.data?.detail || "Eroare la detectarea sezonului");
+    } finally {
+      setDetectingNewSeason(false);
     }
   };
 
@@ -235,6 +282,55 @@ export const AdminShowEditor = ({ show, open, onOpenChange, onSaved }) => {
                 </div>
               ))}
               {form.episodes.length === 0 && <p className="text-white/40 text-sm">Niciun episod. Importă un folder VPS din formularul de adăugare.</p>}
+            </div>
+          </div>
+
+          {/* Adaugă sezon nou, fără a afecta episoadele existente */}
+          <div className="border-t border-white/10 pt-3">
+            <p className="font-display text-lg mb-1 flex items-center gap-2"><Layers className="h-4 w-4 text-[#ffcc00]" /> Adaugă sezon nou</p>
+            <p className="text-[11px] text-white/40 mb-2">Introdu path-ul folderului de pe VPS pentru noul sezon. Episoadele detectate se adaugă la finalul listei existente.</p>
+            <div className="space-y-2">
+              {newSeasonRows.map((row, i) => (
+                <div key={i} className="flex gap-2" data-testid={`edit-new-season-row-${i}`}>
+                  <input
+                    data-testid={`edit-new-season-label-${i}`}
+                    placeholder="Denumire sezon"
+                    value={row.label}
+                    onChange={(e) => updateNewSeasonRow(i, "label", e.target.value)}
+                    className={`${inputCls} max-w-[160px]`}
+                  />
+                  <input
+                    data-testid={`edit-new-season-path-${i}`}
+                    placeholder="Path folder sezon nou"
+                    value={row.path}
+                    onChange={(e) => updateNewSeasonRow(i, "path", e.target.value)}
+                    className={inputCls}
+                  />
+                  <button
+                    type="button"
+                    data-testid={`edit-remove-new-season-${i}`}
+                    onClick={() => removeNewSeasonRow(i)}
+                    disabled={newSeasonRows.length === 1}
+                    className="shrink-0 h-10 w-10 flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/10 text-white/60 hover:text-[#ff5555] disabled:opacity-30 transition-colors"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+              <div className="flex gap-2">
+                <button type="button" data-testid="edit-add-new-season-row" onClick={addNewSeasonRow} className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-sm font-semibold flex items-center gap-1.5">
+                  <Plus className="h-4 w-4" /> Adaugă sezon
+                </button>
+                <button
+                  type="button"
+                  data-testid="edit-detect-new-seasons"
+                  onClick={detectAndAppendSeasons}
+                  disabled={detectingNewSeason}
+                  className="px-4 py-2 rounded-lg bg-[#ffcc00] text-black font-bold hover:bg-[#ffd633] transition-colors text-sm flex items-center gap-1.5 disabled:opacity-60"
+                >
+                  <FolderSearch className="h-4 w-4" /> {detectingNewSeason ? "Se scanează..." : "Detectează și adaugă"}
+                </button>
+              </div>
             </div>
           </div>
 

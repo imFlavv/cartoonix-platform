@@ -88,6 +88,15 @@ fully standalone Cartoonix Wiki at /wiki.
     fields/logic, just relocated; existing shows list and "Import rapid" bulk-folder import
     are unchanged.
 
+13. **Add new season to an existing show (editor)**: `AdminShowEditor.jsx` now has an
+    "Adaugă sezon nou" section (reuses `POST /api/admin/import-season`) — admin enters a
+    season label + folder path, clicks "Detectează și adaugă", and the new episodes are
+    appended to the existing list (renumbered continuing from the last episode), without
+    touching episodes already there. Smart default season label suggested from existing
+    distinct seasons count. Tested end-to-end (create show with 1 season → add 2nd season
+    via editor → save → verified via GET /api/shows/:id that all 4 episodes persisted with
+    correct season tags).
+
 ## Known Pending Issues (carried over, not yet done this session)
 - **P0**: `/spin` rapid-click exploit — testing_agent verification still not run
   (recurring across many sessions).
