@@ -15,11 +15,13 @@ import {
 import { toast } from "sonner";
 import {
   CHAT_STYLE_FONTS,
+  CHAT_STYLE_NAME_FONTS,
   CHAT_STYLE_GLOWS,
   CHAT_STYLE_GRADIENTS,
   CHAT_STYLE_BUBBLES,
   CHAT_STYLE_NAME_COLORS,
   nameColorHex,
+  nameFontClass,
   cssSkinStyle,
   DEFAULT_CHAT_STYLE,
   chatStyleClasses,
@@ -455,7 +457,7 @@ const Settings = () => {
                     />
                     <div className="min-w-0">
                       <p className="text-xs mb-0.5 px-1 flex items-center gap-1.5">
-                        <span className="font-semibold" style={isPlus && nameColorHex(chatStyle.name_color) ? { color: nameColorHex(chatStyle.name_color) } : { color: "#e5e5e5" }}>
+                        <span className={`font-semibold ${isPlus ? nameFontClass(chatStyle.name_font) : ""}`} style={isPlus && nameColorHex(chatStyle.name_color) ? { color: nameColorHex(chatStyle.name_color) } : { color: "#e5e5e5" }}>
                           {user?.name || "Cartoonix"}
                         </span>
                         {user?.role === "founder" && <Crown className="h-3.5 w-3.5 text-[#ffcc00]" />}
@@ -525,7 +527,7 @@ const Settings = () => {
                 </div>
               )}
               <div className={!isPlus ? "opacity-50 pointer-events-none" : ""}>
-                <div className="grid sm:grid-cols-2 gap-5 mb-4">
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-4">
                   {/* Font */}
                   <div>
                     <label className="text-sm text-white/60">Font</label>
@@ -537,6 +539,20 @@ const Settings = () => {
                     >
                       {CHAT_STYLE_FONTS.map((f) => (
                         <option key={f.value} value={f.value} className="bg-[#141414]">{f.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {/* Font nickname (PLUS) */}
+                  <div>
+                    <label className="text-sm text-white/60">Font nickname</label>
+                    <select
+                      data-testid="chat-style-name-font"
+                      value={chatStyle.name_font || "default"}
+                      onChange={(e) => updateStyle({ name_font: e.target.value })}
+                      className={`w-full mt-1.5 px-4 py-2.5 rounded-lg bg-white/5 border border-white/10 focus:outline-none focus:ring-2 focus:ring-[#ffcc00] ${nameFontClass(chatStyle.name_font)}`}
+                    >
+                      {CHAT_STYLE_NAME_FONTS.map((f) => (
+                        <option key={f.value} value={f.value} className={`bg-[#141414] ${nameFontClass(f.value)}`}>{f.label}</option>
                       ))}
                     </select>
                   </div>

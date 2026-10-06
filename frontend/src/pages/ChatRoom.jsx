@@ -16,7 +16,7 @@ import { EmojiPicker } from "@/components/EmojiPicker";
 import { chatStyleClasses } from "@/lib/chatStyle";
 import { SkinnedBubble } from "@/components/SkinnedBubble";
 import { rankTitle } from "@/lib/roles";
-import { nameColorHex } from "@/lib/chatStyle";
+import { nameColorHex, nameFontClass } from "@/lib/chatStyle";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent,
@@ -477,7 +477,7 @@ const ChatRoom = () => {
                           <span
                             data-testid="chat-username-link"
                             onClick={() => m.user_id && navigate(`/profile/${m.user_id}`)}
-                            className="text-white/70 font-semibold cursor-pointer hover:underline"
+                            className={`text-white/70 font-semibold cursor-pointer hover:underline ${m.plus ? nameFontClass(m.chat_style?.name_font) : ""}`}
                             style={m.plus && nameColorHex(m.chat_style?.name_color) ? { color: nameColorHex(m.chat_style.name_color) } : undefined}
                           >{m.name}</span>
                           <NameBadges m={m} />

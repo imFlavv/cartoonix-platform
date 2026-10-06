@@ -243,6 +243,7 @@ def serialize_user(doc: dict) -> dict:
 
 # ---------- chat style (PLUS only cosmetic) ----------
 ALLOWED_FONTS = {"default", "serif", "mono", "cursive", "display", "handwritten"}
+ALLOWED_NAME_FONTS = {"default", "jellybean", "headbang"}
 ALLOWED_GLOWS = {"none", "gold", "cyan", "pink", "green", "red", "purple", "white"}
 ALLOWED_GRADIENTS = {"none", "gold", "sunset", "ocean", "candy", "neon", "aurora", "fire"}
 ALLOWED_BUBBLES = {"none", "capybara", "ice", "planet", "neon", "retro", "gold", "holo", "bubblegum", "halloween"}
@@ -252,6 +253,7 @@ ALLOWED_NAME_COLORS = {"default", "gold", "orange", "red", "pink", "purple", "bl
 def default_chat_style() -> dict:
     return {
         "font": "default",
+        "name_font": "default",
         "glow": "none",
         "bold": False,
         "italic": False,
@@ -268,12 +270,14 @@ def sanitize_chat_style(style: Optional[dict]) -> dict:
     if not isinstance(style, dict):
         return base
     font = style.get("font")
+    name_font = style.get("name_font")
     glow = style.get("glow")
     grad = style.get("gradient")
     bubble = style.get("bubble")
     name_color = style.get("name_color")
     return {
         "font": font if font in ALLOWED_FONTS else "default",
+        "name_font": name_font if name_font in ALLOWED_NAME_FONTS else "default",
         "glow": glow if glow in ALLOWED_GLOWS else "none",
         "gradient": grad if grad in ALLOWED_GRADIENTS else "none",
         "bubble": bubble if bubble in ALLOWED_BUBBLES else "none",
@@ -866,6 +870,7 @@ async def reset_password(data: ResetPasswordInput):
 
 class ChatStyleInput(BaseModel):
     font: Optional[str] = None
+    name_font: Optional[str] = None
     glow: Optional[str] = None
     gradient: Optional[str] = None
     bubble: Optional[str] = None

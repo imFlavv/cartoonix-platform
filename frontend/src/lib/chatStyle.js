@@ -10,6 +10,13 @@ export const CHAT_STYLE_FONTS = [
   { value: "display", label: "Display (Bebas Neue)" },
 ];
 
+// Nickname-only font (PLUS). Applies to the sender's name in chat, not the message text.
+export const CHAT_STYLE_NAME_FONTS = [
+  { value: "default", label: "Standard" },
+  { value: "jellybean", label: "Jellybean" },
+  { value: "headbang", label: "Headbang" },
+];
+
 export const CHAT_STYLE_GLOWS = [
   { value: "none", label: "Fără glow", swatch: "#333" },
   { value: "gold", label: "Auriu", swatch: "#ffcc00" },
@@ -65,6 +72,12 @@ export function nameColorHex(value) {
   return found && found.value !== "default" ? found.hex : null;
 }
 
+export function nameFontClass(value) {
+  if (value === "jellybean") return "cx-name-font-jellybean";
+  if (value === "headbang") return "cx-name-font-headbang";
+  return "";
+}
+
 // Inline background style for CSS skins that reference a public image (avoids webpack url() resolution).
 const CSS_SKIN_STYLE = {
   halloween: {
@@ -80,6 +93,7 @@ export function cssSkinStyle(value) {
 
 export const DEFAULT_CHAT_STYLE = {
   font: "default",
+  name_font: "default",
   glow: "none",
   gradient: "none",
   bubble: "none",

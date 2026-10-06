@@ -10,6 +10,32 @@
   --cx-yellow: #ffcc00;
 }
 
+@font-face {
+  font-family: 'Jellybean';
+  src: url('./fonts/nickname-special.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Headbang';
+  src: url('./fonts/nickname-special-2.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+.cx-name-font-jellybean {
+  font-family: 'Jellybean', cursive, sans-serif;
+  letter-spacing: 0.3px;
+}
+
+.cx-name-font-headbang {
+  font-family: 'Headbang', cursive, sans-serif;
+  letter-spacing: 0.3px;
+}
+
 * {
   box-sizing: border-box;
 }
