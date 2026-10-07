@@ -97,6 +97,22 @@ fully standalone Cartoonix Wiki at /wiki.
     via editor → save → verified via GET /api/shows/:id that all 4 episodes persisted with
     correct season tags).
 
+## Implemented (2026-10-07, session 4)
+14. **Fixed Cloudflare 524 timeout on "Adaugă Desen" for shows WITHOUT seasons**: Root
+    cause — `/admin/import-folder` and `/admin/import-season` ran ffprobe duration-probing
+    synchronously over ALL detected episodes before responding; a flat folder with many
+    episodes (no season subfolders, so one single big batch instead of split per-season
+    calls) could exceed Cloudflare's upstream timeout and come back as a 524. Fix: both
+    detect endpoints now return instantly (`probe=False`, no ffprobe call at preview time).
+    Real durations are now probed in a **fire-and-forget background task**
+    (`_probe_show_durations_bg`, triggered from `POST /admin/shows` and from
+    `PUT /admin/shows/{sid}` whenever `episodes` changes) that reverse-maps each
+    `video_url` back to its filesystem path (`_video_url_to_path`) and patches durations
+    into the DB after the response has already been sent — zero risk of gateway timeout.
+    Verified via curl end-to-end on the live preview: detect (12-episode flat folder) and
+    create both returned in ~0.1-0.2s (previously could hang up to the Cloudflare limit);
+    background task ran with no errors in backend logs.
+
 ## Known Pending Issues (carried over, not yet done this session)
 - **P0**: `/spin` rapid-click exploit — testing_agent verification still not run
   (recurring across many sessions).

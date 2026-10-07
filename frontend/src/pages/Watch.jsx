@@ -22,6 +22,7 @@ const Watch = () => {
   const [progress, setProgress] = useState({});
   const [queue, setQueueState] = useState(null);
   const [videoError, setVideoError] = useState(false);
+  const [activeSeason, setActiveSeason] = useState(null);
   const epNumber = parseInt(ep, 10);
   const videoRef = useRef(null);
   const resumeRef = useRef(0);
@@ -43,10 +44,22 @@ const Watch = () => {
     activeEpRef.current?.scrollIntoView({ block: "nearest" });
   }, [show, epNumber]);
 
+  // keep the season tab in sync with whichever episode is currently playing
+  useEffect(() => {
+    if (!show) return;
+    const current = show.episodes?.find((e) => e.number === epNumber);
+    if (current?.season) setActiveSeason(current.season);
+  }, [show, epNumber]);
+
   const episode = show?.episodes?.find((e) => e.number === epNumber);
   const locked = false;
   const next = show?.episodes?.find((e) => e.number === epNumber + 1);
   const fav = show ? isFavorite(show.id, epNumber) : false;
+  const hasSeasons = !!show?.episodes?.some((e) => e.season);
+  const seasonList = hasSeasons ? Array.from(new Set(show.episodes.map((e) => e.season || "Alte episoade"))) : [];
+  const visibleEpisodes = hasSeasons
+    ? (show?.episodes || []).filter((e) => (e.season || "Alte episoade") === (activeSeason || seasonList[0]))
+    : (show?.episodes || []);
 
   // queue helpers (playlist / favorites continuous playback)
   const queueItems = queue?.items || [];
@@ -314,8 +327,24 @@ const Watch = () => {
               <ListVideo className="h-5 w-5 text-[#ec1c24]" /> Episoade
               <span className="ml-auto text-xs text-white/40 font-sans">{show.episodes?.length || 0}</span>
             </h3>
+            {hasSeasons && (
+              <div className="flex flex-wrap gap-1.5 mb-3 shrink-0" data-testid="watch-season-tabs">
+                {seasonList.map((s) => (
+                  <button
+                    key={s}
+                    data-testid={`watch-season-tab-${s}`}
+                    onClick={() => setActiveSeason(s)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-colors duration-200 ${
+                      activeSeason === s ? "bg-[#ec1c24] text-white" : "bg-white/10 text-white/60 hover:bg-white/20"
+                    }`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="space-y-1.5 overflow-y-auto pr-1 max-h-[60vh] lg:max-h-none">
-              {(show.episodes || []).map((e) => {
+              {visibleEpisodes.map((e) => {
                 const active = e.number === epNumber;
                 const prog = progress[String(e.number)];
                 const watched = prog?.completed;

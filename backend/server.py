@@ -1965,6 +1965,7 @@ async def create_show(data: ShowInput, admin: dict = Depends(require_admin)):
     doc["created_at"] = datetime.now(timezone.utc).isoformat()
     res = await db.shows.insert_one(doc)
     doc["_id"] = res.inserted_id
+    asyncio.create_task(_probe_show_durations_bg(str(res.inserted_id)))
     return serialize_show(doc)
 
 
@@ -2451,6 +2452,54 @@ async def _probe_durations(paths: List[str]) -> dict:
     return dict(results)
 
 
+def _video_url_to_path(video_url: str) -> Optional[str]:
+    """Reverse-map a stored `/media/<key>/<rel>` video_url back to an absolute filesystem
+    path, used for background duration probing (kept out of the detect-preview endpoints
+    so those stay instant and never hit a gateway timeout on large flat folders)."""
+    m = re.match(r"^/media/([^/]+)/(.+)$", video_url or "")
+    if not m:
+        return None
+    url_key, rel = m.group(1), m.group(2)
+    base = dict(MEDIA_ROOTS).get(url_key)
+    if not base:
+        return None
+    return os.path.join(os.path.realpath(base), rel.replace("/", os.sep))
+
+
+async def _probe_show_durations_bg(show_id: str):
+    """Fire-and-forget background task: probe real ffprobe durations for episodes still
+    missing one and persist them. Runs AFTER the create/update response is already sent,
+    so admin requests never block on slow/many ffprobe calls (root cause of the Cloudflare
+    524 timeout on single-folder shows with many episodes and no season subfolders)."""
+    if not FFPROBE_BIN:
+        return
+    try:
+        show = await db.shows.find_one({"_id": ObjectId(show_id)})
+        if not show:
+            return
+        episodes = show.get("episodes") or []
+        path_by_url = {}
+        for e in episodes:
+            if e.get("duration") or not e.get("video_url"):
+                continue
+            p = _video_url_to_path(e["video_url"])
+            if p and os.path.isfile(p):
+                path_by_url[e["video_url"]] = p
+        if not path_by_url:
+            return
+        durations = await _probe_durations(list(path_by_url.values()))
+        changed = False
+        for e in episodes:
+            p = path_by_url.get(e.get("video_url"))
+            if p and durations.get(p):
+                e["duration"] = durations[p]
+                changed = True
+        if changed:
+            await db.shows.update_one({"_id": ObjectId(show_id)}, {"$set": {"episodes": episodes}})
+    except Exception as exc:
+        logger.warning(f"background duration probe failed for show {show_id}: {exc}")
+
+
 def _resolve_media_dir(raw: str):
     """Return (base, full_dir, url_key) resolving raw against any allowed media root.
     Absolute paths must live under one of MEDIA_ROOTS; relative paths default to VIDEO_DIR."""
@@ -2561,20 +2610,22 @@ async def admin_import_season(data: ImportSeasonInput, admin: dict = Depends(req
             "season": label,
             "_path": fpath,
         })
-    episodes = await _finalize_episodes(episodes, probe=True)
+    episodes = await _finalize_episodes(episodes, probe=False)
     return {"count": len(episodes), "episodes": episodes, "folder": full_dir}
 
 
 @api_router.post("/admin/import-folder")
 async def admin_import_folder(data: ImportFolderInput, admin: dict = Depends(require_admin)):
-    """Scan a real folder under VIDEO_DIR (with season subfolders + durations) and return
-    detected episodes (non-destructive). Admin previews, then saves via create/update endpoints."""
+    """Scan a real folder under VIDEO_DIR (with season subfolders) and return detected
+    episodes (non-destructive, no duration probing here — kept instant so large flat
+    folders with many episodes never hit a gateway timeout). Admin previews, then saves via
+    create/update endpoints, which probe real durations in the background afterwards."""
     base, full_dir, url_key = _resolve_media_dir(data.folder)
     if not os.path.isdir(full_dir):
         raise HTTPException(status_code=404, detail=f"Folder inexistent pe server: {full_dir}")
 
     episodes = _scan_show_folder(full_dir, base, url_key)
-    episodes = await _finalize_episodes(episodes, probe=True)
+    episodes = await _finalize_episodes(episodes, probe=False)
     seasons = [s for s in dict.fromkeys([e["season"] for e in episodes if e["season"]])]
     return {"count": len(episodes), "episodes": episodes, "folder": full_dir, "seasons": seasons}
 
@@ -3508,6 +3559,8 @@ async def admin_update_show(sid: str, data: ShowUpdate, admin: dict = Depends(re
             updates[k] = v
     if updates:
         await db.shows.update_one({"_id": ObjectId(sid)}, {"$set": updates})
+        if "episodes" in updates:
+            asyncio.create_task(_probe_show_durations_bg(sid))
     show = await db.shows.find_one({"_id": ObjectId(sid)})
     if not show:
         raise HTTPException(status_code=404, detail="Desen inexistent")

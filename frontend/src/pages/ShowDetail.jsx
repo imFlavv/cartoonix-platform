@@ -17,6 +17,7 @@ const ShowDetail = () => {
   const [show, setShow] = useState(null);
   const [plDialog, setPlDialog] = useState(null);
   const [progress, setProgress] = useState({});
+  const [activeSeason, setActiveSeason] = useState(null);
 
   useEffect(() => {
     api.get(`/shows/${id}`).then((res) => setShow(res.data));
@@ -26,6 +27,15 @@ const ShowDetail = () => {
     if (!user) { setProgress({}); return; }
     api.get(`/progress/${id}`).then((res) => setProgress(res.data)).catch(() => {});
   }, [id, user]);
+
+  useEffect(() => {
+    if (!show) return;
+    const seasons = Array.from(new Set((show.episodes || []).map((e) => e.season || "Alte episoade")));
+    if (seasons.length > 1 && !seasons.includes(activeSeason)) {
+      setActiveSeason(seasons[0]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [show]);
 
   if (!show)
     return (
@@ -169,6 +179,7 @@ const ShowDetail = () => {
       map.get(key).push(ep);
     });
   }
+  const activeGroup = seasonGroups.find((g) => g.season === activeSeason) || seasonGroups[0];
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
@@ -226,18 +237,28 @@ const ShowDetail = () => {
         <div className="mt-12">
           <h2 className="font-display text-3xl mb-4">Episoade</h2>
           {hasSeasons ? (
-            <div className="space-y-8">
-              {seasonGroups.map((grp) => (
-                <div key={grp.season} data-testid={`season-${grp.season}`}>
-                  <h3 className="font-display text-xl mb-3 text-[#ffcc00] flex items-center gap-2">
-                    {grp.season}
-                    <span className="text-xs font-normal text-white/40">({grp.items.length} ep.)</span>
-                  </h3>
-                  <div className="grid gap-3">
-                    {grp.items.map((ep, i) => renderEpisodeRow(ep, i + 1))}
-                  </div>
+            <div>
+              <div className="flex flex-wrap gap-2 mb-5" data-testid="season-tabs">
+                {seasonGroups.map((grp) => (
+                  <button
+                    key={grp.season}
+                    data-testid={`season-tab-${grp.season}`}
+                    onClick={() => setActiveSeason(grp.season)}
+                    className={`px-4 py-2 rounded-full text-sm font-bold transition-colors duration-200 ${
+                      activeSeason === grp.season
+                        ? "bg-[#ec1c24] text-white"
+                        : "bg-white/10 text-white/70 hover:bg-white/20"
+                    }`}
+                  >
+                    {grp.season} <span className="opacity-60 font-normal">({grp.items.length})</span>
+                  </button>
+                ))}
+              </div>
+              {activeGroup && (
+                <div className="grid gap-3" data-testid={`season-panel-${activeGroup.season}`}>
+                  {activeGroup.items.map((ep, i) => renderEpisodeRow(ep, i + 1))}
                 </div>
-              ))}
+              )}
             </div>
           ) : (
             <div className="grid gap-3">
