@@ -65,8 +65,12 @@ const Register = () => {
     setError("");
     setBusy(true);
     try {
-      await registerVerify(email, code.trim());
-      toast.success("Cont creat! Bun venit la Cartoonix 🎉");
+      const res = await registerVerify(email, code.trim());
+      if (res?.pending) {
+        toast.success("Cont creat! Este în așteptarea aprobării unui administrator 🕓");
+      } else {
+        toast.success("Cont creat! Bun venit la Cartoonix 🎉");
+      }
       setStep("plan");
     } catch (err) {
       setError(formatApiErrorDetail(err.response?.data?.detail) || err.message);

@@ -238,6 +238,8 @@ def serialize_user(doc: dict) -> dict:
         "avatar_frame": doc.get("avatar_frame"),
         "frames_unlocked": doc.get("frames_unlocked", []),
         "hide_widgets": bool(doc.get("hide_widgets", False)) if user_is_plus(doc) else False,
+        "status": doc.get("status", "active"),
+        "rejection_reason": doc.get("rejection_reason"),
     }
 
 
@@ -596,6 +598,8 @@ async def register_verify(data: RegisterVerifyInput, request: Request):
         ip = get_client_ip(request)
         now_iso = datetime.now(timezone.utc).isoformat()
         new_id = str(uuid.uuid4())
+        approval = await db.settings.find_one({"key": "account_approval"})
+        needs_approval = bool(approval and approval.get("enabled"))
         doc = {
             "id": new_id,
             "email": email,
@@ -608,6 +612,7 @@ async def register_verify(data: RegisterVerifyInput, request: Request):
             "banned": False,
             "spins": 1,
             "last_ip": ip,
+            "status": "pending" if needs_approval else "active",
             "accepted_terms_at": now_iso,
             "created_at": now_iso,
             "last_active": now_iso,
@@ -616,7 +621,7 @@ async def register_verify(data: RegisterVerifyInput, request: Request):
         doc["_id"] = res.inserted_id
         await db.otp_verifications.delete_one({"email": email})
         token = create_access_token(new_id, email)
-        return {"token": token, "user": serialize_user(doc)}
+        return {"token": token, "user": serialize_user(doc), "pending": needs_approval}
     except HTTPException:
         raise
     except Exception as e:
@@ -672,6 +677,12 @@ async def login(data: LoginInput, request: Request):
         raise HTTPException(status_code=401, detail="Email sau parolă incorectă")
     if user.get("banned"):
         raise HTTPException(status_code=403, detail="Cont suspendat")
+    status = user.get("status", "active")
+    if status == "pending":
+        raise HTTPException(status_code=403, detail="Contul tău este în așteptarea aprobării unui administrator. Vei putea intra după ce contul este aprobat.")
+    if status == "rejected":
+        reason = user.get("rejection_reason") or "Nespecificat"
+        raise HTTPException(status_code=403, detail=f"Contul tău a fost respins. Motiv: {reason}")
     settings = await db.settings.find_one({"key": "maintenance"})
     if settings and settings.get("enabled") and user.get("role") != "admin":
         raise HTTPException(status_code=503, detail="Platforma este momentan în mentenanță. Revenim curând!")
@@ -3453,6 +3464,72 @@ async def admin_list_users(q: Optional[str] = None, page: int = 1, per_page: int
     }
 
 
+class PendingActionInput(BaseModel):
+    ids: List[str]
+    reason: Optional[str] = None
+
+
+@api_router.get("/admin/pending-users")
+async def admin_list_pending_users(page: int = 1, per_page: int = 25, admin: dict = Depends(require_admin)):
+    per_page = max(1, min(per_page, 100))
+    page = max(1, page)
+    query = {"status": "pending"}
+    total = await db.users.count_documents(query)
+    skip = (page - 1) * per_page
+    docs = await db.users.find(query).sort("created_at", 1).skip(skip).limit(per_page).to_list(per_page)
+    items = [{
+        "id": uid_of(d),
+        "email": d["email"],
+        "name": user_name(d),
+        "avatar": user_avatar(d),
+        "plus": user_is_plus(d),
+        "created_at": d.get("created_at"),
+    } for d in docs]
+    return {
+        "users": items,
+        "total": total,
+        "page": page,
+        "pages": max(1, (total + per_page - 1) // per_page),
+        "per_page": per_page,
+    }
+
+
+@api_router.post("/admin/pending-users/approve")
+async def admin_approve_pending(data: PendingActionInput, admin: dict = Depends(require_admin)):
+    now_iso = datetime.now(timezone.utc).isoformat()
+    n = 0
+    for uid in data.ids:
+        target = await find_user_by_id(uid)
+        if target and target.get("status") == "pending":
+            await db.users.update_one(
+                {"_id": target["_id"]},
+                {"$set": {"status": "active", "approved_at": now_iso, "approved_by": uid_of(admin)},
+                 "$unset": {"rejection_reason": ""}},
+            )
+            n += 1
+    return {"ok": True, "updated": n}
+
+
+@api_router.post("/admin/pending-users/reject")
+async def admin_reject_pending(data: PendingActionInput, admin: dict = Depends(require_admin)):
+    reason = (data.reason or "").strip()
+    if not reason:
+        raise HTTPException(status_code=400, detail="Motivul respingerii este obligatoriu")
+    now_iso = datetime.now(timezone.utc).isoformat()
+    n = 0
+    for uid in data.ids:
+        target = await find_user_by_id(uid)
+        if target and target.get("status") == "pending":
+            await db.users.update_one(
+                {"_id": target["_id"]},
+                {"$set": {"status": "rejected", "rejection_reason": reason,
+                          "rejected_at": now_iso, "rejected_by": uid_of(admin)}},
+            )
+            n += 1
+    return {"ok": True, "updated": n}
+
+
+
 @api_router.put("/admin/users/{uid}")
 async def admin_update_user(uid: str, data: AdminUserUpdate, admin: dict = Depends(require_admin)):
     raw = {k: v for k, v in data.model_dump().items() if v is not None}
@@ -4445,6 +4522,44 @@ async def set_maintenance(data: MaintenanceInput, admin: dict = Depends(require_
         upsert=True,
     )
     return {"enabled": data.enabled}
+
+
+# ---------- Account approval mode (admin gates new registrations) ----------
+class ToggleEnabledInput(BaseModel):
+    enabled: bool
+
+
+@api_router.get("/settings/account-approval")
+async def get_account_approval():
+    s = await db.settings.find_one({"key": "account_approval"})
+    return {"enabled": bool(s and s.get("enabled"))}
+
+
+@api_router.post("/admin/account-approval")
+async def set_account_approval(data: ToggleEnabledInput, admin: dict = Depends(require_admin)):
+    await db.settings.update_one(
+        {"key": "account_approval"},
+        {"$set": {"key": "account_approval", "enabled": data.enabled, "updated_at": datetime.now(timezone.utc).isoformat()}},
+        upsert=True,
+    )
+    return {"enabled": data.enabled}
+
+
+# ---------- Global player kill-switch (disables all episode players) ----------
+@api_router.get("/settings/players")
+async def get_players_setting():
+    s = await db.settings.find_one({"key": "players_disabled"})
+    return {"disabled": bool(s and s.get("enabled"))}
+
+
+@api_router.post("/admin/players-disabled")
+async def set_players_disabled(data: ToggleEnabledInput, admin: dict = Depends(require_admin)):
+    await db.settings.update_one(
+        {"key": "players_disabled"},
+        {"$set": {"key": "players_disabled", "enabled": data.enabled, "updated_at": datetime.now(timezone.utc).isoformat()}},
+        upsert=True,
+    )
+    return {"disabled": data.enabled}
 
 
 # ---------- Halloween mode toggle (admin activates the Halloween theme on /land) ----------

@@ -3,7 +3,7 @@ import { NavBar } from "@/components/NavBar";
 import { api } from "@/lib/api";
 import { CHANNELS } from "@/data/constants";
 import { toast } from "sonner";
-import { FolderSearch, Plus, Film, Lightbulb, Users, Pencil, ChevronUp, ChevronDown, ServerCog, Inbox, ImageOff, MessagesSquare, Megaphone, RotateCcw, Crown, Heart, Tv, Gift, MessageSquareHeart, BarChart3, Layers, Trash2, X } from "lucide-react";
+import { FolderSearch, Plus, Film, Lightbulb, Users, Pencil, ChevronUp, ChevronDown, ServerCog, Inbox, ImageOff, MessagesSquare, Megaphone, RotateCcw, Crown, Heart, Tv, Gift, MessageSquareHeart, BarChart3, Layers, Trash2, X, UserCheck, Ban } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
@@ -17,6 +17,7 @@ import { AdminFeedback } from "@/components/AdminFeedback";
 import { AdminSpin } from "@/components/AdminSpin";
 import { CinemaAdmin } from "@/components/CinemaAdmin";
 import { AdminStats } from "@/components/AdminStats";
+import { AdminPendingAccounts } from "@/components/AdminPendingAccounts";
 
 const empty = {
   title: "",
@@ -39,6 +40,7 @@ const Admin = () => {
   const [suggestions, setSuggestions] = useState([]);
   const [editingShow, setEditingShow] = useState(null);
   const [maintenance, setMaintenance] = useState(false);
+  const [playersDisabled, setPlayersDisabled] = useState(false);
   const [avatarFrames, setAvatarFrames] = useState(true);
   const [donateEnabled, setDonateEnabled] = useState(true);
   const [halloween, setHalloween] = useState(false);
@@ -75,6 +77,7 @@ const Admin = () => {
     load();
     loadSuggestions();
     api.get("/settings/maintenance").then((res) => setMaintenance(res.data.enabled)).catch(() => {});
+    api.get("/settings/players").then((res) => setPlayersDisabled(!!res.data.disabled)).catch(() => {});
     api.get("/settings/ui").then((res) => setAvatarFrames(res.data.avatar_frames_enabled !== false)).catch(() => {});
     api.get("/settings/donate").then((res) => setDonateEnabled(res.data.enabled !== false)).catch(() => {});
     api.get("/settings/halloween").then((res) => setHalloween(!!res.data.enabled)).catch(() => {});
@@ -149,6 +152,16 @@ const Admin = () => {
       await api.post("/admin/maintenance", { enabled: val });
       setMaintenance(val);
       toast.success(val ? "Mentenanță ACTIVATĂ - platforma e blocată pentru utilizatori" : "Mentenanță dezactivată");
+    } catch {
+      toast.error("Eroare");
+    }
+  };
+
+  const togglePlayers = async (val) => {
+    try {
+      await api.post("/admin/players-disabled", { enabled: val });
+      setPlayersDisabled(val);
+      toast.success(val ? "Playere DEZACTIVATE - episoadele afișează „Momentan indisponibil”" : "Playere reactivate - episoadele pot fi vizionate");
     } catch {
       toast.error("Eroare");
     }
@@ -371,6 +384,9 @@ const Admin = () => {
             </TabsTrigger>
             <TabsTrigger value="members" data-testid="admin-tab-members" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
               <Users className="h-4 w-4 mr-2" /> Membri
+            </TabsTrigger>
+            <TabsTrigger value="accounts" data-testid="admin-tab-accounts" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
+              <UserCheck className="h-4 w-4 mr-2" /> Aprobări
             </TabsTrigger>
             <TabsTrigger value="tickets" data-testid="admin-tab-tickets" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
               <Inbox className="h-4 w-4 mr-2" /> Solicitări
@@ -625,6 +641,10 @@ const Admin = () => {
             <AdminMembers />
           </TabsContent>
 
+          <TabsContent value="accounts">
+            <AdminPendingAccounts />
+          </TabsContent>
+
           <TabsContent value="tickets">
             <AdminTickets />
           </TabsContent>
@@ -648,6 +668,18 @@ const Admin = () => {
                     <p className={`text-xs ${maintenance ? "text-[#ec1c24]" : "text-[#22c55e]"}`}>{maintenance ? "ACTIVĂ - utilizatorii nu au acces" : "Inactivă - platforma funcționează normal"}</p>
                   </div>
                   <Switch data-testid="maintenance-toggle" checked={maintenance} onCheckedChange={toggleMaintenance} />
+                </div>
+              </div>
+
+              <div className="bg-[#0f0f0f] border border-white/10 rounded-2xl p-6">
+                <h2 className="font-display text-2xl mb-1 flex items-center gap-2"><Ban className="h-5 w-5 text-[#ec1c24]" /> Dezactivează playerele</h2>
+                <p className="text-sm text-white/50 mb-5">Când e activat, playerul video este dezactivat pentru TOATE episoadele din platformă. În locul lui apare caseta „Momentan indisponibil”. Nu afectează Cinema sau Live TV.</p>
+                <div className="flex items-center justify-between p-4 rounded-xl bg-white/5">
+                  <div>
+                    <p className="font-semibold">Playere episoade dezactivate</p>
+                    <p className={`text-xs ${playersDisabled ? "text-[#ec1c24]" : "text-[#22c55e]"}`}>{playersDisabled ? "DEZACTIVATE - episoadele nu pot fi vizionate" : "Active - episoadele pot fi vizionate normal"}</p>
+                  </div>
+                  <Switch data-testid="players-disabled-toggle" checked={playersDisabled} onCheckedChange={togglePlayers} />
                 </div>
               </div>
 

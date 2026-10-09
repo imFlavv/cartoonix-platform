@@ -45,7 +45,7 @@ export const AuthProvider = ({ children }) => {
     const { data } = await api.post("/auth/register/verify", { email, code });
     localStorage.setItem("cx_token", data.token);
     setUser(data.user);
-    return data.user;
+    return data;
   };
 
   const logout = () => {

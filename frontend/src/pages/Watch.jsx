@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { api, resolveVideoUrl } from "@/lib/api";
 import { getQueue, clearQueue } from "@/lib/queue";
-import { ArrowLeft, ChevronRight, Download, Heart, Plus, Check, Play, ListVideo, X } from "lucide-react";
+import { ArrowLeft, ChevronRight, Download, Heart, Plus, Check, Play, ListVideo, X, Ban } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useLibrary } from "@/context/LibraryContext";
 import { PlusIcon } from "@/components/PlusIcon";
@@ -22,6 +22,7 @@ const Watch = () => {
   const [progress, setProgress] = useState({});
   const [queue, setQueueState] = useState(null);
   const [videoError, setVideoError] = useState(false);
+  const [playersDisabled, setPlayersDisabled] = useState(false);
   const [activeSeason, setActiveSeason] = useState(null);
   const epNumber = parseInt(ep, 10);
   const videoRef = useRef(null);
@@ -33,6 +34,10 @@ const Watch = () => {
   useEffect(() => {
     api.get(`/shows/${id}`).then((res) => setShow(res.data));
   }, [id]);
+
+  useEffect(() => {
+    api.get("/settings/players").then((res) => setPlayersDisabled(!!res.data.disabled)).catch(() => {});
+  }, []);
 
   // load the active playback queue (playlist / favorites) when in queue mode
   useEffect(() => {
@@ -199,6 +204,14 @@ const Watch = () => {
             <button data-testid="watch-upsell" onClick={() => navigate("/plus")} className="px-7 py-3 rounded-full bg-[#ffcc00] text-black font-bold hover:brightness-110 transition-all duration-200">
               Vezi Cartoonix PLUS
             </button>
+          </div>
+        ) : playersDisabled ? (
+          <div data-testid="player-unavailable" className="aspect-video rounded-xl bg-[#141414] flex flex-col items-center justify-center text-center px-6 border border-white/10">
+            <span className="w-16 h-16 rounded-full bg-[#ec1c24]/15 border border-[#ec1c24]/40 flex items-center justify-center mb-5">
+              <Ban className="h-8 w-8 text-[#ec1c24]" />
+            </span>
+            <h2 className="font-display text-2xl md:text-3xl tracking-wide mb-2">MOMENTAN INDISPONIBIL</h2>
+            <p className="text-white/50 max-w-md text-sm">Vizionarea episoadelor este temporar dezactivată. Revino mai târziu.</p>
           </div>
         ) : (
           <div className="relative w-full aspect-video">

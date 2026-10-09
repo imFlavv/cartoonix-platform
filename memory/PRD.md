@@ -113,6 +113,25 @@ fully standalone Cartoonix Wiki at /wiki.
     create both returned in ~0.1-0.2s (previously could hang up to the Cloudflare limit);
     background task ran with no errors in backend logs.
 
+## Implemented (2026-10-09, session 5)
+15. **Aprobare manuală conturi (admin-gated registration)**: New `account_approval` setting
+    (`GET /settings/account-approval`, `POST /admin/account-approval`). When ON, `register/verify`
+    creates the user with `status="pending"` (still issues a token so they can pay PLUS while
+    pending) and returns `pending:true`. `login` blocks `pending` (await-approval msg) and
+    `rejected` (shows admin's `rejection_reason`). New admin tab **"Aprobări"**
+    (`AdminPendingAccounts.jsx`): approval-mode toggle + pending list (25/page, select-all/
+    individual, bulk/single approve & reject). Reject requires a reason (shown to the user).
+    Each row shows whether the user took PLUS at registration. Endpoints:
+    `GET /admin/pending-users`, `POST /admin/pending-users/approve`,
+    `POST /admin/pending-users/reject`. User sees `PendingAccount.jsx` screen via `AuthGate`
+    (pending/rejected users are gated out of the app but `/register` + `/payment/*` stay
+    reachable so PLUS payment completes). Verified end-to-end via curl (pending block, reject
+    w/wo reason, approve → login works) + screenshots.
+16. **Dezactivare globală playere**: New `players_disabled` setting (`GET /settings/players`,
+    `POST /admin/players-disabled`). Toggle in Admin → Platformă. When ON, `Watch.jsx` shows a
+    "MOMENTAN INDISPONIBIL" box instead of the `<video>` for ALL episodes (Cinema/Live
+    untouched). Verified via screenshot.
+
 ## Known Pending Issues (carried over, not yet done this session)
 - **P0**: `/spin` rapid-click exploit — testing_agent verification still not run
   (recurring across many sessions).
