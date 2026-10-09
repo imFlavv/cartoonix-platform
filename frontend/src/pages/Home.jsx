@@ -7,18 +7,23 @@ import { LOGO_TRANSPARENT, CHANNELS } from "@/data/constants";
 import { OnlineCounter } from "@/components/OnlineCounter";
 import { AnnouncementBar } from "@/components/AnnouncementBar";
 import PromoPopup from "@/components/PromoPopup";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 
 const Home = () => {
   const [shows, setShows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [heroIndex, setHeroIndex] = useState(0);
+  const [redirectToLive, setRedirectToLive] = useState(false);
 
   useEffect(() => {
     api.get("/shows").then((res) => {
       setShows(res.data);
       setLoading(false);
     });
+  }, []);
+
+  useEffect(() => {
+    api.get("/settings/players").then((r) => setRedirectToLive(!!r.data?.disabled)).catch(() => {});
   }, []);
 
   // Hero: max 5 shows, randomized once per page load
@@ -39,6 +44,10 @@ const Home = () => {
     }, 6000);
     return () => clearInterval(t);
   }, [heroShows.length]);
+
+  if (redirectToLive) {
+    return <Navigate to="/live" replace />;
+  }
 
   // Ultimele adaugate: sorted by created_at desc
   const latest = [...shows].sort((a, b) =>

@@ -1157,7 +1157,10 @@ async def create_donation(body: DonationRequest, request: Request, user: dict = 
         raise HTTPException(status_code=400, detail="Sumă invalidă")
     if amount < DONATION_MIN_RON or amount > DONATION_MAX_RON:
         raise HTTPException(status_code=400, detail=f"Suma trebuie să fie între {int(DONATION_MIN_RON)} și {int(DONATION_MAX_RON)} RON")
-    points = int(amount)  # 1 RON = 1 punct
+    base_points = int(amount)  # 1 RON = 1 punct
+    bs = await db.settings.find_one({"key": "donation_bonus"})
+    bonus_percent = max(0.0, float(bs.get("percent", 0))) if bs else 0.0
+    points = int(round(base_points * (1 + bonus_percent / 100)))
     origin = body.origin_url.rstrip("/")
     success_url = f"{origin}/payment/success?session_id={{CHECKOUT_SESSION_ID}}"
     cancel_url = f"{origin}/doneaza"
@@ -1177,7 +1180,7 @@ async def create_donation(body: DonationRequest, request: Request, user: dict = 
                     "currency": PLUS_CURRENCY,
                     "product_data": {
                         "name": "Donație Cartoonix",
-                        "description": f"Mulțumim pentru susținere! Primești {points} NIX în platformă.",
+                        "description": f"Mulțumim pentru susținere! Primești {points} NIX în platformă." + (f" (include bonus +{bonus_percent:g}%)" if bonus_percent > 0 else ""),
                     },
                     "unit_amount": int(round(amount * 100)),
                 },
@@ -1199,12 +1202,14 @@ async def create_donation(body: DonationRequest, request: Request, user: dict = 
         "amount": amount,
         "currency": PLUS_CURRENCY,
         "points": points,
+        "base_points": base_points,
+        "bonus_percent": bonus_percent,
         "status": "initiated",
         "payment_status": "pending",
         "created_at": datetime.now(timezone.utc).isoformat(),
         "updated_at": datetime.now(timezone.utc).isoformat(),
     })
-    return {"checkout_url": session.url, "session_id": session.id, "points": points}
+    return {"checkout_url": session.url, "session_id": session.id, "points": points, "base_points": base_points, "bonus_percent": bonus_percent}
 
 
 @api_router.get("/points/me")
@@ -4878,6 +4883,30 @@ async def set_donate_setting(data: DonateToggleInput, admin: dict = Depends(requ
         upsert=True,
     )
     return {"enabled": data.enabled}
+
+
+# ---------- Donation NIX bonus (admin-configurable % extra NIX per donation) ----------
+class DonationBonusInput(BaseModel):
+    percent: float
+
+
+@api_router.get("/settings/donation-bonus")
+async def get_donation_bonus():
+    s = await db.settings.find_one({"key": "donation_bonus"})
+    percent = float(s.get("percent", 0)) if s else 0.0
+    return {"percent": max(0.0, percent)}
+
+
+@api_router.post("/admin/settings/donation-bonus")
+async def set_donation_bonus(data: DonationBonusInput, admin: dict = Depends(require_admin)):
+    percent = max(0.0, float(data.percent))
+    await db.settings.update_one(
+        {"key": "donation_bonus"},
+        {"$set": {"key": "donation_bonus", "percent": percent,
+                  "updated_at": datetime.now(timezone.utc).isoformat()}},
+        upsert=True,
+    )
+    return {"percent": percent}
 
 
 # ---------- UI settings (avatar frames, etc.) ----------

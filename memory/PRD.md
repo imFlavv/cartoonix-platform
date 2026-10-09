@@ -132,6 +132,22 @@ fully standalone Cartoonix Wiki at /wiki.
     "MOMENTAN INDISPONIBIL" box instead of the `<video>` for ALL episodes (Cinema/Live
     untouched). Verified via screenshot.
 
+17. **Bonus NIX la donații**: New admin-configurable % setting (`GET/POST /settings/donation-bonus`,
+    `POST /admin/settings/donation-bonus`). `POST /payments/donate` now grants
+    `round(base_points * (1+percent/100))` NIX instead of flat 1 RON = 1 NIX (base_points +
+    bonus_percent stored in `payment_transactions` for audit). Admin → Platformă has a %
+    input + Salvează button under Donații. Donate.jsx shows a "Bonus activ: +X% NIX" badge and
+    a breakdown line (normal + bonus) in the preview. Default set to 50% per user request.
+    Verified via curl (10 RON → 15 NIX math) + screenshot (25 RON → 38 NIX w/ 50% bonus).
+18. **Bibliotecă + Acasă legate de kill-switch playere**: When `players_disabled` is ON:
+    `/browse` (Bibliotecă) shows an "indisponibilă" page for non-admin members (CTA → Live TV);
+    admin still sees the library with a red banner. NavBar hides the "Bibliotecă" link for
+    non-admin when disabled. `/home` redirects to `/live` for ALL users (so entering the
+    platform shows Live TV directly). Does NOT affect `/cinema` or `/watch`. Fixed a hooks-order
+    bug introduced in `Home.jsx` while wiring the redirect. Verified via screenshot as admin
+    and as test member (test@cartoonix.ro/test1234); `players_disabled` reset to false after
+    testing (unchanged default).
+
 ## Known Pending Issues (carried over, not yet done this session)
 - **P0**: `/spin` rapid-click exploit — testing_agent verification still not run
   (recurring across many sessions).

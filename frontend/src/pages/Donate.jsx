@@ -19,14 +19,18 @@ const Donate = () => {
   const [custom, setCustom] = useState("");
   const [busy, setBusy] = useState(false);
   const [enabled, setEnabled] = useState(true);
+  const [bonusPercent, setBonusPercent] = useState(0);
 
   useEffect(() => {
     api.get("/settings/donate").then((r) => setEnabled(r.data?.enabled !== false)).catch(() => {});
+    api.get("/settings/donation-bonus").then((r) => setBonusPercent(Number(r.data?.percent) || 0)).catch(() => {});
   }, []);
 
   const effective = custom !== "" ? Number(custom) : amount;
   const valid = Number.isFinite(effective) && effective >= MIN && effective <= MAX;
-  const points = valid ? Math.floor(effective) : 0;
+  const basePoints = valid ? Math.floor(effective) : 0;
+  const points = valid ? Math.round(basePoints * (1 + bonusPercent / 100)) : 0;
+  const bonusPoints = points - basePoints;
 
   const pickPreset = (v) => { setAmount(v); setCustom(""); };
 
@@ -83,6 +87,11 @@ const Donate = () => {
               Fiecare donație ne ajută să ținem platforma vie și fără reclame. Ca mulțumire,
               primești NIX în cont: <b className="text-[#c084fc]">1 RON = 1 NIX</b>.
             </p>
+            {bonusPercent > 0 && (
+              <div data-testid="donate-bonus-badge" className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#ffcc00]/15 border border-[#ffcc00]/40 text-[#ffcc00] text-sm font-bold">
+                <Heart className="h-4 w-4 fill-[#ffcc00]" /> Bonus activ: +{bonusPercent % 1 === 0 ? bonusPercent : bonusPercent.toFixed(1)}% NIX extra la fiecare donație!
+              </div>
+            )}
           </div>
 
           <div className="bg-[#111] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl">
@@ -134,6 +143,11 @@ const Donate = () => {
                 <NixCoin className="h-5 w-5" /> {points} NIX
               </span>
             </div>
+            {bonusPercent > 0 && valid && (
+              <p data-testid="donate-bonus-breakdown" className="text-center text-xs text-white/50 -mt-3 mb-5">
+                {basePoints} NIX normal + <span className="text-[#ffcc00] font-bold">{bonusPoints} NIX bonus (+{bonusPercent % 1 === 0 ? bonusPercent : bonusPercent.toFixed(1)}%)</span>
+              </p>
+            )}
 
             <button
               data-testid="donate-submit"

@@ -43,6 +43,8 @@ const Admin = () => {
   const [playersDisabled, setPlayersDisabled] = useState(false);
   const [avatarFrames, setAvatarFrames] = useState(true);
   const [donateEnabled, setDonateEnabled] = useState(true);
+  const [donationBonus, setDonationBonus] = useState(0);
+  const [savingDonationBonus, setSavingDonationBonus] = useState(false);
   const [halloween, setHalloween] = useState(false);
   const [promo, setPromo] = useState({ enabled: false, title: "", message: "", price_old: "", price_new: "", cta_label: "", cta_link: "/plus" });
   const [savingPromo, setSavingPromo] = useState(false);
@@ -80,6 +82,7 @@ const Admin = () => {
     api.get("/settings/players").then((res) => setPlayersDisabled(!!res.data.disabled)).catch(() => {});
     api.get("/settings/ui").then((res) => setAvatarFrames(res.data.avatar_frames_enabled !== false)).catch(() => {});
     api.get("/settings/donate").then((res) => setDonateEnabled(res.data.enabled !== false)).catch(() => {});
+    api.get("/settings/donation-bonus").then((res) => setDonationBonus(Number(res.data.percent) || 0)).catch(() => {});
     api.get("/settings/halloween").then((res) => setHalloween(!!res.data.enabled)).catch(() => {});
     api.get("/settings/promo-popup").then((res) => setPromo(res.data)).catch(() => {});
     api.get("/settings/chat-widget").then((res) => setChatWidget(res.data)).catch(() => {});
@@ -187,6 +190,20 @@ const Admin = () => {
       toast.success(val ? "Donațiile sunt active" : "Donațiile au fost dezactivate (vizibile doar pentru admini)");
     } catch {
       toast.error("Eroare");
+    }
+  };
+
+  const saveDonationBonus = async () => {
+    const pct = Math.max(0, Number(donationBonus) || 0);
+    setSavingDonationBonus(true);
+    try {
+      await api.post("/admin/settings/donation-bonus", { percent: pct });
+      setDonationBonus(pct);
+      toast.success(pct > 0 ? `Bonus de +${pct}% NIX activ la donații` : "Bonus NIX dezactivat");
+    } catch {
+      toast.error("Eroare la salvarea bonusului");
+    } finally {
+      setSavingDonationBonus(false);
     }
   };
 
@@ -704,6 +721,33 @@ const Admin = () => {
                     <p className={`text-xs ${donateEnabled ? "text-[#22c55e]" : "text-[#ec1c24]"}`}>{donateEnabled ? "Vizibile - toți utilizatorii văd butonul „Donează”" : "Dezactivate - vizibile doar pentru admini"}</p>
                   </div>
                   <Switch data-testid="donate-toggle" checked={donateEnabled} onCheckedChange={toggleDonate} />
+                </div>
+                <div className="flex items-center justify-between p-4 rounded-xl bg-white/5 mt-3">
+                  <div className="flex-1 pr-4">
+                    <p className="font-semibold">Bonus NIX la donații</p>
+                    <p className="text-xs text-white/50">Procent extra de NIX acordat la fiecare donație. Ex: 50% → la 10 RON se primesc 15 NIX în loc de 10.</p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <input
+                      data-testid="donation-bonus-input"
+                      type="number"
+                      min={0}
+                      max={1000}
+                      step={1}
+                      value={donationBonus}
+                      onChange={(e) => setDonationBonus(e.target.value)}
+                      className="w-20 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-right font-bold focus:outline-none focus:border-[#ffcc00]"
+                    />
+                    <span className="text-white/50 font-bold">%</span>
+                    <button
+                      data-testid="donation-bonus-save"
+                      onClick={saveDonationBonus}
+                      disabled={savingDonationBonus}
+                      className="px-4 py-2 rounded-lg bg-[#ec1c24] text-white text-sm font-bold hover:bg-[#ff2d36] transition-colors duration-200 disabled:opacity-60"
+                    >
+                      {savingDonationBonus ? "..." : "Salvează"}
+                    </button>
+                  </div>
                 </div>
               </div>
 

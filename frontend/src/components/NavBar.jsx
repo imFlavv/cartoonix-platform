@@ -33,12 +33,14 @@ export const NavBar = () => {
   const [searchFocused, setSearchFocused] = useState(false);
   const [notifs, setNotifs] = useState({ items: [], unread: 0 });
   const [donateEnabled, setDonateEnabled] = useState(true);
+  const [playersDisabled, setPlayersDisabled] = useState(false);
   const isAdmin = user?.role === "admin";
 
   useEffect(() => {
     api.get("/settings/donate").then((r) => setDonateEnabled(r.data?.enabled !== false)).catch(() => {});
     const onChange = (e) => setDonateEnabled(e.detail?.enabled !== false);
     window.addEventListener("cx-donate-settings-changed", onChange);
+    api.get("/settings/players").then((r) => setPlayersDisabled(!!r.data?.disabled)).catch(() => {});
     return () => window.removeEventListener("cx-donate-settings-changed", onChange);
   }, []);
 
@@ -91,7 +93,7 @@ export const NavBar = () => {
 
   const links = [
     { to: "/home", label: "Acasă", icon: Home },
-    { to: "/browse", label: "Bibliotecă", icon: Clapperboard },
+    ...((!playersDisabled || isAdmin) ? [{ to: "/browse", label: "Bibliotecă", icon: Clapperboard }] : []),
     { to: "/live", label: "Live TV", icon: Tv },
     { to: "/lobby", label: "Lobby", icon: Users },
     { to: "/cinema", label: "Cinema", icon: Film },
