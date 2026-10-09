@@ -148,6 +148,13 @@ fully standalone Cartoonix Wiki at /wiki.
     and as test member (test@cartoonix.ro/test1234); `players_disabled` reset to false after
     testing (unchanged default).
 
+19. **3 rame noi "Ediție Limitată" (50 NIX)**: Adăugate exact imaginile trimise de user (descărcate din
+    atașamentele chat-ului, NU generate AI) ca `frame_witch_moon` (/frames/witch-moon.png), `frame_robin_wreath`
+    (/frames/robin-wreath.png), `frame_autumn_cat` (/frames/autumn-cat.png) în `SHOP_CATALOG` + `AVATAR_FRAMES`/
+    `LOCKED_AVATAR_FRAMES`. Apar automat în `/lobby/rewards` → secțiunea Ediție Limitată (frontend data-driven,
+    fără schimbări UI necesare). Verificat end-to-end: achiziție (50 NIX) → unlock → echipare → randare corectă
+    pe `/profile` cu curl + screenshot.
+
 ## Known Pending Issues (carried over, not yet done this session)
 - **P0**: `/spin` rapid-click exploit — testing_agent verification still not run
   (recurring across many sessions).

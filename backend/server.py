@@ -315,6 +315,9 @@ AVATAR_FRAMES = {
     "/frames/fire-ring.png",
     "/frames/dragon-ring.png",
     "/frames/zombie-hands.png",
+    "/frames/witch-moon.png",
+    "/frames/robin-wreath.png",
+    "/frames/autumn-cat.png",
 }
 
 # Frames that must be unlocked (won at /spin or bought in /lobby/rewards) before equipping.
@@ -322,6 +325,9 @@ LOCKED_AVATAR_FRAMES = {
     "/frames/witch-hat.png",
     "/frames/pumpkin-ring.png",
     "/frames/zombie-hands.png",
+    "/frames/witch-moon.png",
+    "/frames/robin-wreath.png",
+    "/frames/autumn-cat.png",
 }
 
 
@@ -1254,6 +1260,15 @@ SHOP_CATALOG = {
     "frame_zombie_hands": {"category": "limited", "title": "Ramă: Mâinile Zombie", "cost": 50, "kind": "frame",
                            "frame": "/frames/zombie-hands.png", "desc": "Ramă avatar animată cu mâini de zombie. Ediție limitată.",
                            "img": "/frames/zombie-hands.png", "limit": 1, "window_hours": 0},
+    "frame_witch_moon": {"category": "limited", "title": "Ramă: Pălăria cu Lună", "cost": 50, "kind": "frame",
+                         "frame": "/frames/witch-moon.png", "desc": "Ramă avatar cu pălărie de vrăjitoare și lună de aur. Ediție limitată.",
+                         "img": "/frames/witch-moon.png", "limit": 1, "window_hours": 0},
+    "frame_robin_wreath": {"category": "limited", "title": "Ramă: Coronița cu Măcăleandru", "cost": 50, "kind": "frame",
+                           "frame": "/frames/robin-wreath.png", "desc": "Ramă avatar cu coroniță de toamnă și o pasăre măcăleandru. Ediție limitată.",
+                           "img": "/frames/robin-wreath.png", "limit": 1, "window_hours": 0},
+    "frame_autumn_cat": {"category": "limited", "title": "Ramă: Pisica de Toamnă", "cost": 50, "kind": "frame",
+                         "frame": "/frames/autumn-cat.png", "desc": "Ramă avatar cu pisicuță în frunze de toamnă. Ediție limitată.",
+                         "img": "/frames/autumn-cat.png", "limit": 1, "window_hours": 0},
 }
 
 
