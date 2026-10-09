@@ -373,7 +373,10 @@ const Terms = () => (
           <p>
             Pentru întrebări, sesizări sau solicitări oficiale privind platforma, utilizatorii pot
             contacta echipa Cartoonix prin canalele oficiale de suport puse la dispoziție în cadrul
-            platformei sau prin adresa de e-mail afișată pe website.
+            platformei sau prin e-mail la adresa{" "}
+            <a href="mailto:contact@cartoonix.ro" className="text-[#ffcc00] font-semibold hover:underline" data-testid="terms-contact-email">
+              contact@cartoonix.ro
+            </a>.
           </p>
         </Section>
 
