@@ -154,7 +154,7 @@ const Plus = () => {
               {/* Price + CTA */}
               <div className="inline-flex flex-col sm:flex-row items-start sm:items-center gap-4">
                 <div className="flex items-end gap-1">
-                  <span className="font-display text-6xl leading-none">50</span>
+                  <span className="font-display text-6xl leading-none">100</span>
                   <span className="text-2xl font-bold text-[#ffcc00] mb-2">RON</span>
                   <span className="ml-2 mb-2.5 text-xs text-white/50 uppercase tracking-wider">lifetime</span>
                 </div>
@@ -248,7 +248,7 @@ const Plus = () => {
                 <Crown className="h-10 w-10 text-[#ffcc00] mx-auto mb-4" />
                 <h3 className="font-display text-3xl md:text-4xl mb-2">Ești gata să faci upgrade?</h3>
                 <p className="text-white/60 mb-6 max-w-md mx-auto">
-                  50 RON, o singură dată. Toate beneficiile PLUS, pe viață.
+                  100 RON, o singură dată. Toate beneficiile PLUS, pe viață.
                 </p>
                 <button
                   data-testid="plus-subscribe-bottom"
@@ -256,7 +256,7 @@ const Plus = () => {
                   disabled={busy}
                   className="px-8 py-3.5 rounded-full bg-[#ffcc00] text-black font-bold text-lg hover:brightness-110 hover:shadow-[0_10px_40px_rgba(255,204,0,0.35)] transition-all duration-200 disabled:opacity-60"
                 >
-                  {busy ? "Se procesează..." : "Devino PLUS acum · 50 RON"}
+                  {busy ? "Se procesează..." : "Devino PLUS acum · 100 RON"}
                 </button>
               </div>
             </div>

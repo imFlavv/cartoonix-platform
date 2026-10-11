@@ -155,6 +155,18 @@ fully standalone Cartoonix Wiki at /wiki.
     fără schimbări UI necesare). Verificat end-to-end: achiziție (50 NIX) → unlock → echipare → randare corectă
     pe `/profile` cu curl + screenshot.
 
+20. **Preț PLUS 100 RON**: `PLUS_PRICE_RON` default schimbat 50→100 în `server.py` (checkout-ul folosește
+    `price_data` generat dinamic la fiecare sesiune, NU un Price ID fix din Stripe Dashboard — deci NU e nevoie
+    de niciun link/produs nou în Stripe, doar schimbarea acestei valori). Actualizat peste tot în frontend:
+    `Plus.jsx` (x3), `PlanChoiceModal.jsx`, placeholder admin, default `promo_popup.price_new`. Verificat cu
+    curl (checkout rejectat corect pt. userii deja PLUS) + screenshot (100 RON afișat).
+21. **Canal Halloween (coming soon) pe `/live`**: Canal nou static `halloween` adăugat mereu la finalul listei
+    din `GET /live/channels` (coming_soon=true, launch_date="30 Octombrie"); `GET /live/now?channel=halloween`
+    răspunde direct cu `coming_soon` fără să calculeze programul. `Live.jsx` arată un placeholder dedicat
+    (dovleac + „Transmisiunea începe pe 30 Octombrie") în player + bara EPG, și eticheta „Pornește 30 Octombrie”
+    în lista de canale, în loc de player normal / program. Nu afectează celelalte canale sau `/cinema`.
+    Verificat cu curl + screenshot.
+
 ## Known Pending Issues (carried over, not yet done this session)
 - **P0**: `/spin` rapid-click exploit — testing_agent verification still not run
   (recurring across many sessions).

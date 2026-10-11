@@ -76,7 +76,7 @@ const PlanChoiceModal = ({ onFree }) => {
 
           <div className="text-left bg-[#0a0a0a] border border-[#ffcc00]/30 rounded-2xl p-5 mb-5">
             <div className="flex items-baseline gap-1 mb-4">
-              <span className="text-3xl font-extrabold text-[#ffcc00]">50 RON</span>
+              <span className="text-3xl font-extrabold text-[#ffcc00]">100 RON</span>
               <span className="text-white/50 text-sm">/ o singură dată, pe viață</span>
             </div>
             <ul className="space-y-2.5">

@@ -4,7 +4,7 @@ import { api, resolveVideoUrl } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { NavBar } from "@/components/NavBar";
 import { PlusIcon } from "@/components/PlusIcon";
-import { Volume2, VolumeX, Maximize, Radio, Tv, Lock, Sparkles, Play, Pause, Cast } from "lucide-react";
+import { Volume2, VolumeX, Maximize, Radio, Tv, Lock, Sparkles, Play, Pause, Cast, CalendarClock } from "lucide-react";
 
 const POLL_MS = 8000;   // re-sync with the server every 8s
 const DRIFT_TOLERANCE = 4; // seconds
@@ -246,6 +246,7 @@ const Live = () => {
   }
 
   const current = nowData?.current;
+  const comingSoon = !!nowData?.coming_soon;
   const programRows = nowData
     ? [
         { item: nowData.prev, kind: "prev" },
@@ -261,6 +262,14 @@ const Live = () => {
       <NavBar />
       <div className="pt-20 pb-10 px-4 md:px-8 max-w-7xl mx-auto">
         {/* Program (EPG) — shown as a horizontal strip above the player: what played, what's on now, what's next */}
+        {comingSoon ? (
+          <div className="mb-6 rounded-2xl bg-gradient-to-r from-[#2a0e3d] to-[#120a1e] border border-[#ff7a18]/30 px-5 py-4 flex items-center gap-3" data-testid="live-program-coming-soon">
+            <span className="text-2xl leading-none">🎃</span>
+            <p className="text-sm text-white/70">
+              Canalul <b className="text-[#ff7a18]">Halloween</b> pornește pe <b className="text-white">{nowData?.launch_date || "30 Octombrie"}</b>.
+            </p>
+          </div>
+        ) : (
         <div className="mb-6" data-testid="live-program">
           <div className="flex items-center gap-2 mb-2">
             <Tv className="h-4 w-4 text-[#ec1c24]" />
@@ -309,6 +318,7 @@ const Live = () => {
             })}
           </div>
         </div>
+        )}
 
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Player */}
@@ -320,7 +330,16 @@ const Live = () => {
               onMouseLeave={() => { const v = videoRef.current; if (v && !v.paused) setUiVisible(false); }}
               className={`relative rounded-2xl overflow-hidden bg-black aspect-video shadow-[0_0_60px_rgba(236,28,36,0.18)] ${uiVisible ? "" : "cursor-none"}`}
             >
-              {current ? (
+              {comingSoon ? (
+                <div data-testid="live-halloween-coming-soon" className="absolute inset-0 flex flex-col items-center justify-center text-center gap-4 px-6" style={{ background: "radial-gradient(circle at 50% 30%, rgba(255,122,24,0.18), transparent 60%), #120a1e" }}>
+                  <span className="text-6xl leading-none">🎃</span>
+                  <h2 className="font-display text-2xl md:text-3xl text-white">Canalul Halloween</h2>
+                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#ff7a18]/15 border border-[#ff7a18]/40 text-[#ff7a18] font-bold text-sm">
+                    <CalendarClock className="h-4 w-4" /> Transmisiunea începe pe {nowData?.launch_date || "30 Octombrie"}
+                  </div>
+                  <p className="text-white/40 text-sm max-w-sm">Pregătim un program special de Halloween, non-stop. Revino pe {nowData?.launch_date || "30 Octombrie"}!</p>
+                </div>
+              ) : current ? (
                 <video
                   ref={videoRef}
                   data-testid="live-video"
@@ -344,6 +363,7 @@ const Live = () => {
               )}
 
               {/* Corner channel bug (top-right) — official Cartoonix Live TV logo */}
+              {!comingSoon && (
               <img
                 data-testid="live-logo-bug"
                 src="/cartoonix-live-logo.png"
@@ -351,9 +371,10 @@ const Live = () => {
                 draggable={false}
                 className="absolute top-3 right-3 h-9 md:h-12 w-auto select-none pointer-events-none drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]"
               />
+              )}
 
               {/* Brief "up next" overlay between programs (avoids a frozen frame) */}
-              {ended && current && (
+              {!comingSoon && ended && current && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 backdrop-blur-sm gap-3" data-testid="live-upnext">
                   <Tv className="h-10 w-10 text-[#ffcc00] animate-pulse" />
                   <p className="text-sm uppercase tracking-widest text-white/50 font-bold">Urmează în scurt timp</p>
@@ -364,7 +385,7 @@ const Live = () => {
               )}
 
               {/* Center play/pause button (YouTube-style) */}
-              {current && !ended && (
+              {!comingSoon && current && !ended && (
                 <button
                   type="button"
                   onClick={togglePlay}
@@ -377,7 +398,7 @@ const Live = () => {
               )}
 
               {/* Now playing label (bottom-left) */}
-              {current && (
+              {!comingSoon && current && (
                 <div className={`absolute bottom-14 left-4 max-w-[70%] pointer-events-none transition-opacity duration-300 ${uiVisible ? "opacity-100" : "opacity-0"}`}>
                   <p className="text-[11px] uppercase tracking-widest text-[#ffcc00] font-bold">Acum se redă</p>
                   <p className="font-display text-xl md:text-2xl leading-tight drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)] truncate">{current.show_title}</p>
@@ -386,6 +407,7 @@ const Live = () => {
               )}
 
               {/* Controls: ONLY volume + fullscreen */}
+              {!comingSoon && (
               <div className={`absolute bottom-0 inset-x-0 flex items-center gap-3 px-4 py-2.5 bg-gradient-to-t from-black/85 to-transparent transition-opacity duration-300 ${uiVisible ? "opacity-100" : "opacity-0 pointer-events-none"}`} data-testid="live-controls">
                 <button type="button" onClick={toggleMute} data-testid="live-mute" title={muted ? "Activează sunetul" : "Dezactivează sunetul"} className="text-white/90 hover:text-white shrink-0">
                   {muted || volume === 0 ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
@@ -408,15 +430,16 @@ const Live = () => {
                   </button>
                 </div>
               </div>
+              )}
             </div>
 
-            {castAvailable && deviceHint === false && (
+            {castAvailable && deviceHint === false && !comingSoon && (
               <p className="mt-2 text-[11px] text-white/35" data-testid="live-cast-hint">
                 Niciun TV/Chromecast detectat pe rețeaua ta încă — apasă totuși pe <Cast className="inline h-3 w-3 -mt-0.5" />, Chrome mai poate găsi dispozitivul. Ai nevoie de un TV/dongle cu Chromecast (Google Cast) încorporat.
               </p>
             )}
 
-            {muted && current && (
+            {muted && current && !comingSoon && (
               <button data-testid="live-unmute-hint" onClick={toggleMute} className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#ec1c24] text-white text-sm font-bold hover:bg-[#ff2d36] transition-colors duration-200">
                 <VolumeX className="h-4 w-4" /> Apasă pentru sunet
               </button>
@@ -445,11 +468,14 @@ const Live = () => {
                             : "bg-white/[0.03] border-white/10 hover:border-white/25 hover:bg-white/5"
                         }`}
                       >
-                        <span className={`text-sm font-bold ${active ? "text-white" : "text-white/85"}`}>
+                        <span className={`text-sm font-bold flex items-center gap-1.5 ${active ? "text-white" : "text-white/85"}`}>
+                          {ch.coming_soon && <span className="text-sm leading-none">🎃</span>}
                           {ch.name}
                         </span>
                         <span className={`text-[10px] uppercase tracking-wide ${active ? "text-[#ec1c24]" : "text-white/35"}`}>
-                          {ch.label.split("·")[0].trim()} · {ch.count} {ch.count === 1 ? "episod" : "episoade"}
+                          {ch.coming_soon
+                            ? `Pornește ${ch.launch_date}`
+                            : `${ch.label.split("·")[0].trim()} · ${ch.count} ${ch.count === 1 ? "episod" : "episoade"}`}
                         </span>
                       </button>
                     );

@@ -832,7 +832,7 @@ const Admin = () => {
                   <textarea value={promo.message || ""} onChange={(e) => setP("message", e.target.value)} placeholder="Mesaj (ex: abonează-te acum și primești gratuit aplicația TV...)" rows={3} className={`${input} resize-none`} />
                   <div className="grid grid-cols-2 gap-3">
                     <input data-testid="promo-price-old" value={promo.price_old || ""} onChange={(e) => setP("price_old", e.target.value)} placeholder="Preț vechi (ex: 80 RON)" className={input} />
-                    <input data-testid="promo-price-new" value={promo.price_new || ""} onChange={(e) => setP("price_new", e.target.value)} placeholder="Preț nou (ex: 50 RON)" className={input} />
+                    <input data-testid="promo-price-new" value={promo.price_new || ""} onChange={(e) => setP("price_new", e.target.value)} placeholder="Preț nou (ex: 100 RON)" className={input} />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <input value={promo.cta_label || ""} onChange={(e) => setP("cta_label", e.target.value)} placeholder="Text buton (ex: Vreau PLUS)" className={input} />

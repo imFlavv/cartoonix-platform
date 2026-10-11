@@ -53,7 +53,7 @@ JWT_ALGORITHM = "HS256"
 # ---------- Stripe (BYOK - own key) config ----------
 # Accept both STRIPE_API_KEY and STRIPE_SECRET_KEY env names for flexibility.
 STRIPE_API_KEY = os.environ.get("STRIPE_API_KEY") or os.environ.get("STRIPE_SECRET_KEY", "")
-PLUS_PRICE_RON = float(os.environ.get("PLUS_PRICE_RON", "50"))
+PLUS_PRICE_RON = float(os.environ.get("PLUS_PRICE_RON", "100"))
 PLUS_CURRENCY = os.environ.get("PLUS_CURRENCY", "ron").lower()
 # Mesaj afișat pe pagina de plată Stripe (deasupra butonului de plată). Editabil din .env.
 PLUS_CHECKOUT_MESSAGE = os.environ.get(
@@ -2053,6 +2053,8 @@ import bisect as _bisect
 
 # One synchronized schedule PER CHANNEL (keyed by channel name; ALL_CHANNEL_KEY = mixed "General").
 ALL_CHANNEL_KEY = "__all__"
+HALLOWEEN_CHANNEL_KEY = "halloween"
+HALLOWEEN_LAUNCH_DATE = "30 Octombrie"
 _LIVE_SCHED_BY_CH = {}    # channel_key -> {epoch, seed, n, items, cum, total, dver}
 _LIVE_SCHED_MAX_AGE = 24 * 3600  # rotate the shuffle once a day
 _LIVE_DUR = {}            # measured real durations: "show_id:ep" -> seconds
@@ -2166,6 +2168,9 @@ async def live_channels(user: dict = Depends(get_current_user)):
     for i, ch in enumerate(names):
         channels.append({"key": ch, "name": ch,
                          "label": f"Canalul {i + 2:02d} · {ch}", "count": counts[ch]})
+    channels.append({"key": HALLOWEEN_CHANNEL_KEY, "name": "Halloween",
+                     "label": f"Canalul {len(channels) + 1:02d} · Halloween", "count": 0,
+                     "coming_soon": True, "launch_date": HALLOWEEN_LAUNCH_DATE})
     return {"channels": channels}
 
 
@@ -2173,6 +2178,9 @@ async def live_channels(user: dict = Depends(get_current_user)):
 async def live_now(channel: Optional[str] = None, user: dict = Depends(get_current_user)):
     if not user_is_plus(user):
         raise HTTPException(status_code=403, detail="Cartoonix TV este disponibil momentan doar pentru membrii PLUS (BETA)")
+    if (channel or "").strip() == HALLOWEEN_CHANNEL_KEY:
+        return {"current": None, "next": [], "prev": None, "index": 0, "offset": 0,
+                "coming_soon": True, "launch_date": HALLOWEEN_LAUNCH_DATE}
     epoch, sched = await _ensure_live_schedule(channel)
     items, cum, total = sched["items"], sched["cum"], sched["total"]
     if not items:
@@ -4423,7 +4431,7 @@ PROMO_DEFAULT = {
     "title": "Ofertă PLUS – acces și la aplicația TV!",
     "message": "Abonează-te acum la Cartoonix PLUS și primești GRATUIT acces și la aplicația de TV! Plată unică, o singură dată.",
     "price_old": "80 RON",
-    "price_new": "50 RON",
+    "price_new": "100 RON",
     "cta_label": "Vreau PLUS",
     "cta_link": "/plus",
 }
