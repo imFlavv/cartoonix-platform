@@ -68,6 +68,16 @@ body {
   display: none;
 }
 
+/* gentle floating bounce for the Live chat mascot */
+@keyframes cx-bounce-slow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+.animate-bounce-slow {
+  animation: cx-bounce-slow 2.6s ease-in-out infinite;
+}
+
+
 /* page scrollbar */
 ::-webkit-scrollbar {
   width: 10px;

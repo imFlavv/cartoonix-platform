@@ -167,6 +167,27 @@ fully standalone Cartoonix Wiki at /wiki.
     în lista de canale, în loc de player normal / program. Nu afectează celelalte canale sau `/cinema`.
     Verificat cu curl + screenshot.
 
+## /live Page Full Redesign (2026-06 — done)
+- Rebuilt `/app/frontend/src/pages/Live.jsx` to match user's reference screenshot:
+  3-zone layout — [player | now-playing info panel] on top, [upcoming carousel | schedule list]
+  below, and a right sidebar with [Canale Live] + [Live Chat] cards.
+- **Player**: LIVE TV badge (top-left), per-channel badge (top-right), center play/pause,
+  bottom controls = play, mute, volume, live time (HH:MM/HH:MM), PiP, fullscreen, red live
+  progress bar. All original synced-broadcast playback logic preserved (seek-once, poll, cast,
+  duration report).
+- **Info panel**: "ACUM LA TV", show title, "Episodul N" + episode title (no fake season/
+  description per user choice), computed progress bar + clock times + "Mai sunt N minute",
+  "Apasă pentru sunet" button, favorite (localStorage) / share / fullscreen actions.
+- **Upcoming carousel** ("Acum urmează la {canal}") + **schedule list** ("Urmează pe {canal}")
+  with client-computed slot start/end times from server offset + next[] durations.
+- **Sidebar**: Canale Live (count badge, custom stylized per-channel badges — CSS, NOT official
+  brand logos per user choice: General=gold TV, Boomerang/CN/Jetix/Minimax=colored initials,
+  Halloween=purple ghost; LIVE/OFFLINE pills) + Live Chat card (online count from /chat/stats,
+  generated red speech-bubble mascot `/public/chat-mascot.png`, "Deschide chat" → /lobby/chat).
+- Halloween channel keeps coming-soon placeholder (player + info panel) for 30 Octombrie.
+- "Recomandate pentru tine" section intentionally NOT included (user choice).
+- Verified via screenshots: player, channel switching, carousel/schedule, chat nav, Halloween state.
+
 ## Known Pending Issues (carried over, not yet done this session)
 - **P0**: `/spin` rapid-click exploit — testing_agent verification still not run
   (recurring across many sessions).
