@@ -188,6 +188,22 @@ fully standalone Cartoonix Wiki at /wiki.
 - "Recomandate pentru tine" section intentionally NOT included (user choice).
 - Verified via screenshots: player, channel switching, carousel/schedule, chat nav, Halloween state.
 
+## Maintenance Page Redesign (2026-10-15 — done)
+- `/app/frontend/src/components/MaintenancePage.jsx` now shows the logged-in user's profile
+  when `MaintenanceGate` renders it for a non-admin authenticated user: large centered
+  `AvatarFrame` (with equipped frame), username below, then 3 pill stats — "Membru din"
+  (created_at), "Timp pe forum" (total_time_seconds, fetched live from
+  `GET /api/users/{id}/profile` for accurate `chat_msg_count`), "Mesaje chat" (chat_msg_count).
+  Floating Cartoonix logo (`cx-float` / `maintenance-logo.png`) removed per user request.
+  Maintenance heading/paragraph/"Acces administrator" button kept unchanged. For logged-out
+  visitors (no `user` in AuthContext) the profile block simply doesn't render — unchanged
+  behavior otherwise.
+- Verified via screenshot: toggled `/api/admin/maintenance` on with admin token while a
+  non-admin test user (`test@cartoonix.ro`) was already logged in client-side → `/home`
+  correctly rendered the new profile block (avatar, "CONT TEST", "Membru din: 25 septembrie
+  2026", "Timp pe forum: 4m", "Mesaje chat: 2") above the maintenance message. Maintenance
+  toggled back off after test (restored to original `enabled:false` state).
+
 ## Known Pending Issues (carried over, not yet done this session)
 - **P0**: `/spin` rapid-click exploit — testing_agent verification still not run
   (recurring across many sessions).
