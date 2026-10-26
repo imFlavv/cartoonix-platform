@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   Search, Menu, X, LogOut, Shield, HelpCircle, Bell,
   Facebook, Instagram, Youtube, Music2, MessageCircle, User, Settings, CheckCheck, Inbox,
-  Home, Clapperboard, Users, Film, Tv, Heart, ShoppingBag, Rss,
+  Home, Clapperboard, Users, Film, Tv, Heart, ShoppingBag, Rss, Ghost,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api";
@@ -100,6 +100,7 @@ export const NavBar = () => {
     ...((donateEnabled || isAdmin) ? [{ to: "/doneaza", label: donateEnabled ? "Donează" : "Donează (inactiv)", icon: Heart }] : []),
     { to: "/plus", label: "Cartoonix PLUS", plus: true },
     { to: "/halloween", label: "Halloween", pumpkin: true },
+    { to: "/hollowmere", label: "Hollowmere", icon: Ghost },
   ];
 
   const isActive = (to) => location.pathname === to || location.pathname.startsWith(to + "/");

@@ -4552,6 +4552,48 @@ async def set_maintenance(data: MaintenanceInput, admin: dict = Depends(require_
     return {"enabled": data.enabled}
 
 
+# ---------- Hollowmere (Halloween forest mini-game) ----------
+HOLLOWMERE_TASK_IDS = {"pumpkins-10", "pumpkins-25"}
+
+
+class HollowmereStateInput(BaseModel):
+    pumpkins: int
+    tokens: int
+    tasks_claimed: list = []
+
+
+@api_router.get("/hollowmere/state")
+async def get_hollowmere_state(user: dict = Depends(get_current_user)):
+    state = await db.hollowmere_state.find_one({"user_id": uid_of(user)}) or {}
+    return {
+        "pumpkins": int(state.get("pumpkins", 0)),
+        "tokens": int(state.get("tokens", 0)),
+        "tasks_claimed": state.get("tasks_claimed", []),
+        "nickname": user_name(user),
+        "avatar": user_avatar(user),
+    }
+
+
+@api_router.post("/hollowmere/state")
+async def save_hollowmere_state(data: HollowmereStateInput, user: dict = Depends(get_current_user)):
+    pumpkins = max(0, min(int(data.pumpkins), 100000))
+    tokens = max(0, min(int(data.tokens), 1000000))
+    tasks_claimed = [t for t in data.tasks_claimed if t in HOLLOWMERE_TASK_IDS]
+    uid = uid_of(user)
+    await db.hollowmere_state.update_one(
+        {"user_id": uid},
+        {"$set": {
+            "user_id": uid,
+            "pumpkins": pumpkins,
+            "tokens": tokens,
+            "tasks_claimed": tasks_claimed,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }},
+        upsert=True,
+    )
+    return {"ok": True, "pumpkins": pumpkins, "tokens": tokens, "tasks_claimed": tasks_claimed}
+
+
 # ---------- Account approval mode (admin gates new registrations) ----------
 class ToggleEnabledInput(BaseModel):
     enabled: bool
