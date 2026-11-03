@@ -58,7 +58,6 @@ import UpdatesPage from "@/wiki/pages/UpdatesPage";
 // Cartoonix Land is code-split so it never bloats the main streaming bundle
 const Land = lazy(() => import("@/pages/Land"));
 const Halloween = lazy(() => import("@/pages/Halloween"));
-const Hollowmere = lazy(() => import("@/pages/Hollowmere"));
 // Cartoonix TV (Live) is also code-split — isolated from the main app bundle
 const Live = lazy(() => import("@/pages/Live"));
 
@@ -136,7 +135,6 @@ function App() {
             <Route path="/cont-tv" element={<ProtectedRoute><TvAccount /></ProtectedRoute>} />
             <Route path="/land" element={<ProtectedRoute><Suspense fallback={<div className="h-screen flex items-center justify-center bg-[#63b7e4] text-white/80">Se încarcă Cartoonix Land...</div>}><Land /></Suspense></ProtectedRoute>} />
             <Route path="/halloween" element={<ProtectedRoute><Suspense fallback={<div className="h-screen flex items-center justify-center bg-[#120a1e] text-white/70">Se încarcă evenimentul...</div>}><Halloween /></Suspense></ProtectedRoute>} />
-            <Route path="/hollowmere" element={<ProtectedRoute><Suspense fallback={<div className="h-screen flex items-center justify-center bg-[#050607] text-white/70">Se încarcă Hollowmere...</div>}><Hollowmere /></Suspense></ProtectedRoute>} />
             <Route path="/live" element={<ProtectedRoute><Suspense fallback={<div className="h-screen flex items-center justify-center bg-[#0a0a0a] text-white/70">Se pornește Cartoonix TV...</div>}><Live /></Suspense></ProtectedRoute>} />
             <Route path="/show/:id" element={<ShowDetail />} />
             <Route path="/watch/:id/:ep" element={<ProtectedRoute><Watch /></ProtectedRoute>} />

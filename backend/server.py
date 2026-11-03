@@ -4552,48 +4552,6 @@ async def set_maintenance(data: MaintenanceInput, admin: dict = Depends(require_
     return {"enabled": data.enabled}
 
 
-# ---------- Hollowmere (Halloween forest mini-game) ----------
-HOLLOWMERE_TASK_IDS = {"pumpkins-10", "pumpkins-25"}
-
-
-class HollowmereStateInput(BaseModel):
-    pumpkins: int
-    tokens: int
-    tasks_claimed: list = []
-
-
-@api_router.get("/hollowmere/state")
-async def get_hollowmere_state(user: dict = Depends(get_current_user)):
-    state = await db.hollowmere_state.find_one({"user_id": uid_of(user)}) or {}
-    return {
-        "pumpkins": int(state.get("pumpkins", 0)),
-        "tokens": int(state.get("tokens", 0)),
-        "tasks_claimed": state.get("tasks_claimed", []),
-        "nickname": user_name(user),
-        "avatar": user_avatar(user),
-    }
-
-
-@api_router.post("/hollowmere/state")
-async def save_hollowmere_state(data: HollowmereStateInput, user: dict = Depends(get_current_user)):
-    pumpkins = max(0, min(int(data.pumpkins), 100000))
-    tokens = max(0, min(int(data.tokens), 1000000))
-    tasks_claimed = [t for t in data.tasks_claimed if t in HOLLOWMERE_TASK_IDS]
-    uid = uid_of(user)
-    await db.hollowmere_state.update_one(
-        {"user_id": uid},
-        {"$set": {
-            "user_id": uid,
-            "pumpkins": pumpkins,
-            "tokens": tokens,
-            "tasks_claimed": tasks_claimed,
-            "updated_at": datetime.now(timezone.utc).isoformat(),
-        }},
-        upsert=True,
-    )
-    return {"ok": True, "pumpkins": pumpkins, "tokens": tokens, "tasks_claimed": tasks_claimed}
-
-
 # ---------- Account approval mode (admin gates new registrations) ----------
 class ToggleEnabledInput(BaseModel):
     enabled: bool
@@ -4972,6 +4930,207 @@ async def set_donation_bonus(data: DonationBonusInput, admin: dict = Depends(req
         upsert=True,
     )
     return {"percent": percent}
+
+
+# ---------- Admin: donation logs (audit trail for NIX credited via donation + refund lookups) ----------
+def _ledger_description(e: dict) -> str:
+    t = e.get("type")
+    if t == "donation":
+        amt = e.get("amount")
+        cur = (e.get("currency") or PLUS_CURRENCY).upper()
+        bonus = float(e.get("bonus_percent") or 0)
+        base = f"Donație {amt:g} {cur}" if amt is not None else "Donație"
+        return base + (f" (+{bonus:g}% bonus)" if bonus > 0 else "")
+    if t == "shop":
+        return f"Cumpărat din magazin: {e.get('item_title') or e.get('item_id') or '—'}"
+    if t == "reward":
+        return f"Revendicat recompensă: {e.get('product_title') or e.get('product_id') or '—'}"
+    if t == "voucher":
+        return e.get("note") or "Voucher NIX folosit"
+    if t == "feedback":
+        return "Recompensă pentru feedback trimis"
+    if t == "spin":
+        return "Câștig la Spin (Mystery Box)"
+    if t == "halloween":
+        return e.get("note") or "Eveniment Halloween"
+    return (t or "tranzacție").capitalize()
+
+
+async def _donation_match_query(q: Optional[str], date_from: Optional[str], date_to: Optional[str]) -> dict:
+    match: dict = {"product": "cartoonix_donation", "payment_status": "paid"}
+    if q:
+        q_clean = q.strip()
+        or_clauses = [
+            {"email": {"$regex": re.escape(q_clean), "$options": "i"}},
+            {"session_id": {"$regex": re.escape(q_clean), "$options": "i"}},
+        ]
+        matching_users = await db.users.find({"$or": [
+            {"nickname": {"$regex": re.escape(q_clean), "$options": "i"}},
+            {"name": {"$regex": re.escape(q_clean), "$options": "i"}},
+        ]}).to_list(200)
+        uids = [uid_of(u) for u in matching_users]
+        if uids:
+            or_clauses.append({"user_id": {"$in": uids}})
+        match["$or"] = or_clauses
+    if date_from or date_to:
+        rng = {}
+        if date_from:
+            rng["$gte"] = f"{date_from}T00:00:00+00:00"
+        if date_to:
+            rng["$lte"] = f"{date_to}T23:59:59.999999+00:00"
+        match["updated_at"] = rng
+    return match
+
+
+@api_router.get("/admin/donations")
+async def admin_list_donations(
+    q: Optional[str] = None, date_from: Optional[str] = None, date_to: Optional[str] = None,
+    page: int = 1, per_page: int = 20, admin: dict = Depends(require_admin),
+):
+    per_page = max(1, min(per_page, 100))
+    page = max(1, page)
+    match = await _donation_match_query(q, date_from, date_to)
+    total = await db.payment_transactions.count_documents(match)
+    skip = (page - 1) * per_page
+    txns = await db.payment_transactions.find(match).sort("updated_at", -1).skip(skip).limit(per_page).to_list(per_page)
+    user_ids = list({t.get("user_id") for t in txns if t.get("user_id")})
+    users_map = {}
+    for uid in user_ids:
+        u = await find_user_by_id(uid)
+        if u:
+            users_map[uid] = u
+    donations = []
+    for t in txns:
+        u = users_map.get(t.get("user_id"))
+        donations.append({
+            "session_id": t.get("session_id"),
+            "user_id": t.get("user_id"),
+            "user_name": user_name(u) if u else "(cont șters)",
+            "user_email": (u.get("email") if u else None) or t.get("email") or "—",
+            "amount": t.get("amount"),
+            "currency": (t.get("currency") or PLUS_CURRENCY).upper(),
+            "points": int(t.get("points", 0)),
+            "base_points": int(t.get("base_points", t.get("points", 0))),
+            "bonus_percent": float(t.get("bonus_percent", 0) or 0),
+            "created_at": t.get("created_at"),
+            "credited_at": t.get("updated_at"),
+            "status": t.get("payment_status"),
+        })
+    agg = await db.payment_transactions.aggregate([
+        {"$match": match},
+        {"$group": {"_id": None, "total_ron": {"$sum": "$amount"}, "total_nix": {"$sum": "$points"}, "count": {"$sum": 1}}},
+    ]).to_list(1)
+    totals = agg[0] if agg else {"total_ron": 0, "total_nix": 0, "count": 0}
+    return {
+        "donations": donations,
+        "total": total,
+        "page": page,
+        "pages": max(1, (total + per_page - 1) // per_page),
+        "per_page": per_page,
+        "totals": {
+            "total_ron": round(float(totals.get("total_ron") or 0), 2),
+            "total_nix": int(totals.get("total_nix") or 0),
+            "count": int(totals.get("count") or 0),
+        },
+    }
+
+
+@api_router.get("/admin/donations/export")
+async def admin_export_donations(
+    q: Optional[str] = None, date_from: Optional[str] = None, date_to: Optional[str] = None,
+    admin: dict = Depends(require_admin),
+):
+    import csv
+    import io
+    match = await _donation_match_query(q, date_from, date_to)
+    txns = await db.payment_transactions.find(match).sort("updated_at", -1).to_list(5000)
+    user_ids = list({t.get("user_id") for t in txns if t.get("user_id")})
+    users_map = {}
+    for uid in user_ids:
+        u = await find_user_by_id(uid)
+        if u:
+            users_map[uid] = u
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(["Data creditare NIX", "Data inițiere plată", "Donator", "Email", "Suma (RON)",
+                      "NIX creditat", "NIX de bază", "Bonus %", "ID tranzacție Stripe", "Stare"])
+    for t in txns:
+        u = users_map.get(t.get("user_id"))
+        writer.writerow([
+            t.get("updated_at") or "", t.get("created_at") or "",
+            user_name(u) if u else "(cont șters)",
+            (u.get("email") if u else None) or t.get("email") or "",
+            t.get("amount"), t.get("points"), t.get("base_points", t.get("points")),
+            t.get("bonus_percent", 0), t.get("session_id") or "", t.get("payment_status") or "",
+        ])
+    csv_data = "\ufeff" + buf.getvalue()
+    filename = f"donatii_cartoonix_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M')}.csv"
+    return Response(
+        content=csv_data.encode("utf-8"),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@api_router.get("/admin/users/{user_id}/nix-ledger")
+async def admin_user_nix_ledger(user_id: str, admin: dict = Depends(require_admin)):
+    target = await find_user_by_id(user_id)
+    if not target:
+        raise HTTPException(status_code=404, detail="Utilizator inexistent")
+    uid = uid_of(target)
+    entries = await db.points_ledger.find({"user_id": uid}).sort("created_at", -1).to_list(500)
+    ledger = []
+    donations_total_ron = 0.0
+    donations_total_nix = 0
+    for e in entries:
+        if e.get("type") == "donation":
+            donations_total_ron += float(e.get("amount") or 0)
+            donations_total_nix += int(e.get("points") or 0)
+        ledger.append({
+            "type": e.get("type"),
+            "points": int(e.get("points", 0)),
+            "description": _ledger_description(e),
+            "created_at": e.get("created_at"),
+            "amount": e.get("amount"),
+            "currency": e.get("currency"),
+            "session_id": e.get("session_id"),
+        })
+    return {
+        "user": {
+            "id": uid,
+            "name": user_name(target),
+            "email": target.get("email", ""),
+            "points": int(target.get("points", 0)),
+            "created_at": target.get("created_at"),
+        },
+        "donations_total_ron": round(donations_total_ron, 2),
+        "donations_total_nix": donations_total_nix,
+        "ledger": ledger,
+    }
+
+
+@api_router.get("/admin/users/{user_id}/nix-ledger/export")
+async def admin_export_user_nix_ledger(user_id: str, admin: dict = Depends(require_admin)):
+    import csv
+    import io
+    target = await find_user_by_id(user_id)
+    if not target:
+        raise HTTPException(status_code=404, detail="Utilizator inexistent")
+    uid = uid_of(target)
+    entries = await db.points_ledger.find({"user_id": uid}).sort("created_at", -1).to_list(500)
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(["Data", "Tip", "Descriere", "NIX (+/-)"])
+    for e in entries:
+        writer.writerow([e.get("created_at") or "", e.get("type") or "", _ledger_description(e), e.get("points", 0)])
+    csv_data = "\ufeff" + buf.getvalue()
+    safe_name = re.sub(r"[^A-Za-z0-9_-]+", "_", user_name(target) or uid)
+    filename = f"istoric_nix_{safe_name}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M')}.csv"
+    return Response(
+        content=csv_data.encode("utf-8"),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 # ---------- UI settings (avatar frames, etc.) ----------

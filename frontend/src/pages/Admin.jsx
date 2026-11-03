@@ -3,7 +3,7 @@ import { NavBar } from "@/components/NavBar";
 import { api } from "@/lib/api";
 import { CHANNELS } from "@/data/constants";
 import { toast } from "sonner";
-import { FolderSearch, Plus, Film, Lightbulb, Users, Pencil, ChevronUp, ChevronDown, ServerCog, Inbox, ImageOff, MessagesSquare, Megaphone, RotateCcw, Crown, Heart, Tv, Gift, MessageSquareHeart, BarChart3, Layers, Trash2, X, UserCheck, Ban } from "lucide-react";
+import { FolderSearch, Plus, Film, Lightbulb, Users, Pencil, ChevronUp, ChevronDown, ServerCog, Inbox, ImageOff, MessagesSquare, Megaphone, RotateCcw, Crown, Heart, Tv, Gift, MessageSquareHeart, BarChart3, Layers, Trash2, X, UserCheck, Ban, HandCoins } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
@@ -13,6 +13,7 @@ import { AdminChat } from "@/components/AdminChat";
 import { AdminAnnouncements } from "@/components/AdminAnnouncements";
 import { AdminShowEditor } from "@/components/AdminShowEditor";
 import { AdminRewards } from "@/components/AdminRewards";
+import { AdminDonations } from "@/components/AdminDonations";
 import { AdminFeedback } from "@/components/AdminFeedback";
 import { AdminSpin } from "@/components/AdminSpin";
 import { CinemaAdmin } from "@/components/CinemaAdmin";
@@ -416,6 +417,9 @@ const Admin = () => {
             </TabsTrigger>
             <TabsTrigger value="rewards" data-testid="admin-tab-rewards" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
               <Gift className="h-4 w-4 mr-2" /> Recompense
+            </TabsTrigger>
+            <TabsTrigger value="donations" data-testid="admin-tab-donations" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
+              <HandCoins className="h-4 w-4 mr-2" /> Donații
             </TabsTrigger>
             <TabsTrigger value="spin" data-testid="admin-tab-spin" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
               <Gift className="h-4 w-4 mr-2" /> Mystery Box
@@ -920,6 +924,10 @@ const Admin = () => {
 
           <TabsContent value="rewards">
             <AdminRewards />
+          </TabsContent>
+
+          <TabsContent value="donations">
+            <AdminDonations />
           </TabsContent>
 
           <TabsContent value="spin">
