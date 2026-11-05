@@ -73,7 +73,7 @@ const SECTIONS = [
     outro: "Ne dorim ca fiecare componentă Cartoonix să aibă un scop clar, fără pagini inutile sau funcționalități aglomerate într-un singur loc.",
   },
   {
-    id: "devices", num: "05", icon: "fa-laptop-mobile", fallback: "fa-display", color: "#a78bfa",
+    id: "devices", num: "05", icon: "fa-display", color: "#a78bfa",
     title: "O experiență adaptată", subtitle: "Fiecărui dispozitiv",
     intro: [
       "Toate aceste schimbări au un obiectiv comun: să facem Cartoonix mai simplu, mai accesibil și mai plăcut de utilizat pentru fiecare dintre voi.",
@@ -105,7 +105,7 @@ const Section = ({ s, i }) => (
     <div className="flex items-start gap-4 md:gap-5 mb-6">
       <div className="shrink-0 h-14 w-14 rounded-2xl flex items-center justify-center text-2xl"
         style={{ background: `${s.color}1f`, color: s.color, boxShadow: `0 0 30px ${s.color}33` }}>
-        <i className={`fa-solid ${s.fallback || s.icon}`} />
+        <i className={`fa-solid ${s.icon}`} />
       </div>
       <div>
         <p className="text-xs uppercase tracking-[0.25em] font-semibold" style={{ color: s.color }}>Capitolul {s.num}</p>

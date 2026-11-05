@@ -1,0 +1,36 @@
+{
+  "summary": "Tested the 'Viitorul Cartoonix' vision page feature end to end. Backend: new /app/backend/tests/test_vision_page.py (9 tests, all pass). It covers the public GET setting, the admin-only POST (401 with no auth, 403 for a regular user, 422 with an empty body), the toggle persisting, a non-admin login getting 503 while the page is on (a wrong password still gets 401), admin login still working, normal login once the page is off, and a maintenance-mode regression check. Frontend: with the page on, guests visiting /, /wiki, /wiki/announcements, /profile, /admin and /register all saw vision-page with all 5 sections and the letter. All 34 FontAwesome icons rendered, there were no page errors and nothing overflows sideways at 390px. vision-admin-login opens /login. A regular user logging in through the UI saw the 503 message in login-error. The admin logged in, went to /home and browsed /, /wiki and /profile normally. In Admin > Platformă, vision-page-toggle turned the page off, showed a toast and stayed off after reload. With the page off, the site and wiki load normally and regular login works. A regular user who was already logged in sees the vision page after it is switched on. Final state: vision page OFF, maintenance OFF, and all TEST_ users and donation seed data I created are deleted.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/admin/donations (pagination/date filter tests)", "issue": "5 of 22 tests in test_admin_donations.py fail, and the vision feature is not the cause. (a) An earlier tester run (tag a4d2f6) left 4 payment_transactions with session_id like cs_test_TEST_* and the same timestamps as the seed. That breaks the exact-match assertions. The list also sorts only by updated_at, so rows with equal timestamps come back in an unstable order and the same row appeared on page 1 and page 2. (b) POST /api/payments/donate returns 500 'Stripe nu este configurat' because Stripe is not configured in this environment, so the amount validation (expected 400) never runs. I did not delete the leftover records because I did not create them."},
+      {"endpoint": "Session handling while the vision page is on", "issue": "Only /auth/login is blocked. A non-admin who is already logged in keeps a valid JWT and can still call every API; the frontend gate only hides the UI. Maintenance mode works the same way, so this may be intended."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "GlobalWidgets (ChatWidget / AnnouncementPopup) over VisionPage", "issue": "When a logged-in non-admin user sees the vision page, the 'LIVE CHAT – Hai la discuție' widget appears on top of it and covers text, especially on mobile. GlobalWidgets in App.js is rendered outside MaintenanceGate and is only hidden on /wiki. Hide it while the vision page (and maintenance page) is showing for non-admins.", "selector": "ChatWidget in App.js GlobalWidgets", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "VisionPage", "issues": ["Visually matches the maintenance page style and contrast is good. Section 05 uses fallback fa-display because fa-laptop-mobile is not a free icon, so that is handled."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_vision_page.py", "/app/test_reports/pytest/vision.xml", "/app/backend/tests/test_admin_donations.py"],
+  "action_items": [
+    "Hide ChatWidget/AnnouncementPopup while the vision page or maintenance page is showing for non-admin users.",
+    "Add a secondary sort key (e.g. session_id or _id) to /api/admin/donations so pagination is stable when timestamps are equal.",
+    "Optional: decide whether existing non-admin sessions should also be rejected by the API while the vision page is on."
+  ],
+  "critical_code_review_comments": [
+    "server.py login: the maintenance and vision checks each do their own settings find_one. That is fine, but they could be combined into a single query.",
+    "set_vision_page reuses the MaintenanceInput model. It works; a generic ToggleEnabledInput already exists and would read more clearly.",
+    "MaintenanceGate returns children while enabled === null, so guests briefly see the normal app before the vision page appears (flash of content). Consider showing a loader until both settings have loaded."
+  ],
+  "updated_files": ["/app/backend/tests/test_vision_page.py"],
+  "success_rate": {"backend": "100% (vision 9/9); donations regression 17/22, failures caused by leftover data and missing Stripe config", "frontend": "95%"},
+  "seed_data_creation": "Created temporary TEST_ users (test_vision_*@example.com, test_visionui@example.com) and seeded/cleaned donation data. All deleted by id.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Vision page is left DISABLED. Run test_vision_page.py with the default xdist config (loadscope keeps the module ordered). For the donations regression run: python tests/seed_donation_test_data.py seed, then pytest tests/test_admin_donations.py, then cleanup. Leftover tag a4d2f6 records from an older run still pollute that suite."
+}

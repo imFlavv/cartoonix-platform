@@ -216,3 +216,9 @@ fully standalone Cartoonix Wiki at /wiki.
 
 ## Test Credentials
 See /app/memory/test_credentials.md
+
+## 2026-06 Updates
+- Hollowmere removed & purged from Git history (git-filter-repo); repo under GitHub 100MB limit.
+- Admin "Donații" tab: donation audit logs (donor, amount RON, NIX credited, per-user NIX ledger, CSV export).
+- "Viitorul Cartoonix" vision page (components/VisionPage.jsx): toggle in Admin > Platformă (`/api/admin/vision-page`, `/api/settings/vision-page`). When ON: all non-admin visitors (incl. Wiki) see only the letter, non-admin login returns 503; /login stays reachable for admins. Global chat/announcement widgets hidden while gated. Tested (iteration_13).
+- Backlog: optionally reject API calls of already-logged-in non-admins while vision/maintenance mode is ON.

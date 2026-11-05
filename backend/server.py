@@ -5011,7 +5011,7 @@ async def admin_list_donations(
     match = await _donation_match_query(q, date_from, date_to)
     total = await db.payment_transactions.count_documents(match)
     skip = (page - 1) * per_page
-    txns = await db.payment_transactions.find(match).sort("updated_at", -1).skip(skip).limit(per_page).to_list(per_page)
+    txns = await db.payment_transactions.find(match).sort([("updated_at", -1), ("_id", -1)]).skip(skip).limit(per_page).to_list(per_page)
     user_ids = list({t.get("user_id") for t in txns if t.get("user_id")})
     users_map = {}
     for uid in user_ids:

@@ -160,8 +160,8 @@ function App() {
             <Route path="*" element={<Navigate to="/home" replace />} />
             </Routes>
             </AuthGate>
+            <GlobalWidgets />
           </MaintenanceGate>
-          <GlobalWidgets />
         </BrowserRouter>
       </LibraryProvider>
     </AuthProvider>
