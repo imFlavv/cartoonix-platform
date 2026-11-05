@@ -692,6 +692,9 @@ async def login(data: LoginInput, request: Request):
     settings = await db.settings.find_one({"key": "maintenance"})
     if settings and settings.get("enabled") and user.get("role") != "admin":
         raise HTTPException(status_code=503, detail="Platforma este momentan în mentenanță. Revenim curând!")
+    vision = await db.settings.find_one({"key": "vision_page"})
+    if vision and vision.get("enabled") and user.get("role") != "admin":
+        raise HTTPException(status_code=503, detail="Cartoonix pregătește o nouă etapă. Momentan conectarea este dezactivată.")
     now_iso = datetime.now(timezone.utc).isoformat()
     await db.users.update_one({"_id": user["_id"]}, {"$set": {"last_ip": ip, "last_login": now_iso, "last_active": now_iso}})
     user["last_ip"] = ip
@@ -4547,6 +4550,22 @@ async def set_maintenance(data: MaintenanceInput, admin: dict = Depends(require_
     await db.settings.update_one(
         {"key": "maintenance"},
         {"$set": {"key": "maintenance", "enabled": data.enabled, "updated_at": datetime.now(timezone.utc).isoformat()}},
+        upsert=True,
+    )
+    return {"enabled": data.enabled}
+
+
+@api_router.get("/settings/vision-page")
+async def get_vision_page():
+    s = await db.settings.find_one({"key": "vision_page"})
+    return {"enabled": bool(s and s.get("enabled"))}
+
+
+@api_router.post("/admin/vision-page")
+async def set_vision_page(data: MaintenanceInput, admin: dict = Depends(require_admin)):
+    await db.settings.update_one(
+        {"key": "vision_page"},
+        {"$set": {"key": "vision_page", "enabled": data.enabled, "updated_at": datetime.now(timezone.utc).isoformat()}},
         upsert=True,
     )
     return {"enabled": data.enabled}

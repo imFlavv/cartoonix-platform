@@ -41,6 +41,7 @@ const Admin = () => {
   const [suggestions, setSuggestions] = useState([]);
   const [editingShow, setEditingShow] = useState(null);
   const [maintenance, setMaintenance] = useState(false);
+  const [visionPage, setVisionPage] = useState(false);
   const [playersDisabled, setPlayersDisabled] = useState(false);
   const [avatarFrames, setAvatarFrames] = useState(true);
   const [donateEnabled, setDonateEnabled] = useState(true);
@@ -80,6 +81,7 @@ const Admin = () => {
     load();
     loadSuggestions();
     api.get("/settings/maintenance").then((res) => setMaintenance(res.data.enabled)).catch(() => {});
+    api.get("/settings/vision-page").then((res) => setVisionPage(res.data.enabled)).catch(() => {});
     api.get("/settings/players").then((res) => setPlayersDisabled(!!res.data.disabled)).catch(() => {});
     api.get("/settings/ui").then((res) => setAvatarFrames(res.data.avatar_frames_enabled !== false)).catch(() => {});
     api.get("/settings/donate").then((res) => setDonateEnabled(res.data.enabled !== false)).catch(() => {});
@@ -156,6 +158,16 @@ const Admin = () => {
       await api.post("/admin/maintenance", { enabled: val });
       setMaintenance(val);
       toast.success(val ? "Mentenanță ACTIVATĂ - platforma e blocată pentru utilizatori" : "Mentenanță dezactivată");
+    } catch {
+      toast.error("Eroare");
+    }
+  };
+
+  const toggleVisionPage = async (val) => {
+    try {
+      await api.post("/admin/vision-page", { enabled: val });
+      setVisionPage(val);
+      toast.success(val ? "Pagina „Viitorul Cartoonix” ACTIVATĂ" : "Pagina „Viitorul Cartoonix” dezactivată");
     } catch {
       toast.error("Eroare");
     }
@@ -689,6 +701,18 @@ const Admin = () => {
                     <p className={`text-xs ${maintenance ? "text-[#ec1c24]" : "text-[#22c55e]"}`}>{maintenance ? "ACTIVĂ - utilizatorii nu au acces" : "Inactivă - platforma funcționează normal"}</p>
                   </div>
                   <Switch data-testid="maintenance-toggle" checked={maintenance} onCheckedChange={toggleMaintenance} />
+                </div>
+              </div>
+
+              <div className="bg-[#0f0f0f] border border-white/10 rounded-2xl p-6" data-testid="vision-page-card">
+                <h2 className="font-display text-2xl mb-1 flex items-center gap-2"><Megaphone className="h-5 w-5 text-[#3b9cff]" /> Pagina „Viitorul Cartoonix”</h2>
+                <p className="text-sm text-white/50 mb-5">Când e activată, toți vizitatorii (inclusiv Wiki) văd doar mesajul despre viitorul Cartoonix. Utilizatorii nu se pot conecta; doar adminii au acces.</p>
+                <div className="flex items-center justify-between p-4 rounded-xl bg-white/5">
+                  <div>
+                    <p className="font-semibold">Mesaj comunitate activ</p>
+                    <p className={`text-xs ${visionPage ? "text-[#ec1c24]" : "text-[#22c55e]"}`}>{visionPage ? "ACTIVĂ - utilizatorii văd doar mesajul" : "Inactivă - platforma funcționează normal"}</p>
+                  </div>
+                  <Switch data-testid="vision-page-toggle" checked={visionPage} onCheckedChange={toggleVisionPage} />
                 </div>
               </div>
 
