@@ -7,7 +7,8 @@ import { api } from "@/lib/api";
 import { setQueue } from "@/lib/queue";
 import { AVATAR_SEEDS } from "@/data/constants";
 import { PlusIcon } from "@/components/PlusIcon";
-import { Check, Play, Heart, Trash2, ListMusic, Film, Clock, Lock, KeyRound, Eye, EyeOff, User, Gift, PlayCircle, Ticket, FileText, Building2, Download, Crown, Copy, Plus, Award, MessageCircle, X } from "lucide-react";
+import { Check, Play, Heart, Trash2, ListMusic, Film, Clock, Lock, KeyRound, Eye, EyeOff, User, Gift, PlayCircle, Ticket, FileText, Building2, Download, Crown, Copy, Plus, Award, MessageCircle, X, Monitor } from "lucide-react";
+import { DesktopAppTab } from "@/components/DesktopAppTab";
 import { NixCoin } from "@/components/NixCoin";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { rankInfo } from "@/lib/roles";
@@ -282,6 +283,9 @@ const Profile = () => {
               </TabsTrigger>
               <TabsTrigger value="invoices" data-testid="tab-invoices" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
                 <FileText className="h-4 w-4 mr-2" /> Facturi
+              </TabsTrigger>
+              <TabsTrigger value="desktop" data-testid="tab-desktop" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
+                <Monitor className="h-4 w-4 mr-2" /> Aplicație Desktop
               </TabsTrigger>
             </TabsList>
 
@@ -783,6 +787,10 @@ const Profile = () => {
                   ))}
                 </div>
               )}
+            </TabsContent>
+
+            <TabsContent value="desktop" className="mt-6" data-testid="desktop-content">
+              <DesktopAppTab />
             </TabsContent>
           </Tabs>
         </div>
