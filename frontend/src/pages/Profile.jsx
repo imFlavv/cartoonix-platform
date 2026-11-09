@@ -261,7 +261,7 @@ const Profile = () => {
 
         <div className="max-w-5xl mx-auto px-4 md:px-12 py-8">
 
-          <Tabs defaultValue="favorites">
+          <Tabs defaultValue={new URLSearchParams(window.location.search).get("tab") || "favorites"}>
             <TabsList className="bg-[#141414] border border-white/10">
               <TabsTrigger value="favorites" data-testid="tab-favorites" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
                 <Heart className="h-4 w-4 mr-2" /> Favorite

@@ -4951,6 +4951,51 @@ async def set_donation_bonus(data: DonationBonusInput, admin: dict = Depends(req
     return {"percent": percent}
 
 
+# ---------- Desktop app (download info editable from admin) ----------
+DESKTOP_APP_DEFAULT = {
+    "version": "0.4.0",
+    "size": "99 MB",
+    "url": "https://customer-assets-cm19k8pv.emergentagent.net/job_favorite-cleanup/artifacts/78734134ebe34129_Cartoonix-Desktop-Configurare-0.4.0.exe",
+}
+
+
+class DesktopAppInput(BaseModel):
+    version: str
+    size: Optional[str] = ""
+    url: str
+    notify: bool = False
+
+
+@api_router.get("/settings/desktop-app")
+async def get_desktop_app():
+    s = await db.settings.find_one({"key": "desktop_app"}) or {}
+    return {k: s.get(k) or v for k, v in DESKTOP_APP_DEFAULT.items()} | {"updated_at": s.get("updated_at")}
+
+
+@api_router.post("/admin/settings/desktop-app")
+async def set_desktop_app(data: DesktopAppInput, admin: dict = Depends(require_admin)):
+    version, url = data.version.strip(), data.url.strip()
+    if not version or not url.startswith(("http://", "https://")):
+        raise HTTPException(status_code=400, detail="Versiunea și un link valid (http/https) sunt obligatorii")
+    now_iso = datetime.now(timezone.utc).isoformat()
+    payload = {"key": "desktop_app", "version": version, "size": (data.size or "").strip(), "url": url, "updated_at": now_iso}
+    await db.settings.update_one({"key": "desktop_app"}, {"$set": payload}, upsert=True)
+    notified = False
+    if data.notify:
+        await db.notifications.insert_one({
+            "title": f"Cartoonix Desktop {version} este disponibil!",
+            "body": f"A apărut o nouă versiune a aplicației Cartoonix Desktop ({version}). Descarc-o din profilul tău, tab-ul „Aplicație Desktop”.",
+            "category": "update",
+            "image": "",
+            "cta_label": "Descarcă acum",
+            "cta_link": "/profile?tab=desktop",
+            "user_id": None,
+            "created_at": now_iso,
+        })
+        notified = True
+    return {**{k: payload[k] for k in ("version", "size", "url", "updated_at")}, "notified": notified}
+
+
 # ---------- Admin: donation logs (audit trail for NIX credited via donation + refund lookups) ----------
 def _ledger_description(e: dict) -> str:
     t = e.get("type")

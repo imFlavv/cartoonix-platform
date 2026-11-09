@@ -14,6 +14,7 @@ import { AdminAnnouncements } from "@/components/AdminAnnouncements";
 import { AdminShowEditor } from "@/components/AdminShowEditor";
 import { AdminRewards } from "@/components/AdminRewards";
 import { AdminDonations } from "@/components/AdminDonations";
+import { AdminDesktopApp } from "@/components/AdminDesktopApp";
 import { AdminFeedback } from "@/components/AdminFeedback";
 import { AdminSpin } from "@/components/AdminSpin";
 import { CinemaAdmin } from "@/components/CinemaAdmin";
@@ -692,6 +693,7 @@ const Admin = () => {
 
           <TabsContent value="platform">
             <div className="max-w-xl space-y-6">
+              <AdminDesktopApp />
               <div className="bg-[#0f0f0f] border border-white/10 rounded-2xl p-6">
                 <h2 className="font-display text-2xl mb-1 flex items-center gap-2"><ServerCog className="h-5 w-5 text-[#ffcc00]" /> Mod mentenanță</h2>
                 <p className="text-sm text-white/50 mb-5">Când e activat, întreaga platformă este blocată pentru utilizatori. Doar adminii se pot loga și naviga.</p>
