@@ -1,0 +1,38 @@
+{
+  "summary": "Tested Desktop App settings feature end-to-end. Backend: 8/9 pytest pass (GET defaults, 401/403 auth, 400 validation for empty version / non-http url, save+persist, notify=false creates none, notify=true creates exactly one broadcast notif with user_id null, category 'update', cta_link '/profile?tab=desktop', visible to regular TEST_ user). One failure: size cannot be cleared (falls back to '99 MB'). Frontend: Admin > Platformă card prefilled, save shows toast, invalid url shows error toast, toggle works; /profile?tab=desktop opens tab directly with updated version text and download href = saved url; bell notification shows with 'Descarcă acum' CTA navigating to /profile?tab=desktop and opening the tab when coming from another page. BUG: CTA clicked while already on /profile changes URL but tab does NOT switch.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/settings/desktop-app", "issue": "Uses `s.get(k) or v`, so saving size='' (field is optional) still returns default '99 MB'. Admin cannot clear size. Use `s.get(k, v)` when the key exists (only fall back if the doc/key is missing)."},
+      {"endpoint": "POST /api/admin/settings/desktop-app", "issue": "No dedup on notify=true: saving twice with same version broadcasts duplicate notifications to ALL users. Consider only notifying when version changed."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Profile.jsx Tabs", "issue": "Tabs use uncontrolled defaultValue read from window.location.search on mount only. When user is already on /profile and clicks the notification CTA (navigate('/profile?tab=desktop')), URL changes but tab stays on previous tab (verified: tab-desktop data-state=inactive). Make Tabs controlled via useSearchParams (value={searchParams.get('tab')||'favorites'}, onValueChange sets param).", "selector": "[data-testid='tab-desktop']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin > Platformă > Aplicație Desktop", "issues": ["'Notifică toți utilizatorii' toggle defaults to ON - any save (e.g. fixing a typo in the URL) broadcasts to ALL users. Safer default is OFF.", "Notification CTA button in NavBar lacks data-testid."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_desktop_app.py", "/app/test_reports/pytest/desktop_app.xml"],
+  "action_items": [
+    "Fix Profile tabs to react to ?tab changes (controlled Tabs with useSearchParams)",
+    "GET /settings/desktop-app: don't fall back to default when stored size is empty string",
+    "Consider default notify=false in AdminDesktopApp and/or skip broadcast if version unchanged",
+    "Add data-testid to notification CTA button in NavBar.jsx",
+    "NOTE: Vision page setting is currently ENABLED (settings.vision_page enabled=true, updated_at 2026-11-05T15:09:16, predates this test run). Review request says it must stay OFF - I did NOT change it; main agent should verify/turn it off if intended. It blocks non-admin login (503)."
+  ],
+  "critical_code_review_comments": [
+    "Profile.jsx Tabs defaultValue from window.location.search is non-reactive (see ui_bugs)",
+    "server.py get_desktop_app `or` fallback masks intentionally empty values",
+    "server.py is 6200+ lines - should be split into routers"
+  ],
+  "updated_files": ["/app/backend/tests/test_desktop_app.py"],
+  "success_rate": {"backend": "89% (8/9)", "frontend": "90% (all flows pass except CTA tab switch when already on /profile)"},
+  "seed_data_creation": "None persisted. Cleanup done: desktop app restored to 0.4.0 / 99 MB / original url (notify=false); test notifications deleted (0 'Cartoonix Desktop*' notifications remain); TEST_ users (test_desk_*) deleted. Maintenance OFF. Vision page was already ON before testing and was left untouched.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Vision page is ON so non-admin login returns 503; test_desktop_app.py mints a JWT (JWT_SECRET from backend/.env) for the TEST_ user as fallback. Fixture restores desktop defaults and deletes created notifications by id. UI tested as admin (broadcast notifications visible to admin too)."
+}

@@ -8,7 +8,7 @@ const input = "w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 tex
 
 export const AdminDesktopApp = () => {
   const [form, setForm] = useState({ version: "", size: "", url: "" });
-  const [notify, setNotify] = useState(true);
+  const [notify, setNotify] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -21,7 +21,7 @@ export const AdminDesktopApp = () => {
     setSaving(true);
     try {
       const res = await api.post("/admin/settings/desktop-app", { ...form, notify });
-      toast.success(res.data.notified ? "Salvat. Toți utilizatorii au primit notificarea." : "Aplicația desktop a fost actualizată");
+      toast.success(res.data.notified ? "Salvat. Toți utilizatorii au primit notificarea." : notify ? "Salvat. Notificare netrimisă: versiunea nu s-a schimbat." : "Aplicația desktop a fost actualizată");
     } catch (e) {
       toast.error(e.response?.data?.detail || "Eroare la salvare");
     } finally {

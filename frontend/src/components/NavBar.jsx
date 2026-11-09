@@ -251,6 +251,7 @@ export const NavBar = () => {
                           )}
                           {n.cta_label && (
                             <button
+                              data-testid={`notif-cta-${n.id}`}
                               onClick={() => navigate(n.cta_link || "/home")}
                               className="mt-3 w-full py-2.5 rounded-lg bg-white/10 hover:bg-white/20 text-sm font-semibold transition-colors duration-200"
                             >

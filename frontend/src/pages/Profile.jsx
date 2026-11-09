@@ -66,6 +66,7 @@ const Profile = () => {
   const { user, setUser, refreshUser } = useAuth();
   const { favorites, playlists, toggleFavorite, removeFavorite, deletePlaylist, togglePlaylistItem } = useLibrary();
   const navigate = useNavigate();
+  const location = useLocation();
   const [avatar] = useState(user?.avatar || AVATAR_SEEDS[0]);
   const [wallet, setWallet] = useState({ points: user?.points ?? 0, history: [] });
   const [tickets, setTickets] = useState([]);
@@ -261,7 +262,7 @@ const Profile = () => {
 
         <div className="max-w-5xl mx-auto px-4 md:px-12 py-8">
 
-          <Tabs defaultValue={new URLSearchParams(window.location.search).get("tab") || "favorites"}>
+          <Tabs value={new URLSearchParams(location.search).get("tab") || "favorites"} onValueChange={(v) => navigate(`/profile?tab=${v}`, { replace: true })}>
             <TabsList className="bg-[#141414] border border-white/10">
               <TabsTrigger value="favorites" data-testid="tab-favorites" className="data-[state=active]:bg-[#ec1c24] data-[state=active]:text-white">
                 <Heart className="h-4 w-4 mr-2" /> Favorite
