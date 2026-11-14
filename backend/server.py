@@ -53,7 +53,7 @@ JWT_ALGORITHM = "HS256"
 # ---------- Stripe (BYOK - own key) config ----------
 # Accept both STRIPE_API_KEY and STRIPE_SECRET_KEY env names for flexibility.
 STRIPE_API_KEY = os.environ.get("STRIPE_API_KEY") or os.environ.get("STRIPE_SECRET_KEY", "")
-PLUS_PRICE_RON = float(os.environ.get("PLUS_PRICE_RON", "100"))
+PLUS_PRICE_RON = float(os.environ.get("PLUS_PRICE_RON", "50"))
 PLUS_CURRENCY = os.environ.get("PLUS_CURRENCY", "ron").lower()
 # Mesaj afișat pe pagina de plată Stripe (deasupra butonului de plată). Editabil din .env.
 PLUS_CHECKOUT_MESSAGE = os.environ.get(
@@ -4423,7 +4423,7 @@ PROMO_DEFAULT = {
     "title": "Ofertă PLUS – acces și la aplicația TV!",
     "message": "Abonează-te acum la Cartoonix PLUS și primești GRATUIT acces și la aplicația de TV! Plată unică, o singură dată.",
     "price_old": "80 RON",
-    "price_new": "100 RON",
+    "price_new": "50 RON",
     "cta_label": "Vreau PLUS",
     "cta_link": "/plus",
 }

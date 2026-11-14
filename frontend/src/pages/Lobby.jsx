@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { NavBar } from "@/components/NavBar";
 import { api } from "@/lib/api";
@@ -34,43 +34,6 @@ const IMG = {
  * left-aligned content overlay, glowing colored border,
  * bold CTA button in the accent color.
  */
-const nextNov1 = () => {
-  const now = new Date();
-  let t = new Date(now.getFullYear(), 10, 1, 0, 0, 0, 0); // 10 = Noiembrie
-  if (t.getTime() <= now.getTime()) t = new Date(now.getFullYear() + 1, 10, 1, 0, 0, 0, 0);
-  return t;
-};
-
-const LandCountdown = () => {
-  const target = useMemo(() => nextNov1(), []);
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, []);
-  const diff = Math.max(0, target.getTime() - now);
-  const d = Math.floor(diff / 86400000);
-  const h = Math.floor((diff % 86400000) / 3600000);
-  const m = Math.floor((diff % 3600000) / 60000);
-  const s = Math.floor((diff % 60000) / 1000);
-  const parts = [
-    { v: d, l: "ZILE" },
-    { v: h, l: "ORE" },
-    { v: m, l: "MIN" },
-    { v: s, l: "SEC" },
-  ];
-  return (
-    <div data-testid="land-countdown" className="flex items-center gap-1.5">
-      {parts.map((p, i) => (
-        <div key={i} className="flex flex-col items-center justify-center px-2 py-1 rounded-lg bg-black/55 border border-[#ff7a18]/55 min-w-[36px] shadow-[0_0_14px_rgba(255,122,24,0.25)]">
-          <span className="font-display text-lg leading-none text-[#ff7a18] tabular-nums">{String(p.v).padStart(2, "0")}</span>
-          <span className="text-[8px] text-white/55 tracking-[0.12em] mt-0.5">{p.l}</span>
-        </div>
-      ))}
-    </div>
-  );
-};
-
 const LobbyCard = ({
   testid,
   title,
@@ -273,13 +236,13 @@ const Lobby = () => {
           <LobbyCard
             testid="lobby-cartoonixland"
             title="Cartoonix Land"
-            desc="Alătură-te evenimentului de Halloween!"
-            cta="Explorează"
+            desc="Universul virtual Cartoonix. Informații în curând."
+            cta="În curând"
             accent="#ff7a18"
             image={IMG.cartoonixland}
             span="lg:col-span-1"
-            countdown={<LandCountdown />}
-            onClick={() => navigate("/halloween")}
+            locked
+            badge="ÎN CURÂND"
           />
           <LobbyCard
             testid="lobby-clasament"
