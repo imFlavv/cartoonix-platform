@@ -2171,9 +2171,6 @@ async def live_channels(user: dict = Depends(get_current_user)):
     for i, ch in enumerate(names):
         channels.append({"key": ch, "name": ch,
                          "label": f"Canalul {i + 2:02d} · {ch}", "count": counts[ch]})
-    channels.append({"key": HALLOWEEN_CHANNEL_KEY, "name": "Halloween",
-                     "label": f"Canalul {len(channels) + 1:02d} · Halloween", "count": 0,
-                     "coming_soon": True, "launch_date": HALLOWEEN_LAUNCH_DATE})
     return {"channels": channels}
 
 

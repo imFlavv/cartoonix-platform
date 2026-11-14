@@ -224,3 +224,4 @@ See /app/memory/test_credentials.md
 - Backlog: optionally reject API calls of already-logged-in non-admins while vision/maintenance mode is ON.
 - 2026-06: Profile tab "Aplicație Desktop" (components/DesktopAppTab.jsx) – download Cartoonix Desktop 0.4.0 (.exe ~99MB, hosted at external public asset URL, NOT in repo due to GitHub 100MB limit). To update version: edit DESKTOP_APP constant.
 - 2026-06: Desktop app info editable from Admin > Platformă (components/AdminDesktopApp.jsx; GET /api/settings/desktop-app, POST /api/admin/settings/desktop-app). Optional "Notifică toți utilizatorii" (default OFF) sends one broadcast notification (category update, CTA /profile?tab=desktop) only when version changes. Profile tabs are now URL-controlled (?tab=). Tested iteration_14 + fixes self-verified.
+- 2026-06: Removed Halloween button from header (NavBar) and Halloween 'coming soon' channel from Live TV (/api/live/channels). /halloween page itself still exists via direct URL.
