@@ -2034,8 +2034,6 @@ async def _build_live_index():
 
 @api_router.get("/live/playlist")
 async def live_playlist(count: int = 60, user: dict = Depends(get_current_user)):
-    if not user_is_plus(user):
-        raise HTTPException(status_code=403, detail="Cartoonix TV este disponibil momentan doar pentru membrii PLUS (BETA)")
     now = _time.time()
     if now - _LIVE_CACHE["at"] > _LIVE_TTL_SECONDS or not _LIVE_CACHE["items"]:
         _LIVE_CACHE["items"] = await _build_live_index()
@@ -2153,8 +2151,6 @@ def _slim_sched_item(x: dict) -> dict:
 
 @api_router.get("/live/channels")
 async def live_channels(user: dict = Depends(get_current_user)):
-    if not user_is_plus(user):
-        raise HTTPException(status_code=403, detail="Cartoonix TV este disponibil momentan doar pentru membrii PLUS (BETA)")
     now = _time.time()
     if now - _LIVE_CACHE["at"] > _LIVE_TTL_SECONDS or not _LIVE_CACHE["items"]:
         _LIVE_CACHE["items"] = await _build_live_index()
@@ -2176,8 +2172,6 @@ async def live_channels(user: dict = Depends(get_current_user)):
 
 @api_router.get("/live/now")
 async def live_now(channel: Optional[str] = None, user: dict = Depends(get_current_user)):
-    if not user_is_plus(user):
-        raise HTTPException(status_code=403, detail="Cartoonix TV este disponibil momentan doar pentru membrii PLUS (BETA)")
     if (channel or "").strip() == HALLOWEEN_CHANNEL_KEY:
         return {"current": None, "next": [], "prev": None, "index": 0, "offset": 0,
                 "coming_soon": True, "launch_date": HALLOWEEN_LAUNCH_DATE}
@@ -2213,8 +2207,6 @@ class LiveDurationReport(BaseModel):
 
 @api_router.post("/live/report_duration")
 async def live_report_duration(body: LiveDurationReport, user: dict = Depends(get_current_user)):
-    if not user_is_plus(user):
-        raise HTTPException(status_code=403, detail="Doar PLUS")
     global _LIVE_DUR_VER
     secs = int(round(body.duration))
     if secs < LIVE_MIN_DURATION or secs > 7200:

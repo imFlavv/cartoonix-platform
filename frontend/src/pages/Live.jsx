@@ -60,7 +60,7 @@ const roNum = (n) => (n || 0).toLocaleString("ro-RO");
 const Live = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const isPlus = !!user?.plus;
+  const isLoggedIn = !!user;
 
   const [nowData, setNowData] = useState(null);
   const [volume, setVolume] = useState(1);
@@ -120,17 +120,17 @@ const Live = () => {
   }, [channel]);
 
   useEffect(() => {
-    if (!isPlus) return;
+    if (!isLoggedIn) return;
     api.get("/live/channels").then(({ data }) => setChannels(data.channels || [])).catch(() => {});
-  }, [isPlus]);
+  }, [isLoggedIn]);
 
   useEffect(() => {
-    if (!isPlus) return;
+    if (!isLoggedIn) return;
     const load = () => api.get("/chat/stats").then((r) => setChatOnline(r.data?.online_chat ?? 0)).catch(() => {});
     load();
     const t = setInterval(load, 20000);
     return () => clearInterval(t);
-  }, [isPlus]);
+  }, [isLoggedIn]);
 
   useEffect(() => {
     seekedSrcRef.current = null;
@@ -140,11 +140,11 @@ const Live = () => {
   }, [channel]);
 
   useEffect(() => {
-    if (!isPlus) return;
+    if (!isLoggedIn) return;
     fetchNow();
     const t = setInterval(fetchNow, POLL_MS);
     return () => clearInterval(t);
-  }, [isPlus, fetchNow]);
+  }, [isLoggedIn, fetchNow]);
 
   const reportDuration = useCallback(() => {
     const v = videoRef.current;
@@ -267,8 +267,8 @@ const Live = () => {
     if (v?.requestFullscreen) { try { v.requestFullscreen(); } catch (_) { /* noop */ } }
   };
 
-  // ---- BETA gate — Cartoonix TV is PLUS-only for now ----
-  if (!isPlus) {
+  // ---- gate — Cartoonix TV is available to every registered account ----
+  if (!isLoggedIn) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] text-white" data-testid="live-beta-gate">
         <NavBar />

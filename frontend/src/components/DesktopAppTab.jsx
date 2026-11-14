@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
-import { Download, Monitor, Tv, Trophy, MessageCircle, ShieldCheck } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Download, Monitor, Tv, Trophy, MessageCircle, ShieldCheck, Crown } from "lucide-react";
 import { api } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 
 const FEATURES = [
   [Tv, "Canale LIVE cu desenele preferate"],
@@ -17,6 +19,7 @@ const STEPS = [
 
 export const DesktopAppTab = () => {
   const [app, setApp] = useState(null);
+  const { user } = useAuth();
   useEffect(() => {
     api.get("/settings/desktop-app").then((res) => setApp(res.data)).catch(() => {});
   }, []);
@@ -35,6 +38,16 @@ export const DesktopAppTab = () => {
         </div>
       </div>
       <p className="text-white/70 mt-5 text-sm md:text-base">Noua experiență Cartoonix pe calculator: urmărește desenele LIVE, ca pe canalele TV cu care am crescut, direct din aplicație.</p>
+      <div data-testid="desktop-app-beta-notice" className="mt-5 flex items-start gap-3 p-4 rounded-xl bg-[#ffcc00]/10 border border-[#ffcc00]/30">
+        <Crown className="h-5 w-5 text-[#ffcc00] shrink-0 mt-0.5" />
+        <div className="text-sm">
+          <p className="font-semibold text-[#ffcc00]">Versiune BETA · doar pentru membrii PLUS</p>
+          <p className="text-white/70 mt-0.5">Momentan te poți conecta în aplicația desktop doar cu un cont Cartoonix PLUS activ. Accesul se va deschide pentru toți după perioada de testare.</p>
+          {!user?.plus && (
+            <Link to="/plus" data-testid="desktop-app-plus-link" className="inline-block mt-2 text-[#ffcc00] font-semibold hover:underline">Devino membru PLUS →</Link>
+          )}
+        </div>
+      </div>
       <ul className="mt-5 space-y-2.5">
         {FEATURES.map(([Icon, text]) => (
           <li key={text} className="flex items-center gap-3 text-sm text-white/80">
