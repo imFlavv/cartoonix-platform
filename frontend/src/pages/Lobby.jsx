@@ -237,7 +237,7 @@ const Lobby = () => {
             testid="lobby-cartoonixland"
             title="Cartoonix Land"
             desc="Universul virtual Cartoonix. Informații în curând."
-            cta="În curând"
+            cta="Indisponibil momentan"
             accent="#ff7a18"
             image={IMG.cartoonixland}
             span="lg:col-span-1"

@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { api, resolveVideoUrl } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { NavBar } from "@/components/NavBar";
-import { PlusIcon } from "@/components/PlusIcon";
 import {
   Volume2, VolumeX, Maximize, Radio, Tv, Lock, Sparkles, Play, Pause, Cast,
   CalendarClock, Heart, Share2, PictureInPicture2, ChevronLeft, ChevronRight,
@@ -287,20 +286,20 @@ const Live = () => {
               <div className="mx-auto mb-5 h-16 w-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
                 <Lock className="h-8 w-8 text-[#ffcc00]" />
               </div>
-              <h1 className="font-display text-3xl md:text-4xl mb-3">Cartoonix TV este în BETA</h1>
+              <h1 className="font-display text-3xl md:text-4xl mb-3">Conectează-te pentru Cartoonix TV</h1>
               <p className="text-white/60 mb-2">
                 Canalul nostru non-stop care redă desene ca la televizor, sincronizat pentru toți, este
-                momentan disponibil <b className="text-white">exclusiv pentru membrii Cartoonix PLUS</b>.
+                disponibil <b className="text-white">pentru toate conturile Cartoonix</b>.
               </p>
               <p className="text-white/40 text-sm mb-7">
-                Testăm funcționalitatea și o vom deschide pentru toată lumea în curând. Mulțumim pentru răbdare! 📺
+                Intră în cont sau creează-ți unul gratuit ca să te uiți.
               </p>
               <button
                 data-testid="live-beta-upsell"
-                onClick={() => navigate("/plus")}
+                onClick={() => navigate("/login")}
                 className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full bg-[#ffcc00] text-black font-bold hover:brightness-110 transition-all duration-200"
               >
-                <PlusIcon className="h-5 w-5" /> Deblochează cu Cartoonix PLUS
+                Conectează-te
               </button>
             </div>
           </div>

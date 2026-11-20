@@ -1,0 +1,32 @@
+{
+  "summary": "OIDC provider (Cartoonix Land) + earlier batch verified. Backend: test_oidc.py re-run 37/37 passed. UI E2E (Playwright, redirect_uri intercepted via page.route): logged-out /api/oidc/authorize -> /oauth/authorize -> /login?returnTo -> login -> consent 'Continui ca TEST_Jucator în Cartoonix Land?' -> Permite -> redirect_uri with code(64 chars), original state, iss=issuer. Refuză -> error=access_denied + state + iss. Already logged-in goes straight to consent; 'Schimbă contul' clears cx_token and goes to /login?returnTo. Unknown client_id and wrong redirect_uri show oauth-error and stay on page. Maintenance ON: game login via returnTo reaches consent and approve works (only sessionStorage cx_oidc_token, no cx_token); /home still shows maintenance page; plain /login and returnTo=/admin still show maintenance error. Vision page ON (API): purpose=oidc -> oidc_token, normal login 503, oidc_token rejected by /auth/me (401). Regression: normal login -> /home; returnTo=https://evil.com, /admin, //evil.com all -> /home; /register loads. Batch: header logo /cartoonix-logo.webp (classic); lobby-cartoonixland shows ÎN CURÂND, no countdown, cursor not-allowed, click does nothing; /live renders live-page for non-PLUS user; Profile > Aplicație Desktop shows desktop-app-beta-notice + desktop-app-plus-link; /plus shows only 50 RON; PlanChoiceModal and Stripe unit_amount (PLUS_PRICE_RON default 50) checked in code only (no Stripe call).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/auth/login", "issue": "No brute-force lockout: 7 wrong passwords in a row all returned 401 and the correct password then worked (200). This was already there before OIDC, but the login is now also the way into the game. Sessions use Bearer tokens in localStorage, not httpOnly cookies (also pre-existing)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Live.jsx logged-out gate (live-beta-gate)", "issues": ["Text still says it is available 'exclusiv pentru membrii Cartoonix PLUS'. The route is behind ProtectedRoute so users can't reach it, but the copy is out of date."]},
+      {"screen": "Lobby Cartoonix Land card", "issues": ["Shows 'ÎN CURÂND' twice (badge and CTA). It uses the image /land-lobby-hw.webp, which looks like the Halloween version, while the logo was switched back to classic."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_oidc.py", "/app/backend/tests/iter15_oidc_ui_setup.py", "/app/test_reports/pytest/oidc_iter15.xml"],
+  "action_items": [
+    "Optional: add login rate limiting or lockout (for example 5 failed attempts per email+IP over 15 minutes), now that the game also uses this login",
+    "Optional: update the out-of-date PLUS-only text in the Live.jsx logged-out gate"
+  ],
+  "critical_code_review_comments": [
+    "OAuthAuthorize.jsx: when there is no token, a valid request is sent to login without the user seeing an error. That is fine. However, appToken() uses the oidc token before cx_token, and that old oidc token stays in sessionStorage for up to 10 minutes after a denied request, which is acceptable.",
+    "server.py is very large (>6000 lines). Moving OIDC into its own module was a good split."
+  ],
+  "updated_files": ["/app/backend/tests/iter15_oidc_ui_setup.py (new helper: create/url/cleanup)"],
+  "success_rate": {"backend": "100% (37/37)", "frontend": "100% of requested flows"},
+  "seed_data_creation": "Temporary: oidc client TEST_ui_land and user test_oidcui_9381b3@example.com were created and then deleted along with their oidc_codes. Maintenance and vision_page were turned on for the test and are now both enabled:false.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Use tests/iter15_oidc_ui_setup.py: 'create' (client TEST_ui_land, redirect https://example.com/cartoonix/callback, user pw TestPass123!), 'url' (prints authorize query), 'cleanup <uid>'. In Playwright, intercept https://example.com/** with page.route to capture the callback."
+}
