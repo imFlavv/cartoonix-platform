@@ -15,6 +15,7 @@ from typing import List, Optional
 from datetime import datetime, timezone, timedelta
 from bson import ObjectId
 from fastapi.responses import StreamingResponse, Response
+from oidc_provider import create_oidc_router, ensure_oidc_indexes
 import logging
 import bcrypt
 import jwt
@@ -142,6 +143,12 @@ def create_access_token(user_id: str, email: str) -> str:
         "exp": datetime.now(timezone.utc) + timedelta(days=7),
         "type": "access",
     }
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+
+# Short-lived token valid ONLY for approving an OIDC (Cartoonix Land) login while the site is closed.
+def create_oidc_login_token(user_id: str) -> str:
+    payload = {"sub": user_id, "exp": datetime.now(timezone.utc) + timedelta(minutes=10), "type": "oidc_login"}
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 
@@ -344,6 +351,8 @@ async def get_current_user(creds: Optional[HTTPAuthorizationCredentials] = Depen
     token = creds.credentials
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        if payload.get("type", "access") != "access":
+            raise HTTPException(status_code=401, detail="Token invalid")
         user = await find_user_by_id(payload["sub"])
         if not user:
             raise HTTPException(status_code=401, detail="Utilizator inexistent")
@@ -359,6 +368,22 @@ async def get_current_user(creds: Optional[HTTPAuthorizationCredentials] = Depen
 async def require_admin(user: dict = Depends(get_current_user)) -> dict:
     if user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Acces interzis")
+    return user
+
+
+async def resolve_oidc_app_user(authorization: Optional[str]) -> dict:
+    """Bearer app token (normal session or oidc_login) -> user, for the OIDC consent approval."""
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(status_code=401, detail="Nu ești autentificat")
+    try:
+        payload = jwt.decode(authorization[7:].strip(), JWT_SECRET, algorithms=[JWT_ALGORITHM])
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Sesiune expirată")
+    if payload.get("type", "access") not in ("access", "oidc_login"):
+        raise HTTPException(status_code=401, detail="Token invalid")
+    user = await find_user_by_id(payload.get("sub", ""))
+    if not user:
+        raise HTTPException(status_code=401, detail="Utilizator inexistent")
     return user
 
 
@@ -398,6 +423,7 @@ class RegisterVerifyInput(BaseModel):
 class LoginInput(BaseModel):
     email: EmailStr
     password: str
+    purpose: Optional[str] = None
 
 
 class AvatarInput(BaseModel):
@@ -690,9 +716,13 @@ async def login(data: LoginInput, request: Request):
         reason = user.get("rejection_reason") or "Nespecificat"
         raise HTTPException(status_code=403, detail=f"Contul tău a fost respins. Motiv: {reason}")
     settings = await db.settings.find_one({"key": "maintenance"})
+    vision = await db.settings.find_one({"key": "vision_page"})
+    site_closed = bool((settings and settings.get("enabled")) or (vision and vision.get("enabled")))
+    if site_closed and data.purpose == "oidc" and user.get("role") != "admin":
+        # Cartoonix Land works independently of the site being closed: issue a consent-only token.
+        return {"oidc_token": create_oidc_login_token(uid_of(user)), "name": user_name(user)}
     if settings and settings.get("enabled") and user.get("role") != "admin":
         raise HTTPException(status_code=503, detail="Platforma este momentan în mentenanță. Revenim curând!")
-    vision = await db.settings.find_one({"key": "vision_page"})
     if vision and vision.get("enabled") and user.get("role") != "admin":
         raise HTTPException(status_code=503, detail="Cartoonix pregătește o nouă etapă. Momentan conectarea este dezactivată.")
     now_iso = datetime.now(timezone.utc).isoformat()
@@ -5958,6 +5988,7 @@ async def admin_cinema_clear(hall: int, admin: dict = Depends(require_admin)):
 
 
 app.include_router(api_router)
+app.include_router(create_oidc_router(db, find_user_by_id, uid_of, user_name, resolve_oidc_app_user))
 
 app.add_middleware(
     CORSMiddleware,
@@ -6072,6 +6103,10 @@ async def startup():
             await db[coll].create_index(field, **opts)
         except Exception as e:
             logger.warning(f"Could not create index {coll}.{field}: {e}")
+    try:
+        await ensure_oidc_indexes(db)
+    except Exception as e:
+        logger.warning(f"Could not create OIDC indexes: {e}")
 
     # Drop erroneous legacy unique `id_1` indexes (from PHP migration). Our schema derives `id`
     # from Mongo `_id`, so a unique index on a (usually missing/null) `id` field breaks all inserts

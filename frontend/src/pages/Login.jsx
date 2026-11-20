@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { api, formatApiErrorDetail } from "@/lib/api";
 import { LOGO_TRANSPARENT } from "@/data/constants";
@@ -8,6 +8,10 @@ import { toast } from "sonner";
 const Login = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const rawReturn = searchParams.get("returnTo") || "";
+  // Only the OIDC consent page is an allowed return target (prevents open redirects).
+  const oidcReturn = rawReturn.startsWith("/oauth/authorize?") ? rawReturn : "";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -21,9 +25,9 @@ const Login = () => {
     setError("");
     setBusy(true);
     try {
-      await login(email, password);
+      await login(email, password, oidcReturn ? "oidc" : undefined);
       toast.success("Bine ai revenit!");
-      navigate("/home");
+      navigate(oidcReturn || "/home");
     } catch (err) {
       setError(formatApiErrorDetail(err.response?.data?.detail) || err.message);
     } finally {

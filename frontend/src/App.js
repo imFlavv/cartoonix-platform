@@ -14,6 +14,7 @@ import { api } from "@/lib/api";
 import Home from "@/pages/Home";
 import Browse from "@/pages/Browse";
 import Login from "@/pages/Login";
+import OAuthAuthorize from "@/pages/OAuthAuthorize";
 import Register from "@/pages/Register";
 import ResetPassword from "@/pages/ResetPassword";
 import ShowDetail from "@/pages/ShowDetail";
@@ -64,7 +65,7 @@ const Live = lazy(() => import("@/pages/Live"));
 // Cartoonix Wiki is a fully standalone public section — no chat widget / announcement popup there.
 const GlobalWidgets = () => {
   const { pathname } = useLocation();
-  if (pathname.startsWith("/wiki")) return null;
+  if (pathname.startsWith("/wiki") || pathname.startsWith("/oauth")) return null;
   return (
     <>
       <AnnouncementPopup />
@@ -116,6 +117,7 @@ function App() {
             <Route path="/home" element={<Home />} />
             <Route path="/browse" element={<Browse />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/oauth/authorize" element={<OAuthAuthorize />} />
             <Route path="/register" element={<Register />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/plus" element={<Plus />} />

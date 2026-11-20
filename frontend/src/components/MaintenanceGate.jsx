@@ -28,6 +28,8 @@ export const MaintenanceGate = ({ children }) => {
   if (loading || enabled === null) return children;
 
   const isAdmin = user?.role === "admin";
+  // Cartoonix Land login works even while the site is closed.
+  if (location.pathname === "/oauth/authorize") return children;
   if (vision && !isAdmin) {
     if (location.pathname === "/login") return children;
     return <VisionPage />;

@@ -4,7 +4,7 @@ import LockScreen from "@/pages/LockScreen";
 import PendingAccount from "@/pages/PendingAccount";
 
 // Paths reachable without being logged in.
-const PUBLIC_PATHS = ["/login", "/register", "/reset-password", "/termeni", "/confidentialitate", "/regulament", "/cookies", "/cast-test", "/changelog"];
+const PUBLIC_PATHS = ["/login", "/register", "/reset-password", "/termeni", "/confidentialitate", "/regulament", "/cookies", "/cast-test", "/changelog", "/oauth/authorize"];
 // Paths a pending/rejected user may still reach (so they can finish a PLUS payment).
 const PENDING_ALLOWED = ["/register", "/payment/success", "/payment/cancel"];
 

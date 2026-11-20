@@ -20,8 +20,14 @@ export const AuthProvider = ({ children }) => {
       .finally(() => setLoading(false));
   }, []);
 
-  const login = async (email, password) => {
-    const { data } = await api.post("/auth/login", { email, password });
+  const login = async (email, password, purpose) => {
+    const { data } = await api.post("/auth/login", { email, password, ...(purpose ? { purpose } : {}) });
+    if (data.oidc_token) {
+      // Site closed: token valid only for approving the Cartoonix Land login.
+      sessionStorage.setItem("cx_oidc_token", data.oidc_token);
+      sessionStorage.setItem("cx_oidc_name", data.name || "");
+      return null;
+    }
     localStorage.setItem("cx_token", data.token);
     setUser(data.user);
     return data.user;
